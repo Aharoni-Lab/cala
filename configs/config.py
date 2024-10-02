@@ -8,9 +8,9 @@ import yaml
 @dataclass
 class Config:
     video_directory: Path
-    video_files: Optional[List[Path]]
     data_directory: Path
-    data_name: Optional[str]
+    video_files: Optional[List[Path]] = None
+    data_name: Optional[str] = None
 
     @classmethod
     def load_config(cls):
