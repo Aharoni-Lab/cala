@@ -5,6 +5,10 @@
 ## Requirements
 
 ## Installation
+https://pypi.org/project/cala/0.1.0/
+```shell
+pip install cala==0.1.0
+```
 
 ## Usage
 
