@@ -9,6 +9,8 @@ from numpydantic.interface.video import VideoProxy
 from pydantic import BaseModel
 from tqdm import tqdm
 
+from configs.config import CONFIG
+
 
 class VideoMetadata(BaseModel):
     num_frames: int
@@ -54,8 +56,8 @@ class DataIO:
 
     def save_data(
         self,
-        save_directory: Path,
-        save_name: str,
+        data_directory: Path,
+        data_name: str,
         chunk_size: int = 1024,
         dtype: np.dtype = np.uint8,
     ) -> None:
@@ -64,7 +66,7 @@ class DataIO:
         height = self.metadata.height
 
         zarr_store = zarr.open(
-            store=f"{save_directory / save_name}.zarr",
+            store=f"{data_directory / data_name}.zarr",
             mode="w",
             shape=(n_frames, height, width),
             chunks=(chunk_size, height, width),
@@ -86,13 +88,13 @@ class DataIO:
 
 def main():
     data_io = DataIO(
-        video_directory=Path("/Users/raymond/Documents/GitHub/cala/data"),
-        video_files=["msCam1.avi", "msCam2.avi", "msCam3.avi"],
+        video_directory=CONFIG.video_directory,
+        video_files=CONFIG.video_files,
     )
 
     data_io.save_data(
-        save_directory=Path("/Users/raymond/Documents/GitHub/cala/data"),
-        save_name="temp",
+        data_directory=CONFIG.data_directory,
+        data_name=CONFIG.data_name,
     )
 
 
