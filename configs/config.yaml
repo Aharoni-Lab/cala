@@ -1,0 +1,7 @@
+video_directory: /Users/raymond/Documents/GitHub/cala/data
+video_files:
+  - msCam1.avi
+  - msCam2.avi
+  - msCam3.avi
+data_directory: /Users/raymond/Documents/GitHub/cala/data
+data_name: initial_standardization
