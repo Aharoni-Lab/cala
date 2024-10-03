@@ -1,7 +1,13 @@
-import logging
 import pytest
+import logging
 from src.log import setup_logger
 
+@pytest.fixture
+def log_file(tmp_path):
+    """
+    Pytest fixture to create a temporary log file.
+    """
+    return tmp_path / "test.log"
 
 def test_logger_initialization(caplog):
     """
@@ -11,42 +17,60 @@ def test_logger_initialization(caplog):
         logger = setup_logger()
         logger.info("This is a test log message.")
 
-    # Check that the message was logged
     assert "This is a test log message." in caplog.text
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == "INFO"
 
-
-def test_logger_with_file(tmp_path):
+@pytest.mark.parametrize("level, level_name", [
+    (logging.DEBUG, "DEBUG"),
+    (logging.INFO, "INFO"),
+    (logging.WARNING, "WARNING"),
+    (logging.ERROR, "ERROR"),
+    (logging.CRITICAL, "CRITICAL"),
+])
+def test_logger_with_all_levels(caplog, level, level_name):
     """
-    Test that the logger writes to a file as expected.
+    Test logger setup with different logging levels.
     """
-    # Create a temporary log file using tmp_path
-    log_file = tmp_path / "test_log_file.log"
-    logger = setup_logger(log_file=log_file, level=logging.INFO)
+    logger = setup_logger(level=level)
 
-    # Log a message
-    logger.info("Logging to a file!")
+    with caplog.at_level(level):
+        logger.log(level, f"Testing {level_name} level")
 
-    # Ensure the log file exists
+    assert f"Testing {level_name} level" in caplog.text
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelname == level_name
+
+
+def test_logger_with_file_handler(log_file):
+    """
+    Test logger setup with file handler.
+    """
+    logger = setup_logger(log_file=log_file)
+
+    logger.info("Log message to file")
+
     assert log_file.exists()
 
-    # Read the log file and check contents
-    with log_file.open() as f:
+    # Check if the log message is written to the file
+    with open(log_file, "r") as f:
         logs = f.read()
 
-    assert "Logging to a file!" in logs
+    assert "Log message to file" in logs
+    assert "INFO" in logs
 
-
-@pytest.mark.parametrize("log_level", [logging.DEBUG, logging.INFO, logging.WARNING])
-def test_logger_levels(caplog, log_level):
+def test_logger_with_different_name(caplog):
     """
-    Test that different log levels work as expected.
+    Test logger setup with a different logger name.
     """
-    with caplog.at_level(log_level):
-        logger = setup_logger(level=log_level)
-        logger.log(log_level, f"This is a {logging.getLevelName(log_level)} log")
+    logger_name = "custom_logger"
+    logger = setup_logger(name=logger_name)
 
-    # Check that the message was logged at the correct level
-    assert f"This is a {logging.getLevelName(log_level)} log" in caplog.text
-    assert caplog.records[0].levelno == log_level
+    with caplog.at_level(logging.INFO):
+        logger.info("Custom logger test")
+
+    assert "Custom logger test" in caplog.text
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.name == logger_name
