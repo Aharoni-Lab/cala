@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from numcodecs import blosc
 
-from src.data_io import DataIO, VideoMetadata
+from src.cala.data_io import DataIO, VideoMetadata
 
 
 

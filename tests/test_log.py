@@ -1,6 +1,6 @@
 import pytest
 import logging
-from src.log import setup_logger
+from src.cala.log import setup_logger
 
 @pytest.fixture
 def log_file(tmp_path):

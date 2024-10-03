@@ -9,7 +9,7 @@ from numpydantic.interface.video import VideoProxy
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from configs.config import CONFIG
+from src.cala.config import CONFIG
 
 
 class VideoMetadata(BaseModel):
