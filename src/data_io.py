@@ -42,7 +42,7 @@ class DataIO:
             video = self._load_video_metadata(video_path)
             num_frames += video.n_frames
             if idx > 0:
-                if (height, width, channels) != video.shape[1:4]:
+                if (height, width, channels) != video.shape[1:]:
                     raise Exception(
                         f"Frame dimensions of {video_path} do not match to its predecessor."
                     )
