@@ -19,7 +19,7 @@ def metadata_fixture():
 @pytest.fixture
 def mock_video_proxy():
     """Fixture to mock VideoProxy object."""
-    with mock.patch('data_io.VideoProxy') as MockVideoProxy:
+    with mock.patch('src.cala.data_io.VideoProxy') as MockVideoProxy:
         mock_video = mock.MagicMock()
         mock_video.n_frames = 100
         mock_video.shape = (100, 480, 640, 1)  # (frames, height, width, channels)
@@ -52,7 +52,7 @@ def test_metadata(data_io_instance, mock_video_proxy):
         assert metadata.width == 640
         assert metadata.channels == 1
 
-@patch("src.data_io.VideoProxy")
+@patch("src.cala.data_io.VideoProxy")
 def test_load_video_metadata(mock_video_proxy, data_io_instance):
     """Test loading video metadata."""
     mock_video = MagicMock()
@@ -67,8 +67,8 @@ def test_load_video_metadata(mock_video_proxy, data_io_instance):
     mock_video_proxy.assert_called_once_with(path=Path("/fake/path/video1.avi"))
 
 
-@mock.patch("data_io.av.open")
-@mock.patch("data_io.zarr.open")
+@mock.patch("src.cala.data_io.av.open")
+@mock.patch("src.cala.data_io.zarr.open")
 @mock.patch.object(DataIO, "_load_video_metadata")
 def test_save_data(mock_load_metadata, mock_zarr_open, mock_av_open, data_io_instance):
     """Test the save_data function with mock Zarr and AV."""
@@ -98,18 +98,18 @@ def test_save_data(mock_load_metadata, mock_zarr_open, mock_av_open, data_io_ins
     mock_zarr_store = mock.MagicMock()
     mock_zarr_open.return_value = mock_zarr_store
 
-    save_dir = Path("/fake/save")
-    save_name = "test_output"
+    data_dir = Path("/fake/save")
+    file_name = "test_output"
 
     # Call the save_data method
-    data_io_instance.save_data(save_directory=save_dir, save_name=save_name)
+    data_io_instance.save_data(data_directory=data_dir, data_name=file_name)
 
     # Assert AV open was called correctly
     mock_av_open.assert_called()
 
     # Assert Zarr store was opened with correct parameters
     mock_zarr_open.assert_called_with(
-        store=f"{save_dir / save_name}.zarr",
+        store=f"{data_dir / file_name}.zarr",
         mode="w",
         shape=(200, 480, 640),  # Mocking 200 frames total (2 videos with 100 frames each)
         chunks=(1024, 480, 640),
