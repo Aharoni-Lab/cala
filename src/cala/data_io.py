@@ -9,9 +9,6 @@ from numpydantic.interface.video import VideoProxy
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from src.cala.config import CONFIG
-
-
 class VideoMetadata(BaseModel):
     num_frames: int
     height: int
@@ -84,19 +81,3 @@ class DataIO:
                     zarr_store.append([frame_array])
 
             container.close()
-
-
-def main():
-    data_io = DataIO(
-        video_directory=CONFIG.video_directory,
-        video_files=CONFIG.video_files,
-    )
-
-    data_io.save_data(
-        data_directory=CONFIG.data_directory,
-        data_name=CONFIG.data_name,
-    )
-
-
-if __name__ == "__main__":
-    main()
