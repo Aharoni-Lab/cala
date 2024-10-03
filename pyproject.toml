@@ -4,6 +4,12 @@ version = "0.1.0"
 description = ""
 authors = ["Raymond W. Chang <raymond.w.jang@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "cala", from = "src" }
+]
+include = [
+"src/cala/config/config.yaml"
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
