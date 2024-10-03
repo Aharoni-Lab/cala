@@ -20,9 +20,6 @@ def setup_logger(log_file: Path = None, level=logging.INFO, name: str = "cala.lo
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    if logger.parent == logging.getLogger():
-        logger.propagate = False
-
     rich_handler = RichHandler(rich_tracebacks=True, markup=True)
     rich_handler.setLevel(level)
 
