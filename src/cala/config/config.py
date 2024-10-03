@@ -46,4 +46,4 @@ class Config(BaseModel):
         except ValidationError as e:
             raise ValueError(f"Invalid configuration format: {e}")
 
-CONFIG = Config.load_config("config/config.yaml")
+CONFIG = Config.load_config()
