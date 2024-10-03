@@ -16,6 +16,7 @@ numpydantic = "^1.6.3"
 opencv-python = "^4.10.0.84"
 tqdm = "^4.66.5"
 pytest-lazy-fixture = "^0.6.3"
+rich = "^13.9.1"
 
 
 [build-system]
