@@ -35,15 +35,16 @@ class DataIO:
     @property
     def metadata(self) -> VideoMetadata:
         num_frames = 0
+        height = width = channels = None
+
         for idx, video_file in enumerate(self.video_files):
             video_path = self.video_directory.joinpath(video_file)
             video = self._load_video_metadata(video_path)
             num_frames += video.n_frames
-            if idx > 0:
-                if (height, width, channels) != video.shape[1:]:
-                    raise Exception(
-                        f"Frame dimensions of {video_path} do not match to its predecessor."
-                    )
+            if (idx > 0) and ((height, width, channels) != video.shape[1:]):
+                raise Exception(
+                    f"Frame dimensions of {video_path} do not match to its predecessor."
+                )
             height = video.shape[1]
             width = video.shape[2]
             channels = video.shape[3]
