@@ -1,6 +1,7 @@
 import pytest
 import logging
-from src.cala.log import setup_logger
+from cala.log import setup_logger
+
 
 @pytest.fixture
 def log_file(tmp_path):
@@ -8,6 +9,7 @@ def log_file(tmp_path):
     Pytest fixture to create a temporary log file.
     """
     return tmp_path / "test.log"
+
 
 def test_logger_initialization(caplog):
     """
@@ -21,13 +23,17 @@ def test_logger_initialization(caplog):
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == "INFO"
 
-@pytest.mark.parametrize("level, level_name", [
-    (logging.DEBUG, "DEBUG"),
-    (logging.INFO, "INFO"),
-    (logging.WARNING, "WARNING"),
-    (logging.ERROR, "ERROR"),
-    (logging.CRITICAL, "CRITICAL"),
-])
+
+@pytest.mark.parametrize(
+    "level, level_name",
+    [
+        (logging.DEBUG, "DEBUG"),
+        (logging.INFO, "INFO"),
+        (logging.WARNING, "WARNING"),
+        (logging.ERROR, "ERROR"),
+        (logging.CRITICAL, "CRITICAL"),
+    ],
+)
 def test_logger_with_all_levels(caplog, level, level_name):
     """
     Test logger setup with different logging levels.
@@ -59,6 +65,7 @@ def test_logger_with_file_handler(log_file):
 
     assert "Log message to file" in logs
     assert "INFO" in logs
+
 
 def test_logger_with_different_name(caplog):
     """
