@@ -9,6 +9,7 @@ from numpydantic.interface.video import VideoProxy
 from pydantic import BaseModel
 from tqdm import tqdm
 
+
 class VideoMetadata(BaseModel):
     num_frames: int
     height: int

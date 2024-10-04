@@ -4,6 +4,7 @@ from typing import List, Optional
 import yaml
 import importlib.resources
 
+
 class Config(BaseModel):
     video_directory: Path
     data_directory: Path
@@ -11,7 +12,7 @@ class Config(BaseModel):
     data_name: Optional[str] = None
 
     @classmethod
-    def load_config(cls, path: Optional[Path] = None) -> 'Config':
+    def load_config(cls, path: Optional[Path] = None) -> "Config":
         """
         Loads configuration from the provided path, falling back to the default configuration paths.
         - Custom path > User config in ~/.cala/config.yaml > Default package config in src/cala/config/config.yaml.
@@ -22,22 +23,26 @@ class Config(BaseModel):
                 raise FileNotFoundError(f"Config file not found at {config_path}.")
         else:
             # Check for user-specific config in ~/.cala/config.yaml
-            user_config_path = Path.home() / '.cala' / 'config.yaml'
+            user_config_path = Path.home() / ".cala" / "config.yaml"
             if user_config_path.exists():
                 config_path = user_config_path
             else:
                 # Load default config from the package resources
                 try:
-                    config_content = importlib.resources.read_text('cala.config', 'config.yaml')
+                    config_content = importlib.resources.read_text(
+                        "cala.config", "config.yaml"
+                    )
                     return cls.parse_config(yaml.safe_load(config_content))
                 except FileNotFoundError:
-                    raise FileNotFoundError("Default config not found in package resources.")
+                    raise FileNotFoundError(
+                        "Default config not found in package resources."
+                    )
 
         # Load the configuration file from the specified or default location
         return cls.parse_config(yaml.safe_load(config_path.read_text()))
 
     @classmethod
-    def parse_config(cls, config_dict: dict) -> 'Config':
+    def parse_config(cls, config_dict: dict) -> "Config":
         """
         Converts a dictionary to a Config model instance.
         """
@@ -45,5 +50,6 @@ class Config(BaseModel):
             return cls(**config_dict)
         except ValidationError as e:
             raise ValueError(f"Invalid configuration format: {e}")
+
 
 CONFIG = Config.load_config()
