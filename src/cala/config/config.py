@@ -12,7 +12,7 @@ class Config(BaseModel):
     data_name: Optional[str] = None
 
     @classmethod
-    def load_config(cls, path: Optional[Path] = None) -> "Config":
+    def from_yaml(cls, path: Optional[Path] = None) -> "Config":
         """
         Loads configuration from the provided path, falling back to the default configuration paths.
         - Custom path > User config in ~/.cala/config.yaml > Default package config in src/cala/config/config.yaml.
@@ -32,17 +32,17 @@ class Config(BaseModel):
                     config_content = importlib.resources.read_text(
                         "cala.config", "config.yaml"
                     )
-                    return cls.parse_config(yaml.safe_load(config_content))
+                    return cls.from_dict(yaml.safe_load(config_content))
                 except FileNotFoundError:
                     raise FileNotFoundError(
                         "Default config not found in package resources."
                     )
 
         # Load the configuration file from the specified or default location
-        return cls.parse_config(yaml.safe_load(config_path.read_text()))
+        return cls.from_dict(yaml.safe_load(config_path.read_text()))
 
     @classmethod
-    def parse_config(cls, config_dict: dict) -> "Config":
+    def from_dict(cls, config_dict: dict) -> "Config":
         """
         Converts a dictionary to a Config model instance.
         """
@@ -52,4 +52,4 @@ class Config(BaseModel):
             raise ValueError(f"Invalid configuration format: {e}")
 
 
-CONFIG = Config.load_config()
+CONFIG = Config.from_yaml()
