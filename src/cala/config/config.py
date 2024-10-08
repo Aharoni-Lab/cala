@@ -1,64 +1,136 @@
-from pydantic import BaseModel, Field, ValidationError
 from pathlib import Path
-from typing import List, Optional
-import yaml
-import importlib.resources
+from typing import List, Optional, Type, Tuple, Dict, Any
 
-USER_CONFIG_PATH = Path.home() / ".cala" / "config.yaml"
-"""
-USER_CONFIG_PATH (Path): Default path to the user's Cala configuration file, located in the home directory.
-"""
+from pydantic import Field, TypeAdapter, field_validator, model_validator
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    PyprojectTomlConfigSettingsSource,
+    SettingsConfigDict,
+    YamlConfigSettingsSource,
+)
+from platformdirs import PlatformDirs
+
+_dirs = PlatformDirs("cala", "cala")
 
 
-class Config(BaseModel):
+class Config(BaseSettings):
+    user_dir: Path = Field(
+        _dirs.user_config_dir, description="Directory containing cala config files"
+    )
+    config_file: Path = Field(
+        Path("cala_config.yaml"),
+        description="Location of global cala config file. "
+        "If a relative path, interpreted as a relative to ``user_dir``",
+    )
+    model_config = SettingsConfigDict(
+        env_prefix="cala_",
+        env_file=".env",
+        env_nested_delimiter="__",
+        extra="ignore",
+        nested_model_default_partial_update=True,
+        yaml_file="cala_config.yaml",
+        pyproject_toml_table_header=("tool", "cala", "config"),
+    )
     video_directory: Path
     data_directory: Path
     video_files: Optional[List[Path]] = Field(default_factory=list)
     data_name: Optional[str] = None
 
     @classmethod
-    def from_yaml(cls, path: Optional[Path] = None) -> "Config":
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
         """
-        Loads configuration from the provided path, falling back to the default configuration paths.
-        - Custom path > User config in ~/.cala/config.yaml > Default package config in src/cala/config/config.yaml.
+        Read config settings from, in order of priority from high to low, where
+        high priorities override lower priorities:
+
+        * in the arguments passed to the class constructor (not user configurable)
+        * in environment variables like ``export CALA_LOG_DIR=~/``
+        * in a ``.env`` file in the working directory
+        * in a ``cala_config.yaml`` file in the working directory
+        * in the ``tool.cala.config`` table in a ``pyproject.toml`` file in the working directory
+        * in the global ``cala_config.yaml`` file in the platform-specific data directory
+          (use ``cala config get config_file`` to find its location)
+        * the default values in the :class:`.Config` model
         """
-        if path:
-            config_path = Path(path)
-            if not config_path.exists():
-                raise FileNotFoundError(f"Config file not found at {config_path}.")
-        else:
-            if not USER_CONFIG_PATH.exists():
-                # Load default config from the package resources
-                try:
-                    config_content = importlib.resources.read_text(
-                        "cala.config", "config.yaml"
-                    )
-                    USER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-                    with open(USER_CONFIG_PATH, "w") as f:
-                        f.write(config_content)
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            YamlConfigSettingsSource(settings_cls),
+            PyprojectTomlConfigSettingsSource(settings_cls),
+            _GlobalYamlConfigSource(settings_cls),
+        )
 
-                except FileNotFoundError:
-                    raise FileNotFoundError(
-                        "Default config not found in package resources."
-                    )
-
-            config_path = USER_CONFIG_PATH
-
-        # Load the configuration from the determined path
-        with open(config_path, "r") as f:
-            config_data = yaml.safe_load(f)
-
-        return cls.from_dict(config_data)
-
+    @field_validator("user_dir", mode="after")
     @classmethod
-    def from_dict(cls, config_dict: dict) -> "Config":
+    def user_dir_exists(cls, v: Path) -> Path:
+        """Ensure user_dir exists, make it otherwise"""
+        v = Path(v)
+        v.mkdir(exist_ok=True, parents=True)
+        assert v.exists(), f"{v} does not exist!"
+        return v
+
+    @model_validator(mode="after")
+    def config_file_is_absolute(self) -> "Config":
         """
-        Converts a dictionary to a Config model instance.
+        If ``config_file`` is relative, make it absolute underneath user_dir
         """
-        try:
-            return cls(**config_dict)
-        except ValidationError as e:
-            raise ValueError(f"Invalid configuration format: {e}")
+        if not self.config_file.is_absolute():
+            self.config_file = self.user_dir / self.config_file
+        return self
+
+    @field_validator("video_files", mode="before")
+    @classmethod
+    def split_video_files(cls, v):
+        if isinstance(v, str):
+            # Split the string by commas and strip any whitespace
+            items = [item.strip() for item in v.split(",") if item.strip()]
+            return items
+        return v
 
 
-CONFIG = Config.from_yaml()
+class _GlobalYamlConfigSource(YamlConfigSettingsSource):
+    """Yaml config source that gets the location of the global settings file from the prior sources"""
+
+    def __init__(self, *args, **kwargs):
+        self._global_config = None
+        super().__init__(*args, **kwargs)
+
+    @property
+    def global_config_path(self) -> Path:
+        """
+        Location of the global ``cala_config.yaml`` file,
+        given the current state of prior config sources
+        """
+        current_state = self.current_state
+        config_file = Path(current_state.get("config_file", "cala_config.yaml"))
+        user_dir = Path(current_state.get("user_dir", _dirs.user_config_dir))
+        if not config_file.is_absolute():
+            config_file = (user_dir / config_file).resolve()
+        return config_file
+
+    @property
+    def global_config(self) -> Dict[str, Any]:
+        """
+        Contents of the global config file
+        """
+        if self._global_config is None:
+            if self.global_config_path.exists():
+                self._global_config = self._read_files(self.global_config_path)
+            else:
+                self._global_config = {}
+        return self._global_config
+
+    def __call__(self) -> Dict[str, Any]:
+        return (
+            TypeAdapter(Dict[str, Any]).dump_python(self.global_config)
+            if self.nested_model_default_partial_update
+            else self.global_config
+        )

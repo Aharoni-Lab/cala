@@ -8,6 +8,7 @@ packages = [
     { include = "cala", from = "src" }
 ]
 include = [
+"src/cala/config/**/*.env",
 "src/cala/config/**/*.yaml"
 ]
 
