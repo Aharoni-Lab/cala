@@ -27,7 +27,7 @@ class Config(BaseSettings):
     data_directory: Path = Path(_dirs.user_data_dir)
     video_directory: Path = Path(_dirs.user_data_dir) / "videos"
     video_files: Optional[List[Path]] = Field(default_factory=list)
-    data_name: Optional[str] = None
+    data_name: Optional[str] = "cala"
 
     model_config = SettingsConfigDict(
         env_prefix="cala_",

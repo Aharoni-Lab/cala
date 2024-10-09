@@ -1,13 +1,21 @@
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import av
 import numpy as np
 import zarr
 from numcodecs import blosc
-from numpydantic.interface.video import VideoProxy
+from numpydantic import NDArray, Shape
 from pydantic import BaseModel
 from tqdm import tqdm
+
+
+class Image(BaseModel):
+    array: Union[
+        NDArray[Shape["* x, * y"], float],
+        NDArray[Shape["* x, * y, 3 rgb"], np.uint8],
+        NDArray[Shape["* t, 1080 y, 1920 x, 3 rgb"], np.uint8],
+    ]
 
 
 class VideoMetadata(BaseModel):
@@ -27,11 +35,6 @@ class DataIO:
         self.video_files = video_files
         self.compressor = blosc.Blosc(cname="zstd", clevel=3, shuffle=2)
 
-    @staticmethod
-    def _load_video_metadata(video_path: Path):
-        video = VideoProxy(path=video_path)
-        return video
-
     @property
     def metadata(self) -> VideoMetadata:
         num_frames = 0
@@ -39,7 +42,7 @@ class DataIO:
 
         for idx, video_file in enumerate(self.video_files):
             video_path = self.video_directory.joinpath(video_file)
-            video = self._load_video_metadata(video_path)
+            video = Image(path=video_path)
             num_frames += video.n_frames
             if (idx > 0) and ((height, width, channels) != video.shape[1:]):
                 raise Exception(

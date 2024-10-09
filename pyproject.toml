@@ -22,13 +22,13 @@ numpydantic = "^1.6.3"
 opencv-python = "^4.10.0.84"
 tqdm = "^4.66.5"
 rich = "^13.9.1"
-black = "^24.8.0"
 pydantic-settings = "^2.5.2"
 platformdirs = "^4.3.6"
 
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
+black = "^24.10.0"
 
 
 [tool.poetry.group.tests.dependencies]
