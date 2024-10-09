@@ -21,8 +21,14 @@ class Config(BaseSettings):
     config_file: Path = Field(
         Path("cala_config.yaml"),
         description="Location of global cala config file. "
-        "If a relative path, interpreted as a relative to ``user_dir``",
+        "If a relative path that doesn't exist relative to cwd, "
+        "interpreted as a relative to ``user_dir``",
     )
+    data_directory: Path = Path(_dirs.user_data_dir)
+    video_directory: Path = Path(_dirs.user_data_dir) / "videos"
+    video_files: Optional[List[Path]] = Field(default_factory=list)
+    data_name: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_prefix="cala_",
         env_file=".env",
@@ -32,10 +38,6 @@ class Config(BaseSettings):
         yaml_file="cala_config.yaml",
         pyproject_toml_table_header=("tool", "cala", "config"),
     )
-    video_directory: Path
-    data_directory: Path
-    video_files: Optional[List[Path]] = Field(default_factory=list)
-    data_name: Optional[str] = None
 
     @classmethod
     def settings_customise_sources(
@@ -68,9 +70,9 @@ class Config(BaseSettings):
             _GlobalYamlConfigSource(settings_cls),
         )
 
-    @field_validator("user_dir", mode="after")
+    @field_validator("user_dir", "data_directory", mode="after")
     @classmethod
-    def user_dir_exists(cls, v: Path) -> Path:
+    def dir_exists(cls, v: Path) -> Path:
         """Ensure user_dir exists, make it otherwise"""
         v = Path(v)
         v.mkdir(exist_ok=True, parents=True)
@@ -83,7 +85,10 @@ class Config(BaseSettings):
         If ``config_file`` is relative, make it absolute underneath user_dir
         """
         if not self.config_file.is_absolute():
-            self.config_file = self.user_dir / self.config_file
+            if self.config_file.exists():
+                self.config_file = self.config_file.resolve()
+            else:
+                self.config_file = self.user_dir / self.config_file
         return self
 
     @field_validator("video_files", mode="before")
