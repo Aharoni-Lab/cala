@@ -7,7 +7,7 @@ import tomli_w
 import yaml
 
 from cala import Config
-from cala.config.config import _dirs
+from cala.config import _dirs
 
 if TYPE_CHECKING:
     from _pytest.fixtures import FixtureRequest
