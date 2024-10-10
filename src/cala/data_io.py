@@ -12,9 +12,9 @@ from tqdm import tqdm
 
 class Image(BaseModel):
     array: Union[
-        NDArray[Shape["* x, * y"], float],
-        NDArray[Shape["* x, * y, 3 rgb"], np.uint8],
-        NDArray[Shape["* t, 1080 y, 1920 x, 3 rgb"], np.uint8],
+        NDArray[Shape["* x, * y"], float],  # noqa: F722,F821
+        NDArray[Shape["* x, * y, 3 rgb"], np.uint8],  # noqa: F722,F821
+        NDArray[Shape["* t, 1080 y, 1920 x, 3 rgb"], np.uint8],  # noqa: F722,F821
     ]
 
 

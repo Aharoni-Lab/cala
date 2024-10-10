@@ -112,7 +112,7 @@ class Config(BaseSettings):
         for video_file in self.video_files or []:
             full_path = self.video_directory / video_file
             if not full_path.exists():
-                missing_files.append(str(full_path))
+                missing_files.append(str(video_file))
 
         if missing_files:
             raise ValueError(
