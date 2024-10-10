@@ -24,10 +24,16 @@ class Config(BaseSettings):
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
-    data_directory: Path = Path(_dirs.user_data_dir)
     video_directory: Path = Path(_dirs.user_data_dir) / "videos"
     video_files: Optional[List[Path]] = Field(default_factory=list)
+    data_directory: Path = Path(_dirs.user_data_dir)
     data_name: Optional[str] = "cala"
+
+    @property
+    def video_paths(self) -> List[Path]:
+        return [
+            self.video_directory.joinpath(video_file) for video_file in self.video_files
+        ]
 
     model_config = SettingsConfigDict(
         env_prefix="cala_",
@@ -99,6 +105,21 @@ class Config(BaseSettings):
             items = [item.strip() for item in v.split(",") if item.strip()]
             return items
         return v
+
+    @model_validator(mode="after")
+    def check_video_files_exist(self) -> "Config":
+        missing_files = []
+        for video_file in self.video_files or []:
+            full_path = self.video_directory / video_file
+            if not full_path.exists():
+                missing_files.append(str(full_path))
+
+        if missing_files:
+            raise ValueError(
+                f"The following video files do not exist in {self.video_directory}: {', '.join(missing_files)}"
+            )
+
+        return self
 
 
 class _GlobalYamlConfigSource(YamlConfigSettingsSource):

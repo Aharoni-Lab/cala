@@ -26,13 +26,8 @@ class VideoMetadata(BaseModel):
 
 
 class DataIO:
-    def __init__(
-        self,
-        video_directory: Path,
-        video_files: List[str],
-    ) -> None:
-        self.video_directory = video_directory
-        self.video_files = video_files
+    def __init__(self, video_paths: List[Path]) -> None:
+        self.video_paths = video_paths
         self.compressor = blosc.Blosc(cname="zstd", clevel=3, shuffle=2)
 
     @property
@@ -40,8 +35,7 @@ class DataIO:
         num_frames = 0
         height = width = channels = None
 
-        for idx, video_file in enumerate(self.video_files):
-            video_path = self.video_directory.joinpath(video_file)
+        for idx, video_path in enumerate(self.video_paths):
             video = Image(path=video_path)
             num_frames += video.n_frames
             if (idx > 0) and ((height, width, channels) != video.shape[1:]):
@@ -76,13 +70,13 @@ class DataIO:
             compressor=self.compressor,
         )
 
-        for video_file in tqdm(self.video_files):
-            container = av.open(self.video_directory.joinpath(video_file))
+        for video_path in tqdm(self.video_paths):
+            container = av.open(video_path)
             video_stream = container.streams.video[0]
 
             for packet in tqdm(container.demux(video_stream), leave=False):
-                for frame in packet.decode():
+                for idx, frame in enumerate(packet.decode()):
                     frame_array = frame.to_ndarray(format="gray")
-                    zarr_store.append([frame_array])
+                    zarr_store[idx] = frame_array
 
             container.close()
