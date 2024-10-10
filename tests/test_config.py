@@ -12,6 +12,7 @@ from cala.config import _dirs
 if TYPE_CHECKING:
     from _pytest.fixtures import FixtureRequest
 
+
 def _flatten(d, parent_key="", separator="__") -> dict:
     """https://stackoverflow.com/a/6027615/13113166"""
     items = []
@@ -50,11 +51,11 @@ def dodge_existing_global_config(tmp_path_factory):
         configured_global_config_path.unlink(missing_ok=True)
         backup_configured_global_path.rename(configured_global_config_path)
 
+
 @pytest.fixture(autouse=True)
 def tmp_cwd(tmp_path, monkeypatch) -> Path:
     monkeypatch.chdir(tmp_path)
     return tmp_path
-
 
 
 @pytest.fixture()
@@ -166,20 +167,24 @@ def test_config_sources(setter, request):
     fixture_fn({"data_name": expected})
     assert Config().data_name == expected
 
-@pytest.mark.parametrize(
-    'setter_name',
-    ['set_env', 'set_dotenv']
-)
-def test_split_video_files(setter_name, request: 'FixtureRequest'):
+
+@pytest.mark.parametrize("setter_name", ["set_env", "set_dotenv"])
+def test_split_video_files(setter_name, request: "FixtureRequest"):
     """
     When video files are a comma-separated list string, as in an .env file,
     split them into an actual list
     """
     setter = request.getfixturevalue(setter_name)
-    expected = [Path('video1.mp4'), Path('video2.mp4'), Path('video3.mp4'), Path('video4.mp4')]
+    expected = [
+        Path("video1.mp4"),
+        Path("video2.mp4"),
+        Path("video3.mp4"),
+        Path("video4.mp4"),
+    ]
     assert Config().video_files != expected
-    setter({'video_files': 'video1.mp4,video2.mp4, video3.mp4 , video4.mp4'})
+    setter({"video_files": "video1.mp4,video2.mp4, video3.mp4 , video4.mp4"})
     assert Config().video_files == expected
+
 
 def test_config_file_is_absolute(set_local_yaml):
     """
@@ -189,16 +194,19 @@ def test_config_file_is_absolute(set_local_yaml):
     """
     default_config_file = Config().config_file
     assert default_config_file.is_absolute()
-    assert default_config_file == Path(_dirs.user_config_dir) / 'cala_config.yaml'
+    assert default_config_file == Path(_dirs.user_config_dir) / "cala_config.yaml"
 
     # make one in cwd, and we should find that
     set_local_yaml({"data_name": "something"})
     cwd_config_file = Config().config_file
     assert cwd_config_file.is_absolute()
-    assert cwd_config_file == Path('cala_config.yaml').resolve()
+    assert cwd_config_file == Path("cala_config.yaml").resolve()
     assert cwd_config_file != default_config_file
 
-def test_config_sources_overrides(set_env, set_dotenv, set_pyproject, set_local_yaml, set_global_yaml):
+
+def test_config_sources_overrides(
+    set_env, set_dotenv, set_pyproject, set_local_yaml, set_global_yaml
+):
     """
     The various config sources should override one another in order
     """
