@@ -1,8 +1,9 @@
-import pytest
-
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
+from unittest.mock import patch
+
+import pytest
 import tomli_w
 import yaml
 
@@ -168,8 +169,14 @@ def test_config_sources(setter, request):
     assert Config().data_name == expected
 
 
+@pytest.fixture
+def mock_path_exists():
+    with patch.object(Path, "exists", return_value=True):
+        yield
+
+
 @pytest.mark.parametrize("setter_name", ["set_env", "set_dotenv"])
-def test_split_video_files(setter_name, request: "FixtureRequest"):
+def test_split_video_files(setter_name, request: "FixtureRequest", mock_path_exists):
     """
     When video files are a comma-separated list string, as in an .env file,
     split them into an actual list
