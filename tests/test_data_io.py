@@ -1,10 +1,9 @@
-from pathlib import Path
-from unittest import mock
-from unittest.mock import MagicMock, patch
-
-import numpy as np
 import pytest
-from numcodecs import blosc
+import tempfile
+import shutil
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+import numpy as np
 
 from cala.data_io import DataIO, VideoMetadata
 
@@ -16,152 +15,117 @@ def metadata_fixture():
 
 
 @pytest.fixture
-def mock_video_proxy():
-    """Fixture to mock VideoProxy object."""
-    with mock.patch("cala.data_io.VideoProxy") as MockVideoProxy:
-        mock_video = mock.MagicMock()
-        mock_video.n_frames = 100
-        mock_video.shape = (100, 480, 640, 1)  # (frames, height, width, channels)
-        MockVideoProxy.return_value = mock_video
-        yield MockVideoProxy
+def temp_video_paths():
+    # Setup: Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+    video_directory = Path(temp_dir)
+    video_files = ["video1.mp4", "video2.mp4"]
+
+    # Create empty files to represent video files
+    for video_file in video_files:
+        video_path = video_directory / video_file
+        video_path.touch()
+
+    yield video_directory, video_files
+
+    # Teardown: Remove the temporary directory
+    shutil.rmtree(temp_dir)
 
 
-@pytest.fixture
-def data_io_instance(mock_video_proxy):
-    """Fixture to create a DataIO instance with mocked video files."""
-    video_dir = Path("/fake/path")
-    video_files = ["video1.avi", "video2.avi"]
-    return DataIO(video_directory=video_dir, video_files=video_files)
+def test_dataio_initialization():
+    video_paths = [Path("/path/to/video1.mp4"), Path("/path/to/video2.mp4")]
+    data_io = DataIO(video_paths=video_paths)
+    assert data_io.video_paths == video_paths
+    assert data_io.compressor is not None
 
 
-def test_data_io_initialization(data_io_instance):
-    """Test if DataIO is initialized with correct attributes."""
-    assert data_io_instance.video_directory == Path("/fake/path")
-    assert data_io_instance.video_files == ["video1.avi", "video2.avi"]
-    assert isinstance(data_io_instance.compressor, blosc.Blosc)
+def test_dataio_metadata():
+    video_paths = [Path("/path/to/video1.mp4"), Path("/path/to/video2.mp4")]
+    data_io = DataIO(video_paths=video_paths)
+
+    # Mock the Image class
+    with patch("cala.data_io.Image") as MockImage:
+        # Create a mock instance of Image
+        mock_image_instance = MagicMock()
+        mock_image_instance.n_frames = 10
+        mock_image_instance.shape = (10, 1080, 1920, 3)
+        MockImage.return_value = mock_image_instance
+
+        metadata = data_io.metadata
+
+        assert metadata.num_frames == 20  # 10 frames from each video
+        assert metadata.height == 1080
+        assert metadata.width == 1920
+        assert metadata.channels == 3
 
 
-def test_metadata(data_io_instance, mock_video_proxy):
-    """Test the metadata property of DataIO."""
-    # Mock _load_video_metadata method to avoid file access
-    with mock.patch.object(
-        DataIO, "_load_video_metadata", return_value=mock_video_proxy.return_value
-    ):
-        metadata = data_io_instance.metadata
+def test_dataio_metadata_inconsistent_dimensions():
+    video_paths = [Path("/path/to/video1.mp4"), Path("/path/to/video2.mp4")]
+    data_io = DataIO(video_paths=video_paths)
 
-        assert (
-            metadata.num_frames == 200
-        )  # Since we mock two videos, each with 100 frames
-        assert metadata.height == 480
-        assert metadata.width == 640
-        assert metadata.channels == 1
+    # Mock the Image class
+    with patch("cala.data_io.Image") as MockImage:
+        # Create two mock instances of Image with different shapes
+        mock_image_instance1 = MagicMock()
+        mock_image_instance1.n_frames = 10
+        mock_image_instance1.shape = (10, 1080, 1920, 3)
 
+        mock_image_instance2 = MagicMock()
+        mock_image_instance2.n_frames = 15
+        mock_image_instance2.shape = (15, 720, 1280, 3)
 
-@patch("cala.data_io.VideoProxy")
-def test_load_video_metadata(mock_video_proxy, data_io_instance):
-    """Test loading video metadata."""
-    mock_video = MagicMock()
-    mock_video.n_frames = 100
-    mock_video.shape = [100, 720, 1280, 3]
-    mock_video_proxy.return_value = mock_video
+        # Set the return values for the two different video paths
+        MockImage.side_effect = [mock_image_instance1, mock_image_instance2]
 
-    video_metadata = data_io_instance._load_video_metadata(
-        Path("/fake/path/video1.avi")
-    )
+        with pytest.raises(Exception) as exc_info:
+            _ = data_io.metadata
 
-    assert video_metadata.n_frames == 100
-    assert video_metadata.shape == [100, 720, 1280, 3]
-    mock_video_proxy.assert_called_once_with(path=Path("/fake/path/video1.avi"))
+        assert "Frame dimensions of" in str(exc_info.value)
 
 
-@mock.patch("cala.data_io.av.open")
-@mock.patch("cala.data_io.zarr.open")
-@mock.patch.object(DataIO, "_load_video_metadata")
-def test_save_data(mock_load_metadata, mock_zarr_open, mock_av_open, data_io_instance):
-    """Test the save_data function with mock Zarr and AV."""
-    # Mock the _load_video_metadata method to return a mock VideoMetadata object
-    mock_video_metadata = mock.MagicMock()
-    mock_video_metadata.n_frames = 100  # Simulate 100 frames for each video
-    mock_video_metadata.shape = (
-        100,
-        480,
-        640,
-        1,
-    )  # Simulate video dimensions (H, W, C)
-    mock_load_metadata.return_value = mock_video_metadata
+def test_dataio_save_data(tmp_path):
+    video_paths = [Path("/path/to/video1.mp4")]
+    data_io = DataIO(video_paths=video_paths)
 
-    # Mock container, stream, packet, and frame behavior for av.open
-    mock_container = mock.MagicMock()
-    mock_stream = mock.MagicMock()
-    mock_packet = mock.MagicMock()
-    mock_frame = mock.MagicMock()
+    # Mock the Image class and av.open
+    with patch("cala.data_io.Image") as MockImage, patch(
+        "cala.data_io.av.open"
+    ) as mock_av_open, patch("cala.data_io.tqdm", lambda x, *args, **kwargs: x):
 
-    # Setup mock frame data to simulate the frame ndarray
-    mock_frame.to_ndarray.return_value = np.zeros(
-        (480, 640), dtype=np.uint8
-    )  # Frame size: 480x640
-    mock_packet.decode.return_value = [
-        mock_frame
-    ] * 100  # Simulate 100 frames per packet
-    mock_container.demux.return_value = [
-        mock_packet
-    ]  # Single packet containing 100 frames
-    mock_streams_video = mock.MagicMock()
-    mock_streams_video.video = [mock_stream]
+        # Mock Image
+        mock_image_instance = MagicMock()
+        mock_image_instance.n_frames = 10
+        mock_image_instance.shape = (10, 1080, 1920, 3)
+        MockImage.return_value = mock_image_instance
 
-    mock_container.streams = mock_streams_video
-    mock_av_open.return_value = mock_container
+        # Mock av.open and related methods
+        mock_container = MagicMock()
+        mock_video_stream = MagicMock()
+        mock_container.streams.video = [mock_video_stream]
+        mock_av_open.return_value = mock_container
 
-    # Mock Zarr store
-    mock_zarr_store = mock.MagicMock()
-    mock_zarr_open.return_value = mock_zarr_store
+        # Mock demuxed packets and frames
+        mock_frame = MagicMock()
+        mock_frame.to_ndarray.return_value = np.zeros((1080, 1920), dtype=np.uint8)
+        mock_packet = MagicMock()
+        mock_packet.decode.return_value = [mock_frame]
+        mock_container.demux.return_value = [mock_packet] * 10  # Simulate 10 packets
 
-    data_dir = Path("/fake/save")
-    file_name = "test_output"
+        # Now call save_data
+        data_directory = tmp_path
+        data_name = "test_video"
+        data_io.save_data(data_directory=data_directory, data_name=data_name)
 
-    # Call the save_data method
-    data_io_instance.save_data(data_directory=data_dir, data_name=file_name)
+        # Check that the zarr store was created
+        zarr_file = data_directory / f"{data_name}.zarr"
+        assert zarr_file.exists()
 
-    # Assert AV open was called correctly
-    mock_av_open.assert_called()
+        # Open the zarr store and check the shape
+        import zarr
 
-    # Assert Zarr store was opened with correct parameters
-    mock_zarr_open.assert_called_with(
-        store=f"{data_dir / file_name}.zarr",
-        mode="w",
-        shape=(
-            200,
-            480,
-            640,
-        ),  # Mocking 200 frames total (2 videos with 100 frames each)
-        chunks=(1024, 480, 640),
-        dtype=np.uint8,
-        compressor=data_io_instance.compressor,
-    )
-
-    # Check if Zarr store's append method was called for each frame
-    assert (
-        mock_zarr_store.append.call_count == 200
-    )  # Expecting 200 append calls (100 per video)
-
-
-def test_video_dimension_mismatch(data_io_instance, mock_video_proxy):
-    """Test for exception when video dimensions do not match."""
-    # Modify the mock to simulate different dimensions in the second video
-    mock_video_proxy.return_value.shape = (100, 480, 640, 1)  # First video
-    data_io_instance.video_files.append("video3.avi")
-
-    with mock.patch.object(
-        DataIO,
-        "_load_video_metadata",
-        side_effect=[
-            mock_video_proxy.return_value,  # First video
-            mock.MagicMock(
-                n_frames=100, shape=(100, 500, 640, 1)
-            ),  # Second video with different height
-        ],
-    ):
-        with pytest.raises(
-            Exception, match="Frame dimensions of .* do not match to its predecessor"
-        ):
-            _ = data_io_instance.metadata
+        zarr_store = zarr.open(store=str(zarr_file), mode="r")
+        assert zarr_store.shape == (10, 1080, 1920)
+        # Optionally, check the data
+        data = zarr_store[:]
+        assert data.shape == (10, 1080, 1920)
+        assert (data == 0).all()
