@@ -4,20 +4,36 @@ version = "0.1.0"
 description = ""
 authors = ["Raymond W. Chang <raymond.w.jang@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "cala", from = "src" }
+]
+include = [
+"src/cala/config/**/*.env",
+"src/cala/config/**/*.yaml"
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 dask = "^2024.9.0"
 zarr = "^2.18.3"
-pytest = "^8.3.3"
 pydantic = "^2.9.2"
 av = "^13.0.0"
 numpydantic = "^1.6.3"
 opencv-python = "^4.10.0.84"
 tqdm = "^4.66.5"
 rich = "^13.9.1"
-pytest-lazy-fixture = "^0.6.3"
+pydantic-settings = "^2.5.2"
+platformdirs = "^4.3.6"
 
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+black = "^24.10.0"
+
+
+[tool.poetry.group.tests.dependencies]
+pytest = "^8.3.3"
+tomli-w = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core"]

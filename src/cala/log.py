@@ -3,7 +3,9 @@ from pathlib import Path
 from rich.logging import RichHandler
 
 
-def setup_logger(log_file: Path = None, level=logging.INFO, name: str = "cala.log") -> logging.Logger:
+def setup_logger(
+    log_file: Path = None, level=logging.INFO, name: str = "cala.log"
+) -> logging.Logger:
     """
     Sets up the logging configuration for the application.
 
