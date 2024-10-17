@@ -1,23 +1,46 @@
-from dask import delayed
-import dask
+from typing import List, Iterable, Generator
+
+from dask import delayed, compute
+from numpydantic import NDArray
 
 
 class Preprocessor:
     @delayed
-    def process_frame(self, frame):
-        return frame.mean()
+    def preprocess_batch_1(self, batch: NDArray) -> NDArray:
+        return batch / 255.0
 
-    def process_video_in_batches(self, video_path, batch_size):
-        for batch in self.read_video_frames(video_path, batch_size):
-            tasks = [self.process_frame(frame) for frame in batch]
-            yield tasks
+    @delayed
+    def preprocess_batch_2(self, batch: NDArray) -> NDArray:
+        return batch * 2
 
+    @staticmethod
+    def yield_in_batches(
+        video: NDArray, batch_size: int = 100
+    ) -> Generator[Iterable[NDArray], None, None]:
+        """Yield successive batches from the video array."""
+        for i in range(0, len(video), batch_size):
+            yield video[i : i + batch_size]
 
-# batches
-video_path = "large_video.mp4"
-batch_size = 100  # Adjust based on memory constraints
-all_results = []
+    def process_video_in_batches(
+        self, video: NDArray, batch_size: int = 100
+    ) -> List[NDArray]:
+        """
+        Process video frames in parallel batches using Dask.
 
-for tasks in Preprocessor().process_video_in_batches(video_path, batch_size):
-    results = dask.compute(*tasks)  # Compute results for each batch
-    all_results.extend(results)
+        Args:
+            video (NDArray): The video data as a NumPy array.
+            batch_size (int): Number of frames per batch.
+
+        Returns:
+            List[NDArray]: List of processed batches.
+        """
+        delayed_tasks = []
+
+        for batch in self.yield_in_batches(video, batch_size):
+            processed = self.preprocess_batch_1(batch)
+            processed = self.preprocess_batch_2(processed)
+            delayed_tasks.append(processed)
+
+        processed_batches = compute(*delayed_tasks)
+
+        return processed_batches
