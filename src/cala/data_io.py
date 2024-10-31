@@ -57,14 +57,14 @@ class DataIO:
         chunk_size: int = 1024,
         dtype: np.dtype = np.uint8,
     ) -> None:
-        n_frames = self.metadata.num_frames
+        num_frames = self.metadata.num_frames
         width = self.metadata.width
         height = self.metadata.height
 
         zarr_store = zarr.open(
             store=f"{data_directory / data_name}.zarr",
             mode="w",
-            shape=(n_frames, height, width),
+            shape=(num_frames, height, width),
             chunks=(chunk_size, height, width),
             dtype=dtype,
             compressor=self.compressor,
