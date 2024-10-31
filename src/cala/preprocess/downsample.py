@@ -1,4 +1,4 @@
-from typing import Tuple, Literal
+from typing import Tuple, Literal, Hashable
 
 import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -13,7 +13,7 @@ class Downsampler(BaseEstimator, TransformerMixin):
     def __init__(
         self,
         method: Literal["mean", "subset"] = "mean",
-        dims: Tuple[str, ...] = ("time", "x", "y"),
+        dims: Tuple[str | Hashable, ...] = ("time", "x", "y"),
         strides: Tuple[int, ...] = (1, 1, 1),
         **kwargs,
     ):
