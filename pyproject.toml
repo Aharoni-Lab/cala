@@ -24,6 +24,8 @@ tqdm = "^4.66.5"
 rich = "^13.9.1"
 pydantic-settings = "^2.5.2"
 platformdirs = "^4.3.6"
+scikit-learn = "^1.5.2"
+xarray = "^2024.10.0"
 
 
 [tool.poetry.group.dev.dependencies]
