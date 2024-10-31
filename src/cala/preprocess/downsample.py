@@ -1,122 +1,87 @@
-from typing import List, Iterable, Generator, Literal, Tuple
+from typing import Tuple, Literal
 
-import numpy as np
-from dask import delayed, compute
-from numpydantic import NDArray
+import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
-@delayed
-def subset_downsample(nd_array: NDArray, pool_size: Tuple[int, ...]) -> NDArray:
-    if nd_array.ndim != len(pool_size):
-        raise ValueError(
-            "Length of pool_size must match the number of dimensions in nd_array."
-        )
-    # Create a tuple of slice objects for each dimension
-    slices = tuple(slice(None, None, stride) for stride in pool_size)
-    # Apply the slices to downsample the array
-    return nd_array[slices]
-
-
-@delayed
-def mean_downsample(nd_array: NDArray, pool_size: Tuple[int, ...]) -> NDArray:
-    if nd_array.ndim != len(pool_size):
-        raise ValueError(
-            "Length of pool_size must match the number of dimensions in nd_array."
-        )
-    input_shape = nd_array.shape
-    output_shape = tuple(
-        input_shape[i] // pool_size[i] for i in range(len(input_shape))
-    )
-    output = np.zeros(output_shape)
-
-    # Create indices for each dimension
-    indices = [range(0, input_shape[i], pool_size[i]) for i in range(len(input_shape))]
-
-    # Use numpy.meshgrid to create a grid of indices
-    grid = np.meshgrid(*indices, indexing="ij")
-    flat_indices = [g.flatten() for g in grid]
-
-    for idx in zip(*flat_indices):
-        slices = tuple(
-            slice(idx[i], idx[i] + pool_size[i]) for i in range(len(input_shape))
-        )
-        window = nd_array[slices]
-        output_idx = tuple(idx[i] // pool_size[i] for i in range(len(input_shape)))
-        output[output_idx] = np.mean(window)
-
-    return output
-
-
 class Downsampler(BaseEstimator, TransformerMixin):
-    methods = {"mean": mean_downsample, "subset": subset_downsample}
+    """
+    A transformer that downsamples an xarray DataArray along specified dimensions using either
+    'mean' or 'subset' methods.
+    """
 
     def __init__(
         self,
         method: Literal["mean", "subset"] = "mean",
-        x_stride: int = 1,
-        y_stride: int = 1,
-        t_stride: int = 1,
-        batch_size: int = 100,
+        dims: Tuple[str, ...] = ("time", "x", "y"),
+        strides: Tuple[int, ...] = (1, 1, 1),
+        **kwargs,
     ):
-        if method not in self.methods:
+        """
+        Initialize the Downsampler.
+
+        Parameters:
+            method (str): The downsampling method to use ('mean' or 'subset').
+            dims (tuple of str): The dimensions along which to downsample.
+            strides (tuple of int): The strides or pool sizes for each dimension.
+            **kwargs: Additional keyword arguments for the downsampling methods.
+        """
+        if method not in ("mean", "subset"):
             raise ValueError(
-                f"downsample method '{method}' not understood. "
-                f"Available methods are: {', '.join(self.methods.keys())}"
+                f"Downsampling method '{method}' not understood. "
+                f"Available methods are: 'mean', 'subset'"
             )
+        if len(dims) != len(strides):
+            raise ValueError("Length of 'dims' and 'strides' must be equal.")
         self.method = method
-        self.x_stride = x_stride
-        self.y_stride = y_stride
-        self.t_stride = t_stride
-        self.batch_size = batch_size
+        self.dims = dims
+        self.strides = strides
+        self.kwargs = kwargs
 
-    @property
-    def pool_size(self):
-        return self.t_stride, self.x_stride, self.y_stride
-
-    def fit(self, X, y=None):
+    def fit(self, X: xr.DataArray, y=None):
+        """Fit method for compatibility with sklearn's TransformerMixin."""
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X: xr.DataArray, y=None) -> xr.DataArray:
         """
-        Args:
-            X (NDArray): The video data.
+        Downsample the DataArray X.
+
+        Parameters:
+            X (xr.DataArray): The input DataArray to downsample.
 
         Returns:
-            List[NDArray]: List of processed batches.
+            xr.DataArray: The downsampled DataArray.
         """
-        delayed_tasks = []
+        if self.method == "mean":
+            return self.mean_downsample(X)
+        elif self.method == "subset":
+            return self.subset_downsample(X)
 
-        for batch in self._yield_in_batches(X, self.batch_size):
-            processed = self.downsample(batch)
-            delayed_tasks.append(processed)
+    def mean_downsample(self, array: xr.DataArray) -> xr.DataArray:
+        """
+        Downsample the array by taking the mean over specified window sizes.
 
-        processed_batches = compute(*delayed_tasks)
+        Parameters:
+            array (xr.DataArray): The DataArray to downsample.
 
-        return processed_batches
+        Returns:
+            xr.DataArray: The downsampled DataArray.
+        """
+        coarsen_dims = {dim: stride for dim, stride in zip(self.dims, self.strides)}
+        return array.coarsen(coarsen_dims, boundary="trim").mean(**self.kwargs)
 
-    @staticmethod
-    def pad_input(input_array, pool_size):
-        pad_width = []
-        for i, size in enumerate(pool_size):
-            total_pad = (size - (input_array.shape[i] % size)) % size
-            pad_before = total_pad // 2
-            pad_after = total_pad - pad_before
-            pad_width.append((pad_before, pad_after))
-        return np.pad(input_array, pad_width, mode="constant", constant_values=0)
+    def subset_downsample(self, array: xr.DataArray) -> xr.DataArray:
+        """
+        Downsample the array by subsetting (taking every nth element) over specified dimensions.
 
-    @delayed
-    def downsample(
-        self,
-        chunk: NDArray,
-    ) -> NDArray:
-        chunk = self.pad_input(chunk, self.pool_size)
-        return self.methods[self.method](chunk, self.pool_size)
+        Parameters:
+            array (xr.DataArray): The DataArray to downsample.
 
-    @staticmethod
-    def _yield_in_batches(
-        video: NDArray, batch_size
-    ) -> Generator[Iterable[NDArray], None, None]:
-        """Yield successive batches from the video array."""
-        for i in range(0, len(video), batch_size):
-            yield video[i : i + batch_size]
+        Returns:
+            xr.DataArray: The downsampled DataArray.
+        """
+        indexers = {
+            dim: slice(None, None, stride)
+            for dim, stride in zip(self.dims, self.strides)
+        }
+        return array.isel(indexers)
