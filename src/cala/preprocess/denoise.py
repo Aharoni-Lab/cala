@@ -1,3 +1,4 @@
+from typing import List
 from sklearn.base import BaseEstimator, TransformerMixin
 import cv2
 import xarray as xr
@@ -10,7 +11,7 @@ class Denoiser(BaseEstimator, TransformerMixin):
         "bilateral": cv2.bilateralFilter,
     }
 
-    def __init__(self, method: str, **kwargs):
+    def __init__(self, method: str, core_axes: List[str], **kwargs):
         if method not in self.methods:
             raise ValueError(
                 f"denoise method '{method}' not understood. "
@@ -18,6 +19,7 @@ class Denoiser(BaseEstimator, TransformerMixin):
             )
         self.method = method
         self.func = self.methods[method]
+        self.core_axes = core_axes
         self.kwargs = kwargs
 
     def fit(self, X, y=None):
@@ -27,8 +29,8 @@ class Denoiser(BaseEstimator, TransformerMixin):
         res = xr.apply_ufunc(
             self.func,
             X,
-            input_core_dims=[["height", "width"]],
-            output_core_dims=[["height", "width"]],
+            input_core_dims=[self.core_axes],
+            output_core_dims=[self.core_axes],
             vectorize=True,
             dask="parallelized",
             output_dtypes=[X.dtype],
