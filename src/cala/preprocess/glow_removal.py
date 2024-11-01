@@ -2,7 +2,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import xarray as xr
 
 
-class GlowRemoval(BaseEstimator, TransformerMixin):
+class GlowRemover(BaseEstimator, TransformerMixin):
     def __init__(self, iter_axis: str = "frame"):
         self._iter_axis = iter_axis
 

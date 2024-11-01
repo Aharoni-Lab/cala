@@ -11,7 +11,14 @@ class Denoiser(BaseEstimator, TransformerMixin):
         "bilateral": cv2.bilateralFilter,
     }
 
-    def __init__(self, method: str, core_axes: List[str], **kwargs):
+    def __init__(self, core_axes: List[str], method: str = "median", **kwargs):
+        """
+
+        Args:
+            method: One of "gaussian", "median", "bilateral". Defaults to "median".
+            core_axes: The axes the filter convolves on. Defaults to ["height", "width"]
+            **kwargs: Extra arguments for the filters. Check cv2 documentations for more details.
+        """
         if method not in self.methods:
             raise ValueError(
                 f"denoise method '{method}' not understood. "
@@ -19,7 +26,7 @@ class Denoiser(BaseEstimator, TransformerMixin):
             )
         self.method = method
         self.func = self.methods[method]
-        self.core_axes = core_axes
+        self.core_axes = core_axes if core_axes is not None else ["height", "width"]
         self.kwargs = kwargs
 
     def fit(self, X, y=None):

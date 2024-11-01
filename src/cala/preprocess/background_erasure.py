@@ -23,14 +23,14 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
 
     def __init__(
         self,
-        core_dimensions: List[str, ...] = None,
+        core_axes: List[str, ...] = None,
         method: Literal["uniform", "tophat"] = "uniform",
         kernel_size: int = 3,
     ):
         """Initializes the BackgroundEraser transformer.
 
         Args:
-            core_dimensions (List[str, ...], optional): The core dimensions of the video, or the
+            core_axes (List[str, ...], optional): The core dimensions of the video, or the
                 dimensions on which the filter convolves on. Defaults to ["height", "width"].
             method (Literal["uniform", "tophat"], optional): The method used to remove the background.
                 Should be either "uniform" or "tophat". Defaults to "uniform".
@@ -39,9 +39,7 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
                 convolved with each frame. If method == "tophat", this will be the radius of a
                 disk kernel used for morphological operations. Defaults to 3.
         """
-        self.core_dimensions = (
-            core_dimensions if core_dimensions is not None else ["height", "width"]
-        )
+        self.core_axes = core_axes if core_axes is not None else ["height", "width"]
         self.method = method
         self.kernel_size = kernel_size
 
@@ -89,8 +87,8 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
         res = xr.apply_ufunc(
             self.apply_filter_per_frame,
             X,
-            input_core_dims=[self.core_dimensions],
-            output_core_dims=[self.core_dimensions],
+            input_core_dims=[self.core_axes],
+            output_core_dims=[self.core_axes],
             vectorize=True,
             dask="parallelized",
             output_dtypes=[X.dtype],
