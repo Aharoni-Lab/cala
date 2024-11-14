@@ -4,11 +4,12 @@ import xarray as xr
 
 class GlowRemover(BaseEstimator, TransformerMixin):
     def __init__(self, iter_axis: str = "frame"):
+        self.base_brightness = None
         self._iter_axis = iter_axis
 
     def fit(self, X, y=None):
+        self.base_brightness = X.min(self._iter_axis).compute()
         return self
 
     def transform(self, X: xr.DataArray, y=None):
-        base_brightness = X.min(self._iter_axis).compute()
-        return X - base_brightness
+        return X - self.base_brightness
