@@ -1,5 +1,7 @@
 from sklearn.pipeline import make_pipeline
+
 from cala.preprocess import Downsampler, Denoiser, GlowRemover, BackgroundEraser
+from cala.motion_correction import MotionCorrector
 
 
 def main():
@@ -9,3 +11,5 @@ def main():
     background_eraser = BackgroundEraser()
 
     preprocessor = make_pipeline(downsampler, denoiser, glow_remover, background_eraser)
+
+    motion_corrector = MotionCorrector()
