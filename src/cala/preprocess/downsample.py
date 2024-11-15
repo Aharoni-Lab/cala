@@ -13,7 +13,7 @@ class Downsampler(BaseEstimator, TransformerMixin):
     def __init__(
         self,
         method: Literal["mean", "subset"] = "mean",
-        dims: Tuple[str | Hashable, ...] = ("time", "x", "y"),
+        dims: Tuple[str | Hashable, ...] = ("frames", "width", "height"),
         strides: Tuple[int, ...] = (1, 1, 1),
         **kwargs,
     ):
