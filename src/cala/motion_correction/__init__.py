@@ -1,3 +1,3 @@
-from .corrector import MotionCorrector
+from .correction import MotionCorrector
 
 __all__ = ["MotionCorrector"]
