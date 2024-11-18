@@ -21,7 +21,9 @@ def example_xarray():
 def test_downsampler_mean(example_xarray):
     X = example_xarray.chunk({"time": 10, "x": 50, "y": 50})
 
-    downsampler = Downsampler(method="mean", dims=("time", "x", "y"), strides=(2, 4, 5))
+    downsampler = Downsampler(
+        method="mean", dimensions=("time", "x", "y"), strides=(2, 4, 5)
+    )
     downsampled_X = downsampler.transform(X)
     downsampled_X = downsampled_X.compute()
 
@@ -46,7 +48,7 @@ def test_downsampler_mean(example_xarray):
 def test_downsampler_subset(example_xarray):
     # Instantiate the Downsampler with 'subset' method
     downsampler = Downsampler(
-        method="subset", dims=("time", "x", "y"), strides=(2, 4, 5)
+        method="subset", dimensions=("time", "x", "y"), strides=(2, 4, 5)
     )
 
     # Apply the transform
@@ -77,7 +79,9 @@ def test_downsampler_subset(example_xarray):
 )
 def test_downsampler_methods(method, strides, example_xarray):
     X = example_xarray.chunk({"time": 10, "x": 50, "y": 50})
-    downsampler = Downsampler(method=method, dims=example_xarray.dims, strides=strides)
+    downsampler = Downsampler(
+        method=method, dimensions=example_xarray.dims, strides=strides
+    )
     downsampled_X = downsampler.transform(X).compute()
 
     if method == "mean":
