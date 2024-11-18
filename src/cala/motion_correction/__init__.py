@@ -1,3 +1,3 @@
-from .correction import MotionCorrector
+from .rigid_translation import RigidTranslator
 
-__all__ = ["MotionCorrector"]
+__all__ = ["RigidTranslator"]
