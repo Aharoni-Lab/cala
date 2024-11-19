@@ -13,7 +13,7 @@ class Downsampler(BaseEstimator, TransformerMixin):
     def __init__(
         self,
         method: Literal["mean", "subset"] = "mean",
-        dims: Tuple[str | Hashable, ...] = ("time", "x", "y"),
+        dimensions: Tuple[str | Hashable, ...] = ("frames", "width", "height"),
         strides: Tuple[int, ...] = (1, 1, 1),
         **kwargs,
     ):
@@ -22,7 +22,7 @@ class Downsampler(BaseEstimator, TransformerMixin):
 
         Parameters:
             method (str): The downsampling method to use ('mean' or 'subset').
-            dims (tuple of str): The dimensions along which to downsample.
+            dimensions (tuple of str): The dimensions along which to downsample.
             strides (tuple of int): The strides or pool sizes for each dimension.
             **kwargs: Additional keyword arguments for the downsampling methods.
         """
@@ -31,10 +31,10 @@ class Downsampler(BaseEstimator, TransformerMixin):
                 f"Downsampling method '{method}' not understood. "
                 f"Available methods are: 'mean', 'subset'"
             )
-        if len(dims) != len(strides):
+        if len(dimensions) != len(strides):
             raise ValueError("Length of 'dims' and 'strides' must be equal.")
         self.method = method
-        self.dims = dims
+        self.dims = dimensions
         self.strides = strides
         self.kwargs = kwargs
 

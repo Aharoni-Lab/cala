@@ -26,11 +26,13 @@ pydantic-settings = "^2.5.2"
 platformdirs = "^4.3.6"
 scikit-learn = "^1.5.2"
 xarray = "^2024.10.0"
+scikit-image = "^0.24.0"
 
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
 black = "^24.10.0"
+radon = "^6.0.1"
 
 
 [tool.poetry.group.tests.dependencies]

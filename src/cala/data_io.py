@@ -26,8 +26,8 @@ class VideoMetadata(BaseModel):
 
 
 class DataIO:
-    def __init__(self, video_paths: List[Path]) -> None:
-        self.video_paths = video_paths
+    def __init__(self, video_paths: List[Path | str]) -> None:
+        self.video_paths = [Path(video_path) for video_path in video_paths]
         self.compressor = blosc.Blosc(cname="zstd", clevel=3, shuffle=2)
 
     @property
@@ -50,7 +50,7 @@ class DataIO:
             num_frames=num_frames, height=height, width=width, channels=channels
         )
 
-    def save_data(
+    def save_raw_video(
         self,
         data_directory: Path,
         data_name: str,

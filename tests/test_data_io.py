@@ -114,7 +114,7 @@ def test_dataio_save_data(tmp_path):
         # Now call save_data
         data_directory = tmp_path
         data_name = "test_video"
-        data_io.save_data(data_directory=data_directory, data_name=data_name)
+        data_io.save_raw_video(data_directory=data_directory, data_name=data_name)
 
         # Check that the zarr store was created
         zarr_file = data_directory / f"{data_name}.zarr"
