@@ -62,7 +62,7 @@ def align_phase_correlation(template, image):
 
 
 def main():
-    template = cv2.imread("./sample_image.jpg", cv2.IMREAD_GRAYSCALE)
+    template = cv2.imread("sample_image.jpg", cv2.IMREAD_GRAYSCALE)
     if template is None:
         print(
             "Error: Image not found. Please ensure 'sample_image.png' exists in the working directory."
