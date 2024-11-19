@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import xarray as xr
-from cala.motion_correction.base import BaseMotionCorrector
+from cala.video_stabilization.base import BaseMotionCorrector
 
 
 # Create a mock subclass for testing purposes
