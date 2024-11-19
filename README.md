@@ -18,12 +18,13 @@ pip install cala==0.1.0
 ```
 
 ## Usage
+
 ```python
 from sklearn.pipeline import make_pipeline
 
 from cala.data_io import DataIO
 from cala.preprocess import Downsampler, Denoiser, GlowRemover, BackgroundEraser
-from cala.motion_correction import RigidTranslator
+from cala.video_stabilization import RigidTranslator
 
 
 def main():
