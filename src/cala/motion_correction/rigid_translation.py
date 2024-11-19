@@ -29,13 +29,8 @@ class RigidTranslator(BaseMotionCorrector):
         return shift  # Returns an array [shift_y, shift_x] --> self.motion_
 
     def _transform_kernel(self, frame: np.ndarray, shift: np.ndarray) -> np.ndarray:
-        if self.motion_ is None:
-            raise ValueError(
-                "Motion has not been calculated. Fit method must be run before transform."
-            )
-
         # Define the affine transformation matrix for translation
-        M = np.float32([[1, 0, self.motion_[1]], [0, 1, self.motion_[0]]])
+        M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
 
         transformed_frame = cv2.warpAffine(
             frame,

@@ -42,7 +42,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         """
         if self.anchor_frame_index is None:
             raise ValueError(
-                "Calculating optimal base frame has not been implemented yet. base_frame_index is required."
+                "Calculating optimal anchor frame has not been implemented yet. anchor_frame_index is required."
             )
         elif self.anchor_frame_ is None:
             self.anchor_frame_ = self.anchor_by_index(
@@ -51,7 +51,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         self.motion_ = xr.apply_ufunc(
             self._fit_kernel,
             X,
-            input_core_dims=[[self.core_axes]],
+            input_core_dims=[self.core_axes],
             output_core_dims=[["shift_dim"]],
             vectorize=True,
             dask="parallelized",
@@ -64,12 +64,17 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         """
         Apply the _transform_kernel in parallel using xarray.
         """
+        if self.motion_ is None:
+            raise ValueError(
+                "Motion has not been calculated yet. Fit method must be run before transform."
+            )
+
         return xr.apply_ufunc(
             self._transform_kernel,
             X,
             self.motion_,
-            input_core_dims=[[self.core_axes], ["shift_dim"]],
-            output_core_dims=[[self.core_axes]],
+            input_core_dims=[self.core_axes, ["shift_dim"]],
+            output_core_dims=[self.core_axes],
             vectorize=True,
             dask="parallelized",
             output_dtypes=[X.dtype],
