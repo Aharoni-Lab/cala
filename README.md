@@ -1,8 +1,10 @@
 # Cala: Calcium Imaging Analysis Pipeline for Long-term Recordings
 
 ## Features
+A calcium imaging pipeline focused on long-term massive recordings that is based on a Sklearn pipeline architecture. Streamlined integration into an endless list of 3rd party apps that support Scikit-learn, including but not limited to hyperparameter optimization tools (i.e. Optuna), ML pipeline management tools (i.e. MLFlow), etc. Future implementation will include interactive UI and a modular orchestration architecture that supports piecewise progress, optimized orchestration, and automatic data, artifact, and pipeline versioning.
 
 ## Requirements
+Tests currently cover Python versions 3.11 and 3.12.
 
 ## Installation
 https://pypi.org/project/cala/0.1.0/
@@ -54,6 +56,10 @@ if __name__ == "__main__":
 
 ```
 ## Roadmap
+EOM 11/2024: Batch processing complete
+EOM 12/2024: Engineering first iteration complete
+EOM 01/2025: Orchestration first integration complete
+EOM 02/2025: UI first iteration complete
 
 ## Contributing
 We welcome contributions! Please fork this repository and submit a pull request if you would like to contribute to the project. You can also open issues for bug reports, feature requests, or discussions.
@@ -61,4 +67,4 @@ We welcome contributions! Please fork this repository and submit a pull request 
 ## License
 
 ## Contact
-For questions or support, please reach out to Raymond Chang at [ray0815@ucla.edu](mailto:ray0815@ucla.edu).
+For questions or support, please reach out to Raymond Chang at [raymond@physics.ucla.edu](mailto:raymond@physics.ucla.edu).
