@@ -1,4 +1,5 @@
 # Cala: Calcium Imaging Analysis Pipeline for Long-term Recordings
+[![codecov](https://codecov.io/gh/Aharoni-Lab/cala/graph/badge.svg?token=Apn4YtSvbU)](https://codecov.io/gh/Aharoni-Lab/cala)
 
 ## Features
 A calcium imaging pipeline focused on long-term massive recordings that is based on a Sklearn pipeline architecture. 
@@ -67,6 +68,9 @@ if __name__ == "__main__":
 
 ## Contributing
 We welcome contributions! Please fork this repository and submit a pull request if you would like to contribute to the project. You can also open issues for bug reports, feature requests, or discussions.
+
+## Test Coverage Status
+https://app.codecov.io/gh/Aharoni-Lab/cala
 
 ## License
 
