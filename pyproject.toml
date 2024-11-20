@@ -32,13 +32,13 @@ scikit-image = "^0.24.0"
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
 black = "^24.10.0"
-radon = "^6.0.1"
-pytest-cov = "^6.0.0"
 
 
 [tool.poetry.group.tests.dependencies]
 pytest = "^8.3.3"
 tomli-w = "^1.1.0"
+pytest-cov = "^6.0.0"
+radon = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]
