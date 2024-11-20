@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import xarray as xr
 from scipy.ndimage import uniform_filter
+from skimage.morphology import disk
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
@@ -113,28 +114,7 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
             background = uniform_filter(frame, size=self.kernel_size)
             return frame - background
         elif self.method == "tophat":
-            kernel = self.disk(self.kernel_size)
+            kernel = disk(self.kernel_size)
             return cv2.morphologyEx(frame, cv2.MORPH_TOPHAT, kernel)
         else:
             raise ValueError("Method must be either 'uniform' or 'tophat'.")
-
-    @staticmethod
-    def disk(radius: int) -> np.ndarray:
-        """Creates a disk-shaped structuring element with the given radius.
-
-        Args:
-            radius (int): Radius of the disk.
-
-        Returns:
-            np.ndarray: 2D binary array with ones inside the disk and zeros outside.
-
-        Raises:
-            ValueError: If radius is not a non-negative integer.
-        """
-        if radius < 0 or not isinstance(radius, int):
-            raise ValueError("Radius must be a non-negative integer.")
-
-        y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
-        mask = x**2 + y**2 <= radius**2
-        kernel = mask.astype(np.uint8)
-        return kernel
