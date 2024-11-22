@@ -9,12 +9,10 @@ from .base import BaseFilter
 @dataclass
 class IntensityFilter(BaseFilter):
     seed_intensity_factor: int = 2
-    fit_transform: bool = True
     max_brightness_projection_: xr.DataArray = None
     intensity_threshold_: float = field(default=None)
 
-    def fit_kernel(self, X):
-        self.max_brightness_projection_ = X.max(self.iter_axis)
+    def fit_kernel(self, X: xr.DataArray):
         num_projection_pixels = np.prod(
             self.max_brightness_projection_.sizes[axis] for axis in self.core_axes
         )
@@ -30,15 +28,7 @@ class IntensityFilter(BaseFilter):
 
         return self
 
-    def transform_kernel(self, X, seeds):
-        if self.intensity_threshold_ is None:
-            raise ValueError(
-                "Transformer has not been fitted yet. Please call 'fit' first."
-            )
-
-        if not self.fit_transform:
-            self.max_brightness_projection_ = X.max(self.iter_axis)
-
+    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
         # Create the mask based on the stored threshold
         mask = (self.max_brightness_projection_ > self.intensity_threshold_).stack(
             spatial=self.core_axes
@@ -50,9 +40,21 @@ class IntensityFilter(BaseFilter):
 
         return filtered_seeds
 
-    def fit(self, X, y=None):
+    def fit(self, X: xr.DataArray, y=None):
+        self.fit_transform_shared_preprocessing(X)
         self.fit_kernel(X)
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X: xr.DataArray, y: pd.DataFrame = None):
+        if self.intensity_threshold_ is None:
+            raise ValueError(
+                "Transformer has not been fitted yet. Please call 'fit' first."
+            )
+
+        if not self.fit_transform:
+            self.fit_transform_shared_preprocessing(X)
+
         return self.transform_kernel(X, y)
+
+    def fit_transform_shared_preprocessing(self, X: xr.DataArray, y=None):
+        self.max_brightness_projection_ = X.max(self.iter_axis)
