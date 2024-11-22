@@ -1,15 +1,15 @@
-# gmm_filter pnr_filter intensity_filter ks_filter
-
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+import dask as da
+from typing import Dict
 import numpy as np
 import pandas as pd
-import pyfftw.interfaces.numpy_fft as numpy_fft
 import xarray as xr
 from scipy.stats import kstest, zscore
 from .base import BaseFilter
 
 
-def ks_refine(self, varr: xr.DataArray, seeds: pd.DataFrame, sig=0.01) -> pd.DataFrame:
+@dataclass
+class KSFilter(BaseFilter):
     """
     Filter the seeds using Kolmogorov-Smirnov (KS) test.
 
@@ -19,67 +19,66 @@ def ks_refine(self, varr: xr.DataArray, seeds: pd.DataFrame, sig=0.01) -> pd.Dat
     seed/cell is active. KS allows to discard the seeds where the
     null-hypothesis (i.e. the fluorescence intensity is simply a normal
     distribution) is rejected at `sig`.
-
-    Parameters
-    ----------
-    varr : xr.DataArray
-        Input movie data. Should have dimensions "height", "width" and "frame".
-    seeds : pd.DataFrame
-        The input over-complete set of seeds to be filtered.
     sig : float, optional
         The significance threshold to reject null-hypothesis. By default `0.01`.
+    """
 
-    Returns
-    -------
-    seeds : pd.DataFrame
+    significance_threshold: float = 0.05
+
+    def fit_kernel(self, X: xr.DataArray = None):
+        pass
+
+    def fit(self, X: xr.DataArray = None, y: pd.DataFrame = None):
+        return self
+
+    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
+        """
+        Returns : pd.DataFrame
         The resulting seeds dataframe with an additional column "mask_ks",
         indicating whether the seed is considered valid by this function. If the
         column already exists in input `seeds` it will be overwritten.
-    """
-    print("selecting seeds")
-    # vectorized indexing on dask arrays produce a single chunk.
-    # to memory issue, split seeds into 128 chunks, with chunk size no greater than 100
-    chk_size = min(int(len(seeds) / 128), 100)
-    vsub_ls = []
-    for _, seed_sub in seeds.groupby(np.arange(len(seeds)) // chk_size):
-        vsub = varr.sel(
-            height=seed_sub["height"].to_xarray(),
-            width=seed_sub["width"].to_xarray(),
+        """
+        if not isinstance(X.data, da.array.core.Array):
+            X = X.chunk(auto=True)  # Let Dask decide chunk sizes
+
+        # Dynamically create a dictionary of DataArrays for each core axis
+        seed_das: Dict[str, xr.DataArray] = {
+            axis: xr.DataArray(seeds[axis].values, dims="seeds")
+            for axis in self.core_axes
+        }
+
+        # Select the relevant subset from X using dynamic vectorized selection
+        seed_pixels = X.sel(**seed_das)
+
+        ks = xr.apply_ufunc(
+            self.ks_kernel,
+            seed_pixels,
+            input_core_dims=[self.iter_axis],
+            output_core_dims=[[]],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[float],
         )
-        vsub_ls.append(vsub)
-    varr_sub = xr.concat(vsub_ls, "index")
-    print("performing KS test")
-    ks = xr.apply_ufunc(
-        ks_kernel,
-        varr_sub,
-        input_core_dims=[["frame"]],
-        output_core_dims=[[]],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[float],
-    ).compute()
-    ks = (ks < sig).to_pandas().rename("mask_ks")
-    seeds["mask_ks"] = ks
-    return seeds
 
+        ks_computed = ks < self.significance_threshold
+        seeds["mask_ks"] = ks_computed.compute().values
 
-def ks_kernel(a: np.ndarray) -> float:
-    """
-    Perform KS test on input and return the p-value.
+        return seeds
 
-    Parameters
-    ----------
-    a : np.ndarray
-        Input data.
+    def transform(self, X: xr.DataArray, y: pd.DataFrame):
 
-    Returns
-    -------
-    p : float
-        The p-value of the KS test.
+        return self.transform_kernel(X, y)
 
-    See Also
-    -------
-    scipy.stats.kstest
-    """
-    a = zscore(a)
-    return kstest(a, "norm")[1]
+    @staticmethod
+    def ks_kernel(arr: np.ndarray) -> float:
+        """
+        Computes the p-value of the Kolmogorov-Smirnov test against the normal distribution
+        after z-score normalization. Returns 0.0 if the array is constant.
+        """
+        if np.all(arr == arr[0]):
+            return 0.0  # Reject null hypothesis if data is constant
+        standardized = zscore(arr)
+        return kstest(standardized, "norm").pvalue
+
+    def fit_transform_shared_preprocessing(self, X, y):
+        pass
