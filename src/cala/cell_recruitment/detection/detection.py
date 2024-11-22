@@ -1,59 +1,51 @@
+from dataclasses import dataclass, field
 from typing import Literal, List
+
 import cv2
-import xarray as xr
 import numpy as np
+import xarray as xr
 from skimage.morphology import disk
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from signal_processing import local_extreme
 
 
+@dataclass
 class Detector(BaseEstimator, TransformerMixin):
-    def __init__(
-        self,
-        core_axes: List[str],
-        iter_axis: str,
-        chunk_size: int = 500,
-        method: Literal["rolling", "random"] = "rolling",
-        step_size: int = 200,
-        num_chunks: int = 100,
-        local_max_radius: int = 10,
-        intensity_threshold: int = 2,
-    ):
-        """
-        Args:
-        chunk_size : int, optional
-            Number of frames in each chunk, for which a max projection will be
-            calculated. Default: 500
-        method : str, optional
-            Either `"rolling"` or `"random"`. Controls whether to use rolling window
-            or random sampling of frames to construct chunks. Default: "rolling"
-        step_size : int, optional
-            Number of frames between the center of each chunk when stepping through
-            the data with rolling windows. Only used if `method is "rolling"`. Default: 200
-        num_chunks : int, optional
-            Number of chunks to sample randomly. Only used if `method is "random"`.
-            Default: 100
-        local_max_radius : int, optional
-            Radius (in pixels) of the disk window used for computing local maxima.
-            Local maxima are defined as pixels with maximum intensity in such a
-            window. Default: 10
-        intensity_threshold : int, optional
-            Intensity threshold for the difference between local maxima and its
-            neighbours. Any local maxima that is not brighter than its neighbor
-            (defined by the same disk window) by `intensity_threshold` intensity
-            values will be filtered out. Default: 2
-        """
-        self.core_axes = core_axes
-        self.iter_axis = iter_axis
-        self.chunk_size = chunk_size
-        self.method = method
-        self.step_size = step_size
-        self.num_chunks = num_chunks
-        self.local_max_radius = local_max_radius
-        self.intensity_threshold = intensity_threshold
-        self.max_projection_ = None
-        self.seeds_ = None
+    """
+    Args:
+    chunk_size : int, optional
+        Number of frames in each chunk, for which a max projection will be
+        calculated. Default: 500
+    method : str, optional
+        Either `"rolling"` or `"random"`. Controls whether to use rolling window
+        or random sampling of frames to construct chunks. Default: "rolling"
+    step_size : int, optional
+        Number of frames between the center of each chunk when stepping through
+        the data with rolling windows. Only used if `method is "rolling"`. Default: 200
+    num_chunks : int, optional
+        Number of chunks to sample randomly. Only used if `method is "random"`.
+        Default: 100
+    local_max_radius : int, optional
+        Radius (in pixels) of the disk window used for computing local maxima.
+        Local maxima are defined as pixels with maximum intensity in such a
+        window. Default: 10
+    intensity_threshold : int, optional
+        Intensity threshold for the difference between local maxima and its
+        neighbours. Any local maxima that is not brighter than its neighbor
+        (defined by the same disk window) by `intensity_threshold` intensity
+        values will be filtered out. Default: 2
+    """
+
+    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    iter_axis: str = "frames"
+    chunk_size: int = 500
+    method: Literal["rolling", "random"] = "rolling"
+    step_size: int = 200
+    num_chunks: int = 100
+    local_max_radius: int = 10
+    intensity_threshold: int = 2
+    max_projection_: xr.DataArray = field(default=None)
 
     def fit(self, X: xr.DataArray, y=None):
         """
