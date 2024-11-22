@@ -10,7 +10,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
     iter_axis: str = "frames"
 
-    @abstractmethodS
+    @abstractmethod
     def fit_kernel(self, X):
         pass
 
