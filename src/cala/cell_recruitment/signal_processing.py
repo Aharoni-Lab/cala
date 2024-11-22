@@ -38,7 +38,7 @@ def local_extreme(
     return detected_peaks.astype(np.uint8)
 
 
-def med_baseline(a: np.ndarray, wnd: int) -> np.ndarray:
+def median_high_filter(a: np.ndarray, window_size: int) -> np.ndarray:
     """
     Subtract baseline from a timeseries as estimated by median-filtering the
     timeseries.
@@ -47,7 +47,7 @@ def med_baseline(a: np.ndarray, wnd: int) -> np.ndarray:
     ----------
     a : np.ndarray
         Input timeseries.
-    wnd : int
+    window_size : int
         Window size of the median filter. This parameter is passed as `size` to
         :func:`scipy.ndimage.filters.median_filter`.
 
@@ -56,6 +56,6 @@ def med_baseline(a: np.ndarray, wnd: int) -> np.ndarray:
     a : np.ndarray
         Timeseries with baseline subtracted.
     """
-    base = median_filter(a, size=wnd)
+    base = median_filter(a, size=window_size)
     a -= base
     return a.clip(0, None)
