@@ -38,7 +38,7 @@ class KSFilter(BaseFilter):
         indicating whether the seed is considered valid by this function. If the
         column already exists in input `seeds` it will be overwritten.
         """
-        if not isinstance(X.data, da.array.core.Array):
+        if X.air.chunks is None:
             X = X.chunk(auto=True)  # Let Dask decide chunk sizes
 
         # Dynamically create a dictionary of DataArrays for each core axis
