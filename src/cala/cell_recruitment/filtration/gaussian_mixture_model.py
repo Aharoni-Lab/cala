@@ -23,6 +23,10 @@ class GMMFilter(BaseFilter):
         if self.quantile_floor >= self.quantile_ceil:
             raise ValueError("quantile_floor must be smaller than quantile_ceil")
 
+    @property
+    def quantiles(self):
+        return self.quantile_floor, self.quantile_ceil
+
     def fit_kernel(self, X: xr.DataArray) -> None:
         self.gmm_ = GaussianMixture(n_components=self.num_components, random_state=42)
         self.gmm_.fit(X)
@@ -39,7 +43,7 @@ class GMMFilter(BaseFilter):
 
         # Compute both percentiles in a single quantile call
         quantiles = seed_pixels.quantile(
-            q=tuple([self.quantile_floor, self.quantile_ceil]),
+            q=self.quantiles,
             dim=self.iter_axis,
             interpolation="linear",
         )
