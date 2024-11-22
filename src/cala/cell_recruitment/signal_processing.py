@@ -38,7 +38,7 @@ def local_extreme(
     return detected_peaks.astype(np.uint8)
 
 
-def median_high_filter(a: np.ndarray, window_size: int) -> np.ndarray:
+def median_clipper(a: np.ndarray, window_size: int) -> np.ndarray:
     """
     Subtract baseline from a timeseries as estimated by median-filtering the
     timeseries.
