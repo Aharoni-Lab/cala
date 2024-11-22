@@ -1,5 +1,5 @@
-from typing import Self
 from dataclasses import dataclass
+from typing import Self
 
 import numpy as np
 import pandas as pd
