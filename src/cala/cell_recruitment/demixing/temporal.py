@@ -18,10 +18,10 @@ class TemporalUpdater(BaseDemixer):
     cell_ids_: xr.DataArray = None
 
     def fit_kernel(self, features: xr.DataArray, X=None) -> None:
-        # Store unit IDs
+        # Store cell IDs
         self.cell_ids_ = features.coords[self.cell_id_axis]
 
-        # Stack and preprocess spatial dimensions of A
+        # Stack and preprocess spatial dimensions of features
         features_stacked = (
             features.stack({self.spatial_axis: self.core_axes})
             .transpose(self.spatial_axis, self.cell_id_axis)
@@ -35,27 +35,29 @@ class TemporalUpdater(BaseDemixer):
         return self
 
     def transform_kernel(self, X: xr.DataArray, y=None) -> xr.DataArray:
-        # Stack spatial dimensions of varr
         frames = X.coords[self.iter_axis]
-        X_stacked = (
-            X.stack({self.spatial_axis: self.core_axes})
-            .transpose(self.iter_axis, self.spatial_axis)
-            .data
+        X_stacked = X.stack(spatial=self.core_axes).transpose(
+            self.iter_axis, self.spatial_axis
         )
 
-        # Perform least-squares using the fitted A
-        weights_dask = self._sparse_least_squares(
-            self.features_dask, X_stacked, iter_lim=self.iter_lim
+        weights = xr.apply_ufunc(
+            self._sparse_least_squares,
+            self.features_dask,
+            X_stacked,
+            input_core_dims=[
+                [self.spatial_axis, self.cell_id_axis],
+                [self.iter_axis, self.spatial_axis],
+            ],
+            output_core_dims=[[self.iter_axis, self.cell_id_axis]],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[float],
+            kwargs={"iter_lim": self.iter_lim},
         )
 
-        # Convert result back to xarray
-        weights = xr.DataArray(
-            weights_dask,
-            dims=[self.iter_axis, self.cell_id_axis],
-            coords={self.cell_id_axis: self.cell_ids_, self.iter_axis: frames},
+        return weights.assign_coords(
+            {self.cell_id_axis: self.cell_ids_, self.iter_axis: frames}
         ).transpose(self.cell_id_axis, self.iter_axis)
-
-        return weights
 
     def transform(self, X: xr.DataArray, y) -> xr.DataArray:
         if self.features_dask is None or self.cell_ids_ is None:
@@ -64,7 +66,6 @@ class TemporalUpdater(BaseDemixer):
         return self.transform_kernel(X, y)
 
     @staticmethod
-    @da.as_gufunc(signature="(m,n),(m)->(n)", output_dtypes=float, vectorize=True)
     def _sparse_least_squares(A: csc_matrix, b: np.ndarray, **kwargs):
         """
         Generalized UFunc for performing sparse least-squares over rows of b.
