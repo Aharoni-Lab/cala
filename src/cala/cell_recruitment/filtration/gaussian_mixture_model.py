@@ -27,7 +27,7 @@ class GMMFilter(BaseFilter):
     def quantiles(self):
         return self.quantile_floor, self.quantile_ceil
 
-    def fit_kernel(self, X: xr.DataArray) -> None:
+    def fit_kernel(self, X: xr.DataArray, y=None) -> None:
         self.gmm_ = GaussianMixture(n_components=self.num_components, random_state=42)
         self.gmm_.fit(X)
 
@@ -39,7 +39,7 @@ class GMMFilter(BaseFilter):
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
         # Select the spatial points corresponding to the seeds
         spatial_coords = seeds[self.core_axes].apply(tuple, axis=1).tolist()
-        seed_pixels = X.sel(spatial=spatial_coords)
+        seed_pixels = X.sel({self.spatial_axis: spatial_coords})
 
         # Compute both percentiles in a single quantile call
         quantiles = seed_pixels.quantile(

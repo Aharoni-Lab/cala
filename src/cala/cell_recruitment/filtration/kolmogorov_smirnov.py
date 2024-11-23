@@ -26,10 +26,10 @@ class KSFilter(BaseFilter):
 
     significance_threshold: float = 0.05
 
-    def fit_kernel(self, X: xr.DataArray = None):
+    def fit_kernel(self, X, y):
         pass
 
-    def fit(self, X: xr.DataArray = None, y: pd.DataFrame = None):
+    def fit(self, X, y):
         return self
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
