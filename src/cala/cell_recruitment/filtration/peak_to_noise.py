@@ -11,7 +11,7 @@ from ..signal_processing import median_clipper
 
 
 @dataclass
-class PeakToNoiseFilter(BaseFilter):
+class PNRFilter(BaseFilter):
     """
     Filter seeds by thresholding peak-to-noise ratio.
 
