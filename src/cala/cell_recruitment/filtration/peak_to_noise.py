@@ -8,6 +8,7 @@ from sklearn.mixture import GaussianMixture
 
 from .base import BaseFilter
 from ..signal_processing import median_clipper
+from ...utilities import frequency_filter
 
 
 @dataclass
@@ -177,21 +178,7 @@ class PNRFilter(BaseFilter):
             arr, quantiles[0]
         )
 
-        # Apply FFT-based filter
-        _T = len(arr)
-        cutoff_bin = int(cutoff_frequency * _T)
-
-        # Perform real FFT
-        frequency_composition = np.fft.rfft(arr)
-
-        # Zero out the specified frequency bands
-        if filter_pass == "low":
-            frequency_composition[cutoff_bin:] = 0
-        elif filter_pass == "high":
-            frequency_composition[:cutoff_bin] = 0
-
-        # Perform inverse real FFT to obtain the filtered signal
-        filtered_arr = np.fft.irfft(frequency_composition, n=_T)
+        filtered_arr = frequency_filter(arr, cutoff_frequency, filter_pass)
 
         # Compute peak-to-peak (ptp_noise) after filtering
         peak_to_peak_noise = np.percentile(filtered_arr, quantiles[1]) - np.percentile(
