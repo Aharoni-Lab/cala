@@ -27,6 +27,8 @@ platformdirs = "^4.3.6"
 scikit-learn = "^1.5.2"
 xarray = "^2024.10.0"
 scikit-image = "^0.24.0"
+llvmlite = "^0.43.0"
+sparse = "^0.15.4"
 
 
 [tool.poetry.group.dev.dependencies]
