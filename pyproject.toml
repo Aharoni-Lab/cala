@@ -29,6 +29,8 @@ xarray = "^2024.10.0"
 scikit-image = "^0.24.0"
 llvmlite = "^0.43.0"
 sparse = "^0.15.4"
+pybind11 = "^2.13.6"
+pymetis = "^2023.1.1"
 
 
 [tool.poetry.group.dev.dependencies]

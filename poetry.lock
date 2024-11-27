@@ -971,6 +971,20 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
+name = "pybind11"
+version = "2.13.6"
+description = "Seamless operability between C++11 and Python"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pybind11-2.13.6-py3-none-any.whl", hash = "sha256:237c41e29157b962835d356b370ededd57594a26d5894a795960f0047cb5caf5"},
+    {file = "pybind11-2.13.6.tar.gz", hash = "sha256:ba6af10348c12b24e92fa086b39cfba0eff619b61ac77c406167d813b096d39a"},
+]
+
+[package.extras]
+global = ["pybind11-global (==2.13.6)"]
+
+[[package]]
 name = "pycodestyle"
 version = "2.12.1"
 description = "Python style guide checker"
@@ -1149,6 +1163,42 @@ files = [
 
 [package.extras]
 windows-terminal = ["colorama (>=0.4.6)"]
+
+[[package]]
+name = "pymetis"
+version = "2023.1.1"
+description = "A Graph Partitioning Package"
+optional = false
+python-versions = "~=3.8"
+files = [
+    {file = "PyMetis-2023.1.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:171f5d9c9580e308e7db074f1be7c22be4ba70246f00717f5c2d66fe6b31d3ce"},
+    {file = "PyMetis-2023.1.1-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:d687fa47e5967ff1cc9aaa243c1af75c1bb20694a47edf6c4b5d949679d3fe31"},
+    {file = "PyMetis-2023.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:47286e2d6ec9f9c3f3a79c851e07178f4be55fa639015f661f7d22f6b88aabbd"},
+    {file = "PyMetis-2023.1.1-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:8308973f0d854c7e733820bb641ff0b52bab0f29232e17641443e0da9002bb3b"},
+    {file = "PyMetis-2023.1.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:657cb1cd44b29e6725a58e4724158727ec2842a9751b9a15691c74531aa751f0"},
+    {file = "PyMetis-2023.1.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:73b5d62e8841fa591015ffdf216dc19840e4d165dcbe998c1d393fb6c7f9dc24"},
+    {file = "PyMetis-2023.1.1-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:3c6b8073be3bb4e42f8d9a29c457457bdc70d407d152096e4ba4481e4be7a2d1"},
+    {file = "PyMetis-2023.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:af4d537e20c05e71a598c1cfd7d6e1803a1d6836f3e286223e1afbf168e7f1f7"},
+    {file = "PyMetis-2023.1.1-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:b7e04ae6d9e36b756255e0dfc1f7ecb83b16d1ca0500dc6f0d4b9e37177843b1"},
+    {file = "PyMetis-2023.1.1-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:8d159cc60d5eb2133615387eebc24b998586542268e76bf4293ca881a0cf7433"},
+    {file = "PyMetis-2023.1.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:0bc03df667a23d2684d8ad0e37c1844bbc04e8317c2b01d4139bc59b91c701bb"},
+    {file = "PyMetis-2023.1.1-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e480fc8211121846246b418a0ecdf74b62434e79207d8cf69e170764134bcc37"},
+    {file = "PyMetis-2023.1.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c52966fd68dcd1421fa55710ea3a9244568447a8497a6f47030f683749f16da2"},
+    {file = "PyMetis-2023.1.1-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:1c33a2cbb9df3897b21181ee9035e3861967e466bfcc9ec07855993224145707"},
+    {file = "PyMetis-2023.1.1-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:b7803093a0b029b28b675f73c3291bdfd65e024e7185c79a5885424544bb6ac9"},
+    {file = "PyMetis-2023.1.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:38f27d8fb149a615e9511a9fb97cd54fe1c65da615e79dce443a50bf6b577d3c"},
+    {file = "PyMetis-2023.1.1-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:533d4b0ba67692a376eb38aaf413ff30601f377299b11c088d21c734beb316ba"},
+    {file = "PyMetis-2023.1.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bd7fb0421c4d2960ef70bb944a80513592b24b4f98794290549ad887a284f214"},
+    {file = "PyMetis-2023.1.1-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:6f46a9a4b93d32d52e5926a40aa0c630cb3c4c977f9ad8b5ce4a30f075f136f8"},
+    {file = "PyMetis-2023.1.1-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:a60e4b74487b40b64bac187e9acfcb7b0eaea728af037db5ffcc8ffda1b91d5d"},
+    {file = "PyMetis-2023.1.1-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:84291539d6e0ef50acfb5c79ded74b89ad51d9ed7cf1d24212eafa3676be3be0"},
+    {file = "PyMetis-2023.1.1-pp38-pypy38_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:032c0a79516ea9a37e5d7477b25940ca013adf9972637f4fca968727ec54e1fe"},
+    {file = "PyMetis-2023.1.1-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:405165b7bd5ccb233a90f1db322f7a1d3c78782a2df02b18a6d156670a0ffb5d"},
+    {file = "PyMetis-2023.1.1-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:38a61f0e8380d0242f246d6bbae4eaa476dde5ea41148a92784092397566f266"},
+    {file = "PyMetis-2023.1.1-pp39-pypy39_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:d3a152bf3ccb9ac4516d7c55bd307606d0d1071985f3f07d3a5c695c1886ea6e"},
+    {file = "PyMetis-2023.1.1-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f4d4c947210fb9910f8e5e9abce19581f5cf98f6d38fbad2521a0016807feb03"},
+    {file = "PyMetis-2023.1.1.tar.gz", hash = "sha256:dc065dbb782ee5b1816341488e68eda74ffe320ae1c9efd35ee5e5d6da119a3f"},
+]
 
 [[package]]
 name = "pytest"
@@ -1672,4 +1722,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "6d4a0a0eb64628ff3b9cbe3d2f7025205278056688ce1b5f8c578a98b0da10eb"
+content-hash = "3b2cd1fd29d0f353e9fb7d1f2f0168de59f9fb23251899b32feeda14731b7570"
