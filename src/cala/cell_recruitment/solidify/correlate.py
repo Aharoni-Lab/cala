@@ -132,9 +132,7 @@ def smooth_and_partial_correlation(
     Smooth the time series and compute partial pairwise correlations.
     """
     if cutoff_frequency:
-        X = frequency_filter(
-            X, cutoff_frequency=cutoff_frequency, filter_pass="low", axis=1
-        )
+        X = frequency_filter(X, cutoff_frequency=cutoff_frequency, filter_pass="low")
     return idx_corr(X, row_idx, col_idx)
 
 

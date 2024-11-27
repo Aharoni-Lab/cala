@@ -1,8 +1,7 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List
-from abc import ABC, abstractmethod
 
-import pandas as pd
 import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
 

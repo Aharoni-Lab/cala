@@ -9,7 +9,7 @@ import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.neighbors import radius_neighbors_graph
 
-from demixing.correlate import Correlator
+from solidify.correlate import Correlator
 
 
 @dataclass
@@ -110,9 +110,6 @@ class Merger(BaseEstimator, TransformerMixin):
         nodes : pd.DataFrame
             Dataframe containing node attributes. Should have length `adj.shape[0]`
             and only contain columns relevant to index the time series.
-        freq : float
-            Cut-off frequency for the optional smoothing. If `None` then no
-            smoothing will be done.
 
         Returns
         -------

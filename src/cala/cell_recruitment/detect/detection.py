@@ -7,7 +7,7 @@ import xarray as xr
 from skimage.morphology import disk
 from sklearn.base import BaseEstimator, TransformerMixin
 
-from signal_processing import local_extreme
+from ..signal_processing import local_extreme
 
 
 @dataclass
