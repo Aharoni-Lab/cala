@@ -47,6 +47,10 @@ class Detector(BaseEstimator, TransformerMixin):
     intensity_threshold: int = 2
     max_projection_: xr.DataArray = field(default=None)
 
+    def __post_init__(self):
+        if self.method not in ["rolling", "random"]:
+            raise ValueError("Method must be either 'rolling' or 'random'")
+
     def fit(self, X: xr.DataArray, y=None):
         """
         Fit Detector to have a statistical summary image of a set of frames.
@@ -94,7 +98,7 @@ class Detector(BaseEstimator, TransformerMixin):
             kwargs={
                 "k0": 2,
                 "k1": self.local_max_radius,
-                "diff_threshold": self.intensity_threshold,
+                "intensity_threshold": self.intensity_threshold,
             },
         ).sum("sample")
 
@@ -185,7 +189,9 @@ class Detector(BaseEstimator, TransformerMixin):
 
         for kernel_size in range(k0, k1):
             structuring_element = disk(kernel_size)
-            frame_max = local_extreme(frame, structuring_element, intensity_threshold)
+            frame_max = local_extreme(
+                frame, structuring_element, intensity_threshold, mode="max"
+            )
             np.logical_or(max_result, frame_max.astype(np.uint8), out=max_result)
 
         num_labels, labeled_maxima = cv2.connectedComponents(max_result)
