@@ -10,7 +10,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
     iter_axis: str = "frames"
     spatial_axis: str = "spatial"
-    fit_transform: bool = True
+    one_shot: bool = True
 
     @abstractmethod
     def fit_kernel(self, X, y):
