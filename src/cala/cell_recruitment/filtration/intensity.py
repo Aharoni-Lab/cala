@@ -51,7 +51,7 @@ class IntensityFilter(BaseFilter):
                 "Transformer has not been fitted yet. Please call 'fit' first."
             )
 
-        if not self.fit_transform:
+        if not self.one_shot:
             self.fit_transform_shared_preprocessing(X)
 
         return self.transform_kernel(X, y)
