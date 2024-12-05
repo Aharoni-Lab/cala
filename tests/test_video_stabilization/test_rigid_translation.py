@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import xarray as xr
 import cv2
-from cala.motion_correction.rigid_translation import RigidTranslator
+from cala.video_stabilization.rigid_translation import RigidTranslator
 
 
 def create_shifted_frame(anchor_frame, shift_y, shift_x):
