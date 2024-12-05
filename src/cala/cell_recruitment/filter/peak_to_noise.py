@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Literal, Self
+from typing import Optional, Dict, Literal, Self
 
-import dask as da
 import numpy as np
 import pandas as pd
 import xarray as xr
 from sklearn.mixture import GaussianMixture
 
+from cala.cell_recruitment.signal_processing import median_clipper
 from .base import BaseFilter
-from ..signal_processing import median_clipper
 
 
 @dataclass
