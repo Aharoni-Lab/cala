@@ -12,7 +12,7 @@ class IntensityFilter(BaseFilter):
     max_brightness_projection_: xr.DataArray = None
     intensity_threshold_: float = field(default=None)
 
-    def fit_kernel(self, X: xr.DataArray):
+    def fit_kernel(self, X: xr.DataArray, y=None):
         num_projection_pixels = np.prod(
             self.max_brightness_projection_.sizes[axis] for axis in self.core_axes
         )
@@ -31,7 +31,7 @@ class IntensityFilter(BaseFilter):
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
         # Create the mask based on the stored threshold
         mask = (self.max_brightness_projection_ > self.intensity_threshold_).stack(
-            spatial=self.core_axes
+            {self.spatial_axis: self.core_axes}
         )
         mask_df = mask.to_pandas().rename("mask_int").reset_index()
 

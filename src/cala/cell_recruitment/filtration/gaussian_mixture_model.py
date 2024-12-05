@@ -28,7 +28,11 @@ class GMMFilter(BaseFilter):
     def quantiles(self):
         return self.quantile_floor, self.quantile_ceil
 
+<<<<<<< HEAD
     def fit_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
+=======
+    def fit_kernel(self, X: xr.DataArray, y=None) -> None:
+>>>>>>> 0999d47 (refactor: filtration fit signature)
         self.gmm_ = GaussianMixture(n_components=self.num_components, random_state=42)
         self.gmm_.fit(self.seed_amplitude_)
 
@@ -38,6 +42,24 @@ class GMMFilter(BaseFilter):
         self.valid_component_indices_ = valid_component_indices
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
+<<<<<<< HEAD
+=======
+        # Select the spatial points corresponding to the seeds
+        spatial_coords = seeds[self.core_axes].apply(tuple, axis=1).tolist()
+        seed_pixels = X.sel({self.spatial_axis: spatial_coords})
+
+        # Compute both percentiles in a single quantile call
+        quantiles = seed_pixels.quantile(
+            q=self.quantiles,
+            dim=self.iter_axis,
+            interpolation="linear",
+        )
+        seed_valley = quantiles.sel(q=quantiles[0])
+        seed_peak = quantiles.sel(q=quantiles[1])
+        seed_amplitude = seed_peak - seed_valley
+        seed_amplitudes = seed_amplitude.compute().values.reshape(-1, 1)
+
+>>>>>>> 0999d47 (refactor: filtration fit signature)
         # Predict cluster assignments and determine validity
         cluster_labels = self.gmm_.predict(self.seed_amplitude_)
         is_valid = np.isin(cluster_labels, self.valid_component_indices_)

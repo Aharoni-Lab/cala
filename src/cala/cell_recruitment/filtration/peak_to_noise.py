@@ -58,11 +58,10 @@ class PNRFilter(BaseFilter):
     def quantiles(self):
         return self.quantile_floor, self.quantile_ceil
 
-    def fit_kernel(self, X: xr.DataArray) -> None:
+    def fit_kernel(self, X, y) -> None:
         pass
 
-    def fit(self, X: xr.DataArray, y: pd.DataFrame) -> Self:
-        self.fit_kernel(X)
+    def fit(self, X, y) -> Self:
         return self
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
