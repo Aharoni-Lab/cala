@@ -129,3 +129,99 @@ class TestDetector:
         detector.fit(data_array)
         seeds = detector.transform(data_array)
         assert not seeds.empty
+
+    def test_max_projection_with_known_input(self):
+        # Create a controlled input with known maximum values
+        data = np.zeros((5, 10, 10), dtype=np.uint8)
+        # Place max values at known positions
+        data[0, 5, 5] = 100  # Frame 0
+        data[2, 2, 2] = 150  # Frame 2
+        data[4, 7, 7] = 200  # Frame 4
+
+        coords = {
+            "frames": np.arange(5),
+            "width": np.arange(10),
+            "height": np.arange(10),
+        }
+        dims = ("frames", "width", "height")
+        data_array = xr.DataArray(data, coords=coords, dims=dims)
+
+        detector = Detector(method="rolling", chunk_size=3, step_size=2)
+        max_projections = detector._compute_max_projections(data_array)
+
+        first_projection = np.zeros((10, 10), dtype=np.uint8)
+        first_projection[5, 5] = 100
+        first_projection[2, 2] = 150
+
+        assert np.all(max_projections.isel(sample=0) == first_projection)
+
+        second_projection = np.zeros((10, 10), dtype=np.uint8)
+        second_projection[2, 2] = 150
+        second_projection[7, 7] = 200
+        assert np.all(max_projections.isel(sample=1) == second_projection)
+
+    def test_local_maxima_with_controlled_input(self):
+        # Create a frame with known local maxima
+        frame = np.zeros((20, 20), dtype=np.uint8)
+        # Create two peaks with different intensities
+        frame[5, 5] = 100
+        frame[15, 15] = 150
+        # Add some noise around the peaks
+        frame[5, 6] = 80
+        frame[6, 5] = 80
+        frame[14, 15] = 100
+        frame[15, 14] = 100
+
+        local_maxima = Detector._find_local_maxima(
+            frame, k0=2, k1=4, intensity_threshold=10
+        )
+
+        # Should detect both peaks
+        assert local_maxima[5, 5] == 1
+        assert local_maxima[15, 15] == 1
+        # Total number of maxima should be 2
+        assert np.sum(local_maxima) == 2
+
+    def test_complete_pipeline_with_controlled_input(self):
+        # Create a movie with known cell positions
+        data = np.zeros((10, 30, 30), dtype=np.uint8)
+        # Create two persistent cells
+        for frame in range(10):
+            # Cell 1 at (10, 10) with intensity 100
+            data[frame, 10, 10] = 100
+            # Add some noise around cell 1
+            data[frame, 10, 11] = 80
+            data[frame, 11, 10] = 80
+
+            # Cell 2 at (20, 20) with intensity 150
+            data[frame, 20, 20] = 150
+            # Add some noise around cell 2
+            data[frame, 20, 21] = 100
+            data[frame, 21, 20] = 100
+
+        coords = {
+            "frames": np.arange(10),
+            "width": np.arange(30),
+            "height": np.arange(30),
+        }
+        dims = ("frames", "width", "height")
+        data_array = xr.DataArray(data, coords=coords, dims=dims)
+
+        detector = Detector(
+            method="rolling",
+            chunk_size=5,
+            step_size=5,
+            local_max_radius=3,
+            intensity_threshold=10,
+        )
+
+        detector.fit(data_array)
+        seeds = detector.transform(data_array)
+
+        # Should find exactly 2 seeds
+        assert len(seeds) == 2
+
+        # Convert seeds to set of (width, height) tuples for easy comparison
+        seed_positions = {(row.width, row.height) for _, row in seeds.iterrows()}
+        expected_positions = {(10, 10), (20, 20)}
+        assert seed_positions == expected_positions
