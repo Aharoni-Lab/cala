@@ -130,3 +130,88 @@ def test_gmm_refine_return_types(generate_test_data):
     assert isinstance(
         seeds_result, pd.DataFrame
     ), "seeds_result should be a pandas DataFrame"
+
+
+def test_gmm_clustering_behavior(generate_test_data):
+    """Test that the GMM clustering behavior works as expected."""
+    video, seeds, _ = generate_test_data
+
+    # Create a filter with 3 components but only 1 valid component
+    gmm_filter = GMMFilter(num_components=3, num_valid_components=1)
+    gmm_filter.fit(X=video, y=seeds)
+
+    # Verify that we have the expected number of components
+    assert gmm_filter.gmm_.n_components == 3, "Incorrect number of GMM components"
+
+    # Verify that valid_component_indices_ has the correct shape
+    assert (
+        len(gmm_filter.valid_component_indices_) == 1
+    ), "Incorrect number of valid components"
+
+    # The valid component should be the one with the highest mean
+    component_means = gmm_filter.gmm_.means_.reshape(-1)
+    highest_mean_idx = np.argmax(component_means)
+    assert (
+        highest_mean_idx in gmm_filter.valid_component_indices_
+    ), "Valid component should be the one with highest mean"
+
+
+def test_mean_mask_behavior(generate_test_data):
+    """Test that the mean mask functionality works correctly."""
+    video, seeds, _ = generate_test_data
+
+    # First run without mean mask
+    gmm_filter_no_mask = GMMFilter(mean_mask=False)
+    result_no_mask = gmm_filter_no_mask.fit_transform(X=video, y=seeds)
+
+    # Then run with mean mask
+    gmm_filter_with_mask = GMMFilter(mean_mask=True)
+    result_with_mask = gmm_filter_with_mask.fit_transform(X=video, y=seeds)
+
+    # The mean mask should always be more restrictive
+    assert (
+        result_with_mask["mask_gmm"].sum() <= result_no_mask["mask_gmm"].sum()
+    ), "Mean mask should reduce or maintain the number of valid points"
+
+    # Verify that all points marked as valid with mean mask are also valid without mean mask
+    mask_with = result_with_mask["mask_gmm"]
+    mask_without = result_no_mask["mask_gmm"]
+    assert all(
+        mask_with[i] <= mask_without[i] for i in range(len(mask_with))
+    ), "Mean mask should be a subset of the regular mask"
+
+
+def test_multiple_valid_components(generate_test_data):
+    """Test behavior with multiple valid components."""
+    video, seeds, _ = generate_test_data
+
+    # Create a filter with 3 components and 2 valid components
+    gmm_filter = GMMFilter(num_components=3, num_valid_components=2)
+    result = gmm_filter.fit_transform(X=video, y=seeds)
+
+    # Verify that we have 2 valid component indices
+    assert (
+        len(gmm_filter.valid_component_indices_) == 2
+    ), "Should have exactly 2 valid components"
+
+    # The valid components should be the two with highest means
+    component_means = gmm_filter.gmm_.means_.reshape(-1)
+    top_two_indices = np.argsort(component_means)[-2:]
+    assert all(
+        idx in gmm_filter.valid_component_indices_ for idx in top_two_indices
+    ), "Valid components should be the two with highest means"
+
+
+def test_edge_case_equal_components(generate_test_data):
+    """Test edge case where number of valid components equals total components."""
+    video, seeds, _ = generate_test_data
+
+    # Create a filter where all components are valid
+    gmm_filter = GMMFilter(num_components=2, num_valid_components=2)
+    result = gmm_filter.fit_transform(X=video, y=seeds)
+
+    # All points should be marked as valid before mean mask
+    predictions = gmm_filter.gmm_.predict(gmm_filter.seed_amplitude_)
+    assert all(
+        np.isin(predictions, gmm_filter.valid_component_indices_)
+    ), "All points should belong to valid components"
