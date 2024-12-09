@@ -18,11 +18,11 @@ Closes #123
 <!--
 Please delete options that are not relevant.
 -->
-🛠️ **Bug Fix:** Non-breaking change which fixes an issue
-✨ **New Feature:** Introducing new functionality
-🧪 **Improvement:** Enhancements or optimizations to existing code
-📚 **Documentation:** Updates or additions to documentation
-🧹 **Refactor:** Code changes that neither fix a bug nor add a feature
+🛠️ **Bug Fix:** Non-breaking change which fixes an issue  
+✨ **New Feature:** Introducing new functionality  
+🧪 **Improvement:** Enhancements or optimizations to existing code  
+📚 **Documentation:** Updates or additions to documentation  
+🧹 **Refactor:** Code changes that neither fix a bug nor add a feature  
 🗑️ **Chore:** Maintenance tasks, such as dependency updates
 
 ## 🚀 Implementation Details
