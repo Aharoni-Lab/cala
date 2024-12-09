@@ -55,14 +55,6 @@ For example:
 - New library: `seaborn` for enhanced visualization
 -->
 
-## 📄 Documentation
-
-<!--
-Specify if and how the documentation has been updated.
-For example:
-- Updated README with new setup instructions
-- Added docstrings to new functions
--->
 
 ## ✅ Checklist
 
