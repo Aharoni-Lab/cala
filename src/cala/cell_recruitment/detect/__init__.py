@@ -1,3 +1,3 @@
-from .detection import Detector
+from .max_projection import MaxProjection
 
-__all__ = ["Detector"]
+__all__ = ["MaxProjection"]
