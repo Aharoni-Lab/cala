@@ -1,1 +1,1 @@
-from .fixtures import params, raw_calcium_video, stabilized_video
+from .fixtures import params, raw_calcium_video, preprocessed_video, stabilized_video

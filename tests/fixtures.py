@@ -183,40 +183,6 @@ def raw_calcium_video(params: CalciumVideoParams):
 
 
 @pytest.fixture
-def stabilized_video(preprocessed_video, params: CalciumVideoParams):
-    """Motion-corrected calcium imaging video."""
-    video, ground_truth, metadata = preprocessed_video
-
-    # remove the artificial motion
-    stabilized = np.zeros_like(video)
-
-    for f in range(params.frames):
-        motion_y = -metadata["motion"]["y"][f]
-        motion_x = -metadata["motion"]["x"][f]
-
-        if motion_y >= 0:
-            y_src = slice(None, -motion_y) if motion_y else slice(None)
-            y_dst = slice(motion_y, None) if motion_y else slice(None)
-        else:
-            y_src = slice(-motion_y, None)
-            y_dst = slice(None, motion_y)
-
-        if motion_x >= 0:
-            x_src = slice(None, -motion_x) if motion_x else slice(None)
-            x_dst = slice(motion_x, None) if motion_x else slice(None)
-        else:
-            x_src = slice(-motion_x, None)
-            x_dst = slice(None, motion_x)
-
-        stabilized[f, y_dst, x_dst] = video[f, y_src, x_src]
-
-    # Convert to xarray with same coordinates
-    stabilized_xr = xr.DataArray(stabilized, dims=video.dims, coords=video.coords)
-
-    return stabilized_xr, ground_truth, metadata
-
-
-@pytest.fixture
 def preprocessed_video(raw_calcium_video, params: CalciumVideoParams):
     """Calcium imaging video with artifacts removed except photobleaching."""
     video, ground_truth, metadata = raw_calcium_video
@@ -264,6 +230,40 @@ def preprocessed_video(raw_calcium_video, params: CalciumVideoParams):
     clean_xr = xr.DataArray(clean, dims=video.dims, coords=video.coords)
 
     return clean_xr, ground_truth, metadata
+
+
+@pytest.fixture
+def stabilized_video(preprocessed_video, params: CalciumVideoParams):
+    """Motion-corrected calcium imaging video."""
+    video, ground_truth, metadata = preprocessed_video
+
+    # remove the artificial motion
+    stabilized = np.zeros_like(video)
+
+    for f in range(params.frames):
+        motion_y = -metadata["motion"]["y"][f]
+        motion_x = -metadata["motion"]["x"][f]
+
+        if motion_y >= 0:
+            y_src = slice(None, -motion_y) if motion_y else slice(None)
+            y_dst = slice(motion_y, None) if motion_y else slice(None)
+        else:
+            y_src = slice(-motion_y, None)
+            y_dst = slice(None, motion_y)
+
+        if motion_x >= 0:
+            x_src = slice(None, -motion_x) if motion_x else slice(None)
+            x_dst = slice(motion_x, None) if motion_x else slice(None)
+        else:
+            x_src = slice(-motion_x, None)
+            x_dst = slice(None, motion_x)
+
+        stabilized[f, y_dst, x_dst] = video[f, y_src, x_src]
+
+    # Convert to xarray with same coordinates
+    stabilized_xr = xr.DataArray(stabilized, dims=video.dims, coords=video.coords)
+
+    return stabilized_xr, ground_truth, metadata
 
 
 def create_irregular_neuron(radius: int, irregularity: float) -> np.ndarray:
