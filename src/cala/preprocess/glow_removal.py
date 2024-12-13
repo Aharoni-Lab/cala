@@ -1,15 +1,16 @@
+from dataclasses import dataclass, field
 from sklearn.base import BaseEstimator, TransformerMixin
 import xarray as xr
 
 
+@dataclass
 class GlowRemover(BaseEstimator, TransformerMixin):
-    def __init__(self, iter_axis: str = "frame"):
-        self.base_brightness: float = 0
-        self._iter_axis = iter_axis
+    iter_axis: str = "frames"
+    base_brightness_: float = None
 
     def fit(self, X, y=None):
-        self.base_brightness = X.min(self._iter_axis).compute()
+        self.base_brightness_ = X.min(self.iter_axis).compute()
         return self
 
     def transform(self, X: xr.DataArray, y=None):
-        return X - self.base_brightness
+        return X - self.base_brightness_
