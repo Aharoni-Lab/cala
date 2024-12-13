@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from typing import Literal, List
 import cv2
 import numpy as np
@@ -7,42 +9,18 @@ from skimage.morphology import disk
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
+@dataclass
 class BackgroundEraser(BaseEstimator, TransformerMixin):
-    """Transformer that removes background from video frames using specified methods.
+    """Transformer that removes background from video frames using specified methods."""
 
-    The BackgroundEraser applies background removal techniques to each frame of a video.
-    Two methods are available:
-
-    - 'uniform': Background is estimated by convolving each frame with a uniform/mean kernel
-      and then subtracting it from the frame.
-    - 'tophat': Applies a morphological tophat operation to each frame using a disk-shaped kernel.
-
-    Attributes:
-        method (str): The method used to remove the background.
-        kernel_size (int): Size of the kernel used for background removal.
-    """
-
-    def __init__(
-        self,
-        core_axes: List[str] = [],
-        method: Literal["uniform", "tophat"] = "uniform",
-        kernel_size: int = 3,
-    ):
-        """Initializes the BackgroundEraser transformer.
-
-        Args:
-            core_axes (List[str, ...], optional): The core dimensions of the video, or the
-                dimensions on which the filter convolves on. Defaults to ["height", "width"].
-            method (Literal["uniform", "tophat"], optional): The method used to remove the background.
-                Should be either "uniform" or "tophat". Defaults to "uniform".
-            kernel_size (int, optional): Window size of kernels used for background removal,
-                specified in pixels. If method == "uniform", this will be the size of a box kernel
-                convolved with each frame. If method == "tophat", this will be the radius of a
-                disk kernel used for morphological operations. Defaults to 3.
-        """
-        self.core_axes = core_axes if core_axes is not None else ["height", "width"]
-        self.method = method
-        self.kernel_size = kernel_size
+    # - 'uniform': Background is estimated by convolving each frame with a uniform/mean kernel
+    # and then subtracting it from the frame.
+    # - 'tophat': Applies a morphological tophat operation to each frame using a disk-shaped kernel.
+    core_axes: List[str] = field(default_factory=lambda: ["height", "width"])
+    # method (str): The method used to remove the background.
+    method: Literal["uniform", "tophat"] = "uniform"
+    # kernel_size (int): Size of the kernel used for background removal.
+    kernel_size: int = 3
 
     def fit(self, X, y=None):
         """Fits the transformer to the data.
@@ -95,7 +73,9 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
             output_dtypes=[X.dtype],
         )
         res = res.astype(X.dtype)
-        res.name = f"{X.name}_subtracted" if X.name else "background_subtracted"
+        res.name = (
+            f"{X.name}_subtracted" if X.name != "None" else "background_subtracted"
+        )
         return res
 
     def apply_filter_per_frame(self, frame: np.ndarray) -> np.ndarray:
