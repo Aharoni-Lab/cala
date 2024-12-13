@@ -44,4 +44,4 @@ class Denoiser(BaseEstimator, TransformerMixin):
             kwargs=self.kwargs,
         )
         res = res.astype(X.dtype)
-        return res.rename(X.name + "_denoised")
+        return res.rename(f"{X.name}_denoised" if X.name else "denoised")

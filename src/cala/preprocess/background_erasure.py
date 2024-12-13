@@ -24,7 +24,7 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
 
     def __init__(
         self,
-        core_axes: List[str] = None,
+        core_axes: List[str] = [],
         method: Literal["uniform", "tophat"] = "uniform",
         kernel_size: int = 3,
     ):

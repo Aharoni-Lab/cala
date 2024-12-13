@@ -28,7 +28,7 @@ class MaxProjection(BaseDetector):
     # Radius for local maxima detection.
     local_max_radius: int = 10
     # Intensity threshold for peak detection.
-    intensity_threshold: int = 2
+    intensity_threshold: float = 1.0
 
     def __post_init__(self):
         """Validate initialization parameters."""
