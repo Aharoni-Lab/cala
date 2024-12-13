@@ -1,6 +1,7 @@
-from dataclasses import dataclass, field
-from sklearn.base import BaseEstimator, TransformerMixin
+from dataclasses import dataclass
+
 import xarray as xr
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 @dataclass

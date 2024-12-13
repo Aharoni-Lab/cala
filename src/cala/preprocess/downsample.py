@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Tuple, Literal, Hashable, List
+from typing import Literal, List
 
 import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin

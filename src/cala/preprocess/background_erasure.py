@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-
 from typing import Literal, List
+
 import cv2
 import numpy as np
 import xarray as xr
