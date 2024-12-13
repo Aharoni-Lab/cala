@@ -1,50 +1,10 @@
 import pytest
 import numpy as np
-import xarray as xr
-import cv2
 from cala.video_stabilization.rigid_translation import RigidTranslator
 
 
-def create_shifted_frame(anchor_frame, shift_y, shift_x):
-    M = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
-    shifted_frame = cv2.warpAffine(
-        anchor_frame,
-        M,
-        (anchor_frame.shape[1], anchor_frame.shape[0]),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=0,
-    )
-    return shifted_frame
-
-
-def create_synthetic_video(
-    num_frames=3,
-    height=20,
-    width=20,
-    iter_axis="frames",
-    core_axes=("height", "width"),
-    shifts=None,
-):
-    anchor_frame = np.random.rand(height, width)
-    frames = [anchor_frame]
-    if shifts is None:
-        shifts = [(0, 0), (1, -1), (-2, 2)]  # Example shifts
-    for shift in shifts[1:]:
-        shifted_frame = create_shifted_frame(
-            anchor_frame, shift_y=shift[0], shift_x=shift[1]
-        )
-        frames.append(shifted_frame)
-    data = np.stack(frames, axis=0)
-    coords = {
-        iter_axis: np.arange(num_frames),
-        core_axes[0]: np.arange(height),
-        core_axes[1]: np.arange(width),
-    }
-    return xr.DataArray(data, dims=(iter_axis, *core_axes), coords=coords)
-
-
 def test_rigid_translator_initialization():
+    """Test basic initialization of RigidTranslator."""
     core_axes = ["height", "width"]
     iter_axis = "frames"
     anchor_frame_index = 0
@@ -56,83 +16,83 @@ def test_rigid_translator_initialization():
     assert rigid_translator.motion_ is None
 
 
-def test_rigid_translator_fit():
-    core_axes = ["height", "width"]
-    iter_axis = "frames"
+def test_rigid_translator_motion_estimation(preprocessed_video):
+    """Test that RigidTranslator correctly estimates the known motion."""
+    video, ground_truth, metadata = preprocessed_video
+
     anchor_frame_index = 0
-    rigid_translator = RigidTranslator(core_axes, iter_axis, anchor_frame_index)
-    shifts = [(0.0, 0.0), (2.0, -3.0), (-1.0, 4.0)]
-    X = create_synthetic_video(
-        num_frames=3,
-        height=10,
-        width=10,
-        iter_axis=iter_axis,
-        core_axes=core_axes,
-        shifts=shifts,
+    # Initialize and fit the rigid translator
+    rigid_translator = RigidTranslator(
+        core_axes=["height", "width"],
+        iter_axis="frames",
+        anchor_frame_index=anchor_frame_index,
     )
-    rigid_translator.fit(X)
-    assert rigid_translator.anchor_frame_ is not None
-    assert rigid_translator.motion_ is not None
-    # Check motion_ dimensions
-    assert "shift_dim" in rigid_translator.motion_.dims
-    assert rigid_translator.motion_.sizes[iter_axis] == X.sizes[iter_axis]
-    # Check that motion_ values match the shifts
-    expected_shifts = -1 * np.array(shifts)  # multiplying negative one to reverse.
-    np.testing.assert_array_almost_equal(
-        rigid_translator.motion_.values, expected_shifts, decimal=1
+    rigid_translator.fit(video)
+
+    # Get the true motion that was applied
+    true_motion = np.column_stack([metadata["motion"]["y"], metadata["motion"]["x"]])
+    # True and estimated share same origin point
+    true_motion = true_motion - true_motion[anchor_frame_index]
+
+    # Get the estimated motion
+    estimated_motion = rigid_translator.motion_.values
+
+    # The estimated motion should be approximately the negative of the true motion
+    # (within some tolerance due to interpolation and numerical precision)
+    np.testing.assert_allclose(
+        estimated_motion,
+        -true_motion,
+        rtol=0.2,  # Allow 20% relative tolerance
+        atol=1.0,  # Allow 1 pixel absolute tolerance
     )
 
 
-def test_rigid_translator_transform():
-    core_axes = ["height", "width"]
-    iter_axis = "frames"
-    anchor_frame_index = 0
-    rigid_translator = RigidTranslator(core_axes, iter_axis, anchor_frame_index)
-    shifts = [(0, 0), (2, -3), (-1, 4)]
-    X = create_synthetic_video(
-        num_frames=3,
-        height=10,
-        width=10,
-        iter_axis=iter_axis,
-        core_axes=core_axes,
-        shifts=shifts,
-    )
-    rigid_translator.fit(X)
-    transformed_X = rigid_translator.transform(X)
-    # Since the shifts are known, applying the inverse shift should recover the base frame
-    # Here, since RigidTranslator applies shifts to align frames to the base, transformed_X should be similar to the anchor_frame
-    anchor_frame = rigid_translator.anchor_frame_.values
-    for i in range(X.sizes[iter_axis]):
-        frame = transformed_X.isel({iter_axis: i}).values
-        mask = ~np.isnan(frame) & ~np.isnan(anchor_frame)
-        frame_no_nan = frame[mask]
-        anchor_frame_no_nan = anchor_frame[mask]
-        np.testing.assert_array_almost_equal(
-            frame_no_nan, anchor_frame_no_nan, decimal=1
-        )
+def test_rigid_translator_preserves_neuron_traces(preprocessed_video, stabilized_video):
+    """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
+    video, ground_truth, _ = preprocessed_video
+    ground_truth_stabilized, _, _ = stabilized_video
 
-
-def test_rigid_translator_fit_transform():
-    core_axes = ["height", "width"]
-    iter_axis = "frames"
-    anchor_frame_index = 0
-    rigid_translator = RigidTranslator(core_axes, iter_axis, anchor_frame_index)
-    shifts = [(0, 0), (3, -2), (-2, 5)]
-    X = create_synthetic_video(
-        num_frames=3,
-        height=15,
-        width=15,
-        iter_axis=iter_axis,
-        core_axes=core_axes,
-        shifts=shifts,
+    # Initialize and fit the rigid translator
+    rigid_translator = RigidTranslator(
+        core_axes=["height", "width"], iter_axis="frames", anchor_frame_index=0
     )
-    rigid_translator.fit(X)
-    transformed_X = rigid_translator.transform(X)
-    # Verify that all transformed frames align with the base frame
-    anchor_frame = rigid_translator.anchor_frame_.values
-    for i in range(X.sizes[iter_axis]):
-        frame = transformed_X.isel({iter_axis: i}).values
-        # Allow some tolerance due to interpolation
-        difference = np.abs(frame - anchor_frame)
-        mask = ~np.isnan(difference)
-        assert np.all(difference[mask] < 0.1), f"Frame {i} is not properly aligned."
+    rigid_translator.fit(video)
+    corrected_video = rigid_translator.transform(video)
+
+    # Extract and compare calcium traces from both corrections
+    trace_correlations = []
+
+    for n in range(len(ground_truth)):
+        y_pos = ground_truth["height"].iloc[n]
+        x_pos = ground_truth["width"].iloc[n]
+        radius = int(ground_truth["radius"].iloc[n])
+
+        # Function to extract trace from a video
+        def extract_trace(vid):
+            y_slice = slice(y_pos - radius, y_pos + radius + 1)
+            x_slice = slice(x_pos - radius, x_pos + radius + 1)
+            trace = []
+            for f in range(vid.sizes["frames"]):
+                region = vid.isel(frames=f)[y_slice, x_slice]
+                if not np.any(np.isnan(region)):
+                    trace.append(float(region.max()))
+                else:
+                    trace.append(np.nan)
+            return np.array(trace)
+
+        # Extract traces from both corrections
+        trace_ours = extract_trace(corrected_video)
+        trace_ground_truth = extract_trace(ground_truth_stabilized)
+
+        # Calculate correlation between the traces
+        valid_mask = ~np.isnan(trace_ours) & ~np.isnan(trace_ground_truth)
+        if np.sum(valid_mask) > 10:  # Only if we have enough valid points
+            correlation = np.corrcoef(
+                trace_ours[valid_mask], trace_ground_truth[valid_mask]
+            )[0, 1]
+            trace_correlations.append(correlation)
+
+    # The traces should be highly correlated with ground truth
+    assert (
+        np.median(trace_correlations) > 0.95
+    ), "Calcium traces differ significantly from ground truth stabilization"

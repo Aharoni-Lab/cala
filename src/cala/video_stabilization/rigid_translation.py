@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
@@ -7,15 +8,9 @@ from skimage.registration import phase_cross_correlation
 from .base import BaseMotionCorrector
 
 
+@dataclass
 class RigidTranslator(BaseMotionCorrector):
-    def __init__(
-        self,
-        core_axes: List[str],
-        iter_axis: str,
-        anchor_frame_index: Optional[int] = None,
-    ):
-        self.anchor_frame_index = anchor_frame_index
-        super().__init__(core_axes, iter_axis, anchor_frame_index)
+    anchor_frame_index: Optional[int] = None
 
     def _fit_kernel(self, current_frame: np.ndarray, **kwargs) -> Dict[str, float]:
         if self.anchor_frame_ is None:
