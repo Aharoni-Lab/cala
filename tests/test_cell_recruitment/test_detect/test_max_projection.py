@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from matplotlib.figure import Figure
 
 from cala.cell_recruitment.detect import MaxProjection
@@ -114,4 +115,6 @@ def test_visualization(stabilized_video):
     assert len(fig.axes) == 1
 
     # Optional: save for manual inspection
-    fig.savefig("../../artifacts/detection_results.png")
+    artifact_directory = Path("../../artifacts")
+    artifact_directory.mkdir(exist_ok=True)
+    fig.savefig(artifact_directory / "detection_results.png")
