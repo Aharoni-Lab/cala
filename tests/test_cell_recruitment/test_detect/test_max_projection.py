@@ -114,4 +114,4 @@ def test_visualization(stabilized_video):
     assert len(fig.axes) == 1
 
     # Optional: save for manual inspection
-    fig.savefig("detection_results.png")
+    fig.savefig("../../artifacts/detection_results.png")
