@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -6,17 +7,17 @@ import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
+@dataclass
 class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
     """
     Abstract base class for parallel motion corrector.
     """
 
-    def __init__(self, core_axes: List[str], iter_axis: str, anchor_frame_index: int):
-        self.core_axes = core_axes
-        self.iter_axis = iter_axis
-        self.anchor_frame_index = anchor_frame_index
-        self.anchor_frame_ = None
-        self.motion_ = None
+    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    iter_axis: str = "frames"
+    anchor_frame_index: int = None
+    anchor_frame_: xr.DataArray = None
+    motion_: xr.DataArray = None
 
     def _fit_kernel(
         self,

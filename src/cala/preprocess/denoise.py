@@ -1,33 +1,33 @@
-from typing import List
-from sklearn.base import BaseEstimator, TransformerMixin
+from dataclasses import dataclass, field
+from typing import List, Literal
+
 import cv2
+import numpy as np
 import xarray as xr
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
+@dataclass
 class Denoiser(BaseEstimator, TransformerMixin):
-    methods = {
-        "gaussian": cv2.GaussianBlur,
-        "median": cv2.medianBlur,
-        "bilateral": cv2.bilateralFilter,
-    }
+    # core_axes: The axes the filter convolves on. Defaults to ["height", "width"]
+    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    # method: One of "gaussian", "median", "bilateral". Defaults to "median".
+    method: Literal["gaussian", "median", "bilateral"] = "gaussian"
+    # kwargs: keyword args corresponding to the denoise method
+    kwargs: dict = field(default_factory=dict)
 
-    def __init__(self, core_axes: List[str], method: str = "median", **kwargs):
-        """
-
-        Args:
-            method: One of "gaussian", "median", "bilateral". Defaults to "median".
-            core_axes: The axes the filter convolves on. Defaults to ["height", "width"]
-            **kwargs: Extra arguments for the filters. Check cv2 documentations for more details.
-        """
-        if method not in self.methods:
+    def __post_init__(self):
+        methods = {
+            "gaussian": cv2.GaussianBlur,
+            "median": cv2.medianBlur,
+            "bilateral": cv2.bilateralFilter,
+        }
+        if self.method not in methods:
             raise ValueError(
-                f"denoise method '{method}' not understood. "
-                f"Available methods are: {', '.join(self.methods.keys())}"
+                f"denoise method '{self.method}' not understood. "
+                f"Available methods are: {', '.join(methods.keys())}"
             )
-        self.method = method
-        self.func = self.methods[method]
-        self.core_axes = core_axes if core_axes is not None else ["height", "width"]
-        self.kwargs = kwargs
+        self.func = methods[self.method]
 
     def fit(self, X, y=None):
         return self
@@ -35,7 +35,7 @@ class Denoiser(BaseEstimator, TransformerMixin):
     def transform(self, X: xr.DataArray, y=None) -> xr.DataArray:
         res = xr.apply_ufunc(
             self.func,
-            X,
+            X.astype(np.float32),
             input_core_dims=[self.core_axes],
             output_core_dims=[self.core_axes],
             vectorize=True,
@@ -44,4 +44,4 @@ class Denoiser(BaseEstimator, TransformerMixin):
             kwargs=self.kwargs,
         )
         res = res.astype(X.dtype)
-        return res.rename(X.name + "_denoised")
+        return res.rename(f"{X.name}_denoised" if X.name else "denoised")

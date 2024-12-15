@@ -1,45 +1,33 @@
-from typing import Tuple, Literal, Hashable
+from dataclasses import dataclass, field
+from typing import Literal, List
 
 import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
+@dataclass
 class Downsampler(BaseEstimator, TransformerMixin):
     """
     A transformer that downsamples an xarray DataArray along specified dimensions using either
     'mean' or 'subset' methods.
     """
 
-    def __init__(
-        self,
-        method: Literal["mean", "subset"] = "mean",
-        dimensions: Tuple[str | Hashable, ...] = ("frames", "width", "height"),
-        strides: Tuple[int, ...] = (1, 1, 1),
-        **kwargs,
-    ):
-        """
-        Initialize the Downsampler.
+    # method (str): The downsampling method to use ('mean' or 'subset').
+    method: Literal["mean", "subset"] = "mean"
+    # dimensions (tuple of str): The dimensions along which to downsample.
+    dimensions: List[str] = field(default_factory=lambda: ["frames", "width", "height"])
+    # strides (tuple of int): The strides or pool sizes for each dimension.
+    strides: List[int] = field(default_factory=lambda: [1, 1, 1])
+    # keyword arguments for each downsampling method
+    kwargs: dict = field(default_factory=dict)
 
-        Parameters:
-            method (str): The downsampling method to use ('mean' or 'subset').
-            dimensions (tuple of str): The dimensions along which to downsample.
-            strides (tuple of int): The strides or pool sizes for each dimension.
-            **kwargs: Additional keyword arguments for the downsampling methods.
-        """
-        if method not in ("mean", "subset"):
-            raise ValueError(
-                f"Downsampling method '{method}' not understood. "
-                f"Available methods are: 'mean', 'subset'"
-            )
-        if len(dimensions) != len(strides):
+    def __post_init__(self):
+        if self.method not in ("mean", "subset"):
+            raise ValueError(f"Downsampling method '{self.method}' not understood.")
+        if len(self.dimensions) != len(self.strides):
             raise ValueError("Length of 'dims' and 'strides' must be equal.")
-        self.method = method
-        self.dims = dimensions
-        self.strides = strides
-        self.kwargs = kwargs
 
     def fit(self, X: xr.DataArray, y=None):
-        """Fit method for compatibility with sklearn's TransformerMixin."""
         return self
 
     def transform(self, X: xr.DataArray, y=None) -> xr.DataArray:
@@ -67,7 +55,9 @@ class Downsampler(BaseEstimator, TransformerMixin):
         Returns:
             xr.DataArray: The downsampled DataArray.
         """
-        coarsen_dims = {dim: stride for dim, stride in zip(self.dims, self.strides)}
+        coarsen_dims = {
+            dim: stride for dim, stride in zip(self.dimensions, self.strides)
+        }
         return array.coarsen(coarsen_dims, boundary="trim").mean(**self.kwargs)
 
     def subset_downsample(self, array: xr.DataArray) -> xr.DataArray:
@@ -82,6 +72,6 @@ class Downsampler(BaseEstimator, TransformerMixin):
         """
         indexers = {
             dim: slice(None, None, stride)
-            for dim, stride in zip(self.dims, self.strides)
+            for dim, stride in zip(self.dimensions, self.strides)
         }
         return array.isel(indexers)
