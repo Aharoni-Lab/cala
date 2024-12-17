@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Self
 
 import numpy as np
 import pandas as pd
@@ -23,6 +22,8 @@ class GMMFilter(BaseFilter):
     def __post_init__(self):
         if self.quantile_floor >= self.quantile_ceil:
             raise ValueError("quantile_floor must be smaller than quantile_ceil")
+        if self.quantile_floor < 0 or self.quantile_ceil > 1:
+            raise ValueError("quantiles must be between 0 and 1")
 
     @property
     def quantiles(self):
@@ -53,7 +54,7 @@ class GMMFilter(BaseFilter):
 
         return seeds
 
-    def fit(self, X: xr.DataArray, y=None, **fit_params) -> Self:
+    def fit(self, X: xr.DataArray, y=None, **fit_params) -> "GMMFilter":
         self.seed_amplitude_ = self.fit_transform_shared_preprocessing(X=X, seeds=y)
         self.fit_kernel(X, seeds=y)
 
@@ -70,9 +71,10 @@ class GMMFilter(BaseFilter):
     def fit_transform(self, X, y=None, **fit_params):
         return self.fit(X, y, **fit_params).transform(X, y)
 
-    def fit_transform_shared_preprocessing(self, X, seeds):
+    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds):
         # Select the spatial points corresponding to the seeds
         spatial_coords = seeds[self.core_axes].apply(tuple, axis=1).tolist()
+        X = X.stack({self.spatial_axis: self.core_axes})
         seed_pixels = X.sel({self.spatial_axis: spatial_coords})
 
         # Compute both percentiles in a single quantile call
