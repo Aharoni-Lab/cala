@@ -4,7 +4,7 @@ from matplotlib.figure import Figure
 
 from cala.cell_recruitment.detect import MaxProjection
 from tests.conftest import stabilized_video
-from tests.test_cell_recruitment.conftest import visualize_detection
+from tests.test_cell_recruitment.test_detect.conftest import visualize_detection
 
 
 def test_max_projection_basic(stabilized_video):
