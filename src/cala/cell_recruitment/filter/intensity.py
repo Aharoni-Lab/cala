@@ -40,24 +40,5 @@ class IntensityFilter(BaseFilter):
 
         return filtered_seeds
 
-    def fit(self, X: xr.DataArray, y=None):
-        self.fit_transform_shared_preprocessing(X)
-        self.fit_kernel(X)
-        return self
-
-    def transform(self, X: xr.DataArray, y: pd.DataFrame = None):
-        if self.intensity_threshold_ is None:
-            raise ValueError(
-                "Transformer has not been fitted yet. Please call 'fit' first."
-            )
-
-        if not self.one_shot:
-            self.fit_transform_shared_preprocessing(X)
-
-        return self.transform_kernel(X, y)
-
     def fit_transform_shared_preprocessing(self, X: xr.DataArray, y=None):
         self.max_brightness_projection_ = X.max(self.iter_axis)
-
-    def fit_transform(self, X, y=None, **fit_params):
-        return self.fit(X, y).transform(X, y)

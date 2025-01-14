@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Literal, Self
+from typing import Optional, Dict, Literal, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -37,6 +37,7 @@ class PNRFilter(BaseFilter):
     pnr_: xr.DataArray = None
     valid_pnr_: np.ndarray = None
     gmm_: GaussianMixture = None
+    _stateless: ClassVar[bool] = True
     """
     pnr_threshold: if None, finds it automatically.
     """
@@ -60,11 +61,11 @@ class PNRFilter(BaseFilter):
     def fit_kernel(self, X, y) -> None:
         pass
 
-    def fit(self, X, y) -> Self:
-        return self
+    def fit_transform_shared_preprocessing(self, X, y):
+        pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
-        if X.air.chunks is None:
+        if hasattr(X, "air") and X.air.chunks is None:
             X = X.chunk(auto=True)
 
         missing_axes = [axis for axis in self.core_axes if axis not in seeds.columns]
@@ -120,12 +121,6 @@ class PNRFilter(BaseFilter):
         seeds["mask_pnr"] = mask.values
 
         return seeds
-
-    def transform(self, X: xr.DataArray, y: pd.DataFrame) -> pd.DataFrame:
-        return self.transform_kernel(X, y)
-
-    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds: pd.DataFrame):
-        pass
 
     def _find_highest_pnr_cluster_gmm(self, pnr):
         # Fit Gaussian Mixture Model to pnr distribution

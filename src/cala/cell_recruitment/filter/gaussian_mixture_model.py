@@ -24,13 +24,14 @@ class GMMFilter(BaseFilter):
             raise ValueError("quantile_floor must be smaller than quantile_ceil")
         if self.quantile_floor < 0 or self.quantile_ceil > 1:
             raise ValueError("quantiles must be between 0 and 1")
+        self.gmm_ = GaussianMixture(random_state=42)
 
     @property
     def quantiles(self):
         return self.quantile_floor, self.quantile_ceil
 
     def fit_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
-        self.gmm_ = GaussianMixture(n_components=self.num_components, random_state=42)
+        self.gmm_.set_params(n_components=self.num_components)
         self.gmm_.fit(self.seed_amplitude_)
 
         valid_component_indices = np.argsort(self.gmm_.means_.reshape(-1))[
@@ -54,23 +55,6 @@ class GMMFilter(BaseFilter):
 
         return seeds
 
-    def fit(self, X: xr.DataArray, y=None, **fit_params) -> "GMMFilter":
-        self.seed_amplitude_ = self.fit_transform_shared_preprocessing(X=X, seeds=y)
-        self.fit_kernel(X, seeds=y)
-
-        return self
-
-    def transform(self, X: xr.DataArray, y: pd.DataFrame) -> pd.DataFrame:
-        if self.valid_component_indices_ is None:
-            raise ValueError(
-                "Transformer has not been fitted yet. Please call 'fit' first."
-            )
-
-        return self.transform_kernel(X=X, seeds=y)
-
-    def fit_transform(self, X, y=None, **fit_params):
-        return self.fit(X, y, **fit_params).transform(X, y)
-
     def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds):
         # Select the spatial points corresponding to the seeds
         spatial_coords = seeds[self.core_axes].apply(tuple, axis=1).tolist()
@@ -85,4 +69,4 @@ class GMMFilter(BaseFilter):
         )
         seed_valley = quantiles.sel(quantile=self.quantiles[0])
         seed_peak = quantiles.sel(quantile=self.quantiles[1])
-        return (seed_peak - seed_valley).compute().values.reshape(-1, 1)
+        self.seed_amplitude_ = (seed_peak - seed_valley).compute().values.reshape(-1, 1)

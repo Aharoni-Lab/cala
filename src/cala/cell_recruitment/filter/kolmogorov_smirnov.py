@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -21,16 +21,17 @@ class KSFilter(BaseFilter):
     null-hypothesis (i.e. the fluorescence intensity is simply a normal
     distribution) is rejected at `sig`.
     sig : float, optional
-        The significance threshold to reject null-hypothesis. By default `0.01`.
+        The significance threshold to reject null-hypothesis. By default `0.05`.
     """
 
     significance_threshold: float = 0.05
+    _stateless: ClassVar[bool] = True
 
     def fit_kernel(self, X, y):
         pass
 
-    def fit(self, X, y):
-        return self
+    def fit_transform_shared_preprocessing(self, X, y):
+        pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
         """
@@ -39,9 +40,6 @@ class KSFilter(BaseFilter):
         indicating whether the seed is considered valid by this function. If the
         column already exists in input `seeds` it will be overwritten.
         """
-        if X.air.chunks is None:
-            X = X.chunk(auto=True)  # Let Dask decide chunk sizes
-
         # Dynamically create a dictionary of DataArrays for each core axis
         seed_das: Dict[str, xr.DataArray] = {
             axis: xr.DataArray(seeds[axis].values, dims="seeds")
@@ -54,7 +52,7 @@ class KSFilter(BaseFilter):
         ks = xr.apply_ufunc(
             self.ks_kernel,
             seed_pixels,
-            input_core_dims=[self.iter_axis],
+            input_core_dims=[[self.iter_axis]],
             output_core_dims=[[]],
             vectorize=True,
             dask="parallelized",
@@ -66,10 +64,6 @@ class KSFilter(BaseFilter):
 
         return seeds
 
-    def transform(self, X: xr.DataArray, y: pd.DataFrame):
-
-        return self.transform_kernel(X, y)
-
     @staticmethod
     def ks_kernel(arr: np.ndarray) -> float:
         """
@@ -80,6 +74,3 @@ class KSFilter(BaseFilter):
             return 0.0  # Reject null hypothesis if data is constant
         standardized = zscore(arr)
         return kstest(standardized, "norm").pvalue
-
-    def fit_transform_shared_preprocessing(self, X, y):
-        pass
