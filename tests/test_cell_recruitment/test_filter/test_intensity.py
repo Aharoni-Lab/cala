@@ -102,7 +102,7 @@ def test_intensity_filter_one_shot(stabilized_video, dark_noisy_seeds):
     video, _, _ = stabilized_video
 
     # Test with one_shot=True (default)
-    filter_one_shot = IntensityFilter(one_shot=True)
+    filter_one_shot = IntensityFilter(reusing_fit=True)
     filter_one_shot.fit(video)
     initial_projection = filter_one_shot.max_brightness_projection_.copy()
 
@@ -116,7 +116,7 @@ def test_intensity_filter_one_shot(stabilized_video, dark_noisy_seeds):
     )
 
     # Test with one_shot=False
-    filter_multi = IntensityFilter(one_shot=False)
+    filter_multi = IntensityFilter(reusing_fit=False)
     filter_multi.fit(video)
     initial_projection = filter_multi.max_brightness_projection_.copy()
 
