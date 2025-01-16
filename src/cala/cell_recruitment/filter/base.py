@@ -31,8 +31,8 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     spatial_axis: str = "spatial"
     # reusing_fit: True if transform is being applied on a different dataset from the one used in fit.
     reusing_fit: bool = True
-    _stateless: ClassVar[bool] = False
-    _has_been_fitted: bool = False
+    _stateless: ClassVar[bool] = field(default=False, init=False)
+    _has_been_fitted: bool = field(default=False, init=False)
 
     def _validate_axes(self, X: DataArray) -> None:
         """Validate that required axes exist in the DataArray."""
@@ -71,11 +71,11 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     def transform(self, X: DataArray, y: DataFrame):
         self._validate_axes(X)
 
-        if ~(self._has_been_fitted or self._stateless):
+        if not (self._has_been_fitted or self._stateless):
             raise NotFittedError("The filter has not been fitted.")
 
         elif self.reusing_fit:
-            X, y = self.fit_transform_shared_preprocessing(X=X, seeds=y)
+            self.fit_transform_shared_preprocessing(X=X, seeds=y)
 
         return self.transform_kernel(X=X, seeds=y)
 
