@@ -58,21 +58,15 @@ class PNRFilter(BaseFilter):
     def quantiles(self):
         return self.quantile_floor, self.quantile_ceil
 
-    def fit_kernel(self, X, y) -> None:
+    def fit_kernel(self, X, seeds) -> None:
         pass
 
-    def fit_transform_shared_preprocessing(self, X, y):
+    def fit_transform_shared_preprocessing(self, X, seeds):
         pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
         if hasattr(X, "air") and X.air.chunks is None:
             X = X.chunk(auto=True)
-
-        missing_axes = [axis for axis in self.core_axes if axis not in seeds.columns]
-        if missing_axes:
-            raise ValueError(
-                f"The seeds DataFrame is missing the following required columns: {missing_axes}"
-            )
 
         # Dynamically create a dictionary of DataArrays for each core axis
         seed_das: Dict[str, xr.DataArray] = {
@@ -101,7 +95,7 @@ class PNRFilter(BaseFilter):
         pnr = xr.apply_ufunc(
             self.pnr_kernel,
             seeds_filtered,
-            input_core_dims=[self.iter_axis],
+            input_core_dims=[[self.iter_axis]],
             output_core_dims=[[]],
             vectorize=True,
             dask="parallelized",
@@ -116,7 +110,7 @@ class PNRFilter(BaseFilter):
             valid_pnr_ = np.nan_to_num(pnr.values.reshape(-1, 1))
             mask = self._find_highest_pnr_cluster_gmm(valid_pnr_)
         else:
-            mask = self.pnr_ > self.pnr_threshold
+            mask = pnr > self.pnr_threshold
 
         seeds["mask_pnr"] = mask.values
 

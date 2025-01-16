@@ -27,10 +27,10 @@ class KSFilter(BaseFilter):
     significance_threshold: float = 0.05
     _stateless: ClassVar[bool] = True
 
-    def fit_kernel(self, X, y):
+    def fit_kernel(self, X, seeds):
         pass
 
-    def fit_transform_shared_preprocessing(self, X, y):
+    def fit_transform_shared_preprocessing(self, X, seeds):
         pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):

@@ -12,7 +12,7 @@ class IntensityFilter(BaseFilter):
     max_brightness_projection_: xr.DataArray = None
     intensity_threshold_: float = field(default=None)
 
-    def fit_kernel(self, X: xr.DataArray, y=None):
+    def fit_kernel(self, X: xr.DataArray, seeds=None):
         num_projection_pixels = np.prod(
             [self.max_brightness_projection_.sizes[axis] for axis in self.core_axes]
         )
@@ -40,5 +40,5 @@ class IntensityFilter(BaseFilter):
 
         return filtered_seeds
 
-    def fit_transform_shared_preprocessing(self, X: xr.DataArray, y=None):
+    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds=None):
         self.max_brightness_projection_ = X.max(self.iter_axis)
