@@ -1,7 +1,7 @@
 from cala.cell_recruitment.filter import IntensityFilter
 
 
-def test_intensity_filter_threshold_scaling(stabilized_video, dark_noisy_seeds):
+def test_intensity_filter_threshold_scaling(stabilized_video, noisy_seeds):
     """Test that intensity threshold scales with seed_intensity_factor."""
     video, _, _ = stabilized_video
 
@@ -10,8 +10,8 @@ def test_intensity_filter_threshold_scaling(stabilized_video, dark_noisy_seeds):
     filter_2 = IntensityFilter(seed_intensity_factor=2)
 
     # Fit both filters
-    filter_1.fit(video)
-    filter_2.fit(video)
+    filter_1.fit(video, noisy_seeds)
+    filter_2.fit(video, noisy_seeds)
 
     # Higher factor should lead to higher threshold
     assert (
