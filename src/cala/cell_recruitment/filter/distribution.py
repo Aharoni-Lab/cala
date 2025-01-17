@@ -5,26 +5,23 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.stats import kstest, zscore
+import matplotlib.pyplot as plt
 
 from .base import BaseFilter
 
 
 @dataclass
-class KSFilter(BaseFilter):
+class DistributionFilter(BaseFilter):
     """
-    Filter the seeds using Kolmogorov-Smirnov (KS) test.
+    Filter the seeds using a distribution test.
 
     This function assume that the valid seeds’ fluorescence across frames
     notionally follows a bimodal distribution: with a large normal distribution
     representing baseline activity, and a second peak representing when the
-    seed/cell is active. KS allows to discard the seeds where the
-    null-hypothesis (i.e. the fluorescence intensity is simply a normal
-    distribution) is rejected at `sig`.
-    sig : float, optional
-        The significance threshold to reject null-hypothesis. By default `0.05`.
+    seed/cell is active.
+
     """
 
-    significance_threshold: float = 0.05
     _stateless: ClassVar[bool] = True
 
     def fit_kernel(self, X, seeds):
@@ -73,4 +70,9 @@ class KSFilter(BaseFilter):
         if np.all(arr == arr[0]):
             return 0.0  # Reject null hypothesis if data is constant
         standardized = zscore(arr)
+        plt.figure()
+        plt.hist(standardized, bins=30)
+        p_value = kstest(standardized, "norm").pvalue
+        plt.title(f"p-value: {p_value:.2f}")
+        plt.savefig(f"p_value_{p_value:.2f}.png")
         return kstest(standardized, "norm").pvalue
