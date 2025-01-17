@@ -71,7 +71,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     def transform(self, X: DataArray, y: DataFrame):
         self._validate_axes(X)
 
-        if not (self._has_been_fitted or self._stateless):
+        if not self._has_been_fitted:
             raise NotFittedError("The filter has not been fitted.")
 
         elif self.reusing_fit:
