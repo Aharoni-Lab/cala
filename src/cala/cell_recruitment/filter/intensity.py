@@ -9,8 +9,8 @@ from .base import BaseFilter
 @dataclass
 class IntensityFilter(BaseFilter):
     seed_intensity_factor: int = 2
-    max_brightness_projection_: xr.DataArray = None
-    intensity_threshold_: float = field(default=None)
+    max_brightness_projection_: xr.DataArray = field(init=False)
+    intensity_threshold_: float = field(init=False)
 
     def fit_kernel(self, X: xr.DataArray, seeds=None):
         num_projection_pixels = np.prod(

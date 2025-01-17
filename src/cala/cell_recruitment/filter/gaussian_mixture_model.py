@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -15,9 +14,9 @@ class GMMFilter(BaseFilter):
     num_components: int = 2
     num_valid_components: int = 1
     mean_mask: bool = True
-    seed_amplitude_: np.ndarray = None
-    gmm_: GaussianMixture = None
-    valid_component_indices_: np.ndarray = None
+    seed_amplitude_: np.ndarray = field(init=False)
+    gmm_: GaussianMixture = field(init=False)
+    valid_component_indices_: np.ndarray = field(init=False)
 
     def __post_init__(self):
         if self.quantile_floor >= self.quantile_ceil:
@@ -34,10 +33,9 @@ class GMMFilter(BaseFilter):
         self.gmm_.set_params(n_components=self.num_components)
         self.gmm_.fit(self.seed_amplitude_)
 
-        valid_component_indices = np.argsort(self.gmm_.means_.reshape(-1))[
+        self.valid_component_indices_ = np.argsort(self.gmm_.means_.reshape(-1))[
             -self.num_valid_components :
-        ]
-        self.valid_component_indices_ = valid_component_indices
+        ]  # get the indices of the components with the highest means
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
         # Predict cluster assignments and determine validity
