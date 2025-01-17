@@ -6,7 +6,7 @@ import pandas as pd
 import xarray as xr
 from sklearn.mixture import GaussianMixture
 
-from cala.cell_recruitment.signal_processing import median_clipper
+from cala.segmentation.signal_processing import median_clipper
 from .base import BaseFilter
 
 

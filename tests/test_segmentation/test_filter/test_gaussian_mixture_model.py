@@ -1,4 +1,4 @@
-from cala.cell_recruitment.filter import GMMFilter
+from cala.segmentation.filter import GMMFilter
 
 
 def test_gmm_filter_components(stabilized_video, noisy_seeds):

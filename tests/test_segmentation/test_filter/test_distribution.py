@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from cala.cell_recruitment.filter import DistributionFilter
+from cala.segmentation.filter import DistributionFilter
 
 
 def test_distribution_filter_kernel():

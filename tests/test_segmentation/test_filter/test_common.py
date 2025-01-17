@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from cala.cell_recruitment.filter.base import BaseFilter
+from cala.segmentation.filter.base import BaseFilter
 
 
 def test_filter_initialization(filter_instance):

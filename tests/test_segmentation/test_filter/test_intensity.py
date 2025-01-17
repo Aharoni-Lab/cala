@@ -1,4 +1,4 @@
-from cala.cell_recruitment.filter import IntensityFilter
+from cala.segmentation.filter import IntensityFilter
 
 
 def test_intensity_filter_threshold_scaling(stabilized_video, noisy_seeds):

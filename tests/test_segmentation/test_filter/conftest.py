@@ -1,5 +1,5 @@
 import pytest
-from cala.cell_recruitment.filter import (
+from cala.segmentation.filter import (
     GMMFilter,
     IntensityFilter,
     DistributionFilter,
