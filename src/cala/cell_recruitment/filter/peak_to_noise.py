@@ -28,10 +28,10 @@ class PNRFilter(BaseFilter):
     valid.
     """
 
-    cutoff_frequency: float = 0.25
-    pnr_threshold: Optional[float] = 1.5
-    quantile_floor: float = 0.1
-    quantile_ceil: float = 99.9
+    cutoff_frequency: float = 0.06
+    pnr_threshold: Optional[float] = 1.0
+    quantile_floor: float = 5.0
+    quantile_ceil: float = 95.0
     filter_pass_direction: Literal["high", "low"] = "high"
     filter_window_size: Optional[int] = None
     pnr_: xr.DataArray = None
@@ -46,7 +46,7 @@ class PNRFilter(BaseFilter):
         if self.filter_pass_direction not in {"high", "low"}:
             raise ValueError("filter_pass must be either 'high' or 'low'.")
 
-        if not 0 < self.cutoff_frequency < 0.5:
+        if not 0 < self.cutoff_frequency <= 0.5:
             raise ValueError(
                 "cutoff_frequency must be between 0 and 0.5 (Nyquist frequency)."
             )
@@ -154,11 +154,6 @@ class PNRFilter(BaseFilter):
         -------
         float
             Peak-to-noise ratio.
-
-        Raises
-        ------
-        ValueError
-            If `filter_pass` is not "high" or "low", or if `cutoff_frequency` is out of bounds.
         """
 
         # Compute peak-to-peak (ptp) before filtering
