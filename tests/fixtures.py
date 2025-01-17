@@ -42,8 +42,8 @@ class CalciumVideoParams:
 
     # Artifacts
     photobleaching_decay: float = 0.3  # exponential decay rate
-    dead_pixel_fraction: float = 0  # 0.001  # fraction of pixels that are dead
-    hot_pixel_fraction: float = 0  # 0.0005  # fraction of pixels that are hot
+    dead_pixel_fraction: float = 0.001  # fraction of pixels that are dead
+    hot_pixel_fraction: float = 0.0005  # fraction of pixels that are hot
     hot_pixel_intensity: float = 2.0  # intensity multiplier for hot pixels
     glow_intensity: float = 0.3  # intensity of the broad glow artifact
     glow_sigma: float = 0.5  # relative spread of glow (as fraction of width)
