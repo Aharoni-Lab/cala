@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Dict, ClassVar
+from typing import Dict, ClassVar, Optional
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.stats import kstest, zscore
 import matplotlib.pyplot as plt
+from sklearn.mixture import GaussianMixture
+
 
 from .base import BaseFilter
 
@@ -22,6 +23,7 @@ class DistributionFilter(BaseFilter):
 
     """
 
+    num_peaks: Optional[int] = None
     _stateless: ClassVar[bool] = True
 
     def fit_kernel(self, X, seeds):
@@ -46,8 +48,8 @@ class DistributionFilter(BaseFilter):
         # Select the relevant subset from X using dynamic vectorized selection
         seed_pixels = X.sel(**seed_das)
 
-        ks = xr.apply_ufunc(
-            self.ks_kernel,
+        n_components = xr.apply_ufunc(
+            self.min_ic_components,
             seed_pixels,
             input_core_dims=[[self.iter_axis]],
             output_core_dims=[[]],
@@ -56,23 +58,35 @@ class DistributionFilter(BaseFilter):
             output_dtypes=[float],
         )
 
-        ks_computed = ks < self.significance_threshold
-        seeds["mask_ks"] = ks_computed.compute().values
+        if self.num_peaks:
+            n_components_computed = n_components >= self.num_peaks
+        else:
+            n_components_computed = n_components > 1
+        seeds["mask_dist"] = n_components_computed.compute().values
 
         return seeds
 
     @staticmethod
-    def ks_kernel(arr: np.ndarray) -> float:
+    def min_ic_components(arr: np.ndarray, max_components=5):
         """
-        Computes the p-value of the Kolmogorov-Smirnov test against the normal distribution
-        after z-score normalization. Returns 0.0 if the array is constant.
+        Fit GMMs with components = 1..max_components to 'data',
+        return the model with the best (lowest) BIC.
         """
-        if np.all(arr == arr[0]):
-            return 0.0  # Reject null hypothesis if data is constant
-        standardized = zscore(arr)
-        plt.figure()
-        plt.hist(standardized, bins=30)
-        p_value = kstest(standardized, "norm").pvalue
-        plt.title(f"p-value: {p_value:.2f}")
-        plt.savefig(f"p_value_{p_value:.2f}.png")
-        return kstest(standardized, "norm").pvalue
+        arr = arr.reshape(-1, 1)
+        best_model = None
+        lowest_aic = np.inf
+        # lowest_bic = np.inf
+
+        for k in range(1, max_components + 1):
+            gmm = GaussianMixture(n_components=k)
+            gmm.fit(arr)
+            aic = gmm.aic(arr)
+            if aic < lowest_aic:
+                lowest_aic = aic
+                best_model = gmm
+            # bic = gmm.bic(arr)
+            # if bic < lowest_bic:
+            #     lowest_bic = bic
+            #     best_model = gmm
+
+        return best_model.n_components
