@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Literal, ClassVar
 
 import numpy as np
@@ -32,20 +32,16 @@ class PNRFilter(BaseFilter):
     pnr_threshold: Optional[float] = 1.0
     quantile_floor: float = 5.0
     quantile_ceil: float = 95.0
-    filter_pass_direction: Literal["high", "low"] = "high"
     filter_window_size: Optional[int] = None
-    pnr_: xr.DataArray = None
-    valid_pnr_: np.ndarray = None
-    gmm_: GaussianMixture = None
+    pnr_: xr.DataArray = field(init=False)
+    valid_pnr_: np.ndarray = field(init=False)
+    gmm_: GaussianMixture = field(init=False)
     _stateless: ClassVar[bool] = True
     """
     pnr_threshold: if None, finds it automatically.
     """
 
     def __post_init__(self):
-        if self.filter_pass_direction not in {"high", "low"}:
-            raise ValueError("filter_pass must be either 'high' or 'low'.")
-
         if not 0 < self.cutoff_frequency <= 0.5:
             raise ValueError(
                 "cutoff_frequency must be between 0 and 0.5 (Nyquist frequency)."
