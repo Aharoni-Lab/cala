@@ -1,5 +1,8 @@
 # Cala: Calcium Imaging Analysis Pipeline for Long-term Recordings
+[![PyPI - Version](https://img.shields.io/pypi/v/cala)](https://pypi.org/project/cala/)
 [![codecov](https://codecov.io/gh/Aharoni-Lab/cala/graph/badge.svg?token=Apn4YtSvbU)](https://codecov.io/gh/Aharoni-Lab/cala)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cala)
+![PyPI - Status](https://img.shields.io/pypi/status/cala)
 
 ## Features
 A calcium imaging pipeline focused on long-term massive recordings that is based on a Sklearn pipeline architecture. 
