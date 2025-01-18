@@ -14,6 +14,7 @@ from .base import BaseFilter
 class GLContrastFilter(BaseFilter):
     window_size: int = 50
     ratio_threshold: float = 1.75
+    _stateless = True
     """
     window_size : int
         Number of samples in the rolling window for local RMS calculation.
