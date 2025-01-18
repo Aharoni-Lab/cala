@@ -30,7 +30,7 @@ def test_filter_accuracy(filter_instance, stabilized_video, noisy_seeds):
         if row["is_real"] is False:
             video[:, int(row["height"]), int(row["width"])] = (
                 np.random.normal(0, 1, video.shape[0])
-                / max_pixel_value  # an arbirary division factor to make the noise smaller than the signal
+                / max_pixel_value  # an arbitrary division factor to make the noise smaller than the signal
             )
 
     # Apply the filter
@@ -57,6 +57,7 @@ def test_filter_accuracy(filter_instance, stabilized_video, noisy_seeds):
     false_positive_rate = len(false_positives) / len(
         filtered_seeds[~filtered_seeds["is_real"]]
     )
+    print(f"Recall: {recall:.2f}, False positive rate: {false_positive_rate:.2f}")
 
     # f1 metric
     f1_score = len(true_positives) / (

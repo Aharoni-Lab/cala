@@ -4,8 +4,8 @@ from cala.segmentation.filter import (
     IntensityFilter,
     DistributionFilter,
     PNRFilter,
+    GLContrastFilter,
 )
-import numpy as np
 
 
 @pytest.fixture(
@@ -14,6 +14,7 @@ import numpy as np
         IntensityFilter,
         DistributionFilter,
         PNRFilter,
+        GLContrastFilter,
     ]
 )
 def filter_instance(request):
