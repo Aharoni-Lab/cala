@@ -15,8 +15,9 @@ def track_calls(method):
     @wraps(method)
     def wrapper(self, *args, **kwargs):
         # Mark that this instance has been 'fit'
+        result = method(self, *args, **kwargs)
         self._has_been_fitted = True
-        return method(self, *args, **kwargs)
+        return result
 
     return wrapper
 
