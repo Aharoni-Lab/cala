@@ -84,9 +84,5 @@ class DistributionFilter(BaseFilter):
             if aic < lowest_aic:
                 lowest_aic = aic
                 best_model = gmm
-            # bic = gmm.bic(arr)
-            # if bic < lowest_bic:
-            #     lowest_bic = bic
-            #     best_model = gmm
 
         return best_model.n_components
