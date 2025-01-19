@@ -129,7 +129,7 @@ class PNRFilter(BaseFilter):
     def pnr_kernel(
         arr: np.ndarray,
         cutoff_frequency: float,
-        quantiles: tuple,
+        quantiles: tuple[float, float],
         filter_pass: Literal["high", "low"] = "high",
     ) -> float:
         """
