@@ -47,7 +47,7 @@ def test_filter_accuracy(filter_instance, stabilized_video, noisy_seeds):
         ~filtered_seeds["is_real"] & filtered_seeds[mask_col]
     ]
     false_negatives = filtered_seeds[
-        ~filtered_seeds["is_real"] & ~filtered_seeds[mask_col]
+        filtered_seeds["is_real"] & ~filtered_seeds[mask_col]
     ]
 
     # The filter should keep most real cells
