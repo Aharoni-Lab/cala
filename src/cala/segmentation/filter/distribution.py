@@ -75,7 +75,6 @@ class DistributionFilter(BaseFilter):
         arr = arr.reshape(-1, 1)
         best_model = None
         lowest_aic = np.inf
-        # lowest_bic = np.inf
 
         for k in range(1, max_components + 1):
             gmm = GaussianMixture(n_components=k)
