@@ -14,17 +14,25 @@ from .base import BaseFilter
 @dataclass
 class DistributionFilter(BaseFilter):
     """
-    Filter the seeds using a distribution test.
+    Filter seeds based on their fluorescence distribution characteristics.
 
-    This function assume that the valid seeds’ fluorescence across frames
-    notionally follows a bimodal distribution: with a large normal distribution
-    representing baseline activity, and a second peak representing when the
-    seed/cell is active.
+    This filter analyzes the distribution of fluorescence values across frames for each seed.
+    Valid seeds are expected to show a non-normal distribution pattern, characterized by:
+    - A large normal component representing baseline activity
+    - A long tail component representing periods of cellular activity
 
+    Notes
+    -----
+    The filter uses Gaussian Mixture Models to detect the number of components
+    in each seed's fluorescence distribution. Seeds are considered valid if they
+    exhibit at least the specified number of components, indicating the presence
+    of both baseline and active states.
     """
 
-    num_peaks: Optional[int] = None
+    num_peaks: int = 2
+    """Number of peaks to detect in the fluorescence distribution."""
     _stateless: ClassVar[bool] = True
+    """Indicates the filter is stateless and does not require fitting. Always True for this filter."""
 
     def fit_kernel(self, X, seeds):
         pass
@@ -33,11 +41,32 @@ class DistributionFilter(BaseFilter):
         pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
-        """
-        Returns : pd.DataFrame
-        The resulting seeds dataframe with an additional column "mask_ks",
-        indicating whether the seed is considered valid by this function. If the
-        column already exists in input `seeds` it will be overwritten.
+        """Transform the seeds by filtering based on distribution analysis.
+
+        Parameters
+        ----------
+        X : xarray.DataArray
+            Fluorescence data with dimensions matching core_axes and iter_axis.
+            Contains the time series data for each spatial point.
+        seeds : pandas.DataFrame
+            Seed coordinates in columns matching core_axes.
+            Each row represents a seed location to analyze.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Seeds DataFrame with an additional boolean column 'mask_dist' indicating valid seeds.
+            Seeds are marked as valid if their fluorescence distribution has at least the
+            specified number of components.
+
+        Notes
+        -----
+        This method analyzes each seed's fluorescence distribution across frames using
+        Gaussian Mixture Models (GMM). It determines if the distribution has the expected
+        number of components (peaks) by finding the optimal number of GMM components using
+        AIC criterion. Seeds are marked as valid if their fluorescence distribution has at
+        least the specified number of components. The method assumes that noise follows a
+        normal distribution.
         """
         # Dynamically create a dictionary of DataArrays for each core axis
         seed_das: Dict[str, xr.DataArray] = {
@@ -69,8 +98,26 @@ class DistributionFilter(BaseFilter):
     @staticmethod
     def min_ic_components(arr: np.ndarray, max_components=5):
         """
-        Fit GMMs with components = 1..max_components to 'data',
-        return the model with the best (lowest) BIC.
+        Find the optimal number of Gaussian components using AIC criterion.
+
+        Parameters
+        ----------
+        arr : numpy.ndarray
+            1D array of values to fit GMM components to
+        max_components : int, optional
+            Maximum number of components to try fitting, by default 5
+
+        Returns
+        -------
+        int
+            Optimal number of components according to AIC criterion
+
+        Notes
+        -----
+        This method fits multiple Gaussian Mixture Models with increasing numbers
+        of components (from 1 to max_components) and selects the model with the
+        lowest Akaike Information Criterion (AIC) score. The number of components
+        in the best-fitting model is returned.
         """
         arr = arr.reshape(-1, 1)
         best_model = None

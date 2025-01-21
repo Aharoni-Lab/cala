@@ -12,37 +12,47 @@ from .base import BaseFilter
 
 @dataclass
 class PNRFilter(BaseFilter):
-    """
-    Filter seeds by thresholding peak-to-noise ratio.
+    """Filter seeds based on peak-to-noise ratio (PNR) analysis.
 
-    For each input seed, the noise is defined as a high-pass filtered fluorescence
-    trace of the seed. The peak-to-noise ratio (pnr) of that seed is then
-    defined as the ratio between the peak-to-peak value of the original
-    fluorescence trace and that of the noise trace. Optionally, if abrupt
-    changes in baseline fluorescence are expected, then the baseline can be
-    estimated by median-filtering the fluorescence trace and subtracted from the
-    original trace before computing the peak-to-noise ratio. In addition, if a
-    hard threshold of pnr is not desired, then a Gaussian Mixture Model with 2
-    components can be fitted to the distribution of pnr across all seeds, and
-    only seeds with pnr belonging to the higher-mean Gaussian will be considered
-    valid.
+    This filter analyzes the peak-to-noise ratio of fluorescence signals to identify valid seeds.
+    Seeds are considered valid if their PNR exceeds a threshold or if they belong to high-PNR
+    clusters determined by Gaussian Mixture Model analysis.
+
+    The filter assumes that valid seeds exhibit higher peak-to-noise ratios compared to noise.
+
+    Notes
+    -----
+    The filtering process follows these steps:
+    1. Applies optional median filtering to the input signals
+    2. Computes peak-to-noise ratio for each seed location
+    3. Either:
+        a) Marks seeds as valid if PNR exceeds pnr_threshold, or
+        b) Uses GMM clustering to identify high-PNR seeds if pnr_threshold is None
     """
 
-    cutoff_frequency: float = 0.06
+    cutoff_frequency_ratio: float = 0.06
+    """Cutoff frequency ratio for high-pass filtering, must be between 0 and 0.5 (Nyquist frequency)."""
     pnr_threshold: Optional[float] = 1.0
+    """Threshold for deciding valid seeds based on PNR."""
+    auto_pnr_threshold: bool = False
+    """Whether to automatically determine the PNR threshold using GMM clustering. If True, pnr_threshold is ignored."""
     quantile_floor: float = 5.0
+    """Lower quantile threshold for PNR calculation."""
     quantile_ceil: float = 95.0
+    """Upper quantile threshold for PNR calculation."""
     filter_window_size: Optional[int] = None
+    """Window size for median filtering. If None, no filtering is applied."""
     pnr_: xr.DataArray = field(init=False)
+    """Computed peak-to-noise ratios for the input data."""
     valid_pnr_: np.ndarray = field(init=False)
+    """Boolean mask indicating valid seeds based on PNR analysis."""
     gmm_: GaussianMixture = field(init=False)
+    """Fitted Gaussian Mixture Model for PNR clustering."""
     _stateless: ClassVar[bool] = True
-    """
-    pnr_threshold: if None, finds it automatically.
-    """
+    """Whether the filter is stateless. Always True for this filter."""
 
     def __post_init__(self):
-        if not 0 < self.cutoff_frequency <= 0.5:
+        if not 0 < self.cutoff_frequency_ratio <= 0.5:
             raise ValueError(
                 "cutoff_frequency must be between 0 and 0.5 (Nyquist frequency)."
             )
@@ -61,9 +71,38 @@ class PNRFilter(BaseFilter):
         pass
 
     def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
-        if hasattr(X, "air") and X.air.chunks is None:
-            X = X.chunk(auto=True)
+        """
+        Transform seeds by filtering based on peak-to-noise ratio analysis.
 
+        Parameters
+        ----------
+        X : xarray.DataArray
+            Input data array containing fluorescence values with dimensions matching
+            core_axes and iter_axis.
+        seeds : pandas.DataFrame
+            DataFrame containing seed coordinates in columns matching core_axes.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Seeds DataFrame with an additional boolean column 'mask_pnr' indicating valid seeds.
+            Seeds are marked as valid if their peak-to-noise ratio exceeds the threshold
+            (if pnr_threshold is set) or if they belong to the highest-PNR cluster
+            (if pnr_threshold is None).
+
+        Notes
+        -----
+        This method:
+        1. Optionally applies median filtering to the seed signals
+        2. Computes peak-to-noise ratio for each seed
+        3. Determines valid seeds either by:
+           - Thresholding against pnr_threshold if set
+           - Using GMM clustering to find highest-PNR cluster if no pnr_threshold
+        4. Returns seeds DataFrame with additional mask column
+
+        The peak-to-noise ratio helps identify signal-like behavior by comparing
+        signal peaks to noise levels, with higher ratios indicating stronger signals.
+        """
         # Dynamically create a dictionary of DataArrays for each core axis
         seed_das: Dict[str, xr.DataArray] = {
             axis: xr.DataArray(seeds[axis].values, dims="seeds")
@@ -96,13 +135,13 @@ class PNRFilter(BaseFilter):
             vectorize=True,
             dask="parallelized",
             kwargs={
-                "cutoff_frequency": self.cutoff_frequency,
+                "cutoff_frequency": self.cutoff_frequency_ratio,
                 "quantiles": self.quantiles,
             },
             output_dtypes=[float],
         ).compute()
 
-        if self.pnr_threshold is None:
+        if self.auto_pnr_threshold:
             valid_pnr_ = np.nan_to_num(pnr.values.reshape(-1, 1))
             mask = self._find_highest_pnr_cluster_gmm(valid_pnr_)
         else:
@@ -113,6 +152,30 @@ class PNRFilter(BaseFilter):
         return seeds
 
     def _find_highest_pnr_cluster_gmm(self, pnr):
+        """Find seeds with high peak-to-noise ratio using Gaussian Mixture Model clustering.
+
+        This method fits a 2-component Gaussian Mixture Model to the distribution of peak-to-noise
+        ratios and identifies seeds belonging to the component with the higher mean value.
+
+        Parameters
+        ----------
+        pnr : numpy.ndarray
+            Array of peak-to-noise ratio values, shape (n_seeds, 1)
+
+        Returns
+        -------
+        numpy.ndarray
+            Boolean mask indicating seeds belonging to the high PNR component.
+            True values correspond to seeds with high peak-to-noise ratios.
+
+        Notes
+        -----
+        The method assumes that peak-to-noise ratios follow a bimodal distribution, with:
+        - One component representing low PNR values (noise-like seeds)
+        - One component representing high PNR values (signal-like seeds)
+
+        Seeds are marked as valid if they belong to the component with the higher mean value.
+        """
         # Fit Gaussian Mixture Model to pnr distribution
         self.gmm_ = GaussianMixture(n_components=2, random_state=42)
         self.gmm_.fit(pnr)
@@ -132,24 +195,38 @@ class PNRFilter(BaseFilter):
         quantiles: tuple[float, float],
         filter_pass: Literal["high", "low"] = "high",
     ) -> float:
-        """
-        Compute the Peak-to-Noise Ratio (PNR) of a given timeseries after applying a high-pass or low-pass filter.
+        """Calculate the peak-to-noise ratio of a signal using FFT filtering.
+
+        This method computes the ratio between the peak-to-peak amplitude of the original signal
+        and the peak-to-peak amplitude of the filtered signal (noise). The filtering is performed
+        using FFT to isolate specific frequency components.
 
         Parameters
         ----------
-        arr : np.ndarray
-            Input timeseries.
+        arr : numpy.ndarray
+            1D array containing the signal to analyze
         cutoff_frequency : float
-            Cut-off frequency as a fraction of the sampling rate (0 < freq < 0.5).
+            Normalized frequency (0 to 1) used as cutoff for filtering
         quantiles : tuple of float
-            Percentiles used to compute peak-to-peak values (e.g., (5, 95)).
-        filter_pass : str, optional
-            Type of filter to apply: "high" for high-pass or "low" for low-pass filtering. Default is "high".
+            (lower, upper) quantiles used for computing peak-to-peak amplitudes
+        filter_pass : {'high', 'low'}, default='high'
+            Type of frequency filter to apply:
+            - 'high': keeps frequencies above cutoff (isolates high-freq noise)
+            - 'low': keeps frequencies below cutoff (isolates low-freq noise)
 
         Returns
         -------
         float
-            Peak-to-noise ratio.
+            Peak-to-noise ratio. Higher values indicate stronger signal relative to noise.
+            Returns infinity if noise amplitude is zero.
+
+        Notes
+        -----
+        The method:
+        1. Computes peak-to-peak amplitude of original signal using quantiles
+        2. Applies FFT-based filtering to isolate noise components
+        3. Computes peak-to-peak amplitude of filtered signal (noise)
+        4. Returns ratio of original amplitude to noise amplitude
         """
 
         # Compute peak-to-peak (ptp) before filtering
