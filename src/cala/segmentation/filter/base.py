@@ -7,54 +7,7 @@ from xarray import DataArray
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
-
-
-def track_calls(method):
-    """Track method calls by setting a fitted flag on the instance.
-
-    This decorator sets a `_has_been_fitted` flag on the instance whenever the
-    decorated method is called. This is useful for tracking whether a filter
-    has been fitted before transform is called.
-
-    Parameters
-    ----------
-    method : callable
-        The method to be decorated. Should be an instance method of a class
-        that has a `_has_been_fitted` attribute.
-
-    Returns
-    -------
-    callable
-        The wrapped method that sets the `_has_been_fitted` flag to True
-        after calling the original method.
-
-    Examples
-    --------
-    >>> class MyFilter:
-    ...     def __init__(self):
-    ...         self._has_been_fitted = False
-    ...     @track_calls
-    ...     def fit(self, X):
-    ...         pass  # fit implementation
-    ...     def transform(self, X):
-    ...         if not self._has_been_fitted:
-    ...             raise ValueError("Must call fit before transform")
-    ...         # transform implementation
-
-    Notes
-    -----
-    This decorator is typically used in scikit-learn style estimators to ensure
-    that the fit method is called before transform.
-    """
-
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        # Mark that this instance has been 'fit'
-        result = method(self, *args, **kwargs)
-        self._has_been_fitted = True
-        return result
-
-    return wrapper
+from sklearn.utils.validation import check_is_fitted
 
 
 @dataclass
@@ -115,8 +68,6 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     """True if transform is being applied on a different dataset from the one used in fit."""
     _stateless: ClassVar[bool] = field(default=False, init=False)
     """True if the filter is stateless."""
-    _has_been_fitted: bool = field(default=False, init=False)
-    """True if the filter has been fitted."""
 
     def _validate_axes(self, X: DataArray) -> None:
         """Validate that all required axes exist in the input DataArray.
@@ -266,7 +217,6 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         """
         pass
 
-    @track_calls
     def fit(self, X: DataArray, y: DataFrame, **fit_params: dict) -> Self:
         """Fit the filter to the input data.
 
@@ -396,11 +346,9 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         transform_kernel : Method to implement filter-specific transformation logic
         """
         self._validate_axes(X)
+        check_is_fitted(self)
 
-        if not self._has_been_fitted:
-            raise NotFittedError("The filter has not been fitted.")
-
-        elif self.reusing_fit:
+        if self.reusing_fit:
             self.fit_transform_shared_preprocessing(X=X, seeds=y)
 
         return self.transform_kernel(X=X, seeds=y)
