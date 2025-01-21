@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from typing import Dict, ClassVar, Optional
+from typing import Dict, ClassVar
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
-
 
 from .base import BaseFilter
 

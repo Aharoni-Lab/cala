@@ -1,13 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from functools import wraps
 from typing import List, Self, ClassVar
 
-from xarray import DataArray
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
+from xarray import DataArray
 
 
 @dataclass
