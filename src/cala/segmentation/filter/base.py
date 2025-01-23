@@ -62,8 +62,11 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     """The axis in which the filtering will be parallelized against."""
     spatial_axis: str = "spatial"
     """The multiplexed axis that encompasses the entire visual space of the movie."""
-    reusing_fit: bool = True
-    """True if transform is being applied on a different dataset from the one used in fit."""
+    new_data_in_transform: bool = True
+    """Set this to True when transform() will be called on a different dataset than what 
+    was used in fit(). This ensures fit_transform_shared_preprocessing() runs again during 
+    transform() to recompute preprocessing attributes for the new data. Set to False if 
+    transforming the same dataset that was used in fit()."""
     _stateless: ClassVar[bool] = field(default=False, init=False)
     """True if the filter is stateless."""
 
@@ -322,11 +325,11 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         The transformation process consists of these steps:
         1. _validate_axes: Ensures input data has correct dimensions
         2. Check fitted state: Ensures fit() was called if needed
-        3. fit_transform_shared_preprocessing: Optionally rerun if reusing_fit=True
+        3. fit_transform_shared_preprocessing: Optionally rerun if new_data_in_transform=True
         4. transform_kernel: Apply filter-specific transformation
 
-        If reusing_fit=True (default), shared preprocessing will be rerun on the
-        new data. Set reusing_fit=False if the transform data is the same as
+        If new_data_in_transform=True (default), shared preprocessing will be rerun on the
+        new data. Set new_data_in_transform=False if the transform data is the same as
         the fit data to avoid redundant preprocessing.
 
         Developer Note
@@ -346,7 +349,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         self._validate_axes(X)
         check_is_fitted(self)
 
-        if self.reusing_fit:
+        if self.new_data_in_transform:
             self.fit_transform_shared_preprocessing(X=X, seeds=y)
 
         return self.transform_kernel(X=X, seeds=y)
