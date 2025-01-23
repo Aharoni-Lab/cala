@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -12,7 +12,7 @@ from .base import BaseMotionCorrector
 class RigidTranslator(BaseMotionCorrector):
     anchor_frame_index: Optional[int] = None
 
-    def _fit_kernel(self, current_frame: np.ndarray, **kwargs) -> Dict[str, float]:
+    def _fit_kernel(self, current_frame: np.ndarray, **kwargs) -> np.ndarray:
         if self.anchor_frame_ is None:
             raise ValueError("Base frame has not been established.")
 

@@ -1,3 +1,4 @@
+import pytest
 from typing import Optional
 
 import matplotlib.pyplot as plt
