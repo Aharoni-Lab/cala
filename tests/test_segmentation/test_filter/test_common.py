@@ -75,7 +75,7 @@ def test_filter_transform_without_fit(filter_instance):
     )
     dummy_seeds = pd.DataFrame({"height": [5], "width": [5]})
 
-    if filter_instance.reusing_fit:
+    if filter_instance.new_data_in_transform:
         with pytest.raises(ValueError, match="The filter has not been fitted."):
             filter_instance.transform(dummy_data, dummy_seeds)
     else:
