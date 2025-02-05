@@ -90,3 +90,24 @@ d. Visualization (optional):
 * detection
 * visualization
 * utils
+
+
+## Test Structure
+```sh
+├── unit/
+│   ├── test_core/
+│   ├── test_components/
+│   ├── test_motion/
+│   ├── test_initialization/
+│   ├── test_detection/
+│   ├── test_data/
+│   ├── test_preprocessing/
+│   ├── test_visualization/
+│   └── test_utils/
+├── integration/
+│   ├── test_pipeline.py
+│   └── test_end_to_end.py
+└── fixtures/
+    ├── sample_movies/
+    └── expected_results/
+```

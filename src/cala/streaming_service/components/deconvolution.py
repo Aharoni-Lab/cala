@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from river.base import Transformer
 
 
-class BaseDeconvolver(ABC):
+class BaseDeconvolver(Transformer):
     """Base class for deconvolution algorithms"""
 
     @abstractmethod
