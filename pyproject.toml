@@ -28,6 +28,7 @@ scikit-learn = "^1.5.2"
 xarray = "^2024.10.0"
 scikit-image = "^0.24.0"
 matplotlib = "^3.9.3"
+river = "^0.22.0"
 
 
 [tool.poetry.group.dev.dependencies]
