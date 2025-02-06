@@ -23,8 +23,6 @@ class BackgroundEraserParams(Parameters):
     """
     kernel_size: int = 3
     """Size of the kernel for background removal."""
-    clip_negative: bool = True
-    """Whether to clip negative values after background removal."""
 
     def _validate_parameters(self) -> None:
         if self.method not in ["uniform", "tophat"]:
@@ -48,14 +46,9 @@ class BackgroundEraser(base.Transformer):
         # Set default parameters if none provided
         self.params = params or BackgroundEraserParams()
 
-        # Store parameters as attributes for easy access
-        self.method = self.params.method
-        self.kernel_size = self.params.kernel_size
-        self.clip_negative = self.params.clip_negative
-
         # Pre-compute kernel for tophat method
-        if self.method == "tophat":
-            self.kernel = disk(self.kernel_size)
+        if self.params.method == "tophat":
+            self.kernel = disk(self.params.kernel_size)
 
     def learn_one(self, frame: np.ndarray) -> "BackgroundEraser":
         """Update any learning parameters with new frame.
@@ -89,18 +82,15 @@ class BackgroundEraser(base.Transformer):
         """
         frame = frame.astype(np.float32)
 
-        if self.method == "uniform":
+        if self.params.method == "uniform":
             # Estimate background using uniform filter
-            background = uniform_filter(frame, size=self.kernel_size)
+            background = uniform_filter(frame, size=self.params.kernel_size)
             result = frame - background
         else:  # tophat
             # Apply morphological tophat operation
             result = cv2.morphologyEx(
                 frame, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8)
             )
-
-        if self.clip_negative:
-            result = np.maximum(result, 0)
 
         return result
 
@@ -113,7 +103,6 @@ class BackgroundEraser(base.Transformer):
             Dictionary containing current parameters
         """
         return {
-            "method": self.method,
-            "kernel_size": self.kernel_size,
-            "clip_negative": self.clip_negative,
+            "method": self.params.method,
+            "kernel_size": self.params.kernel_size,
         }
