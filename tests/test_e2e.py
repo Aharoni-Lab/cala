@@ -6,7 +6,7 @@ from tests.visual_helper import VisualHelper
 
 
 def test_e2e(raw_calcium_video, preprocessed_video, stabilized_video):
-    artifact_directory = Path("artifacts/")
+    artifact_directory = Path(__file__).parent / "artifacts"
     artifact_directory.mkdir(exist_ok=True)
 
     visual_helper = VisualHelper()

@@ -3,7 +3,7 @@ import dataclasses
 import cv2
 import numpy as np
 import pytest
-
+import xarray as xr
 from cala.streaming_service.preprocess import (
     Denoiser,
     DenoiserParams,
@@ -47,7 +47,6 @@ class TestStreamingDenoiser:
         """Test proper initialization of StreamingDenoiser"""
         denoiser = Denoiser(default_params)
         assert denoiser.params.method == default_params.method
-        assert denoiser.params.kernel_size == default_params.kernel_size
         assert denoiser.params.kwargs == default_params.kwargs
         assert denoiser.func == cv2.GaussianBlur
 
@@ -60,7 +59,7 @@ class TestStreamingDenoiser:
     def test_gaussian_denoising(self, denoiser_gaussian, raw_calcium_video):
         """Test denoising using Gaussian method"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         # Process frame
         result = denoiser_gaussian.transform_one(frame)
@@ -72,7 +71,7 @@ class TestStreamingDenoiser:
 
         # Verify denoising
         expected = cv2.GaussianBlur(
-            frame.astype(np.float32), **denoiser_gaussian.params.kwargs
+            frame.values.astype(np.float32), **denoiser_gaussian.params.kwargs
         )
 
         np.testing.assert_array_almost_equal(result, expected)
@@ -80,7 +79,7 @@ class TestStreamingDenoiser:
     def test_median_denoising(self, denoiser_median, raw_calcium_video):
         """Test denoising using median method"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         # Process frame
         result = denoiser_median.transform_one(frame)
@@ -92,7 +91,7 @@ class TestStreamingDenoiser:
 
         # Verify denoising
         expected = cv2.medianBlur(
-            frame.astype(np.float32), **denoiser_median.params.kwargs
+            frame.values.astype(np.float32), **denoiser_median.params.kwargs
         )
 
         np.testing.assert_array_almost_equal(result, expected)
@@ -100,7 +99,7 @@ class TestStreamingDenoiser:
     def test_bilateral_denoising(self, denoiser_bilateral, raw_calcium_video):
         """Test denoising using bilateral method"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         # Process frame
         result = denoiser_bilateral.transform_one(frame)
@@ -112,7 +111,7 @@ class TestStreamingDenoiser:
 
         # Verify denoising
         expected = cv2.bilateralFilter(
-            frame.astype(np.float32), **denoiser_bilateral.params.kwargs
+            frame.values.astype(np.float32), **denoiser_bilateral.params.kwargs
         )
 
         np.testing.assert_array_almost_equal(result, expected)
@@ -120,7 +119,7 @@ class TestStreamingDenoiser:
     def test_streaming_consistency(self, denoiser_gaussian, raw_calcium_video):
         """Test consistency of streaming denoising"""
         video, _, _ = raw_calcium_video
-        frames = [video[i].values for i in range(5)]
+        frames = [video[i] for i in range(5)]
 
         # Process frames sequentially
         streaming_results = []
@@ -132,7 +131,7 @@ class TestStreamingDenoiser:
         batch_results = []
         for frame in frames:
             result = cv2.GaussianBlur(
-                frame.astype(np.float32), **denoiser_gaussian.params.kwargs
+                frame.values.astype(np.float32), **denoiser_gaussian.params.kwargs
             )
             batch_results.append(result)
 
@@ -143,7 +142,7 @@ class TestStreamingDenoiser:
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test denoising with different kernel sizes"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         kernel_sizes = [(3, 3), (5, 5), (7, 7)]
         for size in kernel_sizes:
@@ -167,13 +166,13 @@ class TestStreamingDenoiser:
     def test_edge_cases(self, default_params):
         """Test handling of edge cases"""
         # Test constant frame
-        constant_frame = np.ones((50, 50))
+        constant_frame = xr.DataArray(np.ones((50, 50)))
         denoiser = Denoiser(default_params)
         result = denoiser.transform_one(constant_frame)
         assert np.allclose(result, 1)  # Should preserve constant values
 
         # Test zero frame
-        zero_frame = np.zeros((50, 50))
+        zero_frame = xr.DataArray(np.zeros((50, 50)))
         result = denoiser.transform_one(zero_frame)
         assert np.allclose(result, 0)  # Should preserve zero values
 

@@ -3,6 +3,7 @@ import dataclasses
 import cv2
 import numpy as np
 import pytest
+import xarray as xr
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
@@ -50,7 +51,7 @@ class TestBackgroundEraser:
     def test_uniform_background_removal(self, eraser_uniform, raw_calcium_video):
         """Test background removal using uniform method"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         # Process frame
         result = eraser_uniform.transform_one(frame)
@@ -69,7 +70,7 @@ class TestBackgroundEraser:
     def test_tophat_background_removal(self, eraser_tophat, raw_calcium_video):
         """Test background removal using tophat method"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         # Process frame
         result = eraser_tophat.transform_one(frame)
@@ -82,7 +83,7 @@ class TestBackgroundEraser:
         # Verify background removal
         kernel = disk(eraser_tophat.params.kernel_size)
         expected = cv2.morphologyEx(
-            frame.astype(np.float32), cv2.MORPH_TOPHAT, kernel.astype(np.uint8)
+            frame.values.astype(np.float32), cv2.MORPH_TOPHAT, kernel.astype(np.uint8)
         )
 
         np.testing.assert_array_almost_equal(result, expected)
@@ -90,7 +91,7 @@ class TestBackgroundEraser:
     def test_streaming_consistency(self, eraser_uniform, raw_calcium_video):
         """Test consistency of streaming background removal"""
         video, _, _ = raw_calcium_video
-        frames = [video[i].values for i in range(5)]
+        frames = [video[i] for i in range(5)]
 
         # Process frames sequentially
         streaming_results = []
@@ -101,8 +102,10 @@ class TestBackgroundEraser:
         # Process frames in batch
         batch_results = []
         for frame in frames:
-            background = uniform_filter(frame, size=eraser_uniform.params.kernel_size)
-            result = frame - background
+            background = uniform_filter(
+                frame.values, size=eraser_uniform.params.kernel_size
+            )
+            result = frame.values - background
             batch_results.append(result)
 
         # Compare results
@@ -112,7 +115,7 @@ class TestBackgroundEraser:
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test background removal with different kernel sizes"""
         video, _, _ = raw_calcium_video
-        frame = video[0].values
+        frame = video[0]
 
         kernel_sizes = [3, 5, 7]
         for size in kernel_sizes:
@@ -134,12 +137,12 @@ class TestBackgroundEraser:
     def test_edge_cases(self, default_params):
         """Test handling of edge cases"""
         # Test constant frame
-        constant_frame = np.ones((50, 50))
+        constant_frame = xr.DataArray(np.ones((50, 50)))
         eraser = BackgroundEraser(default_params)
         result = eraser.transform_one(constant_frame)
         assert np.allclose(result, 0)  # Background should be removed
 
         # Test zero frame
-        zero_frame = np.zeros((50, 50))
+        zero_frame = xr.DataArray(np.zeros((50, 50)))
         result = eraser.transform_one(zero_frame)
         assert np.allclose(result, 0)
