@@ -7,7 +7,7 @@ import xarray as xr
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.streaming_service.preprocess.background_removal import (
+from cala.streaming.preprocess.background_removal import (
     BackgroundEraser,
     BackgroundEraserParams,
 )
@@ -114,10 +114,10 @@ class TestBackgroundEraser:
 
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test background removal with different kernel sizes"""
-        video, _, _ = raw_calcium_video
+        video, _, metadata = raw_calcium_video
         frame = video[0]
 
-        kernel_sizes = [3, 5, 7]
+        kernel_sizes = [20, 30, 40]
         for size in kernel_sizes:
             params = dataclasses.replace(default_params)
             params.kernel_size = size
@@ -127,12 +127,12 @@ class TestBackgroundEraser:
             assert result.shape == frame.shape
 
             # Larger kernels should remove less background
-            if size > 3:
+            if size > 20:
                 prev_params = dataclasses.replace(params)
                 prev_params.kernel_size = size - 2
                 prev_eraser = BackgroundEraser(prev_params)
                 prev_result = prev_eraser.transform_one(frame)
-                assert np.mean(result) > np.mean(prev_result)
+                assert np.mean(result.values) > np.mean(prev_result.values)
 
     def test_edge_cases(self, default_params):
         """Test handling of edge cases"""

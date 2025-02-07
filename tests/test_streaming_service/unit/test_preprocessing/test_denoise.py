@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 import pytest
 import xarray as xr
-from cala.streaming_service.preprocess import (
+
+from cala.streaming.preprocess import (
     Denoiser,
     DenoiserParams,
 )

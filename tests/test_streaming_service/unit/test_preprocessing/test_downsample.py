@@ -3,7 +3,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from cala.streaming_service.preprocess import (
+from cala.streaming.preprocess import (
     Downsampler,
     DownsamplerParams,
 )

@@ -29,7 +29,7 @@ def _flatten(d, parent_key="", separator="__") -> dict:
 @pytest.fixture(scope="module", autouse=True)
 def dodge_existing_global_config(tmp_path_factory):
     """
-    Suspend any existing global config file during config tests
+    Suspend any existing global config_examples file during config_examples tests
     """
     tmp_path = tmp_path_factory.mktemp("config_backup")
     default_global_config_path = Path(_dirs.user_config_dir) / "cala_config.yaml"
@@ -77,7 +77,7 @@ def set_env(monkeypatch) -> Callable[[dict[str, Any]], None]:
 @pytest.fixture()
 def set_dotenv(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
     """
-    Function fixture to set config variables in a .env file
+    Function fixture to set config_examples variables in a .env file
     """
     dotenv_path = tmp_cwd / ".env"
 
@@ -94,12 +94,12 @@ def set_dotenv(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
 @pytest.fixture()
 def set_pyproject(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
     """
-    Function fixture to set config variables in a pyproject.toml file
+    Function fixture to set config_examples variables in a pyproject.toml file
     """
     toml_path = tmp_cwd / "pyproject.toml"
 
     def _set_pyproject(config: dict[str, Any]) -> Path:
-        config = {"tool": {"cala": {"config": config}}}
+        config = {"tool": {"cala": {"config_examples": config}}}
 
         with open(toml_path, "wb") as tfile:
             tomli_w.dump(config, tfile)
@@ -112,7 +112,7 @@ def set_pyproject(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
 @pytest.fixture()
 def set_local_yaml(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
     """
-    Function fixture to set config variables in a local linkml_config.yaml file
+    Function fixture to set config_examples variables in a local linkml_config.yaml file
     """
     yaml_path = tmp_cwd / "cala_config.yaml"
 
@@ -127,7 +127,7 @@ def set_local_yaml(tmp_cwd) -> Callable[[dict[str, Any]], Path]:
 @pytest.fixture()
 def set_global_yaml() -> Callable[[dict[str, Any]], Path]:
     """
-    Function fixture to reversibly set config variables in a global linkml_config.yaml file
+    Function fixture to reversibly set config_examples variables in a global linkml_config.yaml file
     """
     global_config_path = Path(_dirs.user_config_dir) / "cala_config.yaml"
     backup_path = Path(_dirs.user_config_dir) / "cala_config.yaml.bak"
@@ -196,7 +196,7 @@ def test_split_video_files(setter_name, request: "FixtureRequest", mock_path_exi
 def test_config_file_is_absolute(set_local_yaml):
     """
     When a cala_config.yaml file is not found relative to cwd,
-    make it absolute relative to the global config directory.
+    make it absolute relative to the global config_examples directory.
     Otherwise, just resolve it.
     """
     default_config_file = Config().config_file
@@ -215,7 +215,7 @@ def test_config_sources_overrides(
     set_env, set_dotenv, set_pyproject, set_local_yaml, set_global_yaml
 ):
     """
-    The various config sources should override one another in order
+    The various config_examples sources should override one another in order
     """
     set_global_yaml({"data_name": "0"})
     assert Config().data_name == "0"
