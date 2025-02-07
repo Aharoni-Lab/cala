@@ -3,6 +3,7 @@ from typing import Dict, Optional, Literal
 
 import cv2
 import numpy as np
+import xarray as xr
 from river import base
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
@@ -50,7 +51,7 @@ class BackgroundEraser(base.Transformer):
         if self.params.method == "tophat":
             self.kernel = disk(self.params.kernel_size)
 
-    def learn_one(self, frame: np.ndarray) -> "BackgroundEraser":
+    def learn_one(self, frame: xr.DataArray) -> "BackgroundEraser":
         """Update any learning parameters with new frame.
 
         This transformer doesn't need to learn from the data, so this is a no-op.
@@ -67,32 +68,32 @@ class BackgroundEraser(base.Transformer):
         """
         return self
 
-    def transform_one(self, frame: np.ndarray) -> np.ndarray:
+    def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
         """Remove background from a single frame.
 
         Parameters
         ----------
-        frame : np.ndarray
+        frame : xr.DataArray
             Input frame to process
 
         Returns
         -------
-        np.ndarray
+        xr.DataArray
             Frame with background removed
         """
         frame = frame.astype(np.float32)
 
         if self.params.method == "uniform":
             # Estimate background using uniform filter
-            background = uniform_filter(frame, size=self.params.kernel_size)
-            result = frame - background
+            background = uniform_filter(frame.values, size=self.params.kernel_size)
+            result = frame.values - background
         else:  # tophat
             # Apply morphological tophat operation
             result = cv2.morphologyEx(
-                frame, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8)
+                frame.values, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8)
             )
 
-        return result
+        return xr.DataArray(result, dims=frame.dims, coords=frame.coords)
 
     def get_info(self) -> Dict:
         """Get information about the current state.

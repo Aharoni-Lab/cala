@@ -3,6 +3,7 @@ from typing import Dict, Optional, Self
 
 import cv2
 import numpy as np
+import xarray as xr
 from river import base
 
 from ..core import Parameters
@@ -48,12 +49,12 @@ class Denoiser(base.Transformer):
         self.params = params or DenoiserParams()
         self.func = self.METHODS[self.params.method]
 
-    def learn_one(self, frame: np.ndarray) -> Self:
+    def learn_one(self, frame: xr.DataArray) -> Self:
         """Update statistics from new frame.
 
         Parameters
         ----------
-        frame : np.ndarray
+        frame : xr.DataArray
             Input frame to learn from
 
         Returns
@@ -63,24 +64,24 @@ class Denoiser(base.Transformer):
         """
         return self
 
-    def transform_one(self, frame: np.ndarray) -> np.ndarray:
+    def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
         """Denoise a single frame.
 
         Parameters
         ----------
-        frame : np.ndarray
+        frame : xr.DataArray
             Input frame to denoise
 
         Returns
         -------
-        np.ndarray
+        xr.DataArray
             Denoised frame
         """
         frame = frame.astype(np.float32)
 
-        denoised = self.func(frame, **self.params.kwargs)
+        denoised = self.func(frame.values, **self.params.kwargs)
 
-        return denoised
+        return xr.DataArray(denoised, dims=frame.dims, coords=frame.coords)
 
     def get_info(self) -> Dict:
         """Get information about the current state.
