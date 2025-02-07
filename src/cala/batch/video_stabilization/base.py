@@ -36,7 +36,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         """
         pass
 
-    def fit(self, X: xr.DataArray, y=None):
+    def fit(self, X: xr.DataArray, y=None, **fit_kwargs):
         """
         Fit method. For transformers that don't need fitting, simply return self.
         Subclasses can override this if fitting is required.
@@ -57,6 +57,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
             vectorize=True,
             dask="parallelized",
             output_dtypes=[X.dtype],
+            kwargs=fit_kwargs,
         )
 
         return self

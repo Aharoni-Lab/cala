@@ -43,7 +43,7 @@ def test_rigid_translator_motion_estimation(preprocessed_video):
         estimated_motion,
         -true_motion,
         rtol=0.2,  # Allow 20% relative tolerance
-        atol=1.0,  # Allow 1 pixel absolute tolerance
+        # atol=1.0,  # Allow 1 pixel absolute tolerance
     )
 
 

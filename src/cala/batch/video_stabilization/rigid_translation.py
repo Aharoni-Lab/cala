@@ -17,9 +17,7 @@ class RigidTranslator(BaseMotionCorrector):
             raise ValueError("Base frame has not been established.")
 
         shift, error, diffphase = phase_cross_correlation(
-            self.anchor_frame_,
-            current_frame,
-            upsample_factor=kwargs.get("upsample_factor", 1),
+            self.anchor_frame_, current_frame, **kwargs
         )
         return shift  # Returns an array [shift_y, shift_x] --> self.motion_
 

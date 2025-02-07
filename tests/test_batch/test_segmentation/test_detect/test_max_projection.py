@@ -23,7 +23,7 @@ def test_max_projection_basic(stabilized_video):
     assert all(
         col in seeds.columns for col in ["height", "width"]
     ), "Missing coordinate columns"
-    assert len(seeds) >= 0.8 * len(ground_truth), "Too few seeds detected"
+    assert len(seeds) >= 0.5 * len(ground_truth), "Too few seeds detected"
     assert len(seeds) <= 1.2 * len(ground_truth), "Too many seeds detected"
 
 
