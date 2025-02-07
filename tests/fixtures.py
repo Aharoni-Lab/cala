@@ -24,8 +24,8 @@ class CalciumVideoParams:
 
     # Neuron properties
     num_neurons: int = 50
-    neuron_size_range: Tuple[int, int] = (8, 15)  # min/max radius in pixels
-    neuron_shape_irregularity: float = 0.2  # 0=perfect circles, 1=very irregular
+    neuron_size_range: Tuple[int, int] = (40, 60)  # min/max radius in pixels
+    neuron_shape_irregularity: float = 1.8  # 0=perfect circles, higher = more irregular
     margin: int = 50  # border margin for neuron placement
 
     # Calcium dynamics
@@ -267,39 +267,37 @@ def stabilized_video(preprocessed_video, params: CalciumVideoParams):
 
 
 def create_irregular_neuron(radius: int, irregularity: float) -> np.ndarray:
-    """Create an irregular neuron shape using random perturbations of a circle."""
-    y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
+    """Create an irregular neuron shape using pure Gaussian falloff."""
+    # Create grid in polar coordinates
+    y, x = np.mgrid[-radius : radius + 1, -radius : radius + 1]
+    distance = np.sqrt(x * x + y * y)
+    theta = np.arctan2(y, x)
 
-    # Convert to polar
-    angles = np.arctan2(y, x)
-    distances = np.sqrt(x * x + y * y)
+    # Create base intensity using pure Gaussian
+    sigma = radius * 0.5
+    intensity = np.exp(-(distance**2) / (2 * sigma**2))
 
-    # Generate random perturbations around the circle
-    num_perturbations = 8
-    perturbation_angles = np.linspace(0, 2 * np.pi, num_perturbations, endpoint=False)
-    perturbation_magnitudes = 1 + irregularity * np.random.uniform(
-        -1, 1, num_perturbations
-    )
+    # Add irregularity through angular modulation
+    num_angles = int(3 + irregularity * 5)  # 3 < angular components
+    for i in range(num_angles):
+        # Create random angular frequency and phase
+        freq = i + 1  # increasing frequencies
+        phase = 2 * np.pi * np.random.random()
+        amp = (
+            irregularity * 0.3 * (0.5**i)
+        )  # decreasing amplitude for higher frequencies
 
-    # Interpolate perturbations for all angles
-    from scipy.interpolate import interp1d
+        # Modulate the radius based on angle
+        modulation = 1 + amp * np.cos(freq * theta + phase)
+        # Apply modulation with smooth falloff
+        intensity *= 1 + 0.2 * modulation * np.exp(
+            -(distance**2) / (2 * (radius * 0.8) ** 2)
+        )
 
-    perturbation_func = interp1d(
-        np.concatenate([perturbation_angles, [2 * np.pi]]),
-        np.concatenate([perturbation_magnitudes, [perturbation_magnitudes[0]]]),
-        kind="cubic",
-    )
+    # Normalize
+    intensity = intensity / np.max(intensity)
 
-    # Apply perturbations
-    perturbed_radius = perturbation_func(np.mod(angles, 2 * np.pi)) * radius
-    mask = distances <= perturbed_radius
-
-    # Create gaussian profile within the mask
-    profile = np.exp(-(distances[mask] ** 2) / (2 * (radius / 2) ** 2))
-    result = np.zeros_like(distances)
-    result[mask] = profile
-
-    return result
+    return intensity
 
 
 def add_artifacts(video: np.ndarray, params: CalciumVideoParams) -> np.ndarray:
