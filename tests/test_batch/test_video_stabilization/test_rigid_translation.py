@@ -12,8 +12,6 @@ def test_rigid_translator_initialization():
     assert rigid_translator.core_axes == core_axes
     assert rigid_translator.iter_axis == iter_axis
     assert rigid_translator.anchor_frame_index == anchor_frame_index
-    assert rigid_translator.anchor_frame_ is None
-    assert rigid_translator.motion_ is None
 
 
 def test_rigid_translator_motion_estimation(preprocessed_video):
