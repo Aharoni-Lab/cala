@@ -15,9 +15,10 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
 
     core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
     iter_axis: str = "frames"
-    anchor_frame_index: int = None
-    anchor_frame_: xr.DataArray = None
-    motion_: xr.DataArray = None
+    anchor_frame_index: Optional[int] = None
+    max_shift: Optional[int] = None
+    anchor_frame_: xr.DataArray = field(init=False)
+    motion_: xr.DataArray = field(init=False)
 
     def _fit_kernel(
         self,
@@ -45,7 +46,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
             raise ValueError(
                 "Calculating optimal anchor frame has not been implemented yet. anchor_frame_index is required."
             )
-        elif self.anchor_frame_ is None:
+        elif not hasattr(self, "anchor_frame_"):
             self.anchor_frame_ = self.anchor_by_index(
                 X, anchor_index=self.anchor_frame_index
             )
@@ -83,7 +84,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         )
 
     def anchor_by_index(
-        self, video: xr.DataArray, anchor_index: Optional[int] = 0
+        self, video: xr.DataArray, anchor_index: int = 0
     ) -> xr.DataArray:
         """
         Select an anchor frame from the video frames.
