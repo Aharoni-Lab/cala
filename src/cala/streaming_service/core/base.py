@@ -1,15 +1,15 @@
-import numpy as np
 from typing import List, Optional, Self
+
+import numpy as np
 from river import compose
 
-from ..core.estimates import Estimates
-from ..core.parameters import Parameters
-from ..motion.stabilizer import MotionStabilizer
+from ..components.deconvolution import OASIS
 from ..components.spatial import SpatialComponentUpdater
 from ..components.temporal import TemporalComponentUpdater
-from ..components.deconvolution import OASIS
+from ..core.estimates import Estimates
+from ..core.parameters import Parameters
 from ..detection.new_components import NewComponentDetector
-from ..preprocessing.normalization import DataNormalizer
+from ..motion.stabilizer import MotionStabilizer
 
 
 class StreamingCNMF:
