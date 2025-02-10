@@ -71,12 +71,18 @@ def test_rigid_translator_preserves_neuron_traces(preprocessed_video, stabilized
 
         # Function to extract trace from a video
         def extract_trace(vid):
-            y_slice = slice(y_pos - radius, y_pos + radius + 1)
-            x_slice = slice(x_pos - radius, x_pos + radius + 1)
+            y_slice = slice(
+                max(y_pos - radius, 0), min(y_pos + radius + 1, vid.sizes["height"])
+            )
+            x_slice = slice(
+                max(x_pos - radius, 0), min(x_pos + radius + 1, vid.sizes["width"])
+            )
             trace = []
             for f in range(vid.sizes["frames"]):
                 region = vid.isel(frames=f)[y_slice, x_slice]
                 if not np.any(np.isnan(region)):
+                    if len(region) == 0:
+                        print("wtf is happening")
                     trace.append(float(region.max()))
                 else:
                     trace.append(np.nan)
