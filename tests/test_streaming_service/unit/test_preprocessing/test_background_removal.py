@@ -1,6 +1,7 @@
 import dataclasses
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
@@ -117,7 +118,9 @@ class TestBackgroundEraser:
         video, _, metadata = raw_calcium_video
         frame = video[0]
 
-        kernel_sizes = [20, 30, 40]
+        kernel_start = 100
+        kernel_jump = 25
+        kernel_sizes = range(kernel_start, 200, kernel_jump)
         for size in kernel_sizes:
             params = dataclasses.replace(default_params)
             params.kernel_size = size
@@ -127,11 +130,20 @@ class TestBackgroundEraser:
             assert result.shape == frame.shape
 
             # Larger kernels should remove less background
-            if size > 20:
+            if size > kernel_start:
                 prev_params = dataclasses.replace(params)
-                prev_params.kernel_size = size - 2
+                prev_params.kernel_size = size - kernel_jump
                 prev_eraser = BackgroundEraser(prev_params)
                 prev_result = prev_eraser.transform_one(frame)
+                plt.imsave(
+                    f"{size - kernel_jump}_result.png",
+                    prev_result.values.astype(np.float32),
+                )
+                plt.imsave(
+                    f"{size}_result.png",
+                    result.values.astype(np.float32),
+                )
+                print(size)
                 assert np.mean(result.values) > np.mean(prev_result.values)
 
     def test_edge_cases(self, default_params):
