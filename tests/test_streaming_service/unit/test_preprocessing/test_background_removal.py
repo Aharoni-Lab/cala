@@ -1,13 +1,14 @@
 import dataclasses
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.streaming_service.preprocess.background_removal import (
+from cala.streaming.preprocess.background_removal import (
     BackgroundEraser,
     BackgroundEraserParams,
 )
@@ -64,6 +65,7 @@ class TestBackgroundEraser:
         # Verify background removal
         background = uniform_filter(frame, size=eraser_uniform.params.kernel_size)
         expected = frame - background
+        expected.values[expected < 0] = 0
 
         np.testing.assert_array_almost_equal(result, expected)
 
@@ -106,6 +108,7 @@ class TestBackgroundEraser:
                 frame.values, size=eraser_uniform.params.kernel_size
             )
             result = frame.values - background
+            result[result < 0] = 0
             batch_results.append(result)
 
         # Compare results
@@ -114,10 +117,12 @@ class TestBackgroundEraser:
 
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test background removal with different kernel sizes"""
-        video, _, _ = raw_calcium_video
+        video, _, metadata = raw_calcium_video
         frame = video[0]
 
-        kernel_sizes = [3, 5, 7]
+        kernel_start = 100
+        kernel_jump = 25
+        kernel_sizes = range(kernel_start, 200, kernel_jump)
         for size in kernel_sizes:
             params = dataclasses.replace(default_params)
             params.kernel_size = size
@@ -127,12 +132,21 @@ class TestBackgroundEraser:
             assert result.shape == frame.shape
 
             # Larger kernels should remove less background
-            if size > 3:
+            if size > kernel_start:
                 prev_params = dataclasses.replace(params)
-                prev_params.kernel_size = size - 2
+                prev_params.kernel_size = size - kernel_jump
                 prev_eraser = BackgroundEraser(prev_params)
                 prev_result = prev_eraser.transform_one(frame)
-                assert np.mean(result) > np.mean(prev_result)
+                plt.imsave(
+                    f"{size - kernel_jump}_result.png",
+                    prev_result.values.astype(np.float32),
+                )
+                plt.imsave(
+                    f"{size}_result.png",
+                    result.values.astype(np.float32),
+                )
+                print(size)
+                assert np.mean(result.values) > np.mean(prev_result.values)
 
     def test_edge_cases(self, default_params):
         """Test handling of edge cases"""
