@@ -65,6 +65,7 @@ class TestBackgroundEraser:
         # Verify background removal
         background = uniform_filter(frame, size=eraser_uniform.params.kernel_size)
         expected = frame - background
+        expected.values[expected < 0] = 0
 
         np.testing.assert_array_almost_equal(result, expected)
 
@@ -107,6 +108,7 @@ class TestBackgroundEraser:
                 frame.values, size=eraser_uniform.params.kernel_size
             )
             result = frame.values - background
+            result[result < 0] = 0
             batch_results.append(result)
 
         # Compare results
