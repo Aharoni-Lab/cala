@@ -93,6 +93,8 @@ class BackgroundEraser(base.Transformer):
                 frame.values, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8)
             )
 
+        result[result < 0] = 0
+
         return xr.DataArray(result, dims=frame.dims, coords=frame.coords)
 
     def get_info(self) -> Dict:
