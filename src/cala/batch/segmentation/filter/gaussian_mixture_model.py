@@ -199,7 +199,7 @@ class GMMFilter(BaseFilter):
         quantiles = seed_pixels.quantile(
             q=self.quantiles,
             dim=self.iter_axis,
-            interpolation="linear",
+            method="linear",
         )
         seed_valley = quantiles.sel(quantile=self.quantiles[0])
         seed_peak = quantiles.sel(quantile=self.quantiles[1])

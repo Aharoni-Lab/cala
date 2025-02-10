@@ -3,7 +3,7 @@ from typing import Union
 
 import numpy as np
 import scipy.ndimage as ndi
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import median_filter
 
 
 def local_extreme(
