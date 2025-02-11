@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple
 
+import cv2
 import numpy as np
 import pandas as pd
 import pytest
@@ -34,7 +35,7 @@ class CalciumVideoParams:
     amplitude_range: Tuple[float, float] = (0.5, 1.0)
 
     # Motion
-    motion_amplitude: Tuple[float, float] = (2, 2)  # pixels in y, x
+    motion_amplitude: Tuple[float, float] = (7, 7)  # pixels in y, x
     motion_frequency: float = 1  # cycles per video
 
     # Optical properties
@@ -65,8 +66,8 @@ def raw_calcium_video(params: CalciumVideoParams):
     )
 
     # Add baseline drift
-    t = np.linspace(0, 4 * np.pi, params.frames)
-    drift = params.drift_magnitude * np.sin(t)
+    tau = np.linspace(0, 4 * np.pi, params.frames)
+    drift = params.drift_magnitude * np.sin(tau)
     video += drift[:, np.newaxis, np.newaxis]
 
     # Generate random neuron positions
@@ -113,21 +114,12 @@ def raw_calcium_video(params: CalciumVideoParams):
             create_irregular_neuron(int(radii[n]), params.neuron_shape_irregularity)
         )
 
-    # Add neurons to video with motion
+    # add all neurons to the video
     for f in range(params.frames):
-        motion_y = int(
-            params.motion_amplitude[0]
-            * np.sin(2 * np.pi * f / (params.frames / params.motion_frequency))
-        )
-        motion_x = int(
-            params.motion_amplitude[1]
-            * np.cos(2 * np.pi * f / (params.frames / params.motion_frequency))
-        )
-
         for n in range(params.num_neurons):
             radius = int(radii[n])
-            y_pos = neuron_positions[n, 0] + motion_y
-            x_pos = neuron_positions[n, 1] + motion_x
+            y_pos = neuron_positions[n, 0]
+            x_pos = neuron_positions[n, 1]
 
             y_slice = slice(y_pos - radius, y_pos + radius + 1)
             x_slice = slice(x_pos - radius, x_pos + radius + 1)
@@ -144,8 +136,48 @@ def raw_calcium_video(params: CalciumVideoParams):
     for f in range(params.frames):
         video[f] = gaussian_filter(video[f], sigma=params.blur_sigma)
 
-    # Add artifacts
-    video = add_artifacts(video, params)
+    # Then apply motion to entire frames using subpixel interpolation
+    motion_video = np.zeros_like(video)
+
+    # Generate random jitter motion
+    # High frequency component for shake
+    high_freq = np.random.normal(0, 1, (params.frames, 2))
+    # Low frequency component for drift
+    t = np.linspace(0, 2 * np.pi, params.frames)
+    low_freq_y = (
+        0.3 * params.motion_amplitude[0] * np.sin(t + np.random.random() * np.pi)
+    )
+    low_freq_x = (
+        0.3 * params.motion_amplitude[1] * np.cos(t + np.random.random() * np.pi)
+    )
+
+    # Combine both components
+    motion_y = params.motion_amplitude[0] * high_freq[:, 0] + low_freq_y
+    motion_x = params.motion_amplitude[1] * high_freq[:, 1] + low_freq_x
+
+    # Apply Gaussian smoothing to avoid too sudden jumps
+    motion_y = gaussian_filter(motion_y, sigma=1.0)
+    motion_x = gaussian_filter(motion_x, sigma=1.0)
+
+    for f in range(params.frames):
+        # Create transformation matrix for translation
+        transform_matrix = np.array(
+            [[1, 0, -motion_x[f]], [0, 1, -motion_y[f]]], dtype=np.float32
+        )
+
+        # Apply translation using warpAffine with bilinear interpolation
+        frame = video[f].astype(np.float32)
+        motion_video[f] = cv2.warpAffine(
+            frame,
+            transform_matrix,
+            (params.width, params.height),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0.0,),
+        )
+
+    # Add artifacts to the motion-added video
+    video = add_artifacts(motion_video, params)
 
     video_xr = xr.DataArray(
         video,
@@ -162,20 +194,8 @@ def raw_calcium_video(params: CalciumVideoParams):
         "calcium_traces": calcium_traces,
         "spatial_profiles": spatial_profiles,
         "motion": {
-            "y": [
-                int(
-                    params.motion_amplitude[0]
-                    * np.sin(2 * np.pi * f / (params.frames / params.motion_frequency))
-                )
-                for f in range(params.frames)
-            ],
-            "x": [
-                int(
-                    params.motion_amplitude[1]
-                    * np.cos(2 * np.pi * f / (params.frames / params.motion_frequency))
-                )
-                for f in range(params.frames)
-            ],
+            "y": motion_y.tolist(),
+            "x": motion_x.tolist(),
         },
     }
 
@@ -197,14 +217,11 @@ def preprocessed_video(raw_calcium_video, params: CalciumVideoParams):
     spatial_profiles = metadata["spatial_profiles"]
     motion = metadata["motion"]
 
-    # Add neurons to video with motion
+    # Add neurons to video without motion
     for f in range(frames):
-        motion_y = motion["y"][f]
-        motion_x = motion["x"][f]
-
         for n in range(params.num_neurons):
-            y_pos = ground_truth["height"].iloc[n] + motion_y
-            x_pos = ground_truth["width"].iloc[n] + motion_x
+            y_pos = ground_truth["height"].iloc[n]
+            x_pos = ground_truth["width"].iloc[n]
             radius = int(ground_truth["radius"].iloc[n])
 
             y_slice = slice(y_pos - radius, y_pos + radius + 1)
@@ -222,12 +239,31 @@ def preprocessed_video(raw_calcium_video, params: CalciumVideoParams):
     for f in range(frames):
         clean[f] = gaussian_filter(clean[f], sigma=params.blur_sigma)
 
+    # Apply motion using subpixel interpolation
+    motion_video = np.zeros_like(clean)
+    for f in range(frames):
+        # Create transformation matrix for translation (opposite of the original motion)
+        transform_matrix = np.array(
+            [[1, 0, motion["x"][f]], [0, 1, motion["y"][f]]], dtype=np.float32
+        )
+
+        # Apply translation using warpAffine with bilinear interpolation
+        frame = clean[f].astype(np.float32)
+        motion_video[f] = cv2.warpAffine(
+            frame,
+            transform_matrix,
+            (params.width, params.height),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0.0,),
+        )
+
     # Keep photobleaching artifact
     if params.photobleaching_decay > 0:
         decay = np.exp(-np.arange(frames) * params.photobleaching_decay / frames)
-        clean *= decay[:, np.newaxis, np.newaxis]
+        motion_video *= decay[:, np.newaxis, np.newaxis]
 
-    clean_xr = xr.DataArray(clean, dims=video.dims, coords=video.coords)
+    clean_xr = xr.DataArray(motion_video, dims=video.dims, coords=video.coords)
 
     return clean_xr, ground_truth, metadata
 
@@ -237,28 +273,26 @@ def stabilized_video(preprocessed_video, params: CalciumVideoParams):
     """Motion-corrected calcium imaging video."""
     video, ground_truth, metadata = preprocessed_video
 
-    # remove the artificial motion
+    # Remove the artificial motion using subpixel interpolation
     stabilized = np.zeros_like(video)
 
     for f in range(params.frames):
-        motion_y = -metadata["motion"]["y"][f]
-        motion_x = -metadata["motion"]["x"][f]
+        # Create transformation matrix for reverse translation
+        transform_matrix = np.array(
+            [[1, 0, -metadata["motion"]["x"][f]], [0, 1, -metadata["motion"]["y"][f]]],
+            dtype=np.float32,
+        )
 
-        if motion_y >= 0:
-            y_src = slice(None, -motion_y) if motion_y else slice(None)
-            y_dst = slice(motion_y, None) if motion_y else slice(None)
-        else:
-            y_src = slice(-motion_y, None)
-            y_dst = slice(None, motion_y)
-
-        if motion_x >= 0:
-            x_src = slice(None, -motion_x) if motion_x else slice(None)
-            x_dst = slice(motion_x, None) if motion_x else slice(None)
-        else:
-            x_src = slice(-motion_x, None)
-            x_dst = slice(None, motion_x)
-
-        stabilized[f, y_dst, x_dst] = video[f, y_src, x_src]
+        # Apply reverse translation using warpAffine with bilinear interpolation
+        frame = video[f].astype(np.float32)
+        stabilized[f] = cv2.warpAffine(
+            frame.values,
+            transform_matrix,
+            (params.width, params.height),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0.0,),
+        )
 
     # Convert to xarray with same coordinates
     stabilized_xr = xr.DataArray(stabilized, dims=video.dims, coords=video.coords)
