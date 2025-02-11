@@ -15,7 +15,7 @@ def test_rigid_translator_initialization():
 
 
 def test_rigid_translator_motion_estimation(preprocessed_video):
-    """Test that RigidTranslator correctly estimates the known motion."""
+    """Test that RigidTranslator correctly estimates the known motion_stabilization."""
     video, ground_truth, metadata = preprocessed_video
 
     anchor_frame_index = 0
@@ -28,15 +28,17 @@ def test_rigid_translator_motion_estimation(preprocessed_video):
     )
     rigid_translator.fit(video)
 
-    # Get the true motion that was applied
-    true_motion = np.column_stack([metadata["motion"]["y"], metadata["motion"]["x"]])
+    # Get the true motion_stabilization that was applied
+    true_motion = np.column_stack(
+        [metadata["motion_stabilization"]["y"], metadata["motion_stabilization"]["x"]]
+    )
     # True and estimated share same origin point
     true_motion = true_motion - true_motion[anchor_frame_index]
 
-    # Get the estimated motion
+    # Get the estimated motion_stabilization
     estimated_motion = rigid_translator.motion_.values
 
-    # The estimated motion should be approximately the negative of the true motion
+    # The estimated motion_stabilization should be approximately the negative of the true motion_stabilization
     # (within some tolerance due to interpolation and numerical precision)
     np.testing.assert_allclose(
         estimated_motion,

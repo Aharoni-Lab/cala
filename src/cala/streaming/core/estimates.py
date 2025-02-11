@@ -15,4 +15,4 @@ class Estimates:
     noise_levels: np.ndarray  # sn
     pixel_statistics: np.ndarray  # CY
     source_statistics: np.ndarray  # CC
-    shifts: list = field(default_factory=list)  # motion correction shifts
+    shifts: list = field(default_factory=list)  # motion stabilization shifts
