@@ -14,7 +14,7 @@ class CalciumVideoParams:
     """Parameters for synthetic calcium imaging video generation."""
 
     # Video dimensions
-    frames: int = 1000
+    frames: int = 100
     height: int = 512
     width: int = 512
 

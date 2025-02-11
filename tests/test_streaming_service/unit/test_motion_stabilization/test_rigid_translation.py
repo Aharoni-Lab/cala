@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import xarray as xr
 
 from cala.streaming.motion_stabilization import RigidTranslatorParams, RigidTranslator
 
@@ -59,62 +60,63 @@ class TestMotionStabilizer:
             atol=15.0,  # Allow 15 pixel absolute tolerance
         )
 
+    def test_rigid_translator_preserves_neuron_traces(
+        self, default_stabilizer, preprocessed_video, stabilized_video
+    ):
+        """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
+        video, ground_truth, _ = preprocessed_video
+        ground_truth_stabilized, _, _ = stabilized_video
 
-def test_rigid_translator_preserves_neuron_traces(preprocessed_video, stabilized_video):
-    """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
-    video, ground_truth, _ = preprocessed_video
-    ground_truth_stabilized, _, _ = stabilized_video
-
-    # Initialize and fit the rigid translator
-    rigid_translator = RigidTranslator(
-        core_axes=["height", "width"],
-        iter_axis="frames",
-        anchor_frame_index=0,
-        max_shift=10,
-    )
-    rigid_translator.fit(video)
-    corrected_video = rigid_translator.transform(video)
-
-    # Extract and compare calcium traces from both corrections
-    trace_correlations = []
-
-    for n in range(len(ground_truth)):
-        y_pos = ground_truth["height"].iloc[n]
-        x_pos = ground_truth["width"].iloc[n]
-        radius = int(ground_truth["radius"].iloc[n])
-
-        # Function to extract trace from a video
-        def extract_trace(vid):
-            y_slice = slice(
-                max(y_pos - radius, 0), min(y_pos + radius + 1, vid.sizes["height"])
+        corrected_video = []
+        for frame in video:
+            corrected_video.append(
+                default_stabilizer.learn_one(frame).transform_one(frame)
             )
-            x_slice = slice(
-                max(x_pos - radius, 0), min(x_pos + radius + 1, vid.sizes["width"])
-            )
-            trace = []
-            for f in range(vid.sizes["frames"]):
-                region = vid.isel(frames=f)[y_slice, x_slice]
-                if not np.any(np.isnan(region)):
-                    if len(region) == 0:
-                        print("wtf is happening")
-                    trace.append(float(region.max()))
-                else:
-                    trace.append(np.nan)
-            return np.array(trace)
 
-        # Extract traces from both corrections
-        trace_ours = extract_trace(corrected_video)
-        trace_ground_truth = extract_trace(ground_truth_stabilized)
+        corrected_video = xr.DataArray(
+            corrected_video, dims=video.dims, coords=video.coords
+        )
 
-        # Calculate correlation between the traces
-        valid_mask = ~np.isnan(trace_ours) & ~np.isnan(trace_ground_truth)
-        if np.sum(valid_mask) > 10:  # Only if we have enough valid points
-            correlation = np.corrcoef(
-                trace_ours[valid_mask], trace_ground_truth[valid_mask]
-            )[0, 1]
-            trace_correlations.append(correlation)
+        # Extract and compare calcium traces from both corrections
+        trace_correlations = []
 
-    # The traces should be highly correlated with ground truth
-    assert (
-        np.median(trace_correlations) > 0.95
-    ), "Calcium traces differ significantly from ground truth stabilization"
+        for n in range(len(ground_truth)):
+            y_pos = ground_truth["height"].iloc[n]
+            x_pos = ground_truth["width"].iloc[n]
+            radius = int(ground_truth["radius"].iloc[n])
+
+            # Function to extract trace from a video
+            def extract_trace(vid):
+                y_slice = slice(
+                    max(y_pos - radius, 0), min(y_pos + radius + 1, vid.sizes["height"])
+                )
+                x_slice = slice(
+                    max(x_pos - radius, 0), min(x_pos + radius + 1, vid.sizes["width"])
+                )
+                trace = []
+                for f in range(vid.sizes["frames"]):
+                    region = vid.isel(frames=f)[y_slice, x_slice]
+                    if not np.any(np.isnan(region)):
+                        if len(region) == 0:
+                            print("wtf is happening")
+                        trace.append(float(region.max()))
+                    else:
+                        trace.append(np.nan)
+                return np.array(trace)
+
+            # Extract traces from both corrections
+            trace_ours = extract_trace(corrected_video)
+            trace_ground_truth = extract_trace(ground_truth_stabilized)
+
+            # Calculate correlation between the traces
+            valid_mask = ~np.isnan(trace_ours) & ~np.isnan(trace_ground_truth)
+            if np.sum(valid_mask) > 10:  # Only if we have enough valid points
+                correlation = np.corrcoef(
+                    trace_ours[valid_mask], trace_ground_truth[valid_mask]
+                )[0, 1]
+                trace_correlations.append(correlation)
+
+        # The traces should be highly correlated with ground truth
+        assert (
+            np.median(trace_correlations) > 0.95
+        ), "Calcium traces differ significantly from ground truth stabilization"
