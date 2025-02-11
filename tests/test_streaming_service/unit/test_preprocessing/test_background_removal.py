@@ -1,7 +1,6 @@
 import dataclasses
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
@@ -137,15 +136,14 @@ class TestBackgroundEraser:
                 prev_params.kernel_size = size - kernel_jump
                 prev_eraser = BackgroundEraser(prev_params)
                 prev_result = prev_eraser.transform_one(frame)
-                plt.imsave(
-                    f"{size - kernel_jump}_result.png",
-                    prev_result.values.astype(np.float32),
-                )
-                plt.imsave(
-                    f"{size}_result.png",
-                    result.values.astype(np.float32),
-                )
-                print(size)
+                # plt.imsave(
+                #     f"{size - kernel_jump}_result.png",
+                #     prev_result.values.astype(np.float32),
+                # )
+                # plt.imsave(
+                #     f"{size}_result.png",
+                #     result.values.astype(np.float32),
+                # )
                 assert np.mean(result.values) > np.mean(prev_result.values)
 
     def test_edge_cases(self, default_params):
