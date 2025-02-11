@@ -30,13 +30,13 @@ class RigidTranslator(base.Transformer):
     anchor_frame_: np.ndarray = field(init=False)
     motion_: list = field(default_factory=list)
 
-    def learn_one(self, X: xr.DataArray) -> Self:
+    def learn_one(self, frame: xr.DataArray) -> Self:
         if not hasattr(self, "anchor_frame_"):
-            self.anchor_frame_ = X.values
+            self.anchor_frame_ = frame.values
             return self
 
         shift, error, diffphase = phase_cross_correlation(
-            self.anchor_frame_, X.values, **self.params.kwargs
+            self.anchor_frame_, frame.values, **self.params.kwargs
         )
         if self.params.max_shift is not None:
             # Cap shift values at max amplitude
@@ -46,17 +46,17 @@ class RigidTranslator(base.Transformer):
         self._learn_count += 1
         return self
 
-    def transform_one(self, X: xr.DataArray) -> xr.DataArray:
+    def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
         if len(self.motion_) == 0:
-            return X
+            return frame
 
         # Define the affine transformation matrix for translation
         M = np.float32([[1, 0, self.motion_[-1][1]], [0, 1, self.motion_[-1][0]]])
 
         transformed_frame = cv2.warpAffine(
-            X.values,
+            frame.values,
             M,
-            (X.shape[1], X.shape[0]),  # (Width, Height)
+            (frame.shape[1], frame.shape[0]),  # (Width, Height)
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
             borderValue=np.nan,
@@ -66,4 +66,4 @@ class RigidTranslator(base.Transformer):
         self._transform_count += 1
         self.anchor_frame_ = transformed_frame
 
-        return xr.DataArray(transformed_frame, dims=X.dims, coords=X.coords)
+        return xr.DataArray(transformed_frame, dims=frame.dims, coords=frame.coords)

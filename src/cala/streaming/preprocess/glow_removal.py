@@ -12,17 +12,19 @@ class GlowRemover(base.Transformer):
     _learn_count: int = 0
     _transform_count: int = 0
 
-    def learn_one(self, X: xr.DataArray, y=None):
+    def learn_one(self, frame: xr.DataArray, y=None):
         if not hasattr(self, "base_brightness_"):
-            self.base_brightness_ = X.values
+            self.base_brightness_ = frame.values
         else:
-            self.base_brightness_ = np.minimum(X.values, self.base_brightness_)
+            self.base_brightness_ = np.minimum(frame.values, self.base_brightness_)
         self._learn_count += 1
         return self
 
-    def transform_one(self, X: xr.DataArray, y=None):
+    def transform_one(self, frame: xr.DataArray, y=None):
         self._transform_count += 1
-        return X - self.base_brightness_
+        return xr.DataArray(
+            frame - self.base_brightness_, dims=frame.dims, coords=frame.coords
+        )
 
     def get_info(self) -> Dict:
         """Get information about the current state.
