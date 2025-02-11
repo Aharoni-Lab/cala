@@ -57,7 +57,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
             output_core_dims=[["shift_dim"]],
             vectorize=True,
             dask="parallelized",
-            output_dtypes=[X.dtype],
+            output_dtypes=[float],
             kwargs=fit_kwargs,
         )
 

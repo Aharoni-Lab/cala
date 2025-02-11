@@ -30,8 +30,8 @@ def test_rigid_translator_motion_estimation(preprocessed_video):
 
     # Get the true motion_stabilization that was applied
     true_motion = np.column_stack(
-        [metadata["motion_stabilization"]["y"], metadata["motion_stabilization"]["x"]]
-    )
+        [metadata["motion"]["y"], metadata["motion"]["x"]]
+    ).astype(int)
     # True and estimated share same origin point
     true_motion = true_motion - true_motion[anchor_frame_index]
 
