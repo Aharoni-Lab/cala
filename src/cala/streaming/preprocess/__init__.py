@@ -1,6 +1,7 @@
 from .background_removal import BackgroundEraser, BackgroundEraserParams
 from .denoise import Denoiser, DenoiserParams
 from .downsample import Downsampler, DownsamplerParams
+from .glow_removal import GlowRemover
 
 __all__ = [
     "BackgroundEraser",
@@ -9,4 +10,5 @@ __all__ = [
     "DenoiserParams",
     "Downsampler",
     "DownsamplerParams",
+    "GlowRemover",
 ]
