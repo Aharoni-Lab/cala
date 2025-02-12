@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
@@ -9,7 +10,7 @@ class TestMotionStabilizer:
     @pytest.fixture
     def default_params(self):
         """Create default parameters for testing"""
-        params = RigidTranslatorParams(max_shift=10)
+        params = RigidTranslatorParams(drift_speed=1, kwargs={"upsample_factor": 100})
         return params
 
     @pytest.fixture
@@ -20,7 +21,7 @@ class TestMotionStabilizer:
     def test_initialization(self, default_params):
         """Test proper initialization of BackgroundEraser"""
         stabilizer = RigidTranslator(default_params)
-        assert stabilizer.params.max_shift == default_params.max_shift
+        assert stabilizer.params.drift_speed == default_params.drift_speed
         assert stabilizer._learn_count == 0
         assert stabilizer._transform_count == 0
         assert stabilizer.motion_ == []
@@ -49,15 +50,25 @@ class TestMotionStabilizer:
         true_motion = true_motion - true_motion[0]
 
         # Get the estimated motion_stabilization
-        estimated_motion = default_stabilizer.motion_
+        estimated_motion = np.array(default_stabilizer.motion_)
 
+        plt.plot(-true_motion[1:, 0], label="true")
+        plt.plot(estimated_motion[:, 0], label="estimate")
+        plt.legend(loc="upper right")
+        plt.savefig("y_shifts.png")
+        plt.clf()
+        plt.plot(-true_motion[1:, 1], label="true")
+        plt.plot(estimated_motion[:, 1], label="estimate")
+        plt.legend(loc="upper right")
+        plt.savefig("x_shifts.png")
+        plt.clf()
         # The estimated motion_stabilization should be approximately the negative of the true motion_stabilization
         # (within some tolerance due to interpolation and numerical precision)
         np.testing.assert_allclose(
             estimated_motion,
             -true_motion[1:],  # skip the first frame
             rtol=0.2,  # Allow 20% relative tolerance
-            atol=15.0,  # Allow 15 pixel absolute tolerance
+            atol=1.0,  # Allow 1 pixel absolute tolerance
         )
 
     def test_rigid_translator_preserves_neuron_traces(
