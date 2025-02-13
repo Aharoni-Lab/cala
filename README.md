@@ -5,9 +5,11 @@
 [![codecov](https://codecov.io/gh/Aharoni-Lab/cala/graph/badge.svg?token=Apn4YtSvbU)](https://codecov.io/gh/Aharoni-Lab/cala)
 
 ## Features
-A calcium imaging pipeline focused on long-term massive recordings that is based on a Sklearn pipeline architecture. 
+A calcium imaging pipeline focused on long-term massive recordings that is based on a [**Sklearn**](https://scikit-learn.org/stable/) / [**River**](https://riverml.xyz/latest/) pipeline architecture. 
 
 Streamlined integration into an endless list of 3rd party apps that support Scikit-learn, including but not limited to hyperparameter optimization tools (i.e. Optuna), ML pipeline management tools (i.e. MLFlow), etc. 
+
+Streaming side incorporates real-time visualizations and parameter updates.
 
 Future implementation will include interactive UI and a modular orchestration architecture that supports piecewise progress, optimized orchestration, and automatic data, artifact, and pipeline versioning.
 
@@ -22,6 +24,8 @@ pip install cala==0.1.0
 
 ## Usage
 
+
+### Batch
 ```python
 from sklearn.pipeline import make_pipeline
 
@@ -41,10 +45,11 @@ def main():
     downsampler = Downsampler(dimensions=video_dimensions, strides=(1, 1, 2))
     denoiser = Denoiser(method="median", core_axes=core_axes, kwargs={"ksize": 7})
     glow_remover = GlowRemover(iter_axis=iter_axis)
-    background_eraser = BackgroundEraser(core_axes=core_axes)
+
     preprocessor = make_pipeline(downsampler, denoiser, glow_remover, background_eraser)
 
     rigid_translator = RigidTranslator(core_axes=core_axes, iter_axis=iter_axis)
+
     motion_corrector = make_pipeline(rigid_translator)
 
     data = io.load_data(stage="init")
@@ -62,8 +67,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
+### Stream
+```python
+
+        self.motion_stabilizer = RigidTranslator(self.params.motion_params)
+        self.spatial_updater = SpatialComponentUpdater()
+        self.temporal_updater = TemporalComponentUpdater()
+        self.deconvolver = OASIS()
+        self.component_detector = NewComponentDetector(self.params.detection_params)
+        self.visualizer = StreamPlotter()
+
+        self.preprocess = compose.Pipeline(self.motion_stabilizer)
+        self.deconvolve = compose.Pipeline(
+            self.spatial_updater,
+            self.temporal_updater,
+            self.component_detector,
+            self.deconvolver,
+        )
+
+        self.process = compose.Pipeline(
+            self.preprocess,
+            self.deconvolve
+        )
+
+        for frame in video:
+            self.process.learn_one(frame).transform_one(frame)
+            self.visualizer.play_one()
 
 ```
+
 ## Roadmap
 *EOM 11/2024:* Batch processing complete\
 *EOM 12/2024:* Engineering first iteration complete\
