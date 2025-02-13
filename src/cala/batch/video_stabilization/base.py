@@ -10,7 +10,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 @dataclass
 class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
     """
-    Abstract base class for parallel motion corrector.
+    Abstract base class for parallel motion stabilizer.
     """
 
     core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
@@ -57,7 +57,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
             output_core_dims=[["shift_dim"]],
             vectorize=True,
             dask="parallelized",
-            output_dtypes=[X.dtype],
+            output_dtypes=[float],
             kwargs=fit_kwargs,
         )
 

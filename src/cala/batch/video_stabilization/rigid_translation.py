@@ -17,7 +17,9 @@ class RigidTranslator(BaseMotionCorrector):
             raise ValueError("Base frame has not been established.")
 
         shift, error, diffphase = phase_cross_correlation(
-            self.anchor_frame_, current_frame, **kernel_kwargs
+            self.anchor_frame_.astype(np.float32),
+            current_frame.astype(np.float32),
+            **kernel_kwargs
         )
         if self.max_shift is not None:
             # Cap shift values at max amplitude of 10

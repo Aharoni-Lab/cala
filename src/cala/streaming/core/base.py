@@ -9,7 +9,7 @@ from ..components.temporal import TemporalComponentUpdater
 from ..core.estimates import Estimates
 from ..core.parameters import Parameters
 from ..detection.new_components import NewComponentDetector
-from ..motion.stabilizer import MotionStabilizer
+from ..motion_stabilization import RigidTranslator
 
 
 class StreamingCNMF:
@@ -31,7 +31,7 @@ class StreamingCNMF:
 
     def _init_components(self) -> None:
         """Initialize all processing components"""
-        self.motion_stabilizer = MotionStabilizer(self.params.motion_params)
+        self.motion_stabilizer = RigidTranslator(self.params.motion_params)
         self.spatial_updater = SpatialComponentUpdater()
         self.temporal_updater = TemporalComponentUpdater()
         self.deconvolver = OASIS()

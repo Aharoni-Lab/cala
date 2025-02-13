@@ -9,7 +9,7 @@ import numpy as np
 class VisualHelper:
     @staticmethod
     def write_movie(test_movie_fixture, filepath: str | Path):
-        """Test visualization of stabilized calcium video to verify motion correction."""
+        """Test visualization of stabilized calcium video to verify motion stabilization."""
         video, ground_truth, metadata = test_movie_fixture
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
