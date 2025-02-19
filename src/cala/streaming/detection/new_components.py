@@ -18,14 +18,14 @@ class NewComponentDetector(SupervisedTransformer):
         Args:
             new_components: Dictionary with new spatial and temporal components
         """
-        if estimates.spatial_components is None:
+        if estimates.spatial_footprints is None:
             estimates.spatial_components = new_components["spatial"]
             estimates.temporal_components = new_components["temporal"]
         else:
-            estimates.spatial_components = np.hstack(
-                [estimates.spatial_components, new_components["spatial"]]
+            estimates.spatial_footprints = np.hstack(
+                [estimates.spatial_footprints, new_components["spatial"]]
             )
-            estimates.temporal_components = np.vstack(
-                [estimates.temporal_components, new_components["temporal"]]
+            estimates.temporal_traces = np.vstack(
+                [estimates.temporal_traces, new_components["temporal"]]
             )
         return estimates

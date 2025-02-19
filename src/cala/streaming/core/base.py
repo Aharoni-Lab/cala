@@ -36,9 +36,8 @@ class StreamingCNMF:
         self.temporal_updater = TemporalComponentUpdater()
         self.deconvolver = OASIS()
         self.component_detector = NewComponentDetector(self.params.detection_params)
-        # self.normalizer = DataNormalizer(self.params.normalization_params)
 
-        self.preprocess = compose.Pipeline(self.normalizer, self.motion_stabilizer)
+        self.preprocess = compose.Pipeline(self.motion_stabilizer)
         self.demix = compose.Pipeline(
             self.spatial_updater,
             self.temporal_updater,
