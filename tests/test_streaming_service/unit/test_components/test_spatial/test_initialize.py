@@ -7,19 +7,19 @@ from tests.fixtures import stabilized_video
 
 class TestStreamingSpatialInitializer:
     @pytest.fixture
-    def default_parameters(self):
+    def spatial_parameters(self):
         return SpatialInitializerParams()
 
     @pytest.fixture
-    def default_initializer(self, default_parameters):
-        return SpatialInitializer(params=default_parameters)
+    def spatial_initializer(self, spatial_parameters):
+        return SpatialInitializer(params=spatial_parameters)
 
-    def test_first_frame(self, default_initializer, stabilized_video):
+    def test_first_frame(self, spatial_initializer, stabilized_video):
         video, _, _ = stabilized_video
         frame_dimensions = tuple(video.sizes[d] for d in ["width", "height"])
         estimates = Estimates(frame_dimensions)
 
-        estimates = default_initializer.learn_one(
+        estimates = spatial_initializer.learn_one(
             estimates=estimates,
             frame=video.values[0],
         ).transform_one(estimates)
