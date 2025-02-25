@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -44,9 +45,12 @@ class TestStreamingTemporalInitializer:
 
         return estimates
 
+    @pytest.mark.parametrize("jit_enabled", [True, False])
     def test_first_n_frames(
-        self, stabilized_video, temporal_initializer, spatial_estimates
+        self, stabilized_video, temporal_initializer, spatial_estimates, jit_enabled
     ):
+        if not jit_enabled:
+            os.environ["NUMBA_DISABLE_JIT"] = "1"
         video, _, _ = stabilized_video
         temporal_estimates = temporal_initializer.learn_one(
             spatial_estimates, video[:3]
