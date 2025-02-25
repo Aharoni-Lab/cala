@@ -21,7 +21,7 @@ class DownsamplerParams(Parameters):
     kwargs: dict = field(default_factory=dict)
     """keyword arguments for each downsampling method"""
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         if self.method not in ("mean", "subset"):
             raise ValueError(f"Downsampling method '{self.method}' not understood.")
         if len(self.dimensions) != len(self.strides):

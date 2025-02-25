@@ -18,7 +18,7 @@ class DenoiserParams(Parameters):
     kwargs: dict = field(default_factory=dict)
     """kwargs for the denoising method"""
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         """Validate denoising parameters"""
         if self.method not in Denoiser.METHODS:
             raise ValueError(

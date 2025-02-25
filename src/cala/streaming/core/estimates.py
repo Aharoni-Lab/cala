@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.sparse import csc_matrix
 
 
 @dataclass
@@ -14,7 +13,7 @@ class Estimates:
 
     shifts: list = field(default_factory=list)  # motion stabilization shifts
 
-    spatial_footprints: csc_matrix = field(init=False)  # A
+    spatial_footprints: np.ndarray = field(init=False)  # A
     temporal_traces: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))  # C
 
     background_footprints: np.ndarray = field(init=False)  # b
@@ -29,5 +28,5 @@ class Estimates:
 
     def __post_init__(self):
         """Initialize default values for sparse matrices"""
-        self.spatial_footprints = csc_matrix((np.prod(self.dimensions), 0))
+        self.spatial_footprints = np.zeros(np.prod(self.dimensions))
         self.background_footprints = np.zeros(np.prod(self.dimensions))

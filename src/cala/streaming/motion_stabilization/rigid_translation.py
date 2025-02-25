@@ -16,7 +16,7 @@ class RigidTranslatorParams(Parameters):
     anchor_frame_index: int = 0
     kwargs: dict = field(default_factory=dict)
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         if self.drift_speed is not None and self.drift_speed < 0:
             raise ValueError("drift_speed must be a positive integer.")
 

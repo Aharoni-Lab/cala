@@ -22,7 +22,7 @@ class SpatialInitializerParams(Parameters):
     distance_mask_size: int = 5
     """Mask size for distance transform"""
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         if any(
             [
                 self.threshold_factor <= 0,
@@ -42,6 +42,7 @@ class SpatialInitializer(SupervisedTransformer):
     params: SpatialInitializerParams
     num_markers_: int = field(init=False)
     markers_: np.ndarray = field(init=False)
+    blobs_: list[np.ndarray] = field(init=False)
 
     def learn_one(self, estimates: Estimates, frame: np.ndarray) -> Self:
         # Convert frame to uint8 before thresholding
@@ -82,14 +83,16 @@ class SpatialInitializer(SupervisedTransformer):
         # Call watershed
         self.markers_ = watershed(frame_uint8, markers)
 
+        self.blobs_ = []
+        for blob_idx in range(2, self.num_markers_ + 1):
+            blob_mask = self.markers_ == blob_idx
+            blob = blob_mask * frame
+            self.blobs_.append(blob)
+
         return self
 
     def transform_one(self, estimates: Estimates) -> Estimates:
-        blobs = []
-        for blob_idx in range(2, self.num_markers_ + 1):
-            blobs.append(self.markers_ == blob_idx)
-
-        estimates.spatial_footprints = np.array(blobs[1:])
-        estimates.background_footprints = np.array(blobs[0])
+        estimates.spatial_footprints = np.array(self.blobs_[1:])
+        estimates.background_footprints = np.array(self.blobs_[0])
 
         return estimates
