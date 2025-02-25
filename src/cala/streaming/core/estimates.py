@@ -8,7 +8,6 @@ class Estimates:
     """Stores and manages all estimation results"""
 
     dimensions: tuple[int, ...]
-    num_components: int = 0
     current_timestamp: int = 0
 
     shifts: list = field(default_factory=list)  # motion stabilization shifts
