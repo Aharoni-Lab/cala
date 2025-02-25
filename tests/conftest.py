@@ -3,6 +3,8 @@ import os
 import pytest
 from numpy.random import RandomState
 
+from .fixtures import params, raw_calcium_video, preprocessed_video, stabilized_video
+
 
 @pytest.fixture(autouse=True)
 def mock_random(monkeypatch: pytest.MonkeyPatch):
