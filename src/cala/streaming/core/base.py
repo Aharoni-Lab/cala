@@ -3,7 +3,7 @@ from typing import List, Optional, Self
 import numpy as np
 from river import compose
 
-from ..components.deconvolution import OASIS
+from ..components.deconvolve import OASIS
 from ..components.spatial import SpatialComponentUpdater
 from ..components.temporal import TemporalComponentUpdater
 from ..core.estimates import Estimates
