@@ -8,7 +8,7 @@ from river import base
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from ..core import Parameters
+from cala.streaming.core import Parameters
 
 
 @dataclass
@@ -25,7 +25,7 @@ class BackgroundEraserParams(Parameters):
     kernel_size: int = 3
     """Size of the kernel for background removal."""
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         if self.method not in ["uniform", "tophat"]:
             raise ValueError("method must be one of ['uniform', 'tophat']")
         if self.kernel_size <= 0:

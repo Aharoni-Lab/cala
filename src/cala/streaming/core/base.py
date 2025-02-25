@@ -3,7 +3,7 @@ from typing import List, Optional, Self
 import numpy as np
 from river import compose
 
-from ..components.deconvolution import OASIS
+from ..components.deconvolve import OASIS
 from ..components.spatial import SpatialComponentUpdater
 from ..components.temporal import TemporalComponentUpdater
 from ..core.estimates import Estimates
@@ -36,9 +36,8 @@ class StreamingCNMF:
         self.temporal_updater = TemporalComponentUpdater()
         self.deconvolver = OASIS()
         self.component_detector = NewComponentDetector(self.params.detection_params)
-        # self.normalizer = DataNormalizer(self.params.normalization_params)
 
-        self.preprocess = compose.Pipeline(self.normalizer, self.motion_stabilizer)
+        self.preprocess = compose.Pipeline(self.motion_stabilizer)
         self.demix = compose.Pipeline(
             self.spatial_updater,
             self.temporal_updater,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Self
+from typing import Dict, Self
 
 import cv2
 import numpy as np
@@ -7,7 +7,7 @@ import xarray as xr
 from river import base
 from skimage.registration import phase_cross_correlation
 
-from ..core import Parameters
+from cala.streaming.core import Parameters
 
 
 @dataclass
@@ -16,7 +16,7 @@ class RigidTranslatorParams(Parameters):
     anchor_frame_index: int = 0
     kwargs: dict = field(default_factory=dict)
 
-    def _validate_parameters(self) -> None:
+    def validate(self) -> None:
         if self.drift_speed is not None and self.drift_speed < 0:
             raise ValueError("drift_speed must be a positive integer.")
 
@@ -101,3 +101,20 @@ class RigidTranslator(base.Transformer):
         self.previous_frame_ = transformed_frame
 
         return xr.DataArray(transformed_frame, dims=frame.dims, coords=frame.coords)
+
+    def get_info(self) -> Dict:
+        """Get information about the current state.
+
+        Returns
+        -------
+        dict
+            Dictionary containing current statistics
+        """
+        return {
+            "_learn_count": self._learn_count,
+            "_transform_count": self._transform_count,
+            "_anchor_last_applied_on": self._anchor_last_applied_on,
+            "anchor_frame_": self.anchor_frame_,
+            "previous_frame_": self.previous_frame_,
+            "motion_": self.motion_,
+        }
