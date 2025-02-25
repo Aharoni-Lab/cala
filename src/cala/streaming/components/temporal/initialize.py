@@ -3,8 +3,8 @@ from typing import Self
 
 import numpy as np
 import xarray as xr
+from numba import jit, prange
 from river.base import SupervisedTransformer
-from scipy.optimize import nnls
 
 from cala.streaming.core import Estimates, Parameters
 
@@ -47,40 +47,15 @@ class TemporalInitializer(SupervisedTransformer):
         Returns:
             self
         """
-        # Get number of components
-        num_components = estimates.spatial_footprints.shape[0]
-
         # Get frames to use and flatten them
         flattened_frames = frames[: self.params.num_frames_to_use].values.reshape(
             self.params.num_frames_to_use, -1
         )
 
-        # Initialize temporal traces matrix
-        self.temporal_traces_ = np.zeros(
-            (num_components, self.params.num_frames_to_use)
+        # Process all components at once using Numba parallel
+        self.temporal_traces_ = solve_all_component_traces(
+            estimates.spatial_footprints, flattened_frames
         )
-
-        # For each component, solve least squares problem
-        for comp_idx, footprint in enumerate(estimates.spatial_footprints):
-            # Reshape footprint to match frame dimensions
-            footprint = footprint.reshape(-1)
-
-            # Get active pixels in footprint (where footprint > 0)
-            active_pixels = footprint > 0
-
-            if np.any(active_pixels):
-                # Extract active areas from footprint and frames
-                footprint_active = footprint[active_pixels]
-                frames_active = flattened_frames[:, active_pixels]
-
-                # For each frame, solve least squares to find optimal temporal trace value
-                for frame_idx, frame_active in enumerate(frames_active):
-                    # Solve non-negative least squares: min ||y - a*c||^2 subject to c >= 0
-                    # where y is frame data, a is footprint values, c is temporal trace value
-                    temporal_trace, _ = nnls(
-                        footprint_active.reshape(-1, 1), frame_active
-                    )
-                    self.temporal_traces_[comp_idx, frame_idx] = temporal_trace[0]
 
         return self
 
@@ -88,3 +63,46 @@ class TemporalInitializer(SupervisedTransformer):
         """Transform method assigns to estimates."""
         estimates.temporal_traces = self.temporal_traces_
         return estimates
+
+
+@jit(nopython=True, cache=True, parallel=True)
+def solve_all_component_traces(footprints, frames):
+    """Solve temporal traces for all components in parallel
+
+    Args:
+        footprints: Array of shape (n_components, height*width)
+        frames: Array of shape (n_frames, height*width)
+    Returns:
+        Array of shape (n_components, n_frames)
+    """
+    n_components = footprints.shape[0]
+    n_frames = frames.shape[0]
+    results = np.zeros((n_components, n_frames))
+
+    # Parallel loop over components
+    for i in prange(n_components):
+        footprint = footprints[i].reshape(-1)
+        active_pixels = footprint > 0
+
+        if np.any(active_pixels):
+            footprint_active = footprint[active_pixels]
+            frames_active = frames[:, active_pixels]
+            results[i] = fast_nnls_vector(footprint_active, frames_active)
+
+    return results
+
+
+@jit(nopython=True, cache=True, fastmath=True)
+def fast_nnls_vector(A, B):
+    """Specialized NNLS for single-variable case across multiple frames
+    A: footprint values (n_pixels,)
+    B: frame data matrix (n_frames, n_pixels)
+    Returns: brightness values for each frame (n_frames,)
+    """
+    ata = (A * A).sum()  # Compute once for all frames
+    if ata <= 0:
+        return np.zeros(B.shape[0])
+
+    # Vectorized computation for all frames
+    atb = A @ B.T  # dot product with each frame
+    return np.maximum(0, atb / ata)
