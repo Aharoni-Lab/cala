@@ -4,6 +4,7 @@ from typing import Self
 import numpy as np
 import xarray as xr
 from river.base import SupervisedTransformer
+from scipy.optimize import nnls
 
 from cala.streaming.core import Estimates, Parameters
 
@@ -22,8 +23,8 @@ class TemporalInitializerParams(Parameters):
 class TemporalInitializer(SupervisedTransformer):
     """Initializes temporal components using projection methods.
 
-    For each spatial footprint, calculates the mean pixel values within the footprint
-    across all input frames to initialize the temporal traces.
+    For each spatial footprint, finds temporal traces by minimizing the reconstruction error
+    within each footprint's active area.
     """
 
     def __init__(self, params: TemporalInitializerParams):
@@ -31,7 +32,13 @@ class TemporalInitializer(SupervisedTransformer):
         self.temporal_traces_ = None
 
     def learn_one(self, estimates: Estimates, frames: xr.DataArray) -> Self:
-        """Learn temporal traces from a batch of frames.
+        """Learn temporal traces from a batch of frames using least squares optimization.
+
+        For each component, finds the temporal trace values that minimize the reconstruction error:
+        min ||Y - a*c||^2 where:
+        - Y is the frame data within the footprint's active area
+        - a is the footprint values in the active area
+        - c is the temporal trace value to solve for
 
         Args:
             estimates: Estimates object containing spatial footprints and other parameters
@@ -48,22 +55,32 @@ class TemporalInitializer(SupervisedTransformer):
             self.params.num_frames_to_use, -1
         )
 
-        # Ensure footprints are properly shaped
-        footprints = estimates.spatial_footprints.reshape(num_components, -1)
+        # Initialize temporal traces matrix
+        self.temporal_traces_ = np.zeros(
+            (num_components, self.params.num_frames_to_use)
+        )
 
-        # Calculate normalization factors (sum of positive weights for each footprint)
-        normalization = np.sum(footprints > 0, axis=1)
-        normalization = np.where(
-            normalization > 0, normalization, 1
-        )  # Avoid division by zero
+        # For each component, solve least squares problem
+        for comp_idx, footprint in enumerate(estimates.spatial_footprints):
+            # Reshape footprint to match frame dimensions
+            footprint = footprint.reshape(-1)
 
-        # Calculate weighted sum for all components and frames at once
-        # frames shape: (num_frames, pixels)
-        # footprints shape: (num_components, pixels)
-        # Result shape: (num_components, num_frames)
-        self.temporal_traces_ = (footprints @ flattened_frames.T) / normalization[
-            :, None
-        ]
+            # Get active pixels in footprint (where footprint > 0)
+            active_pixels = footprint > 0
+
+            if np.any(active_pixels):
+                # Extract active areas from footprint and frames
+                footprint_active = footprint[active_pixels]
+                frames_active = flattened_frames[:, active_pixels]
+
+                # For each frame, solve least squares to find optimal temporal trace value
+                for frame_idx, frame_active in enumerate(frames_active):
+                    # Solve non-negative least squares: min ||y - a*c||^2 subject to c >= 0
+                    # where y is frame data, a is footprint values, c is temporal trace value
+                    temporal_trace, _ = nnls(
+                        footprint_active.reshape(-1, 1), frame_active
+                    )
+                    self.temporal_traces_[comp_idx, frame_idx] = temporal_trace[0]
 
         return self
 
