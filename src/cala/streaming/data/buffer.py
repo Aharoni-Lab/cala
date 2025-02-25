@@ -18,6 +18,8 @@ class RingBuffer:
 
         # keep track of where the next frame will be inserted
         self.index = 0
+        # keep track of total frames added
+        self.total_frames = 0
 
     def add_frame(self, frame: np.ndarray):
         """
@@ -30,6 +32,7 @@ class RingBuffer:
             raise ValueError("Frame dtype does not match ring buffer dtype.")
 
         self.buffer[self.index] = frame
+        self.total_frames += 1
 
         # Increment the index and wrap using modulus
         self.index = (self.index + 1) % self.buffer_size
@@ -66,15 +69,17 @@ class RingBuffer:
         """
         Return the buffer frames in chronological order (oldest to newest).
         This is useful if you want a sequence of frames in the exact order
-        they were written, up to the current index.
+        they were written. Only returns frames that have been filled.
         """
-        # The newest frame is just before self.index,
-        # the oldest frame is at self.index in circular sense.
-        # We'll construct a new array in chronological order.
+        if self.total_frames == 0:  # No frames added yet
+            return np.array([], dtype=self.dtype)
 
-        # Partition the buffer into two slices:
-        # 1. from self.index to end
-        # 2. from 0 to self.index - 1
+        # If we haven't filled the buffer yet
+        if self.total_frames < self.buffer_size:
+            return self.buffer[: self.index].copy()
+
+        # Buffer is full or has wrapped
+        # Start from self.index (oldest) to end, then 0 to self.index-1 (newest)
         return np.concatenate(
-            (self.buffer[self.index:], self.buffer[: self.index]), axis=0
+            (self.buffer[self.index :], self.buffer[: self.index]), axis=0
         )
