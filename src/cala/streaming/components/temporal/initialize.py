@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
+import xarray as xr
 from river.base import SupervisedTransformer
 
 from cala.streaming.core import Estimates, Parameters
@@ -29,18 +30,23 @@ class TemporalInitializer(SupervisedTransformer):
         self.params = params
         self.temporal_traces_ = None
 
-    def learn_one(self, frames: np.ndarray, estimates: Estimates) -> Self:
+    def learn_one(self, estimates: Estimates, frames: xr.DataArray) -> Self:
         """Learn temporal traces from a batch of frames.
 
         Args:
-            frames: Array of shape (num_frames, height * width) containing flattened grayscale frames
             estimates: Estimates object containing spatial footprints and other parameters
+            frames: xarray DataArray of shape (frames, height, width) containing 2D grayscale frames
 
         Returns:
             self
         """
-        # Get number of components and frames
+        # Get number of components
         num_components = estimates.spatial_footprints.shape[0]
+
+        # Get frames to use and flatten them
+        flattened_frames = frames[: self.params.num_frames_to_use].values.reshape(
+            self.params.num_frames_to_use, -1
+        )
 
         # Ensure footprints are properly shaped
         footprints = estimates.spatial_footprints.reshape(num_components, -1)
@@ -55,9 +61,9 @@ class TemporalInitializer(SupervisedTransformer):
         # frames shape: (num_frames, pixels)
         # footprints shape: (num_components, pixels)
         # Result shape: (num_components, num_frames)
-        self.temporal_traces_ = (
-            footprints @ frames[: self.params.num_frames_to_use].T
-        ) / normalization[:, None]
+        self.temporal_traces_ = (footprints @ flattened_frames.T) / normalization[
+            :, None
+        ]
 
         return self
 
