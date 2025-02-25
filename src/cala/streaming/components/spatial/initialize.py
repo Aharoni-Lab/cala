@@ -6,7 +6,7 @@ import numpy as np
 from river.base import SupervisedTransformer
 from skimage.segmentation import watershed
 
-from ...core import Parameters, Estimates
+from cala.streaming.core import Parameters, Estimates
 
 
 @dataclass

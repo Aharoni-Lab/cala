@@ -7,7 +7,7 @@ import xarray as xr
 from river import base
 from skimage.registration import phase_cross_correlation
 
-from ..core import Parameters
+from cala.streaming.core import Parameters
 
 
 @dataclass
