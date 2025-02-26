@@ -1,7 +1,7 @@
 import numpy as np
 from river.base import SupervisedTransformer
 
-from cala.streaming.core.estimates import Estimates
+from cala.streaming.initialization.estimates import Estimates
 
 
 class NewComponentDetector(SupervisedTransformer):
