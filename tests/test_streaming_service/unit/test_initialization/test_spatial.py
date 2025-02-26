@@ -1,7 +1,7 @@
 import pytest
 
-from cala.streaming.components import SpatialInitializer, SpatialInitializerParams
 from cala.streaming.core import Estimates
+from cala.streaming.initialization import SpatialInitializer, SpatialInitializerParams
 from tests.fixtures import stabilized_video
 
 

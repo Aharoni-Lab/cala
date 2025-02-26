@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from cala.streaming.components import (
+from cala.streaming.core import Estimates
+from cala.streaming.initialization import (
     SpatialInitializer,
     SpatialInitializerParams,
     TemporalInitializer,
     TemporalInitializerParams,
 )
-from cala.streaming.core import Estimates
 from tests.fixtures import stabilized_video
 
 
