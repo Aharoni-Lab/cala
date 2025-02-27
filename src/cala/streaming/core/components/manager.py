@@ -1,7 +1,7 @@
-from functools import cached_property
 from typing import List, Optional, Dict, Set
 
 import numpy as np
+from scipy import sparse
 
 from .base import FluorescentObject
 
@@ -26,16 +26,18 @@ class ComponentManager:
         """
         return self._components.get(component_id)
 
-    @cached_property
-    def footprints(self) -> np.ndarray:
-        """Returns concatenated footprints as a 3D array (n_components, height, width)."""
+    @property
+    def footprints(self) -> sparse.csr_matrix:
+        """Returns concatenated footprints as a sparse 3D array (n_components, height, width)."""
         if not self._components:
-            return np.array([])
-        return np.stack(
-            [component.footprint for component in self._components.values()]
+            return sparse.csr_matrix((0, 0))
+        return sparse.csr_matrix(
+            sparse.vstack(
+                [component.footprint for component in self._components.values()]
+            )
         )
 
-    @cached_property
+    @property
     def time_traces(self) -> np.ndarray:
         """Returns concatenated time traces as a 2D array (n_components, time)."""
         if not self._components:
@@ -130,16 +132,21 @@ class ComponentManager:
 
     def _update_overlaps(self, new_component: FluorescentObject) -> None:
         """Update overlapping relationships for a new component."""
+        new_footprint_nonzero = new_component.footprint > 0
         for existing in self._components.values():
-            if self._check_overlap(new_component.footprint, existing.footprint):
+            # Use efficient sparse matrix operations
+            if self._check_overlap(new_footprint_nonzero, existing.footprint > 0):
                 new_component.overlapping_objects.add(existing)
                 existing.overlapping_objects.add(new_component)
 
     @staticmethod
-    def _check_overlap(footprint1: np.ndarray, footprint2: np.ndarray) -> bool:
-        """Check if two footprints overlap."""
-        # Consider overlap if any pixel is non-zero in both footprints
-        return bool(np.any((footprint1 > 0) & (footprint2 > 0)))
+    def _check_overlap(
+        footprint1: sparse.csr_matrix, footprint2: sparse.csr_matrix
+    ) -> bool:
+        """Check if two footprints overlap using efficient sparse operations."""
+        # Element-wise multiplication will be sparse and fast
+        overlap = footprint1.multiply(footprint2)
+        return overlap.nnz > 0  # Check if any non-zero elements exist
 
     def get_components_by_type(self, component_type: type) -> List[FluorescentObject]:
         """

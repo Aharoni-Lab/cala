@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Set
 from enum import Enum, auto
 import numpy as np
+from scipy import sparse
 
 
 class UpdateType(Enum):
@@ -19,7 +20,7 @@ class ComponentUpdate:
 
     update_type: UpdateType
     """Type of update"""
-    old_footprint: Optional[np.ndarray] = None
+    old_footprint: Optional[sparse.csr_matrix] = None
     """Previous footprint"""
     old_time_trace: Optional[np.ndarray] = None
     """Previous time trace"""
@@ -32,8 +33,8 @@ class FluorescentObject(ABC):
     _id: int = field(init=False)
     """Unique identifier for the object"""
 
-    footprint: np.ndarray
-    """2D array representing spatial distribution"""
+    _footprint: sparse.csr_matrix
+    """2D sparse matrix representing spatial distribution"""
     time_trace: np.ndarray
     """1D array of fluorescence intensity over time"""
 
@@ -46,18 +47,36 @@ class FluorescentObject(ABC):
     last_update: ComponentUpdate = field(init=False)
     """Last update to the object"""
 
-    def __post_init__(self):
-        """Initialize the object after creation."""
+    def __init__(
+        self,
+        footprint: np.ndarray,
+        time_trace: np.ndarray,
+        confidence_level: float,
+        overlapping_objects: Optional[Set["FluorescentObject"]] = None,
+    ):
+        """Initialize the object with a dense footprint that will be converted to sparse."""
+        self._footprint = sparse.csr_matrix(footprint)
+        self.time_trace = time_trace
+        self.confidence_level = confidence_level
         self.overlapping_objects = (
-            set() if self.overlapping_objects is None else set(self.overlapping_objects)
+            set() if overlapping_objects is None else overlapping_objects
         )
-        # Initialize component ID
         self._id = id(self)
+
+    @property
+    def footprint(self) -> sparse.csr_matrix:
+        """Get the sparse footprint matrix."""
+        return self._footprint
+
+    @footprint.setter
+    def footprint(self, value: np.ndarray | sparse.spmatrix) -> None:
+        """Set the footprint, converting to sparse if needed."""
+        self._footprint = sparse.csr_matrix(value)
 
     def update_footprint(self, footprint: np.ndarray) -> None:
         """Update the footprint of the object."""
         self.last_update = ComponentUpdate(
-            update_type=UpdateType.MODIFIED, old_footprint=self.footprint
+            update_type=UpdateType.MODIFIED, old_footprint=self._footprint
         )
         self.footprint = footprint
 
