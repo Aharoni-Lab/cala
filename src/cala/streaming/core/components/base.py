@@ -107,10 +107,10 @@ class FluorescentObject(ABC):
 
     def update_confidence_level(self, confidence_level: float) -> None:
         """Update the confidence level of the object."""
-        self._confidence_level = confidence_level
+        self.confidence_level = confidence_level
 
     def update_overlapping_objects(
         self, overlapping_objects: Set["FluorescentObject"]
     ) -> None:
         """Update the overlapping objects of the object."""
-        self._overlapping_objects = overlapping_objects
+        self.overlapping_objects = overlapping_objects
