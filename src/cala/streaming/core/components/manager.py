@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Set
+from collections import OrderedDict
+from typing import List, Optional, Set
 
 import numpy as np
 from scipy import sparse
@@ -10,7 +11,7 @@ class ComponentManager:
     """Manages a collection of fluorescent components (neurons and background)."""
 
     def __init__(self):
-        self._components: Dict[int, FluorescentObject] = {}
+        self._components: OrderedDict[int, FluorescentObject] = OrderedDict()
         self._footprint_shape: Optional[tuple] = None
         self._n_timepoints: Optional[int] = None
 
@@ -27,24 +28,83 @@ class ComponentManager:
         return self._components.get(component_id)
 
     @property
-    def footprints(self) -> sparse.csr_matrix:
+    def footprints(self) -> np.ndarray:
         """Returns concatenated footprints as a sparse 3D array (n_components, height, width)."""
         if not self._components:
-            return sparse.csr_matrix((0, 0))
-        return sparse.csr_matrix(
-            sparse.vstack(
-                [component.footprint for component in self._components.values()]
-            )
+            return np.array([sparse.csr_matrix((0, 0))] * 3)
+        return np.array(
+            [component.footprint for component in self._components.values()]
         )
 
     @property
     def time_traces(self) -> np.ndarray:
-        """Returns concatenated time traces as a 2D array (n_components, time)."""
+        """Returns concatenated time traces as a 2D array (n_components, time).
+        WARNING: This loads all time traces into memory at once. For large datasets,
+        use get_time_traces_batch() or iterate_time_traces() instead.
+        """
         if not self._components:
             return np.array([])
         return np.stack(
-            [component.time_trace for component in self._components.values()]
+            [np.array(component.time_trace) for component in self._components.values()]
         )
+
+    def get_time_traces_batch(self, start_time: int, end_time: int) -> np.ndarray:
+        """Get a batch of time traces for all components.
+
+        Args:
+            start_time: Start time index (inclusive)
+            end_time: End time index (exclusive)
+
+        Returns:
+            2D array of shape (n_components, batch_time) with time traces
+        """
+        if not self._components:
+            return np.array([])
+        return np.stack(
+            [
+                np.array(component.time_trace[start_time:end_time])
+                for component in self._components.values()
+            ]
+        )
+
+    def iterate_time_traces(self, batch_size: int = 1000):
+        """Iterate over time traces in batches to avoid loading everything into memory.
+
+        Args:
+            batch_size: Number of time points to load at once
+
+        Yields:
+            Tuple of (start_time, end_time, batch_data) where batch_data is a
+            2D array of shape (n_components, batch_size)
+        """
+        if not self._components:
+            return
+
+        # Get total time points from first component
+        first_component = next(iter(self._components.values()))
+        total_time = len(first_component.time_trace)
+
+        for start_idx in range(0, total_time, batch_size):
+            end_idx = min(start_idx + batch_size, total_time)
+            yield start_idx, end_idx, self.get_time_traces_batch(start_idx, end_idx)
+
+    @property
+    def neuron_indices(self) -> List[int]:
+        """Returns a list of neuron indices."""
+        return [
+            idx
+            for idx, component in enumerate(self._components.values())
+            if component.__class__.__name__ == "Neuron"
+        ]
+
+    @property
+    def background_indices(self) -> List[int]:
+        """Returns a list of background indices."""
+        return [
+            idx
+            for idx, component in enumerate(self._components.values())
+            if component.__class__.__name__ == "Background"
+        ]
 
     def add_component(self, component: FluorescentObject) -> None:
         """
