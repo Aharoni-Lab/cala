@@ -1,6 +1,6 @@
 import pytest
 
-from cala.streaming.core import Estimates
+from cala.streaming.core.components import ComponentManager
 from cala.streaming.initialization import SpatialInitializer, SpatialInitializerParams
 from tests.fixtures import stabilized_video
 
@@ -16,11 +16,11 @@ class TestStreamingSpatialInitializer:
 
     def test_first_frame(self, spatial_initializer, stabilized_video):
         video, _, _ = stabilized_video
-        frame_dimensions = tuple(video.sizes[d] for d in ["width", "height"])
-        estimates = Estimates(frame_dimensions)
+        components = ComponentManager()
 
-        estimates = spatial_initializer.learn_one(
-            estimates=estimates,
+        components = spatial_initializer.learn_one(
+            components=components,
             frame=video.values[0],
-        ).transform_one(estimates)
-        assert estimates.spatial_footprints[0].shape == video[0].shape
+        ).transform_one(components)
+
+        assert components.footprints[0].shape == video[0].shape

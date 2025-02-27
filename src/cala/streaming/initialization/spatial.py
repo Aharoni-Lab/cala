@@ -6,7 +6,8 @@ import numpy as np
 from river.base import SupervisedTransformer
 from skimage.segmentation import watershed
 
-from cala.streaming.core import Parameters, Estimates
+from cala.streaming.core import Parameters
+from cala.streaming.core.components import ComponentManager, Neuron, Background
 
 
 @dataclass
@@ -44,7 +45,7 @@ class SpatialInitializer(SupervisedTransformer):
     markers_: np.ndarray = field(init=False)
     blobs_: list[np.ndarray] = field(init=False)
 
-    def learn_one(self, estimates: Estimates, frame: np.ndarray) -> Self:
+    def learn_one(self, components: ComponentManager, frame: np.ndarray) -> Self:
         # Convert frame to uint8 before thresholding
         frame_norm = (frame - frame.min()) * (255.0 / (frame.max() - frame.min()))
         frame_uint8 = frame_norm.astype(np.uint8)
@@ -91,8 +92,20 @@ class SpatialInitializer(SupervisedTransformer):
 
         return self
 
-    def transform_one(self, estimates: Estimates) -> Estimates:
-        estimates.spatial_footprints = np.array(self.blobs_[1:])
-        estimates.background_footprints = np.array(self.blobs_[0])
+    def transform_one(self, components: ComponentManager) -> ComponentManager:
+        for blob_idx in range(1, len(self.blobs_)):
+            components.add_component(
+                Neuron(
+                    footprint=self.blobs_[blob_idx],
+                    time_trace=np.empty(0),
+                )
+            )
 
-        return estimates
+        components.add_component(
+            Background(
+                footprint=np.array(self.blobs_[0]),
+                time_trace=np.empty(0),
+            )
+        )
+
+        return components
