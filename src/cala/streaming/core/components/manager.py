@@ -1,31 +1,48 @@
-from typing import List, Optional
+from functools import cached_property
+from typing import List, Optional, Dict, Set
 
 import numpy as np
 
 from .base import FluorescentObject
 
 
-class Manager:
-    """Manages a collection of fluorescent components (neurons and background) for analysis."""
+class ComponentManager:
+    """Manages a collection of fluorescent components (neurons and background)."""
 
     def __init__(self):
-        self.components: List[FluorescentObject] = []
+        self._components: Dict[int, FluorescentObject] = {}
         self._footprint_shape: Optional[tuple] = None
         self._n_timepoints: Optional[int] = None
 
-    @property
+    def get_component(self, component_id: int) -> Optional[FluorescentObject]:
+        """
+        Get a component by its ID.
+
+        Args:
+            component_id: Unique identifier of the component
+
+        Returns:
+            Component if found, None otherwise
+        """
+        return self._components.get(component_id)
+
+    @cached_property
     def footprints(self) -> np.ndarray:
         """Returns concatenated footprints as a 3D array (n_components, height, width)."""
-        if not self.components:
+        if not self._components:
             return np.array([])
-        return np.stack([component.footprint for component in self.components])
+        return np.stack(
+            [component.footprint for component in self._components.values()]
+        )
 
-    @property
+    @cached_property
     def time_traces(self) -> np.ndarray:
         """Returns concatenated time traces as a 2D array (n_components, time)."""
-        if not self.components:
+        if not self._components:
             return np.array([])
-        return np.stack([component.time_trace for component in self.components])
+        return np.stack(
+            [component.time_trace for component in self._components.values()]
+        )
 
     def add_component(self, component: FluorescentObject) -> None:
         """
@@ -37,7 +54,7 @@ class Manager:
         Raises:
             ValueError: If component dimensions don't match existing components
         """
-        if not self.components:
+        if not self._components:
             self._footprint_shape = component.footprint.shape
             self._n_timepoints = len(component.time_trace)
         else:
@@ -54,45 +71,47 @@ class Manager:
 
         # Update overlapping objects
         self._update_overlaps(component)
-        self.components.append(component)
+        self._components[component._id] = component
 
-    def remove_component(self, index: int) -> FluorescentObject:
+    def remove_component(self, component_id: int) -> Optional[FluorescentObject]:
         """
-        Remove a component and update overlapping relationships.
+        Remove a component by its ID and update overlapping relationships.
 
         Args:
-            index: Index of component to remove
+            component_id: ID of component to remove
 
         Returns:
-            Removed component
+            Removed component if found, None otherwise
         """
-        if not 0 <= index < len(self.components):
-            raise IndexError("Component index out of range")
-
-        component = self.components.pop(index)
+        component = self._components.pop(component_id, None)
+        if component is None:
+            return None
 
         # Remove this component from others' overlapping lists
-        for other in self.components:
-            if component in other.overlapping_objects:
-                other.overlapping_objects.remove(component)
+        for other in self._components.values():
+            other.overlapping_objects.discard(component)
 
         return component
 
-    def update_component(self, index: int, new_component: FluorescentObject) -> None:
+    def update_component(
+        self, component_id: int, new_component: FluorescentObject
+    ) -> bool:
         """
         Update a component while maintaining consistency.
 
         Args:
-            index: Index of component to update
+            component_id: ID of component to update
             new_component: New component to replace with
+
+        Returns:
+            True if component was found and updated, False otherwise
 
         Raises:
             ValueError: If new component dimensions don't match
         """
-        if not 0 <= index < len(self.components):
-            raise IndexError("Component index out of range")
-
-        old_component = self.components[index]
+        old_component = self._components.get(component_id)
+        if old_component is None:
+            return False
 
         # Validate shapes
         if new_component.footprint.shape != self._footprint_shape:
@@ -101,26 +120,26 @@ class Manager:
             raise ValueError("New component time trace length doesn't match")
 
         # Remove old component from others' overlapping lists
-        for other in self.components:
-            if old_component in other.overlapping_objects:
-                other.overlapping_objects.remove(old_component)
+        for other in self._components.values():
+            other.overlapping_objects.discard(old_component)
 
         # Update overlaps for new component
         self._update_overlaps(new_component)
-        self.components[index] = new_component
+        self._components[component_id] = new_component
+        return True
 
     def _update_overlaps(self, new_component: FluorescentObject) -> None:
         """Update overlapping relationships for a new component."""
-        for existing in self.components:
+        for existing in self._components.values():
             if self._check_overlap(new_component.footprint, existing.footprint):
-                new_component.overlapping_objects.append(existing)
-                existing.overlapping_objects.append(new_component)
+                new_component.overlapping_objects.add(existing)
+                existing.overlapping_objects.add(new_component)
 
     @staticmethod
     def _check_overlap(footprint1: np.ndarray, footprint2: np.ndarray) -> bool:
         """Check if two footprints overlap."""
         # Consider overlap if any pixel is non-zero in both footprints
-        return np.any((footprint1 > 0) & (footprint2 > 0))
+        return bool(np.any((footprint1 > 0) & (footprint2 > 0)))
 
     def get_components_by_type(self, component_type: type) -> List[FluorescentObject]:
         """
@@ -134,20 +153,21 @@ class Manager:
         """
         return [
             component
-            for component in self.components
+            for component in self._components.values()
             if isinstance(component, component_type)
         ]
 
-    def get_overlapping_components(self, index: int) -> List[FluorescentObject]:
+    def get_overlapping_components(
+        self, component_id: int
+    ) -> Optional[Set[FluorescentObject]]:
         """
-        Get all components overlapping with the component at given index.
+        Get all components overlapping with the component with given ID.
 
         Args:
-            index: Index of component to find overlaps for
+            component_id: ID of component to find overlaps for
 
         Returns:
-            List of overlapping components
+            Set of overlapping components if component found, None otherwise
         """
-        if not 0 <= index < len(self.components):
-            raise IndexError("Component index out of range")
-        return self.components[index].overlapping_objects
+        component = self._components.get(component_id)
+        return component.overlapping_objects if component else None
