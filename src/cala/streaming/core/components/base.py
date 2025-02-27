@@ -1,8 +1,10 @@
 from abc import ABC
-from dataclasses import dataclass, field
-from typing import List, Optional, Set
+from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Optional, Set
+
 import numpy as np
+import zarr
 from scipy import sparse
 
 
@@ -20,63 +22,79 @@ class ComponentUpdate:
 
     update_type: UpdateType
     """Type of update"""
-    old_footprint: Optional[sparse.csr_matrix] = None
+    old_footprint: Optional[np.ndarray | sparse.csr_matrix] = None
     """Previous footprint"""
-    old_time_trace: Optional[np.ndarray] = None
+    old_time_trace: Optional[np.ndarray | zarr.Array] = None
     """Previous time trace"""
 
 
-@dataclass
 class FluorescentObject(ABC):
     """Base class for any fluorescent object detected."""
 
-    _id: int = field(init=False)
-    """Unique identifier for the object"""
-
-    _footprint: sparse.csr_matrix
-    """2D sparse matrix representing spatial distribution"""
-    time_trace: np.ndarray
-    """1D array of fluorescence intensity over time"""
-
-    confidence_level: float
-    """Confidence in object detection/separation"""
-
-    overlapping_objects: Set["FluorescentObject"] = field(default_factory=set)
-    """Objects with overlapping footprints"""
-
-    last_update: ComponentUpdate = field(init=False)
-    """Last update to the object"""
-
     def __init__(
         self,
-        footprint: np.ndarray,
-        time_trace: np.ndarray,
-        confidence_level: float,
+        footprint: np.ndarray | sparse.csr_matrix,
+        time_trace: np.ndarray | zarr.Array,
+        confidence_level: Optional[float] = None,
         overlapping_objects: Optional[Set["FluorescentObject"]] = None,
     ):
-        """Initialize the object with a dense footprint that will be converted to sparse."""
-        self._footprint = sparse.csr_matrix(footprint)
-        self.time_trace = time_trace
-        self.confidence_level = confidence_level
-        self.overlapping_objects = (
-            set() if overlapping_objects is None else overlapping_objects
-        )
+        """Initialize a FluorescentObject.
+
+        Args:
+            footprint: 2D array representing spatial distribution. Will be converted to sparse matrix.
+            time_trace: 1D array of fluorescence intensity. Will be converted to zarr array.
+            confidence_level: Confidence in object detection/separation.
+            overlapping_objects: Set of objects with overlapping footprints.
+        """
         self._id = id(self)
+        self._footprint = (
+            sparse.csr_matrix(footprint)
+            if not isinstance(footprint, sparse.csr_matrix)
+            else footprint
+        )
+        self._time_trace = (
+            zarr.array(time_trace)
+            if not isinstance(time_trace, zarr.Array)
+            else time_trace
+        )
+        self.confidence_level = confidence_level
+        self.overlapping_objects = overlapping_objects or set()
+        self.last_update = ComponentUpdate(update_type=UpdateType.ADDED)
 
     @property
     def footprint(self) -> sparse.csr_matrix:
-        """Get the sparse footprint matrix."""
+        """Get the footprint as a sparse CSR matrix."""
         return self._footprint
 
     @footprint.setter
-    def footprint(self, value: np.ndarray | sparse.spmatrix) -> None:
-        """Set the footprint, converting to sparse if needed."""
-        self._footprint = sparse.csr_matrix(value)
+    def footprint(self, value: np.ndarray | sparse.csr_matrix) -> None:
+        """Set the footprint, converting to sparse CSR matrix if needed."""
+        if not isinstance(value, sparse.csr_matrix):
+            value = sparse.csr_matrix(value)
+        self.last_update = ComponentUpdate(
+            update_type=UpdateType.MODIFIED, old_footprint=self._footprint
+        )
+        self._footprint = value
+
+    @property
+    def time_trace(self) -> zarr.Array:
+        """Get the time trace as a zarr array."""
+        return self._time_trace
+
+    @time_trace.setter
+    def time_trace(self, value: np.ndarray | zarr.Array) -> None:
+        """Set the time trace, converting to zarr array if needed."""
+        if not isinstance(value, zarr.Array):
+            value = zarr.array(value)
+        self.last_update = ComponentUpdate(
+            update_type=UpdateType.MODIFIED, old_time_trace=self._time_trace
+        )
+        self._time_trace = value
 
     def update_footprint(self, footprint: np.ndarray) -> None:
         """Update the footprint of the object."""
         self.last_update = ComponentUpdate(
-            update_type=UpdateType.MODIFIED, old_footprint=self._footprint
+            update_type=UpdateType.MODIFIED, old_footprint=self.footprint
         )
         self.footprint = footprint
 
@@ -89,10 +107,10 @@ class FluorescentObject(ABC):
 
     def update_confidence_level(self, confidence_level: float) -> None:
         """Update the confidence level of the object."""
-        self.confidence_level = confidence_level
+        self._confidence_level = confidence_level
 
     def update_overlapping_objects(
         self, overlapping_objects: Set["FluorescentObject"]
     ) -> None:
         """Update the overlapping objects of the object."""
-        self.overlapping_objects = overlapping_objects
+        self._overlapping_objects = overlapping_objects

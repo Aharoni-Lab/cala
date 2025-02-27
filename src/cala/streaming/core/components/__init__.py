@@ -1,5 +1,5 @@
-from .neuron import Neuron
 from .background import Background
-from .manager import Manager
+from .manager import ComponentManager
+from .neuron import Neuron
 
-__all__ = ["Neuron", "Background", "Manager"]
+__all__ = ["Neuron", "Background", "ComponentManager"]
