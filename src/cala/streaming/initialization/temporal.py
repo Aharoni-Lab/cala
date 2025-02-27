@@ -6,7 +6,8 @@ import xarray as xr
 from numba import jit, prange
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Estimates, Parameters
+from cala.streaming.core import Parameters
+from cala.streaming.core.components import ComponentManager
 
 
 @dataclass
@@ -31,7 +32,7 @@ class TemporalInitializer(SupervisedTransformer):
         self.params = params
         self.temporal_traces_ = None
 
-    def learn_one(self, estimates: Estimates, frames: xr.DataArray) -> Self:
+    def learn_one(self, components: ComponentManager, frames: xr.DataArray) -> Self:
         """Learn temporal traces from a batch of frames using least squares optimization.
 
         For each component, finds the temporal trace values that minimize the reconstruction error:
@@ -54,15 +55,19 @@ class TemporalInitializer(SupervisedTransformer):
 
         # Process all components at once using Numba parallel
         self.temporal_traces_ = solve_all_component_traces(
-            estimates.spatial_footprints, flattened_frames
+            components.footprints, flattened_frames
         )
 
         return self
 
-    def transform_one(self, estimates: Estimates) -> Estimates:
+    def transform_one(self, components: ComponentManager) -> ComponentManager:
         """Transform method assigns to estimates."""
-        estimates.temporal_traces = self.temporal_traces_
-        return estimates
+
+        for component_idx, time_trace in zip(
+            range(components.n_components), self.temporal_traces_
+        ):
+            components.update_component_timetrace(component_idx, time_trace)
+        return components
 
 
 @jit(nopython=True, cache=True, parallel=True)
