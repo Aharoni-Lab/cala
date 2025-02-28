@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 import numpy as np
@@ -6,20 +6,28 @@ import xarray as xr
 from numba import jit, prange
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Estimates, Parameters
+from cala.streaming.core import Parameters
+from cala.streaming.core.components import ComponentManager
 
 
 @dataclass
 class TemporalInitializerParams(Parameters):
     """Parameters for temporal initialization"""
 
+    component_axis: str = "components"
+    """Axis for components"""
+    frames_axis: str = "frames"
+    """Spatial axes for footprints"""
+
     num_frames_to_use: int = 3
+    """Number of frames to use for temporal initialization"""
 
     def validate(self):
         if not self.num_frames_to_use > 0:
             raise ValueError("Parameter num_frames_to_use must be a positive integer.")
 
 
+@dataclass
 class TemporalInitializer(SupervisedTransformer):
     """Initializes temporal components using projection methods.
 
@@ -27,11 +35,12 @@ class TemporalInitializer(SupervisedTransformer):
     within each footprint's active area.
     """
 
-    def __init__(self, params: TemporalInitializerParams):
-        self.params = params
-        self.temporal_traces_ = None
+    params: TemporalInitializerParams
+    """Parameters for temporal initialization"""
+    temporal_traces_: xr.DataArray = field(init=False)
+    """Temporal traces"""
 
-    def learn_one(self, estimates: Estimates, frames: xr.DataArray) -> Self:
+    def learn_one(self, components: ComponentManager, frames: xr.DataArray) -> Self:
         """Learn temporal traces from a batch of frames using least squares optimization.
 
         For each component, finds the temporal trace values that minimize the reconstruction error:
@@ -53,16 +62,26 @@ class TemporalInitializer(SupervisedTransformer):
         )
 
         # Process all components at once using Numba parallel
-        self.temporal_traces_ = solve_all_component_traces(
-            estimates.spatial_footprints, flattened_frames
+        temporal_traces = solve_all_component_traces(
+            components.footprints.values, flattened_frames
+        )
+
+        self.temporal_traces_ = xr.DataArray(
+            temporal_traces,
+            dims=(self.params.component_axis, self.params.frames_axis),
+            coords={
+                self.params.component_axis: list(components.component_ids),
+                self.params.frames_axis: frames.coords[self.params.frames_axis],
+            },
         )
 
         return self
 
-    def transform_one(self, estimates: Estimates) -> Estimates:
+    def transform_one(self, components: ComponentManager) -> ComponentManager:
         """Transform method assigns to estimates."""
-        estimates.temporal_traces = self.temporal_traces_
-        return estimates
+
+        components.populate_from_traces(self.temporal_traces_)
+        return components
 
 
 @jit(nopython=True, cache=True, parallel=True)
