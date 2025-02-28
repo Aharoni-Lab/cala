@@ -108,9 +108,30 @@ class TraceManager:
     def iterate_batches(
         self, batch_size: int = 1000
     ) -> Iterator[Tuple[int, int, xr.DataArray]]:
-        """Iterate over time traces in batches."""
+        """Iterate over time traces in batches.
+
+        Args:
+            batch_size: Number of frames per batch.
+
+        Returns:
+            Iterator yielding tuples of (start_idx, end_idx, batch_data).
+            Both start_idx and end_idx are inclusive.
+
+        Note:
+            The last batch may be smaller than batch_size.
+        """
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+
         total_time = self._traces.sizes[self.frame_axis]
+        if total_time == 0:
+            return
+
+        # Adjust batch_size to account for inclusive end
+        adjusted_batch_size = batch_size - 1
 
         for start_idx in range(0, total_time, batch_size):
-            end_idx = min(start_idx + batch_size, total_time)
+            # For each batch, end_idx is start_idx + (batch_size - 1) to make it inclusive
+            # But don't exceed total_time - 1
+            end_idx = min(start_idx + adjusted_batch_size, total_time - 1)
             yield start_idx, end_idx, self.get_batch(start_idx, end_idx)
