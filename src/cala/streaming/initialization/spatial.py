@@ -8,7 +8,8 @@ from river.base import SupervisedTransformer
 from skimage.segmentation import watershed
 
 from cala.streaming.core import Parameters
-from cala.streaming.core.components import ComponentManager, Neuron, Background
+from cala.streaming.core.components import ComponentManager
+from cala.streaming.core.components.types import Neuron, Background
 
 
 @dataclass
