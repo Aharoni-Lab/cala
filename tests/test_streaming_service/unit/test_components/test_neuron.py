@@ -3,7 +3,7 @@ import pytest
 import zarr
 from scipy import sparse
 
-from cala.streaming.core.components.neuron import Neuron
+from cala.streaming.core.components.types import Neuron
 
 
 class TestNeuron:

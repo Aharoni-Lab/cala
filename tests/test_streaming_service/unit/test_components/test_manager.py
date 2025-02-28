@@ -2,9 +2,8 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from cala.streaming.core.components.background import Background
 from cala.streaming.core.components.manager import ComponentManager
-from cala.streaming.core.components.neuron import Neuron
+from cala.streaming.core.components.types import Neuron, Background
 
 
 class TestComponentManager:
@@ -302,3 +301,6 @@ class TestComponentManager:
             manager.add_component(Neuron(new_footprint, new_trace))
 
         verify_order()
+
+
+# ! WE ALSO NEED BATCH MATRIX ADDITION/REMOVAL/UPDATE/MERGE TESTS
