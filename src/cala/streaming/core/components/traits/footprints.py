@@ -68,7 +68,10 @@ class FootprintManager:
 
     def update_footprint(self, component_id: int, footprint: xr.DataArray) -> None:
         """Update an existing footprint."""
-        self._footprints.loc[{self.component_axis: component_id}] = footprint
+        # Create a condition mask for the component we want to update
+        condition = self._footprints[self.component_axis] == component_id
+        # Use where to update only the values for this component
+        self._footprints = xr.where(condition, footprint, self._footprints)
 
         # Reset and recompute overlaps
         self._overlapping_components[component_id] = set()
