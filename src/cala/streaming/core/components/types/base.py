@@ -43,7 +43,7 @@ class FluorescentObject(ABC):
         return self._id
 
     def _mark_update(
-        self, update_type: UpdateType, frame_idx: Optional[int] = None
+            self, update_type: UpdateType, frame_idx: Optional[int] = None
     ) -> None:
         """Helper method to mark an update on the object."""
         self.last_update = ComponentUpdate(
@@ -51,7 +51,7 @@ class FluorescentObject(ABC):
         )
 
     def update_confidence_level(
-        self, confidence_level: float, frame_idx: Optional[int] = None
+            self, confidence_level: float, frame_idx: Optional[int] = None
     ) -> None:
         """Update the confidence level of the object."""
         self.confidence_level = confidence_level
