@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 import numpy as np
@@ -14,13 +14,20 @@ from cala.streaming.core.components import ComponentManager
 class TemporalInitializerParams(Parameters):
     """Parameters for temporal initialization"""
 
+    component_axis: str = "component"
+    """Axis for components"""
+    frames_axis: str = "frames"
+    """Spatial axes for footprints"""
+
     num_frames_to_use: int = 3
+    """Number of frames to use for temporal initialization"""
 
     def validate(self):
         if not self.num_frames_to_use > 0:
             raise ValueError("Parameter num_frames_to_use must be a positive integer.")
 
 
+@dataclass
 class TemporalInitializer(SupervisedTransformer):
     """Initializes temporal components using projection methods.
 
@@ -28,9 +35,10 @@ class TemporalInitializer(SupervisedTransformer):
     within each footprint's active area.
     """
 
-    def __init__(self, params: TemporalInitializerParams):
-        self.params = params
-        self.temporal_traces_ = None
+    params: TemporalInitializerParams
+    """Parameters for temporal initialization"""
+    temporal_traces_: xr.DataArray = field(init=False)
+    """Temporal traces"""
 
     def learn_one(self, components: ComponentManager, frames: xr.DataArray) -> Self:
         """Learn temporal traces from a batch of frames using least squares optimization.
@@ -54,8 +62,17 @@ class TemporalInitializer(SupervisedTransformer):
         )
 
         # Process all components at once using Numba parallel
-        self.temporal_traces_ = solve_all_component_traces(
-            components.footprints, flattened_frames
+        temporal_traces = solve_all_component_traces(
+            components.footprints.values, flattened_frames
+        )
+
+        self.temporal_traces_ = xr.DataArray(
+            temporal_traces,
+            dims=(self.params.component_axis, self.params.frames_axis),
+            coords={
+                self.params.component_axis: list(components.component_ids),
+                self.params.frames_axis: frames.coords[self.params.frames_axis],
+            },
         )
 
         return self
@@ -63,10 +80,7 @@ class TemporalInitializer(SupervisedTransformer):
     def transform_one(self, components: ComponentManager) -> ComponentManager:
         """Transform method assigns to estimates."""
 
-        for component_idx, time_trace in zip(
-            range(components.n_components), self.temporal_traces_
-        ):
-            components.update_component_timetrace(component_idx, time_trace)
+        components.populate_from_traces(self.temporal_traces_)
         return components
 
 

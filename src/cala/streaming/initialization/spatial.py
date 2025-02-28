@@ -3,6 +3,7 @@ from typing import Self
 
 import cv2
 import numpy as np
+import xarray as xr
 from river.base import SupervisedTransformer
 from skimage.segmentation import watershed
 
@@ -13,6 +14,9 @@ from cala.streaming.core.components import ComponentManager, Neuron, Background
 @dataclass
 class SpatialInitializerParams(Parameters):
     """Parameters for spatial initialization methods"""
+
+    component_axis: str = "component"
+    """Axis for components"""
 
     threshold_factor: float = 0.2
     """Factor for thresholding distance transform"""
@@ -41,16 +45,30 @@ class SpatialInitializer(SupervisedTransformer):
     """Abstract base class for spatial component initialization methods."""
 
     params: SpatialInitializerParams
+    """Parameters for spatial initialization"""
+    spatial_axes: tuple = field(init=False)
+    """Spatial axes for footprints"""
     num_markers_: int = field(init=False)
+    """Number of markers"""
     markers_: np.ndarray = field(init=False)
-    blobs_: list[np.ndarray] = field(init=False)
+    """Markers"""
+    blobs_: xr.DataArray = field(init=False)
+    """Blobs"""
 
-    def learn_one(self, components: ComponentManager, frame: np.ndarray) -> Self:
+    def learn_one(self, components: ComponentManager, frame: xr.DataArray) -> Self:
+        """Learn from a single frame.
+
+        Args:
+            components: Component manager to learn from
+            frame: Frame to learn from, with dimensions matching spatial_axes
+        """
+        self.spatial_axes = tuple(frame.dims)
+
         # Convert frame to uint8 before thresholding
         frame_norm = (frame - frame.min()) * (255.0 / (frame.max() - frame.min()))
         frame_uint8 = frame_norm.astype(np.uint8)
         _, binary = cv2.threshold(
-            frame_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            frame_uint8.values, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
 
         # Sure background area (by dilating the foreground)
@@ -82,30 +100,41 @@ class SpatialInitializer(SupervisedTransformer):
         markers[unknown == 255] = 0
 
         # Call watershed
-        self.markers_ = watershed(frame_uint8, markers)
+        self.markers_ = watershed(frame_uint8.values, markers)
 
-        self.blobs_ = []
+        # Convert blobs to xarray DataArrays with proper dimensions
+        blobs = []
         for blob_idx in range(2, self.num_markers_ + 1):
             blob_mask = self.markers_ == blob_idx
-            blob = blob_mask * frame
-            self.blobs_.append(blob)
+            blob = blob_mask * frame.values
+            blobs.append(blob)
+
+        # Store blobs as a single DataArray with component axis
+        self.blobs_ = xr.DataArray(
+            blobs,
+            dims=(self.params.component_axis, *self.spatial_axes),
+            coords={
+                self.params.component_axis: np.arange(len(blobs)),
+                **{axis: frame.coords[axis] for axis in self.spatial_axes},
+            },
+        )
 
         return self
 
     def transform_one(self, components: ComponentManager) -> ComponentManager:
-        for blob_idx in range(1, len(self.blobs_)):
-            components.add_component(
-                Neuron(
-                    footprint=self.blobs_[blob_idx],
-                    time_trace=np.empty(0),
-                )
-            )
+        """Transform a single frame.
 
-        components.add_component(
-            Background(
-                footprint=np.array(self.blobs_[0]),
-                time_trace=np.empty(0),
-            )
-        )
+        Args:
+            components: Component manager to transform
+
+        Returns:
+            Transformed component manager
+        """
+        # Split background and neuron components
+        background = self.blobs_[0:1]  # Keep dims by using slice
+        neurons = self.blobs_[1:]
+
+        components.populate_from_footprints(background, component_type=Background)
+        components.populate_from_footprints(neurons, component_type=Neuron)
 
         return components

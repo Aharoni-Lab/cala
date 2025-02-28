@@ -20,7 +20,7 @@ class TestStreamingSpatialInitializer:
 
         components = spatial_initializer.learn_one(
             components=components,
-            frame=video.values[0],
+            frame=video[0],
         ).transform_one(components)
 
         assert components.footprints[0].shape == video[0].shape

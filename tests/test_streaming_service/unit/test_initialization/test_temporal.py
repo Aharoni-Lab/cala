@@ -39,7 +39,7 @@ class TestStreamingTemporalInitializer:
 
         estimates = spatial_initializer.learn_one(
             components=default_estimates,
-            frame=video.values[0],
+            frame=video[0],
         ).transform_one(default_estimates)
 
         return estimates
@@ -56,8 +56,7 @@ class TestStreamingTemporalInitializer:
         ).transform_one(spatial_components)
 
         assert (
-            spatial_components.footprints.shape[0]
-            == temporal_estimates.time_traces.shape[0]
+            spatial_components.footprints.shape[0] == temporal_estimates.traces.shape[0]
         )
 
     def test_reconstruction_comparison(
@@ -73,8 +72,8 @@ class TestStreamingTemporalInitializer:
         original_frames = video[:3].values
 
         # Reconstruct frames using spatial footprints and temporal traces
-        spatial_footprints = temporal_estimates.footprints
-        temporal_traces = temporal_estimates.time_traces
+        spatial_footprints = temporal_estimates.footprints.values
+        temporal_traces = temporal_estimates.traces.values
 
         # Reshape spatial footprints to match frame dimensions
         frame_shape = (video.sizes["height"], video.sizes["width"])
