@@ -2,11 +2,12 @@ import pytest
 
 from cala.streaming.core.components.types import Background, Neuron
 from cala.streaming.core.components.types.base import UpdateType
+from .test_base import BaseFluorescentObjectTest
 
 
-class TestBackground:
+class TestBackground(BaseFluorescentObjectTest):
     @pytest.fixture
-    def basic_background(self):
+    def basic_object(self):
         """Create a basic Background component for testing."""
         return Background(detected_frame_idx=0)
 
@@ -17,13 +18,9 @@ class TestBackground:
             detected_frame_idx=1, confidence_level=0.8, background_type="blood_vessel"
         )
 
-    def test_initialization(self, basic_background):
-        """Test basic initialization of Background."""
-        assert basic_background.detected_frame_idx == 0
-        assert basic_background.confidence_level is None
-        assert basic_background.background_type == "neuropil"  # Default value
-        assert basic_background.last_update.update_type == UpdateType.ADDED
-        assert basic_background.last_update.last_update_frame_idx == 0
+    def test_background_specific_initialization(self, basic_object):
+        """Test Background-specific initialization attributes."""
+        assert basic_object.background_type == "neuropil"  # Default value
 
     def test_custom_initialization(self, custom_background):
         """Test initialization with custom parameters."""
@@ -40,15 +37,15 @@ class TestBackground:
             bg = Background(detected_frame_idx=0, background_type=bg_type)
             assert bg.background_type == bg_type
 
-    def test_estimate_contamination_not_implemented(self, basic_background):
+    def test_estimate_contamination_not_implemented(self, basic_object):
         """Test that estimate_contamination raises NotImplementedError."""
         neuron = Neuron(detected_frame_idx=0)
         with pytest.raises(NotImplementedError):
-            basic_background.estimate_contamination(neuron)
+            basic_object.estimate_contamination(neuron)
 
-    def test_update_confidence_level(self, basic_background):
+    def test_update_confidence_level(self, basic_object):
         """Test confidence level updates."""
-        basic_background.update_confidence_level(0.95, 2)
-        assert basic_background.confidence_level == 0.95
-        assert basic_background.last_update.update_type == UpdateType.MODIFIED
-        assert basic_background.last_update.last_update_frame_idx == 2
+        basic_object.update_confidence_level(0.95, 2)
+        assert basic_object.confidence_level == 0.95
+        assert basic_object.last_update.update_type == UpdateType.MODIFIED
+        assert basic_object.last_update.last_update_frame_idx == 2

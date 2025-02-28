@@ -2,11 +2,12 @@ import pytest
 
 from cala.streaming.core.components.types import Neuron
 from cala.streaming.core.components.types.base import UpdateType
+from .test_base import BaseFluorescentObjectTest
 
 
-class TestNeuron:
+class TestNeuron(BaseFluorescentObjectTest):
     @pytest.fixture
-    def basic_neuron(self):
+    def basic_object(self):
         """Create a basic Neuron for testing."""
         return Neuron(detected_frame_idx=0)
 
@@ -23,16 +24,12 @@ class TestNeuron:
             decay_time_constant=0.5,
         )
 
-    def test_initialization(self, basic_neuron):
-        """Test basic initialization of Neuron."""
-        assert basic_neuron.detected_frame_idx == 0
-        assert basic_neuron.confidence_level is None
-        assert basic_neuron.cell_type is None
-        assert basic_neuron.metadata == {}
-        assert basic_neuron.rise_time_constant is None
-        assert basic_neuron.decay_time_constant is None
-        assert basic_neuron.last_update.update_type == UpdateType.ADDED
-        assert basic_neuron.last_update.last_update_frame_idx == 0
+    def test_neuron_specific_initialization(self, basic_object):
+        """Test Neuron-specific initialization attributes."""
+        assert basic_object.cell_type is None
+        assert basic_object.metadata == {}
+        assert basic_object.rise_time_constant is None
+        assert basic_object.decay_time_constant is None
 
     def test_complex_initialization(self, complex_neuron):
         """Test initialization with all optional parameters."""
@@ -46,26 +43,26 @@ class TestNeuron:
         assert complex_neuron.last_update.update_type == UpdateType.ADDED
         assert complex_neuron.last_update.last_update_frame_idx == 1
 
-    def test_metadata_updates(self, basic_neuron):
+    def test_metadata_updates(self, basic_object):
         """Test metadata updates."""
         # Test setting initial metadata
         metadata = {"type": "pyramidal", "layer": "2/3"}
-        basic_neuron.metadata = metadata
-        assert basic_neuron.metadata == metadata
+        basic_object.metadata = metadata
+        assert basic_object.metadata == metadata
 
         # Test metadata updates
-        basic_neuron.metadata["quality"] = "good"
-        assert "quality" in basic_neuron.metadata
-        assert basic_neuron.metadata["quality"] == "good"
+        basic_object.metadata["quality"] = "good"
+        assert "quality" in basic_object.metadata
+        assert basic_object.metadata["quality"] == "good"
 
-    def test_not_implemented_methods(self, basic_neuron):
+    def test_not_implemented_methods(self, basic_object):
         """Test that unimplemented methods raise NotImplementedError."""
         with pytest.raises(NotImplementedError):
-            basic_neuron.classify_cell_type()
+            basic_object.classify_cell_type()
 
-    def test_update_confidence_level(self, basic_neuron):
+    def test_update_confidence_level(self, basic_object):
         """Test confidence level updates."""
-        basic_neuron.update_confidence_level(0.95, 2)
-        assert basic_neuron.confidence_level == 0.95
-        assert basic_neuron.last_update.update_type == UpdateType.MODIFIED
-        assert basic_neuron.last_update.last_update_frame_idx == 2
+        basic_object.update_confidence_level(0.95, 2)
+        assert basic_object.confidence_level == 0.95
+        assert basic_object.last_update.update_type == UpdateType.MODIFIED
+        assert basic_object.last_update.last_update_frame_idx == 2

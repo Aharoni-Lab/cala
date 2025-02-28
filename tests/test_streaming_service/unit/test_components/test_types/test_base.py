@@ -31,19 +31,18 @@ class TestComponentUpdate:
         assert update.last_update_frame_idx == 1
 
 
-class MockFluorescentObject(FluorescentObject):
-    """Mock class for testing abstract FluorescentObject."""
+class BaseFluorescentObjectTest:
+    """Base test class for FluorescentObject and its subclasses."""
 
-    pass
-
-
-class TestFluorescentObject:
     @pytest.fixture
     def basic_object(self):
-        """Create a basic FluorescentObject for testing."""
-        return MockFluorescentObject(detected_frame_idx=0)
+        """Create a basic FluorescentObject for testing.
 
-    def test_initialization(self, basic_object):
+        Subclasses should override this to return their specific object type.
+        """
+        raise NotImplementedError
+
+    def test_basic_initialization(self, basic_object):
         """Test basic initialization of FluorescentObject."""
         assert basic_object.detected_frame_idx == 0
         assert basic_object.confidence_level is None
@@ -74,3 +73,18 @@ class TestFluorescentObject:
         basic_object._mark_update(UpdateType.REMOVED)
         assert basic_object.last_update.update_type == UpdateType.REMOVED
         assert basic_object.last_update.last_update_frame_idx is None
+
+
+class MockFluorescentObject(FluorescentObject):
+    """Mock class for testing abstract FluorescentObject."""
+
+    pass
+
+
+class TestFluorescentObject(BaseFluorescentObjectTest):
+    """Test cases specific to the base FluorescentObject class."""
+
+    @pytest.fixture
+    def basic_object(self):
+        """Create a basic FluorescentObject for testing."""
+        return MockFluorescentObject(detected_frame_idx=0)
