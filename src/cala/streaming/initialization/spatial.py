@@ -16,7 +16,7 @@ from cala.streaming.core.components.types import Neuron, Background
 class SpatialInitializerParams(Parameters):
     """Parameters for spatial initialization methods"""
 
-    component_axis: str = "component"
+    component_axis: str = "components"
     """Axis for components"""
 
     threshold_factor: float = 0.2

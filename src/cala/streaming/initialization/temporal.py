@@ -14,7 +14,7 @@ from cala.streaming.core.components import ComponentManager
 class TemporalInitializerParams(Parameters):
     """Parameters for temporal initialization"""
 
-    component_axis: str = "component"
+    component_axis: str = "components"
     """Axis for components"""
     frames_axis: str = "frames"
     """Spatial axes for footprints"""
