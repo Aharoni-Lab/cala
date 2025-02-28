@@ -9,7 +9,7 @@ from skimage.segmentation import watershed
 
 from cala.streaming.core import Parameters
 from cala.streaming.core.components import ComponentManager
-from cala.streaming.core.components.types import Neuron, Background
+from cala.streaming.core.components.types import ComponentType
 
 
 @dataclass
@@ -135,7 +135,11 @@ class SpatialInitializer(SupervisedTransformer):
         background = self.blobs_[0:1]  # Keep dims by using slice
         neurons = self.blobs_[1:]
 
-        components.populate_from_footprints(background, component_type=Background)
-        components.populate_from_footprints(neurons, component_type=Neuron)
+        components.populate_from_footprints(
+            background, component_type=ComponentType.BACKGROUND
+        )
+        components.populate_from_footprints(
+            neurons, component_type=ComponentType.NEURON
+        )
 
         return components

@@ -1,7 +1,6 @@
-"""Component type definitions."""
-
 from .background import Background
 from .base import FluorescentObject
+from .enums import ComponentType
 from .neuron import Neuron
 
-__all__ = ["FluorescentObject", "Neuron", "Background"]
+__all__ = ["ComponentType", "FluorescentObject", "Neuron", "Background"]

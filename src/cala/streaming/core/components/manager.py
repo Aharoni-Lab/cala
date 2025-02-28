@@ -1,12 +1,25 @@
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import List, Optional, Set, Type
+from typing import Dict, List, Optional, Set, Type
 
 import xarray as xr
 
 from cala.streaming.core.components.traits import FootprintManager, TraceManager
-from cala.streaming.core.components.types import FluorescentObject
+from cala.streaming.core.components.types import ComponentType, FluorescentObject
 from .registry import ComponentRegistry
+
+
+def _create_component_type_map() -> Dict[ComponentType, Type[FluorescentObject]]:
+    """Create the component type map.
+
+    This is in a separate function to avoid circular imports at module level.
+    """
+    from cala.streaming.core.components.types import Neuron, Background
+
+    return {
+        ComponentType.NEURON: Neuron,
+        ComponentType.BACKGROUND: Background,
+    }
 
 
 @dataclass
@@ -23,6 +36,11 @@ class ComponentManager:
     _registry: ComponentRegistry = field(default_factory=ComponentRegistry)
     _footprints: FootprintManager = field(default_factory=lambda: FootprintManager())
     _traces: TraceManager = field(default_factory=lambda: TraceManager())
+
+    _component_type_map: Dict[ComponentType, Type[FluorescentObject]] = field(
+        default_factory=_create_component_type_map
+    )
+    """Maps component types to their corresponding classes."""
 
     def __post_init__(self):
         # Ensure consistent axis names across managers
@@ -101,18 +119,25 @@ class ComponentManager:
     def populate_from_footprints(
         self,
         footprints: xr.DataArray,
-        component_type: Type[FluorescentObject],
+        component_type: ComponentType,
     ) -> None:
-        """Populate the component manager from footprints."""
+        """Populate the component manager from footprints.
+
+        Args:
+            footprints: The footprints to populate from.
+            component_type: The type of component to create.
+        """
         if set(footprints.dims) != set(self._footprints.footprints_dimensions):
             raise ValueError(
                 f"Footprints dimensions must be {self._footprints.footprints_dimensions}"
             )
 
+        component_class = self._component_type_map[component_type]
+
         if len(self._registry.component_ids) == 0:
             # Initialize from scratch
             components = [
-                component_type() for _ in footprints.coords[self.component_axis]
+                component_class() for _ in footprints.coords[self.component_axis]
             ]
             for component in components:
                 self._registry.add(component)
@@ -144,7 +169,7 @@ class ComponentManager:
 
         # Add new components
         if new_ids:
-            new_components = [component_type() for _ in range(len(new_ids))]
+            new_components = [component_class() for _ in range(len(new_ids))]
             new_footprints = footprints.sel({self.component_axis: list(new_ids)})
 
             for component, component_id in zip(new_components, new_ids):

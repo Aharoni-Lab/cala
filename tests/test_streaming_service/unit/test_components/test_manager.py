@@ -5,7 +5,7 @@ import xarray as xr
 from cala.streaming.core.components.manager import ComponentManager
 from cala.streaming.core.components.registry import ComponentRegistry
 from cala.streaming.core.components.traits import FootprintManager, TraceManager
-from cala.streaming.core.components.types import Neuron, Background
+from cala.streaming.core.components.types import ComponentType, Neuron, Background
 
 
 class TestComponentManager:
@@ -111,7 +111,7 @@ class TestComponentManager:
         )
 
         # Test initial population
-        empty_manager.populate_from_footprints(footprints, Neuron)
+        empty_manager.populate_from_footprints(footprints, ComponentType.NEURON)
         neuron_ids = list(empty_manager.component_ids)
         assert empty_manager.n_components == 2
         assert all(
@@ -122,7 +122,9 @@ class TestComponentManager:
         updated_footprints = sample_footprint.expand_dims(
             dim={"components": [3]},  # add 3
         )
-        empty_manager.populate_from_footprints(updated_footprints, Background)
+        empty_manager.populate_from_footprints(
+            updated_footprints, ComponentType.BACKGROUND
+        )
         assert empty_manager.n_components == 3
         assert isinstance(
             empty_manager.get_component(neuron_ids[1]), Neuron
