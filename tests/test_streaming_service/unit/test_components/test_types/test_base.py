@@ -45,19 +45,32 @@ class TestFluorescentObject:
 
     def test_initialization(self, basic_object):
         """Test basic initialization of FluorescentObject."""
+        assert basic_object.detected_frame_idx == 0
         assert basic_object.confidence_level is None
-        assert basic_object.overlapping_objects == set()
         assert basic_object.last_update.update_type == UpdateType.ADDED
+        assert basic_object.last_update.last_update_frame_idx == 0
+        assert isinstance(basic_object.id, int)
 
-    def test_update_methods(self, basic_object):
-        """Test update methods for footprint, time_trace, confidence, and overlapping objects."""
-        # Test update_overlapping_objects
+    def test_update_confidence_level(self, basic_object):
+        """Test updating confidence level."""
+        # Test updating with frame index
         basic_object.update_confidence_level(0.95, 2)
         assert basic_object.confidence_level == 0.95
         assert basic_object.last_update.update_type == UpdateType.MODIFIED
         assert basic_object.last_update.last_update_frame_idx == 2
 
-        # Test update_overlapping_objects
-        other_object = MockFluorescentObject(detected_frame_idx=1)
-        basic_object.update_overlapping_objects({other_object}, 2)
-        assert basic_object.overlapping_objects == {other_object}
+        # Test updating without frame index
+        basic_object.update_confidence_level(0.85)
+        assert basic_object.confidence_level == 0.85
+        assert basic_object.last_update.update_type == UpdateType.MODIFIED
+        assert basic_object.last_update.last_update_frame_idx is None
+
+    def test_mark_update(self, basic_object):
+        """Test internal mark update functionality."""
+        basic_object._mark_update(UpdateType.MODIFIED, 5)
+        assert basic_object.last_update.update_type == UpdateType.MODIFIED
+        assert basic_object.last_update.last_update_frame_idx == 5
+
+        basic_object._mark_update(UpdateType.REMOVED)
+        assert basic_object.last_update.update_type == UpdateType.REMOVED
+        assert basic_object.last_update.last_update_frame_idx is None
