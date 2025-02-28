@@ -39,7 +39,7 @@ class TestStreamingTemporalInitializer:
 
         estimates = spatial_initializer.learn_one(
             components=default_estimates,
-            frame=video[0],
+            X=video[0],
         ).transform_one(default_estimates)
 
         return estimates

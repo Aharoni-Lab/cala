@@ -1,15 +1,18 @@
 from dataclasses import dataclass, field
-from typing import Self
+from typing import Self, Tuple, List
 
 import cv2
 import numpy as np
 import xarray as xr
-from river.base import SupervisedTransformer
+from river.base import Transformer
 from skimage.segmentation import watershed
 
 from cala.streaming.core import Parameters
-from cala.streaming.core.components import ComponentManager
-from cala.streaming.core.components.types import ComponentType
+from cala.streaming.initialization.manager_interface import (
+    manager_interface,
+    InitializerType,
+    SpatialInitializationResult,
+)
 
 
 @dataclass
@@ -41,8 +44,9 @@ class SpatialInitializerParams(Parameters):
             )
 
 
+@manager_interface(InitializerType.SPATIAL)
 @dataclass
-class SpatialInitializer(SupervisedTransformer):
+class SpatialInitializer(Transformer):
     """Abstract base class for spatial component initialization methods."""
 
     params: SpatialInitializerParams
@@ -56,15 +60,47 @@ class SpatialInitializer(SupervisedTransformer):
     blobs_: xr.DataArray = field(init=False)
     """Blobs"""
 
-    def learn_one(self, components: ComponentManager, frame: xr.DataArray) -> Self:
-        """Learn from a single frame.
+    result: SpatialInitializationResult = field(
+        default_factory=SpatialInitializationResult
+    )
+    """Result from spatial initialization"""
 
-        Args:
-            components: Component manager to learn from
-            frame: Frame to learn from, with dimensions matching spatial_axes
-        """
-        self.spatial_axes = tuple(frame.dims)
+    def learn_one(self, frame: xr.DataArray) -> Self:
+        """Learn spatial components from a frame."""
+        # Compute markers
+        self.markers_ = self._compute_markers(frame)
+        # Extract components
+        background, neurons = self._extract_components(self.markers_, frame)
 
+        # Store results
+        self.result.background = xr.DataArray(
+            background,
+            dims=("components", "height", "width"),
+            coords={
+                "components": range(len(background)),
+                "height": frame.coords["height"],
+                "width": frame.coords["width"],
+            },
+        )
+        self.result.neurons = xr.DataArray(
+            neurons,
+            dims=("components", "height", "width"),
+            coords={
+                "components": range(len(neurons)),
+                "height": frame.coords["height"],
+                "width": frame.coords["width"],
+            },
+        )
+
+        return self
+
+    def transform_one(self, _=None) -> SpatialInitializationResult:
+        """Return initialization result."""
+
+        return self.result
+
+    def _compute_markers(self, frame: xr.DataArray) -> np.ndarray:
+        """Compute markers for watershed algorithm."""
         # Convert frame to uint8 before thresholding
         frame_norm = (frame - frame.min()) * (255.0 / (frame.max() - frame.min()))
         frame_uint8 = frame_norm.astype(np.uint8)
@@ -101,45 +137,14 @@ class SpatialInitializer(SupervisedTransformer):
         markers[unknown == 255] = 0
 
         # Call watershed
-        self.markers_ = watershed(frame_uint8.values, markers)
+        return watershed(frame_uint8.values, markers)
 
-        # Convert blobs to xarray DataArrays with proper dimensions
-        blobs = []
-        for blob_idx in range(2, self.num_markers_ + 1):
-            blob_mask = self.markers_ == blob_idx
-            blob = blob_mask * frame.values
-            blobs.append(blob)
-
-        # Store blobs as a single DataArray with component axis
-        self.blobs_ = xr.DataArray(
-            blobs,
-            dims=(self.params.component_axis, *self.spatial_axes),
-            coords={
-                self.params.component_axis: np.arange(len(blobs)),
-                **{axis: frame.coords[axis] for axis in self.spatial_axes},
-            },
-        )
-
-        return self
-
-    def transform_one(self, components: ComponentManager) -> ComponentManager:
-        """Transform a single frame.
-
-        Args:
-            components: Component manager to transform
-
-        Returns:
-            Transformed component manager
-        """
-        # Split background and neuron components
-        background = self.blobs_[0:1]  # Keep dims by using slice
-        neurons = self.blobs_[1:]
-
-        components.populate_from_footprints(
-            background, component_type=ComponentType.BACKGROUND
-        )
-        components.populate_from_footprints(
-            neurons, component_type=ComponentType.NEURON
-        )
-
-        return components
+    def _extract_components(
+        self, markers: np.ndarray, frame: xr.DataArray
+    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+        """Extract background and neurons from markers."""
+        background = [(markers == 1) * frame.values]
+        neurons = []
+        for i in range(2, self.num_markers_ + 1):
+            neurons.append((markers == i) * frame.values)
+        return background, neurons
