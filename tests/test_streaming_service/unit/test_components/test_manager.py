@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
-from scipy import sparse
+import xarray as xr
 
 from cala.streaming.core.components.manager import ComponentManager
+from cala.streaming.core.components.registry import ComponentRegistry
+from cala.streaming.core.components.traits import FootprintManager, TraceManager
 from cala.streaming.core.components.types import Neuron, Background
 
 
@@ -13,294 +15,275 @@ class TestComponentManager:
         return ComponentManager()
 
     @pytest.fixture
-    def multi_component_manager(self):
-        """Create a ComponentManager with multiple components for ordering tests."""
-        manager = ComponentManager()
+    def sample_footprint(self):
+        """Create a sample footprint for testing."""
+        data = np.zeros((10, 10))
+        data[4:7, 4:7] = 1  # 3x3 square of ones
+        return xr.DataArray(
+            data,
+            dims=["height", "width"],
+            coords={"height": range(10), "width": range(10)},
+        )
 
-        # Create components with distinct patterns for easy identification
+    @pytest.fixture
+    def sample_trace(self):
+        """Create a sample trace for testing."""
+        data = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        return xr.DataArray(
+            data,
+            dims=["frames"],
+            coords={"frames": range(len(data))},
+        )
+
+    @pytest.fixture
+    def populated_manager(self, empty_manager, sample_footprint, sample_trace):
+        """Create a ComponentManager with multiple components."""
+        # Create components with distinct patterns
         components = []
         for i in range(3):
             # Create footprint with unique pattern
-            footprint = np.zeros((5, 5))
-            footprint[i : i + 2, i : i + 2] = i + 1
+            footprint = sample_footprint.copy()
+            footprint[i : i + 3, i : i + 3] = i + 1
 
             # Create time trace with unique pattern
-            time_trace = np.array([float(i + 1)] * 4)  # [1,1,1,1], [2,2,2,2], [3,3,3,3]
+            trace = sample_trace.copy()
+            trace[:] = i + 1
 
-            if i % 2 == 0:
-                component = Neuron(footprint, time_trace)
-            else:
-                component = Background(footprint, time_trace)
+            # Alternate between Neuron and Background
+            component = (
+                Neuron(detected_frame_idx=i)
+                if i % 2 == 0
+                else Background(detected_frame_idx=i)
+            )
+            empty_manager.add_component(component, footprint, trace)
             components.append(component)
-            manager.add_component(component)
 
-        return manager, components
+        return empty_manager, components
 
     def test_initialization(self, empty_manager):
         """Test initialization of ComponentManager."""
+        assert empty_manager.component_axis == "components"
+        assert empty_manager.spatial_axes == ("width", "height")
+        assert empty_manager.frame_axis == "frames"
         assert empty_manager.n_components == 0
-        assert empty_manager._footprint_shape is None
-        assert empty_manager._n_frames is None
-        assert isinstance(empty_manager.footprints, np.ndarray)
-        assert isinstance(empty_manager.time_traces, np.ndarray)
-        assert len(empty_manager.time_traces) == 0
+        assert empty_manager.component_ids == set()
+        assert isinstance(empty_manager._registry, ComponentRegistry)
+        assert isinstance(empty_manager._footprints, FootprintManager)
+        assert isinstance(empty_manager._traces, TraceManager)
 
-    def test_add_component(self, empty_manager):
-        """Test adding components."""
-        footprint = np.zeros((5, 5))
-        footprint[0:2, 0:2] = 1
-        time_trace = np.array([1.0, 2.0, 3.0, 4.0])
-        neuron = Neuron(footprint, time_trace)
+    def test_footprints_dimensions(self, empty_manager):
+        """Test footprints dimensions property."""
+        assert empty_manager.footprints_dimensions == ("components", "width", "height")
 
-        empty_manager.add_component(neuron)
-        assert empty_manager.n_components == 1
-        assert empty_manager._footprint_shape == (5, 5)
-        assert empty_manager._n_frames == 4
+    def test_traces_dimensions(self, empty_manager):
+        """Test traces dimensions property."""
+        assert empty_manager.traces_dimensions == ("components", "frames")
 
-        # Test adding component with wrong shape
-        wrong_footprint = np.zeros((6, 6))
-        wrong_neuron = Neuron(wrong_footprint, time_trace)
-        with pytest.raises(ValueError):
-            empty_manager.add_component(wrong_neuron)
+    def test_verify_component_consistency(self, populated_manager):
+        """Test component consistency verification."""
+        manager, _ = populated_manager
 
-        # Test adding component with wrong time trace length
-        wrong_trace = np.array([1.0, 2.0])
-        wrong_neuron = Neuron(footprint, wrong_trace)
-        with pytest.raises(ValueError):
-            empty_manager.add_component(wrong_neuron)
+        # Should not raise error when consistent
+        manager.verify_component_consistency()
 
-    def test_remove_component(self, multi_component_manager):
-        """Test removing components."""
-        manager, components = multi_component_manager
-        initial_count = manager.n_components
-        removed = manager.remove_component(0)
+        # Test inconsistent footprints and traces
+        footprint_data = np.zeros((1, 10, 10))
+        trace_data = np.zeros((2, 5))  # Different number of components
+        manager._footprints.initialize(
+            xr.DataArray(
+                footprint_data,
+                dims=["components", "height", "width"],
+                coords={"components": [1], "height": range(10), "width": range(10)},
+            )
+        )
+        manager._traces.initialize([1, 2])  # Different component IDs
 
-        assert manager.n_components == initial_count - 1
-        assert isinstance(removed, Neuron)
+        with pytest.raises(
+            ValueError, match="Component IDs in footprints and traces must match"
+        ):
+            manager.verify_component_consistency()
 
-        # Check that the component was removed from overlapping sets
-        remaining_component = manager.get_component(0)
-        assert remaining_component is not None
-        assert removed not in remaining_component.overlapping_objects
+    def test_populate_from_footprints(self, empty_manager, sample_footprint):
+        """Test populating from footprints."""
+        # Create test footprints
+        footprints = sample_footprint.expand_dims(
+            dim={"components": [1, 2]},
+        )
 
-    def test_get_component(self, multi_component_manager):
-        """Test getting components by index."""
-        manager, components = multi_component_manager
+        # Test initial population
+        empty_manager.populate_from_footprints(footprints, Neuron)
+        neuron_ids = list(empty_manager.component_ids)
+        assert empty_manager.n_components == 2
+        assert all(
+            isinstance(empty_manager.get_component(i), Neuron) for i in neuron_ids
+        )
 
-        # First component should be a Neuron
-        component = manager.get_component(0)
-        assert isinstance(component, Neuron)
+        # Test updating existing and adding new
+        updated_footprints = sample_footprint.expand_dims(
+            dim={"components": [3]},  # add 3
+        )
+        empty_manager.populate_from_footprints(updated_footprints, Background)
+        assert empty_manager.n_components == 3
+        assert isinstance(
+            empty_manager.get_component(neuron_ids[1]), Neuron
+        )  # Should not change type
+        assert len(empty_manager.background_ids) == 1
 
-        # Second component should be a Background
-        component = manager.get_component(1)
-        assert isinstance(component, Background)
+    def test_populate_from_traces(self, populated_manager):
+        """Test populating traces."""
+        manager, _ = populated_manager
 
-        # Test invalid index
+        # Create test traces
+        new_traces = xr.DataArray(
+            np.ones((3, 2)),
+            dims=["components", "frames"],
+            coords={"components": list(manager.component_ids), "frames": [0, 1]},
+        )
+
+        manager.populate_from_traces(new_traces)
+        assert manager.traces.shape == (3, 7)  # Original 5 + 2 new frames
+
+        # Test with unknown component
+        invalid_traces = xr.DataArray(
+            np.ones((1, 2)),
+            dims=["components", "frames"],
+            coords={"components": [999], "frames": [0, 1]},
+        )
+        with pytest.raises(
+            ValueError, match="Cannot add traces for components that don't exist"
+        ):
+            manager.populate_from_traces(invalid_traces)
+
+    def test_get_component(self, populated_manager):
+        """Test getting components."""
+        manager, components = populated_manager
+
+        # Test getting existing component
+        component = components[0]
+        retrieved = manager.get_component(component.id)
+        assert retrieved == component
+
+        # Test getting non-existent component
         assert manager.get_component(999) is None
 
-    def test_update_component_timetrace(self, multi_component_manager):
-        """Test updating component time traces."""
-        manager, components = multi_component_manager
-        new_trace = np.array([4.0, 5.0, 6.0, 7.0])
-        success = manager.update_component_timetrace(0, new_trace)
-
-        assert success
-        component = manager.get_component(0)
-        assert np.array_equal(component.time_trace[:], new_trace)
-
-    def test_update_component_footprint(self, multi_component_manager):
-        """Test updating component footprints."""
-        manager, components = multi_component_manager
-        new_footprint = np.zeros((5, 5))
-        new_footprint[1:3, 1:3] = 1
-
-        success = manager.update_component_footprint(0, new_footprint)
-        assert success
-
-        component = manager.get_component(0)
-        assert np.array_equal(component.footprint.toarray(), new_footprint)
-
-        # Test wrong shape
-        wrong_footprint = np.zeros((6, 6))
-        with pytest.raises(ValueError):
-            manager.update_component_footprint(0, wrong_footprint)
-
-    def test_get_components_by_type(self, multi_component_manager):
+    def test_get_components_by_type(self, populated_manager):
         """Test getting components by type."""
-        manager, components = multi_component_manager
+        manager, _ = populated_manager
+
         neurons = manager.get_components_by_type(Neuron)
         backgrounds = manager.get_components_by_type(Background)
 
-        assert len(neurons) == 2  # Components 0 and 2 are neurons
-        assert len(backgrounds) == 1  # Component 1 is background
-        assert all(isinstance(n, Neuron) for n in neurons)
-        assert all(isinstance(b, Background) for b in backgrounds)
+        assert len(neurons) == 2  # Components 0 and 2
+        assert len(backgrounds) == 1  # Component 1
 
-    def test_neuron_and_background_indices(self, multi_component_manager):
-        """Test getting neuron and background indices."""
-        manager, components = multi_component_manager
-        neuron_idx = manager.neuron_indices
-        background_idx = manager.background_indices
+    def test_get_overlapping_components(self, populated_manager):
+        """Test getting overlapping components."""
+        manager, components = populated_manager
 
-        assert neuron_idx == [0, 2]  # First and third components are neurons
-        assert background_idx == [1]  # Second component is background
+        # Components 0 and 1 should overlap due to their footprint patterns
+        overlapping = manager.get_overlapping_components(components[0].id)
+        assert components[1].id in overlapping
 
-    def test_footprints_property(self, multi_component_manager):
-        """Test getting concatenated footprints."""
-        manager, components = multi_component_manager
-        footprints = manager.footprints
-        assert isinstance(footprints, np.ndarray)
-        assert footprints.shape == (3, 5, 5)  # 3 components, 5x5 shape
+    def test_add_component(self, empty_manager, sample_footprint, sample_trace):
+        """Test adding components."""
+        component = Neuron(detected_frame_idx=0)
+        empty_manager.add_component(component, sample_footprint, sample_trace)
 
-    def test_time_traces_property(self, multi_component_manager):
-        """Test getting concatenated time traces."""
-        manager, components = multi_component_manager
-        traces = manager.time_traces
-        assert isinstance(traces, np.ndarray)
-        assert traces.shape == (3, 4)  # 3 components, 4 time points
-
-    def test_get_time_traces_batch(self, multi_component_manager):
-        """Test getting time trace batches."""
-        manager, components = multi_component_manager
-        batch = manager.get_time_traces_batch(0, 2)
-        assert isinstance(batch, np.ndarray)
-        assert batch.shape == (3, 2)  # 3 components, 2 time points
-
-        # Test empty batch
-        empty_batch = manager.get_time_traces_batch(10, 11)
-        assert isinstance(empty_batch, np.ndarray)
-        assert empty_batch.size == 0
-
-    def test_iterate_time_traces(self, multi_component_manager):
-        """Test iterating over time traces."""
-        manager, components = multi_component_manager
-        for start_idx, end_idx, batch in manager.iterate_time_traces(batch_size=2):
-            assert isinstance(batch, np.ndarray)
-            assert batch.shape[0] == 3  # 3 components
-            assert batch.shape[1] <= 2  # batch_size or less
-
-    def test_empty_manager_properties(self, empty_manager):
-        """Test properties of empty manager."""
-        assert empty_manager.n_components == 0
-        assert len(empty_manager.neuron_indices) == 0
-        assert len(empty_manager.background_indices) == 0
-        assert empty_manager.footprints.shape == (
-            3,
-            2,
-        )  # Default shape for empty manager
-        assert empty_manager.time_traces.size == 0
-
-    def test_check_overlap_static_method(self):
-        """Test the static method for checking overlap."""
-        # Create two overlapping sparse matrices
-        footprint1 = sparse.csr_matrix(([1], ([2], [2])), shape=(5, 5))
-        footprint2 = sparse.csr_matrix(([1], ([2], [2])), shape=(5, 5))
-
-        # Test overlapping case
-        assert ComponentManager._check_overlap(footprint1, footprint2)
-
-        # Test non-overlapping case
-        footprint3 = sparse.csr_matrix(([1], ([0], [0])), shape=(5, 5))
-        assert not ComponentManager._check_overlap(footprint1, footprint3)
-
-    def test_component_type_indices_consistency(self, multi_component_manager):
-        """Test that neuron and background indices maintain consistency with component types."""
-        manager, components = multi_component_manager
-
-        # Get indices
-        neuron_indices = manager.neuron_indices
-        background_indices = manager.background_indices
-
-        # Verify neuron indices
-        for idx in neuron_indices:
-            assert isinstance(manager._components[idx], Neuron)
-
-        # Verify background indices
-        for idx in background_indices:
-            assert isinstance(manager._components[idx], Background)
-
-        # Verify all components are accounted for
-        assert len(neuron_indices) + len(background_indices) == len(manager._components)
-        assert sorted(neuron_indices + background_indices) == list(
-            range(len(manager._components))
+        assert empty_manager.n_components == 1
+        assert component.id in empty_manager.component_ids
+        assert (
+            empty_manager.footprints.sel(components=component.id)
+            .drop_vars("components")
+            .equals(sample_footprint)
+        )
+        assert (
+            empty_manager.traces.sel(components=component.id)
+            .drop_vars("components")
+            .equals(sample_trace)
         )
 
-    @pytest.mark.parametrize(
-        "operation", ["initial", "update_trace", "update_footprint", "remove", "add"]
-    )
-    def test_component_order_consistency(self, multi_component_manager, operation):
-        """Test that component order remains consistent through various operations."""
-        manager, original_components = multi_component_manager
+    def test_remove_component(self, populated_manager):
+        """Test removing components."""
+        manager, components = populated_manager
+        initial_count = manager.n_components
+        component = components[0]
 
-        def verify_order(unmodified: bool = False):
-            """Helper to verify component order consistency."""
+        removed = manager.remove_component(component.id)
+        assert removed == component
+        assert manager.n_components == initial_count - 1
+        assert component.id not in manager.component_ids
 
-            saved_ids = [component._id for component in manager._components]
+    def test_update_component_timetrace(self, populated_manager, sample_trace):
+        """Test updating component timetraces."""
+        manager, components = populated_manager
+        component = components[0]
 
-            saved_footprint = [
-                component.footprint.toarray() for component in manager._components
-            ]
-            retrieved_footprints = manager.footprints
+        # Test successful update
+        new_trace = sample_trace.copy()
+        new_trace[:] = 10
+        success = manager.update_component_timetrace(component.id, new_trace)
+        assert success
+        assert (
+            manager.traces.sel(components=component.id)
+            .drop_vars("components")
+            .equals(new_trace)
+        )
 
-            saved_traces = [
-                component.time_trace[:] for component in manager._components
-            ]
-            retrieved_traces = manager.time_traces
+        # Test update for non-existent component
+        assert not manager.update_component_timetrace(999, new_trace)
 
-            # Verify array lengths match
-            assert (
-                len(saved_ids)
-                == len(saved_footprint)
-                == len(retrieved_footprints)
-                == len(saved_traces)
-                == len(retrieved_traces)
-            )
-            # Verify component data matches in all arrays
-            assert np.array_equal(saved_footprint, retrieved_footprints)
-            assert np.array_equal(saved_traces, retrieved_traces)
+    def test_update_component_footprint(self, populated_manager, sample_footprint):
+        """Test updating component footprints."""
+        manager, components = populated_manager
+        component = components[0]
 
-            for idx, saved_trace in enumerate(saved_traces):
-                # Verify batch access maintains order
-                batch = manager.get_time_traces_batch(0, 1)
-                assert np.array_equal(batch[idx][0], saved_trace[0])
+        # Test successful update
+        new_footprint = sample_footprint.copy()
+        new_footprint[:] = 10
+        success = manager.update_component_footprint(component.id, new_footprint)
+        assert success
+        assert (
+            manager.footprints.sel(components=component.id)
+            .drop_vars("components")
+            .equals(new_footprint)
+        )
 
-            if unmodified:
-                original_ids = [component._id for component in original_components]
-                original_footprints = [
-                    component.footprint.toarray() for component in original_components
-                ]
-                original_traces = [
-                    component.time_trace[:] for component in original_components
-                ]
-                assert (
-                    len(original_ids)
-                    == len(original_footprints)
-                    == len(original_traces)
-                    == len(saved_ids)
-                )
-                assert np.array_equal(original_ids, saved_ids)
-                assert np.array_equal(original_footprints, saved_footprint)
-                assert np.array_equal(original_traces, saved_traces)
+        # Test update for non-existent component
+        assert not manager.update_component_footprint(999, new_footprint)
 
-        # Initial state verification
-        if operation == "initial":
-            verify_order(unmodified=True)
-            return
+    def test_get_time_traces_batch(self, populated_manager):
+        """Test getting time trace batches."""
+        manager, _ = populated_manager
 
-        # Apply the specified operation
-        if operation == "update_trace":
-            manager.update_component_timetrace(1, np.array([10.0, 10.0, 10.0, 10.0]))
-        elif operation == "update_footprint":
-            manager.update_component_footprint(0, np.ones((5, 5)))
-        elif operation == "remove":
-            manager.remove_component(1)
-        elif operation == "add":
-            new_footprint = np.zeros((5, 5))
-            new_footprint[0:2, 0:2] = 2
-            new_trace = np.array([2.0, 2.0, 2.0, 2.0])
-            manager.add_component(Neuron(new_footprint, new_trace))
+        batch = manager.get_time_traces_batch(1, 3)
+        assert isinstance(batch, xr.DataArray)
+        assert batch.sizes["frames"] == 3
+        assert set(batch.dims) == {"components", "frames"}
 
-        verify_order()
+    def test_iterate_time_traces(self, populated_manager):
+        """Test iterating over time traces."""
+        manager, _ = populated_manager
 
+        batches = list(manager.iterate_time_traces(batch_size=2))
+        assert len(batches) == 3  # 5 frames with batch_size=2: [0,1], [2,3], [4]
 
-# ! WE ALSO NEED BATCH MATRIX ADDITION/REMOVAL/UPDATE/MERGE TESTS
+        for start_idx, end_idx, batch in batches:
+            assert isinstance(batch, xr.DataArray)
+            assert batch.sizes["frames"] <= 2
+            assert set(batch.dims) == {"components", "frames"}
+
+    def test_neuron_ids(self, populated_manager):
+        """Test getting neuron IDs."""
+        manager, components = populated_manager
+        neuron_ids = manager.neuron_ids
+        assert len(neuron_ids) == 2
+        assert all(isinstance(manager.get_component(id), Neuron) for id in neuron_ids)
+
+    def test_background_ids(self, populated_manager):
+        """Test getting background IDs."""
+        manager, components = populated_manager
+        background_ids = manager.background_ids
+        assert len(background_ids) == 1
+        assert all(
+            isinstance(manager.get_component(id), Background) for id in background_ids
+        )

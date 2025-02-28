@@ -13,7 +13,7 @@ from .registry import ComponentRegistry
 class ComponentManager:
     """Manages a collection of fluorescent components (neurons and background)."""
 
-    component_axis: str = "component"
+    component_axis: str = "components"
     """The axis of the component."""
     spatial_axes: tuple = ("width", "height")
     """The spatial axes of the component."""
