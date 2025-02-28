@@ -1,8 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
-import numpy as np
-
 from .base import FluorescentObject
 
 
@@ -10,10 +8,6 @@ from .base import FluorescentObject
 class Neuron(FluorescentObject):
     """Class representing a detected neuron in calcium imaging."""
 
-    deconvolved_signal: Optional[np.ndarray] = None
-    """Deconvolved neural activity"""
-    spike_times: Optional[np.ndarray] = None
-    """Estimated spike times"""
     cell_type: Optional[str] = None
     """Identified cell type if available"""
     metadata: Optional[Dict] = field(default_factory=dict)
