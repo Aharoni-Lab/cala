@@ -125,17 +125,17 @@ class OnlineVideoLearning:
                 metrics.update(label, prediction)
 ```
 
-## Resource Efficiency - No need to manage my own buffer
+## Resource Efficiency - I should build a buffer like this
 
 Memory-efficient processing with data windows
 
 ```python
-from river import preprocessing, utils
+from me import SlidingWindowBuffer, utils
 import numpy as np
 
 class EfficientVideoProcessor:
     def __init__(self, max_memory_mb=100):
-        self.frame_buffer = preprocessing.SlidingWindow(
+        self.frame_buffer = SlidingWindowBuffer(
             window_size=30,  # Keep only last 30 frames
             min_size=10     # Need at least 10 frames for processing
         )
