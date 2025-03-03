@@ -55,9 +55,12 @@ class TestStreamingTemporalInitializer:
         if not jit_enabled:
             os.environ["NUMBA_DISABLE_JIT"] = "1"
         video, _, _ = stabilized_video
-        traces_estimates = traces_initializer.learn_one(
-            footprints_components, video[:3]
-        ).transform_one(footprints_components)
+
+        for frame in video[0:3]:
+            traces_estimates = traces_initializer.learn_transform_one(
+                components=footprints_components,
+                X=frame,
+            )
 
         assert (
             footprints_components.footprints.shape[0]
@@ -69,9 +72,11 @@ class TestStreamingTemporalInitializer:
     ):
         """Test that reconstructed frames from spatial footprints and temporal traces match original frames."""
         video, _, _ = stabilized_video
-        traces_estimates = traces_initializer.learn_one(
-            footprints_components, video[:3]
-        ).transform_one(footprints_components)
+        for frame in video[0:3]:
+            traces_estimates = traces_initializer.learn_transform_one(
+                components=footprints_components,
+                X=frame,
+            )
 
         # Get original first 3 frames
         original_frames = video[:3].values

@@ -21,9 +21,10 @@ class TestStreamingFootprintsInitializer:
         video, _, _ = stabilized_video
         components = ComponentManager()
 
-        components = footprints_initializer.learn_one(
-            components=components,
-            X=video[0],
-        ).transform_one(components)
+        for frame in video[0:1]:
+            components = footprints_initializer.learn_transform_one(
+                components=components,
+                X=frame,
+            )
 
         assert components.footprints[0].shape == video[0].shape

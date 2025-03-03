@@ -21,7 +21,7 @@ class TracesInitializerParams(Parameters):
     component_axis: str = "components"
     """Axis for components"""
     frames_axis: str = "frames"
-    """Spatial axes for footprints"""
+    """Axis for frames"""
 
     num_frames_to_use: int = 3
     """Number of frames to use for temporal initialization"""

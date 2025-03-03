@@ -52,6 +52,12 @@ class CompleteStreamProcessor:
         # Initialize component manager
         self.component_manager = ComponentManager()
         
+        # Initialize preprocessor and motion stabilizer
+        self.preprocessor = compose.Pipeline(
+            ('preprocessor', PreprocessorTransformer()),
+            ('motion_stabilizer', MotionStabilizerTransformer()),
+        )
+
         # Initialize components
         self.initializers = compose.Pipeline(
             ('footprints', FootprintsInitializer(
@@ -67,8 +73,6 @@ class CompleteStreamProcessor:
 
         # Create processing pipeline using River's compose
         self.pipeline = compose.Pipeline(
-            ('preprocessor', PreprocessorTransformer()),
-            ('motion_stabilizer', MotionStabilizerTransformer()),
             ('trace_updater', TraceUpdaterTransformer()),
             ('deconvolver', DeconvolverTransformer()),
             ('component_detector', ComponentDetectorTransformer()),
@@ -78,38 +82,32 @@ class CompleteStreamProcessor:
 
         # Initialize state containers
         self.state = StreamState()
-
-    def initialize(self, initial_frames: xr.DataArray):
-        """Initialize components using a batch of initial frames.
-        
-        Args:
-            initial_frames: xarray DataArray of shape (frames, height, width)
-        """
-        # Run initialization pipeline
-        self.component_manager = self.initializers.learn_one(
-            self.component_manager, initial_frames
-        )
-        self.component_manager = self.initializers.transform_one(
-            self.component_manager
-        )
-        
-        return self.component_manager
     
     def process_video_stream(self, video_stream):
         """Process video stream using River's incremental learning approach"""
         for frame, timestamp in video_stream:
-            # Update pipeline with new frame
-            self.pipeline = self.pipeline.learn_one({
+            # Preprocess frame
+            frame = self.preprocessor.learn_transform_one({
                 'frame': frame,
-                'timestamp': timestamp,
-                'component_manager': self.component_manager
+                'timestamp': timestamp
             })
-            
-            # Transform frame through pipeline
-            result = self.pipeline.transform_one({
-                'frame': frame,
+
+            if not (self.initializers.footprints.is_initialized and 
+                   self.initializers.traces.is_initialized and ...):
+                # Still in initialization phase
+                self.component_manager = self.initializers.learn_transform_one(
+                    self.component_manager, 
+                    frame
+                )
+                
+                # Skip update phase until both initializers are ready
+                continue
+
+            # Update and transform pipeline with new frame
+            result = self.pipeline.learn_transform_one({
                 'timestamp': timestamp,
                 'state': self.state,
+                'frame': frame,
                 'component_manager': self.component_manager
             })
             
@@ -117,9 +115,9 @@ class CompleteStreamProcessor:
             self.state.update(result)
 
             yield ProcessedFrame(
-                footprints=self.component_manager.footprints,
-                fluorescence_traces=self.component_manager.traces,
-                spikes=self.component_manager.spikes,
+                footprints=result.component_manager.footprints,
+                fluorescence_traces=result.component_manager.traces,
+                spikes=result.component_manager.spikes,
                 timestamp=timestamp
             )
 ```
@@ -130,9 +128,6 @@ class CompleteStreamProcessor:
 # Example usage:
 def process_video(initial_frames: xr.DataArray, streaming_frames):
     processor = CompleteStreamProcessor()
-    
-    # Initialize with batch of frames
-    processor.initialize(initial_frames)
     
     # Process streaming data
     for result in processor.process_video_stream(streaming_frames):
