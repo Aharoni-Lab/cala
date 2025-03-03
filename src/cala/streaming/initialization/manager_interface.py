@@ -18,8 +18,8 @@ from cala.streaming.core.components.types import ComponentType
 class InitializerType(Enum):
     """Types of initialization transformers."""
 
-    SPATIAL = auto()
-    TEMPORAL = auto()
+    FOOTPRINTS = auto()
+    TRACES = auto()
     # Future types:
     # COMPONENT_STATS = auto()
     # PIXEL_STATS = auto()
@@ -30,7 +30,7 @@ T = TypeVar("T", Transformer, SupervisedTransformer)
 
 
 @dataclass
-class SpatialInitializationResult:
+class FootprintsInitializationResult:
     """Result from spatial initialization."""
 
     background: xr.DataArray = field(init=False)
@@ -38,7 +38,7 @@ class SpatialInitializationResult:
 
 
 @dataclass
-class TemporalInitializationResult:
+class TracesInitializationResult:
     """Result from temporal initialization."""
 
     traces: xr.DataArray = field(init=False)
@@ -56,14 +56,14 @@ def manager_interface(initializer_type: InitializerType):
             def learn_one(self, components: ComponentManager, X: xr.DataArray) -> T:
                 """Learn step extracts needed data from manager and passes to transformer."""
                 match initializer_type:
-                    case InitializerType.SPATIAL:
+                    case InitializerType.FOOTPRINTS:
                         args = (
                             (X, None)
                             if isinstance(self, SupervisedTransformer)
                             else (X,)
                         )
                         return super().learn_one(*args)
-                    case InitializerType.TEMPORAL:
+                    case InitializerType.TRACES:
                         args = (
                             (components.footprints, X)
                             if isinstance(self, SupervisedTransformer)
@@ -95,9 +95,9 @@ def manager_interface(initializer_type: InitializerType):
             def _get_transform_one_input(self, components: ComponentManager):
                 """Get input needed by this type of transformer."""
                 match initializer_type:
-                    case InitializerType.SPATIAL:
+                    case InitializerType.FOOTPRINTS:
                         return None
-                    case InitializerType.TEMPORAL:
+                    case InitializerType.TRACES:
                         return components.footprints
                     # Future cases:
                     # case InitializerType.COMPONENT_STATS:
@@ -110,14 +110,14 @@ def manager_interface(initializer_type: InitializerType):
             def _update_manager(self, components: ComponentManager, result):
                 """Update manager based on result type."""
                 match result:
-                    case SpatialInitializationResult():
+                    case FootprintsInitializationResult():
                         components.populate_from_footprints(
                             result.background, ComponentType.BACKGROUND
                         )
                         components.populate_from_footprints(
                             result.neurons, ComponentType.NEURON
                         )
-                    case TemporalInitializationResult():
+                    case TracesInitializationResult():
                         components.populate_from_traces(result.traces)
                     # Future cases:
                     # case ComponentStatsResult():

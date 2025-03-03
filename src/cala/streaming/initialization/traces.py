@@ -10,12 +10,12 @@ from cala.streaming.core import Parameters
 from cala.streaming.initialization.manager_interface import (
     manager_interface,
     InitializerType,
-    TemporalInitializationResult,
+    TracesInitializationResult,
 )
 
 
 @dataclass
-class TemporalInitializerParams(Parameters):
+class TracesInitializerParams(Parameters):
     """Parameters for temporal initialization"""
 
     component_axis: str = "components"
@@ -31,15 +31,15 @@ class TemporalInitializerParams(Parameters):
             raise ValueError("Parameter num_frames_to_use must be a positive integer.")
 
 
-@manager_interface(InitializerType.TEMPORAL)
+@manager_interface(InitializerType.TRACES)
 @dataclass
-class TemporalInitializer(SupervisedTransformer):
+class TracesInitializer(SupervisedTransformer):
     """Initializes temporal components using projection methods."""
 
-    params: TemporalInitializerParams
+    params: TracesInitializerParams
     """Parameters for temporal initialization"""
-    result: TemporalInitializationResult = field(
-        default_factory=TemporalInitializationResult
+    result: TracesInitializationResult = field(
+        default_factory=TracesInitializationResult
     )
     """Result from temporal initialization"""
 
@@ -66,7 +66,7 @@ class TemporalInitializer(SupervisedTransformer):
         )
         return self
 
-    def transform_one(self, footprints: xr.DataArray) -> TemporalInitializationResult:
+    def transform_one(self, footprints: xr.DataArray) -> TracesInitializationResult:
         """Return initialization result."""
         return self.result
 

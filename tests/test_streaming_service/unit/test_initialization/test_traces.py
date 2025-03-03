@@ -7,37 +7,37 @@ import pytest
 
 from cala.streaming.core.components import ComponentManager
 from cala.streaming.initialization import (
-    SpatialInitializer,
-    SpatialInitializerParams,
-    TemporalInitializer,
-    TemporalInitializerParams,
+    FootprintsInitializer,
+    FootprintsInitializerParams,
+    TracesInitializer,
+    TracesInitializerParams,
 )
 from tests.fixtures import stabilized_video
 
 
 class TestStreamingTemporalInitializer:
     @pytest.fixture
-    def spatial_parameters(self):
-        return SpatialInitializerParams()
+    def footprints_parameters(self):
+        return FootprintsInitializerParams()
 
     @pytest.fixture
-    def spatial_initializer(self, spatial_parameters):
-        return SpatialInitializer(params=spatial_parameters)
+    def footprints_initializer(self, footprints_parameters):
+        return FootprintsInitializer(params=footprints_parameters)
 
     @pytest.fixture
-    def temporal_parameters(self):
-        return TemporalInitializerParams()
+    def traces_parameters(self):
+        return TracesInitializerParams()
 
     @pytest.fixture
-    def temporal_initializer(self, temporal_parameters):
-        return TemporalInitializer(params=temporal_parameters)
+    def traces_initializer(self, traces_parameters):
+        return TracesInitializer(params=traces_parameters)
 
     @pytest.fixture
-    def spatial_components(self, spatial_initializer, stabilized_video):
+    def footprints_components(self, footprints_initializer, stabilized_video):
         video, _, _ = stabilized_video
         default_estimates = ComponentManager()
 
-        estimates = spatial_initializer.learn_one(
+        estimates = footprints_initializer.learn_one(
             components=default_estimates,
             X=video[0],
         ).transform_one(default_estimates)
@@ -46,34 +46,39 @@ class TestStreamingTemporalInitializer:
 
     @pytest.mark.parametrize("jit_enabled", [True, False])
     def test_first_n_frames(
-        self, stabilized_video, temporal_initializer, spatial_components, jit_enabled
+        self,
+        stabilized_video,
+        traces_initializer,
+        footprints_components,
+        jit_enabled,
     ):
         if not jit_enabled:
             os.environ["NUMBA_DISABLE_JIT"] = "1"
         video, _, _ = stabilized_video
-        temporal_estimates = temporal_initializer.learn_one(
-            spatial_components, video[:3]
-        ).transform_one(spatial_components)
+        traces_estimates = traces_initializer.learn_one(
+            footprints_components, video[:3]
+        ).transform_one(footprints_components)
 
         assert (
-            spatial_components.footprints.shape[0] == temporal_estimates.traces.shape[0]
+            footprints_components.footprints.shape[0]
+            == traces_estimates.traces.shape[0]
         )
 
     def test_reconstruction_comparison(
-        self, stabilized_video, temporal_initializer, spatial_components
+        self, stabilized_video, traces_initializer, footprints_components
     ):
         """Test that reconstructed frames from spatial footprints and temporal traces match original frames."""
         video, _, _ = stabilized_video
-        temporal_estimates = temporal_initializer.learn_one(
-            spatial_components, video[:3]
-        ).transform_one(spatial_components)
+        traces_estimates = traces_initializer.learn_one(
+            footprints_components, video[:3]
+        ).transform_one(footprints_components)
 
         # Get original first 3 frames
         original_frames = video[:3].values
 
         # Reconstruct frames using spatial footprints and temporal traces
-        spatial_footprints = temporal_estimates.footprints.values
-        temporal_traces = temporal_estimates.traces.values
+        spatial_footprints = traces_estimates.footprints.values
+        temporal_traces = traces_estimates.traces.values
 
         # Reshape spatial footprints to match frame dimensions
         frame_shape = (video.sizes["height"], video.sizes["width"])

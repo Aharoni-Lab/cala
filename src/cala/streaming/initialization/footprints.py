@@ -11,12 +11,12 @@ from cala.streaming.core import Parameters
 from cala.streaming.initialization.manager_interface import (
     manager_interface,
     InitializerType,
-    SpatialInitializationResult,
+    FootprintsInitializationResult,
 )
 
 
 @dataclass
-class SpatialInitializerParams(Parameters):
+class FootprintsInitializerParams(Parameters):
     """Parameters for spatial initialization methods"""
 
     component_axis: str = "components"
@@ -44,9 +44,9 @@ class SpatialInitializerParams(Parameters):
             )
 
 
-@manager_interface(InitializerType.SPATIAL)
+@manager_interface(InitializerType.FOOTPRINTS)
 @dataclass
-class SpatialInitializer(Transformer):
+class FootprintsInitializer(Transformer):
     """Abstract base class for spatial component initialization methods."""
 
     params: SpatialInitializerParams
@@ -57,11 +57,9 @@ class SpatialInitializer(Transformer):
     """Number of markers"""
     markers_: np.ndarray = field(init=False)
     """Markers"""
-    blobs_: xr.DataArray = field(init=False)
-    """Blobs"""
 
-    result: SpatialInitializationResult = field(
-        default_factory=SpatialInitializationResult
+    result: FootprintsInitializationResult = field(
+        default_factory=FootprintsInitializationResult
     )
     """Result from spatial initialization"""
 
@@ -94,7 +92,7 @@ class SpatialInitializer(Transformer):
 
         return self
 
-    def transform_one(self, _=None) -> SpatialInitializationResult:
+    def transform_one(self, _=None) -> FootprintsInitializationResult:
         """Return initialization result."""
 
         return self.result

@@ -1,9 +1,9 @@
-from .spatial import SpatialInitializer, SpatialInitializerParams
-from .temporal import TemporalInitializer, TemporalInitializerParams
+from .footprints import FootprintsInitializer, FootprintsInitializerParams
+from .traces import TracesInitializer, TracesInitializerParams
 
 __all__ = [
-    "SpatialInitializer",
-    "SpatialInitializerParams",
-    "TemporalInitializer",
-    "TemporalInitializerParams",
+    "FootprintsInitializer",
+    "FootprintsInitializerParams",
+    "TracesInitializer",
+    "TracesInitializerParams",
 ]
