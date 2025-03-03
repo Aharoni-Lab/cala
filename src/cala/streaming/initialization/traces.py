@@ -16,7 +16,7 @@ from cala.streaming.initialization.manager_interface import (
 
 @dataclass
 class TracesInitializerParams(Parameters):
-    """Parameters for temporal initialization"""
+    """Parameters for traces initialization"""
 
     component_axis: str = "components"
     """Axis for components"""
@@ -46,22 +46,28 @@ class TracesInitializer(SupervisedTransformer):
     def learn_one(self, footprints: xr.DataArray, frames: xr.DataArray) -> Self:
         """Learn temporal traces from footprints and frames."""
         # Get frames to use and flatten them
-        n_frames = min(frames.sizes["frames"], self.params.num_frames_to_use)
+        n_frames = min(
+            frames.sizes[self.params.frames_axis], self.params.num_frames_to_use
+        )
         flattened_frames = frames[:n_frames].values.reshape(n_frames, -1)
 
         # Process all components
         temporal_traces = solve_all_component_traces(
-            footprints.values.reshape(footprints.sizes["components"], -1),
+            footprints.values.reshape(footprints.sizes[self.params.component_axis], -1),
             flattened_frames,
         )
 
         # Store result
         self.result.traces = xr.DataArray(
             temporal_traces,
-            dims=("components", "frames"),
+            dims=(self.params.component_axis, self.params.frames_axis),
             coords={
-                "components": footprints.coords["components"],
-                "frames": frames.coords["frames"][:n_frames],
+                self.params.component_axis: footprints.coords[
+                    self.params.component_axis
+                ],
+                self.params.frames_axis: frames.coords[self.params.frames_axis][
+                    :n_frames
+                ],
             },
         )
         return self

@@ -17,7 +17,7 @@ from cala.streaming.initialization.manager_interface import (
 
 @dataclass
 class FootprintsInitializerParams(Parameters):
-    """Parameters for spatial initialization methods"""
+    """Parameters for footprints initialization methods"""
 
     component_axis: str = "components"
     """Axis for components"""
@@ -47,10 +47,10 @@ class FootprintsInitializerParams(Parameters):
 @manager_interface(InitializerType.FOOTPRINTS)
 @dataclass
 class FootprintsInitializer(Transformer):
-    """Abstract base class for spatial component initialization methods."""
+    """Footprints component initialization methods."""
 
-    params: SpatialInitializerParams
-    """Parameters for spatial initialization"""
+    params: FootprintsInitializerParams
+    """Parameters for footprints initialization"""
     spatial_axes: tuple = field(init=False)
     """Spatial axes for footprints"""
     num_markers_: int = field(init=False)
@@ -61,10 +61,12 @@ class FootprintsInitializer(Transformer):
     result: FootprintsInitializationResult = field(
         default_factory=FootprintsInitializationResult
     )
-    """Result from spatial initialization"""
+    """Result from footprints initialization"""
 
     def learn_one(self, frame: xr.DataArray) -> Self:
-        """Learn spatial components from a frame."""
+        """Learn footprints from a frame."""
+        # Get spatial axes
+        self.spatial_axes = frame.dims
         # Compute markers
         self.markers_ = self._compute_markers(frame)
         # Extract components
@@ -73,20 +75,18 @@ class FootprintsInitializer(Transformer):
         # Store results
         self.result.background = xr.DataArray(
             background,
-            dims=("components", "height", "width"),
+            dims=(self.params.component_axis, *self.spatial_axes),
             coords={
-                "components": range(len(background)),
-                "height": frame.coords["height"],
-                "width": frame.coords["width"],
+                self.params.component_axis: range(len(background)),
+                **{axis: frame.coords[axis] for axis in self.spatial_axes},
             },
         )
         self.result.neurons = xr.DataArray(
             neurons,
-            dims=("components", "height", "width"),
+            dims=(self.params.component_axis, *self.spatial_axes),
             coords={
-                "components": range(len(neurons)),
-                "height": frame.coords["height"],
-                "width": frame.coords["width"],
+                self.params.component_axis: range(len(neurons)),
+                **{axis: frame.coords[axis] for axis in self.spatial_axes},
             },
         )
 
