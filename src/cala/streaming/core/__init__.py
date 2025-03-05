@@ -1,3 +1,4 @@
 from .parameters import Parameters
+from .types import Traces, Footprints
 
-__all__ = ["Parameters"]
+__all__ = ["Parameters", "Traces", "Footprints"]
