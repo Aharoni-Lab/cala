@@ -107,7 +107,7 @@ class TransformerMeta(ABCMeta):
         # Get function signature
         signature = inspect.signature(func)
 
-        # Extract parameter types (excluding 'self' if present)
+        # Extract parameter categories (excluding 'self' if present)
         param_types = {
             name: param.annotation
             for name, param in signature.parameters.items()
@@ -152,14 +152,14 @@ class InitState:
         """
         results = (result,) if isinstance(result, xr.DataArray) else result
 
-        # Get mapping of types to attribute names
+        # Get mapping of categories to attribute names
         type_map = {
             annotated_type: attr
             for attr, annotated_type in inspect.get_annotations(self.__init__).items()
             if annotated_type is not None
         }
 
-        # Update attributes whose types match result values
+        # Update attributes whose categories match result values
         for value in results:
             if attr_name := type_map.get(type(value)):
                 setattr(self, attr_name, value)
@@ -180,7 +180,7 @@ class Runner:
         Returns:
             Dictionary mapping parameter names to matching state values
         """
-        # Get mapping of state attribute types
+        # Get mapping of state attribute categories
         state_types = {
             type(getattr(state, attr)): (attr, getattr(state, attr))
             for attr in vars(state)
@@ -229,7 +229,7 @@ class Runner:
             params = config.get("params", {})
             transformer = config["transformer"](**params)
 
-            # Get dependencies by matching signature types
+            # Get dependencies by matching signature categories
             learn_injects = self._get_injects(state, transformer.learn_one)
             transform_injects = self._get_injects(state, transformer.transform_one)
 

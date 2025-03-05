@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Type
 
-from .types import FluorescentObject
+from .categories import FluorescentObject
 
 
 @dataclass
-class ComponentRegistry:
+class Registry:
     """Manages the registration and lookup of fluorescent components."""
 
     _components: Dict[int, FluorescentObject] = field(default_factory=dict)
