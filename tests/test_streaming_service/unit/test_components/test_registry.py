@@ -32,7 +32,7 @@ class TestComponentRegistry:
     def test_initialization(self, empty_registry):
         """Test basic initialization of ComponentRegistry."""
         assert empty_registry.n_components == 0
-        assert empty_registry.component_ids == set()
+        assert empty_registry.ids == set()
         assert empty_registry._components == {}
 
     def test_add_component(self, empty_registry, mock_component):
@@ -40,7 +40,7 @@ class TestComponentRegistry:
         empty_registry.add(mock_component)
 
         assert empty_registry.n_components == 1
-        assert mock_component.id in empty_registry.component_ids
+        assert mock_component.id in empty_registry.ids
         assert empty_registry._components[mock_component.id] == mock_component
 
     def test_remove_component(self, populated_registry):
@@ -51,7 +51,7 @@ class TestComponentRegistry:
         # Test successful removal
         removed = registry.remove(component_to_remove.id)
         assert removed == component_to_remove
-        assert component_to_remove.id not in registry.component_ids
+        assert component_to_remove.id not in registry.ids
         assert registry.n_components == 2
 
         # Test removing non-existent component
@@ -93,7 +93,7 @@ class TestComponentRegistry:
 
         registry.clear()
         assert registry.n_components == 0
-        assert registry.component_ids == set()
+        assert registry.ids == set()
         assert registry._components == {}
 
     def test_component_ids_property(self, populated_registry):
@@ -101,7 +101,7 @@ class TestComponentRegistry:
         registry, components = populated_registry
         expected_ids = {component.id for component in components}
 
-        assert registry.component_ids == expected_ids
+        assert registry.ids == expected_ids
 
     def test_n_components_property(self, populated_registry):
         """Test n_components property returns correct count."""

@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from cala.streaming.core.components.categories import ComponentType, Neuron, Background
-from cala.streaming.core.components.manager import ComponentBigDaddy
+from cala.streaming.core.components.manager import StoreManager
 from cala.streaming.core.components.observables import FootprintStore, TraceStore
 from cala.streaming.core.components.registry import Registry
 
@@ -12,7 +12,7 @@ class TestComponentManager:
     @pytest.fixture
     def empty_manager(self):
         """Create an empty ComponentManager."""
-        return ComponentBigDaddy()
+        return StoreManager()
 
     @pytest.fixture
     def sample_footprint(self):
