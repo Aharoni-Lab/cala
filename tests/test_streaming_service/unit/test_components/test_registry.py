@@ -1,7 +1,7 @@
 import pytest
 
-from cala.streaming.core.components.registry import ComponentRegistry
-from cala.streaming.core.components.types import FluorescentObject
+from cala.streaming.core.components.categories import FluorescentObject
+from cala.streaming.core.components.registry import Registry
 
 
 class MockFluorescentObject(FluorescentObject):
@@ -14,7 +14,7 @@ class TestComponentRegistry:
     @pytest.fixture
     def empty_registry(self):
         """Create an empty ComponentRegistry for testing."""
-        return ComponentRegistry()
+        return Registry()
 
     @pytest.fixture
     def mock_component(self):

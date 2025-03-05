@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from cala.streaming.core.components import ComponentManager
+from cala.streaming.core.components import ComponentBigDaddy
 from cala.streaming.initialization import (
     FootprintsInitializer,
     FootprintsInitializerParams,
@@ -35,7 +35,7 @@ class TestStreamingTemporalInitializer:
     @pytest.fixture
     def footprints_components(self, footprints_initializer, stabilized_video):
         video, _, _ = stabilized_video
-        default_estimates = ComponentManager()
+        default_estimates = ComponentBigDaddy()
 
         estimates = footprints_initializer.learn_one(
             components=default_estimates,

@@ -1,7 +1,7 @@
 import pytest
 
-from cala.streaming.core.components.types import Background, Neuron
-from cala.streaming.core.components.types.base import UpdateType
+from cala.streaming.core.components.categories import Background, Neuron
+from cala.streaming.core.components.categories.base import UpdateType
 from .test_base import BaseFluorescentObjectTest
 
 
@@ -31,7 +31,7 @@ class TestBackground(BaseFluorescentObjectTest):
         assert custom_background.last_update.last_update_frame_idx == 1
 
     def test_different_background_types(self):
-        """Test creating backgrounds with different types."""
+        """Test creating backgrounds with different categories."""
         bg_types = ["neuropil", "blood_vessel", "artifact"]
         for bg_type in bg_types:
             bg = Background(detected_frame_idx=0, background_type=bg_type)

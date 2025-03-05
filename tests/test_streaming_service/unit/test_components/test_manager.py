@@ -2,17 +2,17 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core.components.manager import ComponentManager
-from cala.streaming.core.components.registry import ComponentRegistry
-from cala.streaming.core.components.traits import FootprintManager, TraceManager
-from cala.streaming.core.components.types import ComponentType, Neuron, Background
+from cala.streaming.core.components.categories import ComponentType, Neuron, Background
+from cala.streaming.core.components.manager import ComponentBigDaddy
+from cala.streaming.core.components.observables import FootprintStore, TraceStore
+from cala.streaming.core.components.registry import Registry
 
 
 class TestComponentManager:
     @pytest.fixture
     def empty_manager(self):
         """Create an empty ComponentManager."""
-        return ComponentManager()
+        return ComponentBigDaddy()
 
     @pytest.fixture
     def sample_footprint(self):
@@ -67,9 +67,9 @@ class TestComponentManager:
         assert empty_manager.frame_axis == "frames"
         assert empty_manager.n_components == 0
         assert empty_manager.component_ids == set()
-        assert isinstance(empty_manager._registry, ComponentRegistry)
-        assert isinstance(empty_manager._footprints, FootprintManager)
-        assert isinstance(empty_manager._traces, TraceManager)
+        assert isinstance(empty_manager._registry, Registry)
+        assert isinstance(empty_manager._footprints, FootprintStore)
+        assert isinstance(empty_manager._traces, TraceStore)
 
     def test_footprints_dimensions(self, empty_manager):
         """Test footprints dimensions property."""

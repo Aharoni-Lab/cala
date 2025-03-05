@@ -1,6 +1,6 @@
 import pytest
 
-from cala.streaming.core.components.types.base import (
+from cala.streaming.core.components.categories.base import (
     ComponentUpdate,
     FluorescentObject,
     UpdateType,

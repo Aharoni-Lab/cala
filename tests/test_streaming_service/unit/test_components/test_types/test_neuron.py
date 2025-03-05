@@ -1,7 +1,7 @@
 import pytest
 
-from cala.streaming.core.components.types import Neuron
-from cala.streaming.core.components.types.base import UpdateType
+from cala.streaming.core.components.categories import Neuron
+from cala.streaming.core.components.categories.base import UpdateType
 from .test_base import BaseFluorescentObjectTest
 
 

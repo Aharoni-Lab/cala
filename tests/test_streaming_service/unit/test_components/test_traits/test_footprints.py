@@ -2,14 +2,14 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core.components.traits.footprints import FootprintManager
+from cala.streaming.core.components.observables.footprints import FootprintStore
 
 
 class TestFootprintManager:
     @pytest.fixture
     def basic_manager(self):
         """Create a basic FootprintManager for testing."""
-        return FootprintManager()
+        return FootprintStore()
 
     @pytest.fixture
     def sample_footprint(self):
@@ -115,7 +115,7 @@ class TestFootprintManager:
 
     def test_custom_axes(self):
         """Test using custom axis names."""
-        manager = FootprintManager(component_axis="neuron", spatial_axes=("y", "x"))
+        manager = FootprintStore(component_axis="neuron", spatial_axes=("y", "x"))
         assert manager.component_axis == "neuron"
         assert manager.spatial_axes == ("y", "x")
         assert manager.footprints_dimensions == ("neuron", "y", "x")
