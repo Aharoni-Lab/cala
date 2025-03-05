@@ -1,72 +1,66 @@
-from dataclasses import dataclass
-from typing import TypeAlias, Tuple
-
 import xarray as xr
 
 
-@dataclass
+# There's a footprint class. Then there's a footprint (DataArray) type.
+# There's a footprints class, then there's a footprints (DataArray) type.
+# The actual data exist as groups of DataArrays, in observableS classes.
+# the solo observable class has a pointer to a named index of the group.
+# There's a key-value store that links fluorescing objects to an index of the arrays. This exists in a manager class.
+# Manager does all the retrieval / addition / deletion / update stuff.
+# The actual implementations are done in
+
+
 class Footprint(xr.DataArray):
-    id: str
-    shape: Tuple[int, ...]
+    pass
 
 
-@dataclass
 class Trace(xr.DataArray):
-    id: str
-    shape: Tuple[int, ...]
-
-
-Footprints: TypeAlias = list[Footprint]
-Traces: TypeAlias = list[Trace]
-
-
-@dataclass
-class FluorescingObject:
-    id: str
-    footprint: Footprint
-    trace: Trace
-
-    def __post_init__(self):
-        if not all({self.footprint.id, self.trace.id, self.id}):
-            raise ValueError("IDs in footprint and trace must be identical")
-
-
-@dataclass
-class Neuron(FluorescingObject):
-    spike_train: xr.DataArray
-
-
-@dataclass
-class Background(FluorescingObject):
     pass
 
 
-# ---------------------------------- #
-
-
-@dataclass
-class NeuronFootprint(Neuron, Footprint):
+class Footprints(xr.DataArray):
     pass
 
 
-@dataclass
-class BackgroundFootprint(Background, Footprint):
+class Traces(xr.DataArray):
     pass
 
+# @dataclass
+# class FluorescingObject:
+#     id: str
+#
+#
+# @dataclass
+# class Neuron(FluorescingObject):
+#     pass
+#
+# @dataclass
+# class Background(FluorescingObject):
+#     pass
 
-NeuronFootprints: TypeAlias = list[NeuronFootprint]
-BackgroundFootprints: TypeAlias = list[BackgroundFootprint]
+
+# ----------------------------------- #
 
 
-@dataclass
-class NeuronTrace(Trace, Neuron):
-    pass
-
-
-@dataclass
-class BackgroundTrace(Trace, Background):
-    pass
-
-
-NeuronTraces: TypeAlias = list[NeuronTrace]
-BackgroundTraces: TypeAlias = list[BackgroundTrace]
+# class NeuronFootprint(Neuron, Footprint):
+#     pass
+#
+#
+# class BackgroundFootprint(Background, Footprint):
+#     pass
+#
+#
+# NeuronFootprints: TypeAlias = list[NeuronFootprint]
+# BackgroundFootprints: TypeAlias = list[BackgroundFootprint]
+#
+#
+# class NeuronTrace(Trace, Neuron):
+#     pass
+#
+#
+# class BackgroundTrace(Trace, Background):
+#     pass
+#
+#
+# NeuronTraces: TypeAlias = list[NeuronTrace]
+# BackgroundTraces: TypeAlias = list[BackgroundTrace]
