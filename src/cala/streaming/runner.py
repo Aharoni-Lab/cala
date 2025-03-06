@@ -77,7 +77,7 @@ class Runner:
             transformer.learn_one(frame=frame, **learn_injects)
             result = transformer.transform_one(**transform_injects)
 
-            self.state.update(result)
+            self.state.collect(result)
 
         self.is_initialized = True
         return self.state

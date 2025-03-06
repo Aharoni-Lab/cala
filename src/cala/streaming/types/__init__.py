@@ -1,4 +1,5 @@
 from .types import (
+    Observable,
     Footprints,
     Traces,
     FluorescentObject,
@@ -12,6 +13,7 @@ from .types import (
 )
 
 __all__ = [
+    "Observable",
     "Footprints",
     "Traces",
     "FluorescentObject",
