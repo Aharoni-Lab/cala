@@ -23,7 +23,6 @@ class StreamingConfig(TypedDict):
     preprocess: dict[str, PreprocessStep]
     initialization: dict[str, InitializationStep]
     extraction: dict[str, ExtractionStep]
-    required: NotRequired[Sequence[str]]
 
 
 # Example config
