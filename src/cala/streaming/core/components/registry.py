@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Dict, DefaultDict, Optional, Set
 from uuid import uuid4
 
-from cala.streaming.types.types import ComponentType
+from cala.streaming.types import ComponentType
 
 
 @dataclass
@@ -53,3 +53,6 @@ class Registry:
     def clear(self) -> None:
         self.type_to_ids.clear()
         self.id_to_type.clear()
+
+    def create_many(self, count: int, component_type: ComponentType | str) -> Set[str]:
+        return set(self.create(component_type) for _ in range(count))
