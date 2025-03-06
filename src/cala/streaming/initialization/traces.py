@@ -68,7 +68,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         )
         return self
 
-    def transform_one(self, footprints: xr.DataArray) -> Traces:
+    def transform_one(self, _=None) -> Traces:
         """Return initialization result."""
         return Traces(self.traces_)
 

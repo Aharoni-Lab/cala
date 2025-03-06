@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from cala.streaming.core.components import ComponentBigDaddy
 from cala.streaming.initialization import (
     FootprintsInitializer,
     FootprintsInitializerParams,
@@ -33,57 +32,54 @@ class TestStreamingTemporalInitializer:
         return TracesInitializer(params=traces_parameters)
 
     @pytest.fixture
-    def footprints_components(self, footprints_initializer, stabilized_video):
+    def footprints(self, footprints_initializer, stabilized_video):
         video, _, _ = stabilized_video
-        default_estimates = ComponentBigDaddy()
 
-        estimates = footprints_initializer.learn_one(
-            components=default_estimates,
-            X=video[0],
-        ).transform_one(default_estimates)
+        footprints_initializer.learn_one(
+            frame=video[0],
+        )
+        neuron_footprints, _ = footprints_initializer.transform_one()
 
-        return estimates
+        return neuron_footprints
 
     @pytest.mark.parametrize("jit_enabled", [True, False])
     def test_first_n_frames(
         self,
         stabilized_video,
         traces_initializer,
-        footprints_components,
+        footprints,
         jit_enabled,
     ):
         if not jit_enabled:
             os.environ["NUMBA_DISABLE_JIT"] = "1"
         video, _, _ = stabilized_video
 
-        for frame in video[0:3]:
-            traces_estimates = traces_initializer.learn_transform_one(
-                components=footprints_components,
-                X=frame,
-            )
-
-        assert (
-            footprints_components.footprints.shape[0]
-            == traces_estimates.traces.shape[0]
+        traces_initializer.learn_one(
+            footprints=footprints,
+            frames=video[0:3],
         )
+        traces = traces_initializer.transform_one()
+
+        assert footprints.shape[0] == traces.shape[0]
 
     def test_reconstruction_comparison(
-        self, stabilized_video, traces_initializer, footprints_components
+        self, stabilized_video, traces_initializer, footprints
     ):
         """Test that reconstructed frames from spatial footprints and temporal traces match original frames."""
         video, _, _ = stabilized_video
-        for frame in video[0:3]:
-            traces_estimates = traces_initializer.learn_transform_one(
-                components=footprints_components,
-                X=frame,
-            )
+
+        traces_initializer.learn_one(
+            footprints=footprints,
+            frames=video[0:3],
+        )
+        traces = traces_initializer.transform_one()
 
         # Get original first 3 frames
         original_frames = video[:3].values
 
         # Reconstruct frames using spatial footprints and temporal traces
-        spatial_footprints = traces_estimates.footprints.values
-        temporal_traces = traces_estimates.traces.values
+        spatial_footprints = footprints.values
+        temporal_traces = traces.values
 
         # Reshape spatial footprints to match frame dimensions
         frame_shape = (video.sizes["height"], video.sizes["width"])
