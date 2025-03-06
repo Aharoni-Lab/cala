@@ -48,12 +48,12 @@ class Background(FluorescentObject):
 
 @unique
 class ComponentType(Enum, metaclass=BetterEnum):
-    neuron = auto()
-    background = auto()
+    Neuron = auto()
+    Background = auto()
 
     @classmethod
     def type_to_class(cls):
-        return {cls.neuron: Neuron, cls.background: Background}
+        return {cls.Neuron: Neuron, cls.Background: Background}
 
     def get_class(self) -> "Type[FluorescentObject]":
         return ComponentType.type_to_class()[self]
