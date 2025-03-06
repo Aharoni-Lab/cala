@@ -123,8 +123,24 @@ class DataOutlet:
             )
         return component_type.pop()
 
+    def _is_unregistered(self, components: xr.DataArray) -> bool:
+        return components.coords[self.component_axis].dtype == int
+
+    def _is_registry_subset(self, components: xr.DataArray) -> bool:
+        return set(components.coords[self.component_axis].values).issubset(
+            set(self.registry.ids)
+        )
+
     def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:
-        # Init steps: assign -> insert -> assign -> insert
+        # Init steps: assign1 -> insert2 -> assign3 -> insert4
+        # assign1: these are new cells, there are no arrays. --> so we create cells and assign
+        # insert2: these are new cells, there is a same type array. -->
+        # assign3: these are existing cells, there is a same type array.
+        # insert4: these are existing cells, there is a same type array.
+
+        # checking new cell status: check if coords is hex or int! hex: existing, int: new
+        # then, all we need is if already exists --> insert, if does not exist --> assign
+
         results = (result,) if isinstance(result, xr.DataArray) else result
 
         for value in results:
@@ -139,13 +155,24 @@ class DataOutlet:
             except TypeError:
                 continue
 
-            ids = self.registry.create_many(
-                value.sizes[self.component_axis], component_type
-            )
-            value = value.assign_coords({self.component_axis: ids})
+            # registered
+            if not self._is_unregistered(value):
+                # but some ids are foreign
+                if not self._is_registry_subset(value):
+                    raise ValueError(
+                        "Some incoming components with an ID are not in the registry book."
+                    )
+            # not registered yet
+            else:
+                ids = self.registry.create_many(
+                    value.sizes[self.component_axis], component_type
+                )
+                value = value.assign_coords({self.component_axis: ids})
 
+            # determine which store to input the value into
             if store_name := self.type_to_store.get(observable_type):
 
+                # if the store is empty, we assign instead of insert
                 if len(getattr(self, store_name).array.sizes) == 0:
                     getattr(self, store_name).array = value
                 else:

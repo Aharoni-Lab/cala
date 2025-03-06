@@ -107,7 +107,13 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             state = runner.initialize(frame=frame)
 
-    assert state is not None
+    assert set(state.registry.ids) == set(
+        state.footprints.array.coords["components"].values
+    )
+    assert set(state.registry.ids) == set(
+        state.traces.array.coords["components"].values
+    )
+    assert state.registry.n_components == 10
 
 
 def test_cyclic_dependency_detection(stabilized_video):
@@ -143,22 +149,11 @@ def test_state_updates(basic_config, stabilized_video):
         while not runner.is_initialized:
             state = runner.initialize(frame)
     # Check if state contains expected attributes
-    assert hasattr(state, "neuron_footprints")
-    assert hasattr(state, "neuron_traces")
-    assert isinstance(state.neuron_footprints, xr.DataArray)
-    assert isinstance(state.neuron_traces, xr.DataArray)
-
-
-def test_transformer_type_injection(basic_config, stabilized_video):
-    runner = Runner(basic_config)
-    video, _, _ = stabilized_video
-    for frame in video:
-        while not runner.is_initialized:
-            state = runner.initialize(frame)
-    # Verify the shapes and dimensions of the outputs
-    assert state.neuron_footprints.dims == ("neuron", "height", "width")
-    assert state.neuron_traces.dims == ("neuron", "time")
-    assert len(state.neuron_footprints.neuron) == 10  # As specified in config
+    neuron_footprint = state.get_observable_x_component(NeuronFootprints)
+    neuron_traces = state.get_observable_x_component(NeuronTraces)
+    assert neuron_footprint.__len__() != 0
+    assert neuron_traces.__len__() != 0
+    assert neuron_traces.__len__() == neuron_footprint.__len__()
 
 
 # def test_with_footprint_and_traces
