@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
@@ -7,11 +7,7 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 
 from cala.streaming.core import Parameters
-from cala.streaming.initialization.manager_interface import (
-    manager_interface,
-    InitializerType,
-    TracesInitializationResult,
-)
+from cala.streaming.initialization import TransformerMeta
 
 
 @dataclass
@@ -31,19 +27,19 @@ class TracesInitializerParams(Parameters):
             raise ValueError("Parameter num_frames_to_use must be a positive integer.")
 
 
-@manager_interface(InitializerType.TRACES)
 @dataclass
-class TracesInitializer(SupervisedTransformer):
+class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
     """Initializes temporal components using projection methods."""
 
     params: TracesInitializerParams
     """Parameters for temporal initialization"""
-    result: TracesInitializationResult = field(
-        default_factory=TracesInitializationResult
-    )
-    """Result from temporal initialization"""
 
-    def learn_one(self, footprints: xr.DataArray, frames: xr.DataArray) -> Self:
+    def learn_one(
+        self,
+        neuron_footprints: NeuronFootprints,
+        background_footprints: BackgroundFootprints,
+        frames: Frames,
+    ) -> Self:
         """Learn temporal traces from footprints and frames."""
         # Get frames to use and flatten them
         n_frames = min(
@@ -58,7 +54,7 @@ class TracesInitializer(SupervisedTransformer):
         )
 
         # Store result
-        self.result.traces = xr.DataArray(
+        self.traces_ = xr.DataArray(
             temporal_traces,
             dims=(self.params.component_axis, self.params.frames_axis),
             coords={
@@ -74,7 +70,7 @@ class TracesInitializer(SupervisedTransformer):
 
     def transform_one(self, footprints: xr.DataArray) -> TracesInitializationResult:
         """Return initialization result."""
-        return self.result
+        return self.traces_
 
 
 @jit(nopython=True, cache=True, parallel=True)

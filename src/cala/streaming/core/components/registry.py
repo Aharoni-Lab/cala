@@ -1,46 +1,55 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Type
+from typing import Dict, DefaultDict, Optional, Set
+from uuid import uuid4
 
-from .categories import FluorescentObject
+from cala.streaming.types.types import ComponentType
 
 
 @dataclass
 class Registry:
     """Manages the registration and lookup of fluorescent components."""
 
-    _components: Dict[int, FluorescentObject] = field(default_factory=dict)
-    """The components in the registry."""
+    type_to_ids: DefaultDict[ComponentType, Set[str]] = field(
+        default_factory=lambda: defaultdict(set)
+    )
+    id_to_type: Dict[str, ComponentType] = field(default_factory=dict)
 
     @property
-    def component_ids(self) -> Set[int]:
+    def ids(self) -> Set[str]:
         """Returns all component IDs."""
-        return set(self._components.keys())
+        return set(self.id_to_type.keys())
 
     @property
     def n_components(self) -> int:
         """Returns the number of components."""
-        return len(self._components)
+        return len(self.id_to_type)
 
-    def add(self, component: FluorescentObject) -> None:
-        """Add a new component."""
-        self._components[component.id] = component
+    def create(self, component_type: ComponentType | str) -> str:
+        if isinstance(component_type, str):
+            component_type = ComponentType(component_type)
+        hex_id = uuid4().hex
+        self.type_to_ids[component_type].add(hex_id)
+        self.id_to_type[hex_id] = component_type
+        return hex_id
 
-    def remove(self, component_id: int) -> Optional[FluorescentObject]:
+    def remove(self, component_id: str) -> None:
         """Remove a component by its ID."""
-        return self._components.pop(component_id, None)
+        component_type = self.id_to_type.pop(component_id)
+        self.type_to_ids[component_type].remove(component_id)
 
-    def get(self, component_id: int) -> Optional[FluorescentObject]:
+    def get_type_by_id(self, component_id: str) -> Optional[ComponentType]:
         """Get a component by its ID."""
-        return self._components.get(component_id)
+        return self.id_to_type.get(component_id)
 
-    def get_by_type(self, component_type: Type[FluorescentObject]) -> List[int]:
-        """Get all component IDs of a specific type."""
-        return [
-            component.id
-            for component in self._components.values()
-            if isinstance(component, component_type)
-        ]
+    def get_id_by_type(self, component_type: ComponentType | str) -> Set[str]:
+        """Get all component IDs of a specific type.
+
+        Args:
+            component_type: The type name as a string (e.g. "neuron", "background")
+        """
+        return self.type_to_ids.get(component_type)
 
     def clear(self) -> None:
-        """Remove all components."""
-        self._components.clear()
+        self.type_to_ids.clear()
+        self.id_to_type.clear()

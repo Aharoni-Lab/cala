@@ -1,15 +1,21 @@
 from dataclasses import dataclass, field
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, Tuple
 
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core import Trace, Traces
+from cala.streaming.core.components.stores import BaseStore
+from cala.streaming.types.types import Traces
 
 
 @dataclass
-class TraceStore:
-    """Manages temporal traces for components."""
+class TraceStore(BaseStore):
+    """Manages temporal traces for components.
+    assign (.array) just refreshes the entire thing. (whole) ✅
+    replace swaps in existing traces. must match length. (one ✅ & batch ✅)
+    update lengthens by n frames (one ✅ & batch ✅)
+    insert concatenates new components. (one ✅ & batch ✅)
+    """
 
     component_axis: str = "component"
     """The axis of the component."""
@@ -33,37 +39,10 @@ class TraceStore:
         """Returns the dimensions of the traces."""
         return (self.component_axis, self.frame_axis)
 
-    def initialize(self, component_ids: list[int]) -> None:
-        """Initialize empty traces for components."""
-        self._traces = Traces(
-            np.zeros((len(component_ids), 0)),
-            coords={
-                self.component_axis: component_ids,
-                self.frame_axis: np.arange(0),
-            },
-            dims=self.dimensions,
-        )
-
-    def add(self, component_id: int, trace: Optional[Trace] = None) -> None:
+    def insert(self, trace: Traces) -> None:
         """Add a new trace for a component."""
-        if trace is None:
-            # Create empty trace matching existing dimensions
-            trace = Traces(
-                np.zeros((1, self._traces.sizes[self.frame_axis])),
-                coords={
-                    self.component_axis: [component_id],
-                    self.frame_axis: self._traces.coords[self.frame_axis],
-                },
-                dims=self.dimensions,
-            )
-        else:
-            # Expand and assign coordinates
-            trace = trace.expand_dims(self.component_axis).assign_coords(
-                {self.component_axis: [component_id]}
-            )
-
         if not hasattr(self, "_traces"):
-            self._traces = trace
+            self._traces = Traces[trace]
         else:
             self._traces = Traces(
                 xr.concat([self._traces, trace], dim=self.component_axis)
@@ -73,13 +52,19 @@ class TraceStore:
         """Remove a trace."""
         self._traces = self._traces.drop_sel({self.component_axis: component_id})
 
-    def update(self, component_id: int, trace: xr.DataArray) -> None:
-        """Update an existing trace."""
-        if trace.shape != self._traces.loc[{self.component_axis: component_id}].shape:
-            raise ValueError("New trace shape doesn't match existing trace")
-        self._traces.loc[{self.component_axis: component_id}] = trace
+    def replace(self, traces: Trace | Traces) -> None:
+        """Update existing trace(s)."""
+        if traces.sizes[self.frame_axis] != self._traces.sizes[self.frame_axis]:
+            raise ValueError("New trace length doesn't match existing trace")
 
-    def append(self, new_traces: Traces) -> None:
+        # Create a condition mask for the component we want to update
+        condition = (
+            self._traces[self.component_axis] == traces.coords[self.component_axis]
+        )
+        # Use where to update only the values for this component
+        self._traces = Traces(xr.where(condition, traces, self._traces))
+
+    def update(self, new_traces: Traces) -> None:
         """Append new frames of traces for all components."""
         if set(new_traces.dims) != set(self.dimensions):
             raise ValueError(f"Traces dimensions must be {self.dimensions}")

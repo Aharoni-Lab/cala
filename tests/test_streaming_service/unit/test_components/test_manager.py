@@ -1,18 +1,18 @@
 import numpy as np
 import pytest
 import xarray as xr
-
 from cala.streaming.core.components.categories import ComponentType, Neuron, Background
-from cala.streaming.core.components.manager import StoreManager
-from cala.streaming.core.components.observables import FootprintStore, TraceStore
+
+from cala.streaming.core.components.outlet import DataOutlet
 from cala.streaming.core.components.registry import Registry
+from cala.streaming.core.components.stores import FootprintStore, TraceStore
 
 
 class TestComponentManager:
     @pytest.fixture
     def empty_manager(self):
         """Create an empty ComponentManager."""
-        return StoreManager()
+        return DataOutlet()
 
     @pytest.fixture
     def sample_footprint(self):

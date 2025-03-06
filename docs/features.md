@@ -180,6 +180,7 @@ class DeconvolverTransformer(StreamComponent):
 ```python
 from river import metrics
 
+
 class MonitoredStreamProcessor(CompleteStreamProcessor):
     def __init__(self):
         super().__init__()
@@ -189,12 +190,12 @@ class MonitoredStreamProcessor(CompleteStreamProcessor):
     def process_video_stream(self, video_stream):
         for frame, timestamp in video_stream:
             start_time = time.time()
-            
+
             result = yield from super().process_video_stream([(frame, timestamp)])
-            
+
             # Update metrics
-            self.processing_time.update(time.time() - start_time)
-            self.memory_usage.update(psutil.Process().memory_info().rss)
-            
+            self.processing_time.replace(time.time() - start_time)
+            self.memory_usage.replace(psutil.Process().memory_info().rss)
+
             yield result
 ```

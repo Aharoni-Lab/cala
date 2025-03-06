@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core.components.observables.traces import TraceStore
+from cala.streaming.core.components.stores.traces import TraceStore
 
 
 class TestTraceManager:
@@ -43,7 +43,7 @@ class TestTraceManager:
 
     def test_add_empty_trace(self, initialized_manager):
         """Test adding an empty trace."""
-        initialized_manager.add(4)  # New component ID
+        initialized_manager.insert(4)  # New component ID
 
         assert 4 in initialized_manager.traces.component.values
         assert len(initialized_manager.traces.component) == 4
@@ -54,7 +54,7 @@ class TestTraceManager:
 
     def test_add_trace_with_data(self, initialized_manager, sample_trace):
         """Test adding a trace with data."""
-        initialized_manager.add(4, sample_trace)
+        initialized_manager.insert(4, sample_trace)
 
         assert 4 in initialized_manager.traces.component.values
         np.testing.assert_array_equal(
@@ -80,7 +80,7 @@ class TestTraceManager:
         initialized_manager.append(new_traces)
 
         # Now update one component's trace
-        initialized_manager.update(2, sample_trace)
+        initialized_manager.replace(2, sample_trace)
         np.testing.assert_array_equal(
             initialized_manager.traces.sel(component=2).values, sample_trace.values
         )
@@ -93,7 +93,7 @@ class TestTraceManager:
         with pytest.raises(
             ValueError, match="New trace shape doesn't match existing trace"
         ):
-            initialized_manager.update(1, wrong_shape_trace)
+            initialized_manager.replace(1, wrong_shape_trace)
 
     def test_append_frames(self, initialized_manager):
         """Test appending new frames."""

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core.components.observables.footprints import FootprintStore
+from cala.streaming.core.components.stores.footprints import FootprintStore
 
 
 class TestFootprintManager:

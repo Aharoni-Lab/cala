@@ -8,11 +8,8 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 
 from cala.streaming.core import Parameters
-from cala.streaming.initialization.manager_interface import (
-    manager_interface,
-    InitializerType,
-    FootprintsInitializationResult,
-)
+from cala.streaming.initialization import TransformerMeta
+from cala.streaming.types.types import NeuronFootprints, BackgroundFootprints
 
 
 @dataclass
@@ -44,9 +41,8 @@ class FootprintsInitializerParams(Parameters):
             )
 
 
-@manager_interface(InitializerType.FOOTPRINTS)
 @dataclass
-class FootprintsInitializer(Transformer):
+class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
     """Footprints component initialization methods."""
 
     params: FootprintsInitializerParams
@@ -57,11 +53,10 @@ class FootprintsInitializer(Transformer):
     """Number of markers"""
     markers_: np.ndarray = field(init=False)
     """Markers"""
-
-    result: FootprintsInitializationResult = field(
-        default_factory=FootprintsInitializationResult
-    )
-    """Result from footprints initialization"""
+    neurons_: NeuronFootprints = field(init=False)
+    """Neuron footprints"""
+    background_: BackgroundFootprints = field(init=False)
+    """Background footprints"""
 
     def learn_one(self, frame: xr.DataArray) -> Self:
         """Learn footprints from a frame."""
@@ -73,7 +68,7 @@ class FootprintsInitializer(Transformer):
         background, neurons = self._extract_components(self.markers_, frame)
 
         # Store results
-        self.result.background = xr.DataArray(
+        self.background_ = BackgroundFootprints(
             background,
             dims=(self.params.component_axis, *self.spatial_axes),
             coords={
@@ -81,7 +76,7 @@ class FootprintsInitializer(Transformer):
                 **{axis: frame.coords[axis] for axis in self.spatial_axes},
             },
         )
-        self.result.neurons = xr.DataArray(
+        self.neurons_ = NeuronFootprints(
             neurons,
             dims=(self.params.component_axis, *self.spatial_axes),
             coords={
@@ -92,10 +87,10 @@ class FootprintsInitializer(Transformer):
 
         return self
 
-    def transform_one(self, _=None) -> FootprintsInitializationResult:
+    def transform_one(self, _=None) -> Tuple[NeuronFootprints, BackgroundFootprints]:
         """Return initialization result."""
 
-        return self.result
+        return self.neurons_, self.background_
 
     def _compute_markers(self, frame: xr.DataArray) -> np.ndarray:
         """Compute markers for watershed algorithm."""

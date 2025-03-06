@@ -1,7 +1,29 @@
 import pytest
 
-from cala.streaming.core.components.categories import FluorescentObject
-from cala.streaming.core.components.registry import Registry
+from cala.streaming.core.components import FluorescentObject
+from cala.streaming.core.components.registry import Registry, ComponentType
+
+
+class TestComponentTypes:
+    @pytest.fixture
+    def neuron_type(self):
+        return ComponentType["neuron"]
+
+    @pytest.fixture
+    def background_type(self):
+        return ComponentType["background"]
+
+    def test_initialization(self, neuron_type, background_type):
+        assert neuron_type.name == "neuron"
+        assert background_type.name == "background"
+
+    def test_get_class(self, neuron_type):
+        class_var = neuron_type.get_class()
+        assert class_var().__class__.__name__ == "Neuron"
+
+    def test_initialize_invalid(self):
+        with pytest.raises(ValueError, match="Please choose"):
+            ComponentType["Invalid"]
 
 
 class MockFluorescentObject(FluorescentObject):

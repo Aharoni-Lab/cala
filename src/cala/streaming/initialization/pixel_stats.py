@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 from typing import Self
 
 import xarray as xr
+from cala.streaming.core.components.categories import ComponentType
 from river.base import SupervisedTransformer
 
 from cala.streaming.core import Parameters
-from cala.streaming.core.components import ComponentManager
-from cala.streaming.core.components.types import ComponentType
+from cala.streaming.core.components import ComponentBigDaddy
 
 
 @dataclass
@@ -42,7 +42,7 @@ class PixelStatsTransformer(SupervisedTransformer):
     pixel_stats_: xr.DataArray = field(init=False)
     """Computed pixel statistics"""
 
-    def learn_one(self, components: ComponentManager, frames: xr.DataArray) -> Self:
+    def learn_one(self, components: ComponentBigDaddy, frames: xr.DataArray) -> Self:
         """Learn pixel statistics from frames and temporal components.
 
         Args:
@@ -73,13 +73,13 @@ class PixelStatsTransformer(SupervisedTransformer):
             dims=(*self.params.spatial_axes, self.params.component_axis),
             coords={
                 **{ax: frames.coords[ax] for ax in self.params.spatial_axes},
-                self.params.component_axis: list(components.component_ids),
+                self.params.component_axis: list(components.ids),
             },
         )
 
         return self
 
-    def transform_one(self, components: ComponentManager) -> ComponentManager:
+    def transform_one(self, components: ComponentBigDaddy) -> ComponentBigDaddy:
         """Transform method updates component footprints with computed statistics.
 
         Args:
