@@ -52,11 +52,7 @@ class Runner:
             Dictionary mapping parameter names to matching state values
         """
         # Get mapping of state attribute categories
-        state_types = {
-            type(getattr(state, attr)): (attr, getattr(state, attr))
-            for attr in vars(state)
-            if getattr(state, attr) is not None
-        }
+        state_types = state.type_to_store
 
         # Match function parameters with state attributes by type
         matches = {}
@@ -64,8 +60,14 @@ class Runner:
             if param_name == "return":
                 continue
             if param_type in state_types:
-                _, value = state_types[param_type]
+                value = getattr(state, state_types[param_type]).array
                 matches[param_name] = value
+            elif getattr(param_type, "__bases__", None):
+                try:
+                    value = state.get_observable_x_component(param_type)
+                    matches[param_name] = value
+                except TypeError:
+                    continue
 
         return matches
 

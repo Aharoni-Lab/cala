@@ -41,9 +41,9 @@ class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
         data = np.random.rand(self.num_components, *self.frame.shape)
         return NeuronFootprints(
             data,
-            dims=["neuron", "height", "width"],
+            dims=["components", "height", "width"],
             coords={
-                "neuron": range(self.num_components),
+                "components": range(self.num_components),
                 "height": self.frame.coords["height"],
                 "width": self.frame.coords["width"],
             },
@@ -62,8 +62,11 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
         data = np.random.rand(len(neuron_footprints), 100)  # 100 timepoints
         return NeuronTraces(
             data,
-            dims=["neuron", "time"],
-            coords={"neuron": neuron_footprints.coords["neuron"], "time": range(100)},
+            dims=["components", "frames"],
+            coords={
+                "components": neuron_footprints.coords["components"],
+                "frames": range(100),
+            },
         )
 
 

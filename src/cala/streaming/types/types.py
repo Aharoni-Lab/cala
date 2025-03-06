@@ -1,4 +1,4 @@
-from enum import EnumMeta, Enum, unique, auto
+from enum import EnumMeta
 from typing import Type
 
 import xarray as xr
@@ -44,19 +44,6 @@ class Background(FluorescentObject):
     """Type representing background components."""
 
     pass
-
-
-@unique
-class ComponentType(Enum, metaclass=BetterEnum):
-    Neuron = auto()
-    Background = auto()
-
-    @classmethod
-    def type_to_class(cls):
-        return {cls.Neuron: Neuron, cls.Background: Background}
-
-    def get_class(self) -> "Type[FluorescentObject]":
-        return ComponentType.type_to_class()[self]
 
 
 # ----------------------------------- #

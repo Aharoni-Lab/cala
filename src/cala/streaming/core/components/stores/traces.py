@@ -22,7 +22,7 @@ class TraceStore(BaseStore):
     frame_axis: str = "frames"
     """The axis of the frames."""
 
-    _traces: Traces = field(init=False, repr=False)
+    _traces: Traces = field(default_factory=lambda: Traces(), repr=False)
     """The traces of the components. Shape: (n_components, n_frames)."""
 
     @property

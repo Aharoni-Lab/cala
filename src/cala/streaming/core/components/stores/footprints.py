@@ -22,7 +22,7 @@ class FootprintStore(BaseStore):
     spatial_axes: Tuple[str, ...] = ("width", "height")
     """The spatial axes of the footprints."""
 
-    _footprints: Footprints = field(init=False, repr=False)
+    _footprints: Footprints = field(default_factory=lambda: Footprints(), repr=False)
     """The footprints of the components. Shape: (n_components, *spatial_axes)."""
 
     @property
