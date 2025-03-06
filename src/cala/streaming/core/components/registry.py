@@ -26,6 +26,11 @@ class Registry:
         return len(self.id_to_type)
 
     def create(self, component_type: Type["FluorescentObject"]) -> str:
+        """Create a new component and return its ID."""
+        if not issubclass(component_type, FluorescentObject):
+            raise TypeError(
+                f"Component type {component_type} must inherit from FluorescentObject"
+            )
         hex_id = uuid4().hex
         self.type_to_ids[component_type].append(hex_id)
         self.id_to_type[hex_id] = component_type
@@ -55,4 +60,7 @@ class Registry:
     def create_many(
         self, count: int, component_type: Type["FluorescentObject"]
     ) -> List[str]:
-        return list(self.create(component_type) for _ in range(count))
+        """Create multiple components of the same type and return their IDs."""
+        if count < 0:
+            raise ValueError("Count must be non-negative")
+        return [self.create(component_type) for _ in range(count)]
