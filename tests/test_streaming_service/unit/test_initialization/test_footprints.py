@@ -1,6 +1,5 @@
 import pytest
 
-from cala.streaming.core.components import ComponentBigDaddy
 from cala.streaming.initialization import (
     FootprintsInitializer,
     FootprintsInitializerParams,
@@ -19,12 +18,14 @@ class TestStreamingFootprintsInitializer:
 
     def test_first_frame(self, footprints_initializer, stabilized_video):
         video, _, _ = stabilized_video
-        components = ComponentBigDaddy()
 
         for frame in video[0:1]:
-            components = footprints_initializer.learn_transform_one(
-                components=components,
-                X=frame,
+            footprints_initializer.learn_one(
+                frame=frame,
+            )
+            neuron_footprints, background_footprints = (
+                footprints_initializer.transform_one()
             )
 
-        assert components.footprints[0].shape == video[0].shape
+        assert neuron_footprints[0].shape == video[0].shape
+        assert background_footprints[0].shape == video[0].shape
