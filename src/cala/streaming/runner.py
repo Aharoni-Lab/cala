@@ -11,8 +11,35 @@ from cala.streaming.pipe_config import StreamingConfig
 @dataclass
 class Runner:
     config: StreamingConfig
-    state = DataOutlet()
+    state: DataOutlet = DataOutlet()
     is_initialized: bool = False
+
+    def preprocess(self, frame: xr.DataArray): ...
+
+    def initialize(self, frame: xr.DataArray):
+        """Initialize transformers in dependency order."""
+        execution_order = self._create_dependency_graph(self.config["initialization"])
+
+        # Execute transformers in order
+        for step in execution_order:
+            config = self.config["initialization"][step]
+            params = config.get("params", {})
+            transformer = config["transformer"](**params)
+
+            # Get dependencies by matching signature categories
+            learn_injects = self._get_injects(self.state, transformer.learn_one)
+            transform_injects = self._get_injects(self.state, transformer.transform_one)
+
+            # Initialize and run transformer
+            transformer.learn_one(frame=frame, **learn_injects)
+            result = transformer.transform_one(**transform_injects)
+
+            self.state.collect(result)
+
+        self.is_initialized = True
+        return self.state
+
+    def update(self): ...
 
     def _get_injects(self, state: DataOutlet, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
@@ -59,28 +86,3 @@ class Runner:
             raise ValueError("Transformer dependencies contain cycles")
 
         return list(nx.topological_sort(graph))
-
-    def initialize(self, frame: xr.DataArray):
-        """Initialize transformers in dependency order."""
-        execution_order = self._create_dependency_graph(self.config["initialization"])
-
-        # Execute transformers in order
-        for step in execution_order:
-            config = self.config["initialization"][step]
-            params = config.get("params", {})
-            transformer = config["transformer"](**params)
-
-            # Get dependencies by matching signature categories
-            learn_injects = self._get_injects(self.state, transformer.learn_one)
-            transform_injects = self._get_injects(self.state, transformer.transform_one)
-
-            # Initialize and run transformer
-            transformer.learn_one(frame=frame, **learn_injects)
-            result = transformer.transform_one(**transform_injects)
-
-            self.state.collect(result)
-
-        self.is_initialized = True
-        return self.state
-
-    def update(self): ...
