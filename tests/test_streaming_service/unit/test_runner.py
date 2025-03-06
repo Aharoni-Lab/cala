@@ -111,8 +111,8 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
 
 
 def test_cyclic_dependency_detection(stabilized_video):
-    cyclic_config: Config = cast(
-        Config,
+    cyclic_config: StreamingConfig = cast(
+        StreamingConfig,
         {
             "initialization": {
                 "step1": {
