@@ -7,7 +7,8 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 
 from cala.streaming.core import Parameters
-from cala.streaming.initialization import TransformerMeta
+from cala.streaming.initialization.meta import TransformerMeta
+from cala.streaming.types import Footprints, Traces
 
 
 @dataclass
@@ -36,9 +37,8 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
 
     def learn_one(
         self,
-        neuron_footprints: NeuronFootprints,
-        background_footprints: BackgroundFootprints,
-        frames: Frames,
+        footprints: Footprints,
+        frames: xr.DataArray,
     ) -> Self:
         """Learn temporal traces from footprints and frames."""
         # Get frames to use and flatten them
@@ -68,9 +68,9 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         )
         return self
 
-    def transform_one(self, footprints: xr.DataArray) -> TracesInitializationResult:
+    def transform_one(self, footprints: xr.DataArray) -> Traces:
         """Return initialization result."""
-        return self.traces_
+        return Traces(self.traces_)
 
 
 @jit(nopython=True, cache=True, parallel=True)

@@ -8,7 +8,7 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 
 from cala.streaming.core import Parameters
-from cala.streaming.initialization import TransformerMeta
+from cala.streaming.initialization.meta import TransformerMeta
 from cala.streaming.types.types import NeuronFootprints, BackgroundFootprints
 
 
@@ -90,7 +90,7 @@ class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
     def transform_one(self, _=None) -> Tuple[NeuronFootprints, BackgroundFootprints]:
         """Return initialization result."""
 
-        return self.neurons_, self.background_
+        return NeuronFootprints(self.neurons_), BackgroundFootprints(self.background_)
 
     def _compute_markers(self, frame: xr.DataArray) -> np.ndarray:
         """Compute markers for watershed algorithm."""

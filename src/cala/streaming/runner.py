@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Any, Dict
 
 import networkx as nx
@@ -11,7 +11,7 @@ from cala.streaming.pipe_config import StreamingConfig
 @dataclass
 class Runner:
     config: StreamingConfig
-    state: DataOutlet = DataOutlet()
+    state: DataOutlet = field(default_factory=lambda: DataOutlet())
     is_initialized: bool = False
 
     def preprocess(self, frame: xr.DataArray): ...

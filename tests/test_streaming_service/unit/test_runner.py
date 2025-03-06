@@ -5,14 +5,10 @@ import pytest
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.runner import (
-    Runner,
-    Frame,
-    NeuronFootprints,
-    NeuronTraces,
-    TransformerMeta,
-    Config,
-)
+from cala.streaming.initialization.meta import TransformerMeta
+from cala.streaming.pipe_config import StreamingConfig
+from cala.streaming.runner import Runner
+from cala.streaming.types import NeuronFootprints, NeuronTraces
 from tests.conftest import stabilized_video
 
 
@@ -22,13 +18,13 @@ class MockMotionCorrection(Transformer, metaclass=TransformerMeta):
         self.max_shift = max_shift
         self.frame = None
 
-    def learn_one(self, frame: Frame) -> None:
+    def learn_one(self, frame: xr.DataArray) -> None:
         self.frame = frame
         return None
 
-    def transform_one(self, _=None) -> Frame:
+    def transform_one(self, _=None) -> xr.DataArray:
         # Simulate motion correction by returning the same frame
-        return Frame(self.frame)
+        return xr.DataArray(self.frame)
 
 
 class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
@@ -36,7 +32,7 @@ class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
         self.num_components = num_components
         self.frame = None
 
-    def learn_one(self, frame: Frame) -> None:
+    def learn_one(self, frame: xr.DataArray) -> None:
         self.frame = frame
         return None
 
@@ -58,7 +54,7 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
     def __init__(self, method: str = "pca"):
         self.method = method
 
-    def learn_one(self, frame: Frame) -> None:
+    def learn_one(self, frame: xr.DataArray) -> None:
         return None
 
     def transform_one(self, neuron_footprints: NeuronFootprints) -> NeuronTraces:
@@ -72,9 +68,9 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
 
 
 @pytest.fixture
-def basic_config() -> Config:
+def basic_config() -> StreamingConfig:
     return cast(
-        Config,
+        StreamingConfig,
         {
             "initialization": {
                 "motion_correction": {
