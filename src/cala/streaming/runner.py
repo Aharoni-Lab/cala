@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Callable, Any, Dict
 
 import networkx as nx
+import xarray as xr
 
 from cala.streaming.core.components import DataOutlet
 from cala.streaming.pipe_config import StreamingConfig
@@ -59,7 +60,7 @@ class Runner:
 
         return list(nx.topological_sort(graph))
 
-    def initialize(self, frame: Frame):
+    def initialize(self, frame: xr.DataArray):
         """Initialize transformers in dependency order."""
         execution_order = self._create_dependency_graph(self.config["initialization"])
 

@@ -52,7 +52,7 @@ class TraceStore(BaseStore):
         """Remove a trace."""
         self._traces = self._traces.drop_sel({self.component_axis: component_id})
 
-    def replace(self, traces: Trace | Traces) -> None:
+    def replace(self, traces: Traces) -> None:
         """Update existing trace(s)."""
         if traces.sizes[self.frame_axis] != self._traces.sizes[self.frame_axis]:
             raise ValueError("New trace length doesn't match existing trace")
