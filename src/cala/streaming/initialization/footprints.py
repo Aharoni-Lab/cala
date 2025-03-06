@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 from river.base import Transformer
 from skimage.segmentation import watershed
+from sklearn.exceptions import NotFittedError
 
 from cala.streaming.core import Parameters
 from cala.streaming.initialization.meta import TransformerMeta
@@ -57,6 +58,7 @@ class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
     """Neuron footprints"""
     background_: BackgroundFootprints = field(init=False)
     """Background footprints"""
+    is_fitted_: bool = False
 
     def learn_one(self, frame: xr.DataArray) -> Self:
         """Learn footprints from a frame."""
@@ -85,10 +87,13 @@ class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
             },
         )
 
+        self.is_fitted_ = True
         return self
 
     def transform_one(self, _=None) -> Tuple[NeuronFootprints, BackgroundFootprints]:
         """Return initialization result."""
+        if not self.is_fitted_:
+            raise NotFittedError
 
         return NeuronFootprints(self.neurons_), BackgroundFootprints(self.background_)
 

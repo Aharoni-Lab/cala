@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 from numba import jit, prange
 from river.base import SupervisedTransformer
+from sklearn.exceptions import NotFittedError
 
 from cala.streaming.core import Parameters
 from cala.streaming.initialization.meta import TransformerMeta
@@ -34,6 +35,9 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
 
     params: TracesInitializerParams
     """Parameters for temporal initialization"""
+    traces_: Traces
+
+    is_fitted_: bool = False
 
     def learn_one(
         self,
@@ -66,10 +70,15 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
                 ],
             },
         )
+
+        self.is_fitted_ = True
         return self
 
     def transform_one(self, _=None) -> Traces:
         """Return initialization result."""
+        if not self.is_fitted_:
+            raise NotFittedError
+
         return Traces(self.traces_)
 
 
