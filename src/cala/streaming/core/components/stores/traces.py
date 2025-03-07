@@ -17,8 +17,6 @@ class TraceStore(BaseStore):
     insert concatenates new components. (one ✅ & batch ✅)
     """
 
-    component_axis: str = "component"
-    """The axis of the component."""
     frame_axis: str = "frames"
     """The axis of the frames."""
 

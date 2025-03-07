@@ -17,8 +17,6 @@ class FootprintStore(BaseStore):
     insert concatenates new footprints. (one ✅ & batch ✅)
     """
 
-    component_axis: str = "component"
-    """The axis of the component."""
     spatial_axes: Tuple[str, ...] = ("width", "height")
     """The spatial axes of the footprints."""
 
