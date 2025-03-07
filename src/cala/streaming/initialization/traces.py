@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 import numpy as np
@@ -35,7 +35,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
 
     params: TracesInitializerParams
     """Parameters for temporal initialization"""
-    traces_: Traces
+    traces_: Traces = field(init=False, repr=False)
 
     is_fitted_: bool = False
 
@@ -45,15 +45,21 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         frames: xr.DataArray,
     ) -> Self:
         """Learn temporal traces from footprints and frames."""
+        if footprints.isel({self.params.component_axis: 0}).shape != frames[0].shape:
+            raise ValueError("Footprint and frame dimensions must be identical.")
+
         # Get frames to use and flatten them
         n_frames = min(
             frames.sizes[self.params.frames_axis], self.params.num_frames_to_use
         )
         flattened_frames = frames[:n_frames].values.reshape(n_frames, -1)
+        flattened_footprints = footprints.values.reshape(
+            footprints.sizes[self.params.component_axis], -1
+        )
 
         # Process all components
         temporal_traces = solve_all_component_traces(
-            footprints.values.reshape(footprints.sizes[self.params.component_axis], -1),
+            flattened_footprints,
             flattened_frames,
         )
 
