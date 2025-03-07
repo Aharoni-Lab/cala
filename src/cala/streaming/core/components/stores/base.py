@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Type, Optional, Any, Tuple, Set, Hashable
+from typing import List, Type, Optional, Any, Tuple, Set, Hashable, overload
 
 import numpy as np
 import xarray as xr
@@ -70,14 +70,39 @@ class BaseStore(ABC):
         """
         return {self.id_coord, self.type_coord, self.component_axis} == coords
 
+    @overload
     def insert(
-        self, data_array: np.ndarray | xr.DataArray, ids: List[str], types: List[Type]
-    ) -> None:
+        self,
+        data_array: np.ndarray | xr.DataArray,
+        ids: List[str],
+        types: List[Type],
+        inplace=True,
+    ) -> None: ...
+
+    @overload
+    def insert(
+        self,
+        data_array: np.ndarray | xr.DataArray,
+        ids: List[str],
+        types: List[Type],
+        inplace=False,
+    ) -> xr.DataArray: ...
+
+    def insert(
+        self,
+        data_array: np.ndarray | xr.DataArray,
+        ids: List[str],
+        types: List[Type],
+        inplace=False,
+    ) -> Optional[xr.DataArray]:
         # make sure the data_array has no id / type coordinates
         to_insert = self.generate_store(data_array, ids, types)
-        self._warehouse = xr.concat(
-            [self._warehouse, to_insert], dim=self.component_axis
-        )
+        if inplace:
+            self._warehouse = xr.concat(
+                [self._warehouse, to_insert], dim=self.component_axis
+            )
+        else:
+            return xr.concat([self._warehouse, to_insert], dim=self.component_axis)
 
     def slice(
         self,
@@ -90,13 +115,43 @@ class BaseStore(ABC):
         """refer to xarray dataarray method for docs"""
         return self._warehouse.where(condition, other=other, drop=drop)
 
-    def delete(self, ids: List[str], types: List[Type]) -> None:
-        self._warehouse = self._warehouse.drop_sel(
-            {self.id_coord: ids, self.type_coord: types}
-        )
+    @overload
+    def delete(
+        self, ids: List[str], types: List[Type], inplace: bool = False
+    ) -> xr.DataArray: ...
 
-    def update(self, data: xr.DataArray) -> None:
-        self._warehouse.loc[data.coords] = data  # shape safe
+    @overload
+    def delete(
+        self, ids: List[str], types: List[Type], inplace: bool = True
+    ) -> None: ...
+
+    def delete(
+        self, ids: List[str], types: List[Type], inplace: bool = False
+    ) -> Optional[xr.DataArray]:
+        if inplace:
+            self._warehouse = self._warehouse.drop_sel(
+                {self.id_coord: ids, self.type_coord: types}
+            )
+            return None
+        else:
+            return self._warehouse.drop_sel(
+                {self.id_coord: ids, self.type_coord: types}
+            )
+
+    @overload
+    def update(self, data: xr.DataArray, inplace: bool = True) -> None: ...
+
+    @overload
+    def update(self, data: xr.DataArray, inplace: bool = False) -> xr.DataArray: ...
+
+    def update(
+        self, data: xr.DataArray, inplace: bool = False
+    ) -> Optional[xr.DataArray]:
+        if inplace:
+            self._warehouse.loc[data.coords] = data  # shape safe
+            return None
+        else:
+            return self._warehouse.sel(data.coords)
 
     @abstractmethod
     def temporal_update(
