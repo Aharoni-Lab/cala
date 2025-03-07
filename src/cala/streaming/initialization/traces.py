@@ -5,19 +5,21 @@ import numpy as np
 import xarray as xr
 from numba import jit, prange
 from river.base import SupervisedTransformer
+from sklearn.exceptions import NotFittedError
 
 from cala.streaming.core import Parameters
-from cala.streaming.core.components import ComponentManager
+from cala.streaming.initialization.meta import TransformerMeta
+from cala.streaming.types import Footprints, Traces
 
 
 @dataclass
-class TemporalInitializerParams(Parameters):
-    """Parameters for temporal initialization"""
+class TracesInitializerParams(Parameters):
+    """Parameters for traces initialization"""
 
     component_axis: str = "components"
     """Axis for components"""
     frames_axis: str = "frames"
-    """Spatial axes for footprints"""
+    """Axis for frames"""
 
     num_frames_to_use: int = 3
     """Number of frames to use for temporal initialization"""
@@ -28,60 +30,62 @@ class TemporalInitializerParams(Parameters):
 
 
 @dataclass
-class TemporalInitializer(SupervisedTransformer):
-    """Initializes temporal components using projection methods.
+class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+    """Initializes temporal components using projection methods."""
 
-    For each spatial footprint, finds temporal traces by minimizing the reconstruction error
-    within each footprint's active area.
-    """
-
-    params: TemporalInitializerParams
+    params: TracesInitializerParams
     """Parameters for temporal initialization"""
-    temporal_traces_: xr.DataArray = field(init=False)
-    """Temporal traces"""
+    traces_: Traces = field(init=False, repr=False)
 
-    def learn_one(self, components: ComponentManager, frames: xr.DataArray) -> Self:
-        """Learn temporal traces from a batch of frames using least squares optimization.
+    is_fitted_: bool = False
 
-        For each component, finds the temporal trace values that minimize the reconstruction error:
-        min ||Y - a*c||^2 where:
-        - Y is the frame data within the footprint's active area
-        - a is the footprint values in the active area
-        - c is the temporal trace value to solve for
+    def learn_one(
+        self,
+        footprints: Footprints,
+        frames: xr.DataArray,
+    ) -> Self:
+        """Learn temporal traces from footprints and frames."""
+        if footprints.isel({self.params.component_axis: 0}).shape != frames[0].shape:
+            raise ValueError("Footprint and frame dimensions must be identical.")
 
-        Args:
-            estimates: Estimates object containing spatial footprints and other parameters
-            frames: xarray DataArray of shape (frames, height, width) containing 2D grayscale frames
-
-        Returns:
-            self
-        """
         # Get frames to use and flatten them
-        flattened_frames = frames[: self.params.num_frames_to_use].values.reshape(
-            self.params.num_frames_to_use, -1
+        n_frames = min(
+            frames.sizes[self.params.frames_axis], self.params.num_frames_to_use
+        )
+        flattened_frames = frames[:n_frames].values.reshape(n_frames, -1)
+        flattened_footprints = footprints.values.reshape(
+            footprints.sizes[self.params.component_axis], -1
         )
 
-        # Process all components at once using Numba parallel
+        # Process all components
         temporal_traces = solve_all_component_traces(
-            components.footprints.values, flattened_frames
+            flattened_footprints,
+            flattened_frames,
         )
 
-        self.temporal_traces_ = xr.DataArray(
+        # Store result
+        self.traces_ = xr.DataArray(
             temporal_traces,
             dims=(self.params.component_axis, self.params.frames_axis),
             coords={
-                self.params.component_axis: list(components.component_ids),
-                self.params.frames_axis: frames.coords[self.params.frames_axis],
+                self.params.component_axis: footprints.coords[
+                    self.params.component_axis
+                ],
+                self.params.frames_axis: frames.coords[self.params.frames_axis][
+                    :n_frames
+                ],
             },
         )
 
+        self.is_fitted_ = True
         return self
 
-    def transform_one(self, components: ComponentManager) -> ComponentManager:
-        """Transform method assigns to estimates."""
+    def transform_one(self, _=None) -> Traces:
+        """Return initialization result."""
+        if not self.is_fitted_:
+            raise NotFittedError
 
-        components.populate_from_traces(self.temporal_traces_)
-        return components
+        return Traces(self.traces_)
 
 
 @jit(nopython=True, cache=True, parallel=True)

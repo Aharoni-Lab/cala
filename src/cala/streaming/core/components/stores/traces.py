@@ -1,85 +1,76 @@
 from dataclasses import dataclass, field
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, Tuple
 
 import numpy as np
 import xarray as xr
 
+from cala.streaming.core.components.stores import BaseStore
+from cala.streaming.types.types import Traces
+
 
 @dataclass
-class TraceManager:
-    """Manages temporal traces for components."""
+class TraceStore(BaseStore):
+    """Manages temporal traces for components.
+    assign (.array) just refreshes the entire thing. (whole) ✅
+    replace swaps in existing traces. must match length. (one ✅ & batch ✅)
+    update lengthens by n frames (one ✅ & batch ✅)
+    insert concatenates new components. (one ✅ & batch ✅)
+    """
 
     component_axis: str = "component"
     """The axis of the component."""
     frame_axis: str = "frames"
     """The axis of the frames."""
 
-    _traces: xr.DataArray = field(init=False, repr=False)
+    _traces: Traces = field(default_factory=lambda: Traces(), repr=False)
     """The traces of the components. Shape: (n_components, n_frames)."""
 
     @property
-    def traces(self) -> xr.DataArray:
+    def array(self) -> Traces:
         """Returns the traces as an xarray DataArray."""
         return self._traces
 
+    @array.setter
+    def array(self, value: Traces) -> None:
+        self._traces = Traces(value)
+
     @property
-    def traces_dimensions(self) -> Tuple[str, str]:
+    def dimensions(self) -> Tuple[str, str]:
         """Returns the dimensions of the traces."""
         return (self.component_axis, self.frame_axis)
 
-    def initialize(self, component_ids: list[int]) -> None:
-        """Initialize empty traces for components."""
-        self._traces = xr.DataArray(
-            np.zeros((len(component_ids), 0)),
-            coords={
-                self.component_axis: component_ids,
-                self.frame_axis: np.arange(0),
-            },
-            dims=self.traces_dimensions,
-        )
-
-    def add_trace(
-        self, component_id: int, trace: Optional[xr.DataArray] = None
-    ) -> None:
+    def insert(self, trace: Traces) -> None:
         """Add a new trace for a component."""
-        if trace is None:
-            # Create empty trace matching existing dimensions
-            trace = xr.DataArray(
-                np.zeros((1, self._traces.sizes[self.frame_axis])),
-                coords={
-                    self.component_axis: [component_id],
-                    self.frame_axis: self._traces.coords[self.frame_axis],
-                },
-                dims=self.traces_dimensions,
-            )
-        else:
-            # Expand and assign coordinates
-            trace = trace.expand_dims(self.component_axis).assign_coords(
-                {self.component_axis: [component_id]}
-            )
-
         if not hasattr(self, "_traces"):
-            self._traces = trace
+            self._traces = Traces[trace]
         else:
-            self._traces = xr.concat([self._traces, trace], dim=self.component_axis)
+            self._traces = Traces(
+                xr.concat([self._traces, trace], dim=self.component_axis)
+            )
 
-    def remove_trace(self, component_id: int) -> None:
+    def remove(self, component_id: int) -> None:
         """Remove a trace."""
         self._traces = self._traces.drop_sel({self.component_axis: component_id})
 
-    def update_trace(self, component_id: int, trace: xr.DataArray) -> None:
-        """Update an existing trace."""
-        if trace.shape != self._traces.loc[{self.component_axis: component_id}].shape:
-            raise ValueError("New trace shape doesn't match existing trace")
-        self._traces.loc[{self.component_axis: component_id}] = trace
+    def replace(self, traces: Traces) -> None:
+        """Update existing trace(s)."""
+        if traces.sizes[self.frame_axis] != self._traces.sizes[self.frame_axis]:
+            raise ValueError("New trace length doesn't match existing trace")
 
-    def append_frames(self, new_traces: xr.DataArray) -> None:
+        # Create a condition mask for the component we want to update
+        condition = (
+            self._traces[self.component_axis] == traces.coords[self.component_axis]
+        )
+        # Use where to update only the values for this component
+        self._traces = Traces(xr.where(condition, traces, self._traces))
+
+    def update(self, new_traces: Traces) -> None:
         """Append new frames of traces for all components."""
-        if set(new_traces.dims) != set(self.traces_dimensions):
-            raise ValueError(f"Traces dimensions must be {self.traces_dimensions}")
+        if set(new_traces.dims) != set(self.dimensions):
+            raise ValueError(f"Traces dimensions must be {self.dimensions}")
 
         # Create zero-filled array for all components
-        all_traces = xr.DataArray(
+        all_traces = Traces(
             np.zeros(
                 (
                     self._traces.sizes[self.component_axis],
@@ -90,7 +81,7 @@ class TraceManager:
                 self.component_axis: self._traces.coords[self.component_axis],
                 self.frame_axis: new_traces.coords[self.frame_axis],
             },
-            dims=self.traces_dimensions,
+            dims=self.dimensions,
         )
 
         # Update values for components that have explicit traces
@@ -99,15 +90,17 @@ class TraceManager:
             all_traces.loc[{self.component_axis: list(input_ids)}] = new_traces
 
         # Concatenate with existing traces
-        self._traces = xr.concat([self._traces, all_traces], dim=self.frame_axis)
+        self._traces = Traces(
+            xr.concat([self._traces, all_traces], dim=self.frame_axis)
+        )
 
-    def get_batch(self, start_time: int, end_time: int) -> xr.DataArray:
+    def get_batch(self, start_time: int, end_time: int) -> Traces:
         """Get a batch of time traces for all components."""
         return self._traces.sel({self.frame_axis: slice(start_time, end_time)})
 
     def iterate_batches(
         self, batch_size: int = 1000
-    ) -> Iterator[Tuple[int, int, xr.DataArray]]:
+    ) -> Iterator[Tuple[int, int, Traces]]:
         """Iterate over time traces in batches.
 
         Args:
