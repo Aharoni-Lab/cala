@@ -1,82 +1,123 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Type, Optional
+from typing import List, Type, Optional, Any, Tuple, Set, Hashable
 
 import numpy as np
 import xarray as xr
 
 
 @dataclass
-class BaseStore:
-    _dataset: xr.Dataset = None
-    dataset_name: str = "dataset"
-    component_axis: str = "components"
-    type_coord: str = "type_"
-    id_coord: str = "id_"
-    width_axis: str = "width"
-    height_axis: str = "height"
+class BaseStore(ABC):
+    component_axis: str
 
-    def __post_init__(self):
-        empty_array = np.empty(shape=(0, 0, 0))
-        empty_ids = []
-        empty_types = []
-        self.set_array(data_array=empty_array, ids=empty_ids, types=empty_types)
+    id_coord: str = "id_"
+    type_coord: str = "type_"
+
+    _warehouse: xr.DataArray = None
 
     @property
-    def array(self) -> xr.DataArray:
-        return self._dataset.to_dataarray()
+    @abstractmethod
+    def dims(self) -> Tuple[str, ...]: ...
 
-    def _generate_dataset(
+    def __post_init__(self):
+        empty_array = np.empty(shape=tuple([0] * len(self.dims)))
+        empty_ids = []
+        empty_types = []
+        self.generate_store(data_array=empty_array, ids=empty_ids, types=empty_types)
+
+    def generate_store(
         self, data_array: np.ndarray | xr.DataArray, ids: List[str], types: List[Type]
-    ) -> xr.Dataset:
-        # validate if sizes match
-        return xr.Dataset(
-            {
-                self.dataset_name: (
-                    [self.width_axis, self.height_axis, self.component_axis],
-                    data_array,
-                )
-            },
+    ) -> xr.DataArray:
+        data = xr.DataArray(
+            data_array,
+            dims=self.dims,
             coords={
                 self.type_coord: ([self.component_axis], types),
                 self.id_coord: ([self.component_axis], ids),
             },
         )
+        return data.set_index({self.component_axis: [self.type_coord, self.id_coord]})
 
-    def set_array(
+    @property
+    def warehouse(self) -> xr.DataArray:
+        # Must output an array with id coordinates
+        return self._warehouse
+
+    @warehouse.setter
+    def warehouse(self, value: xr.DataArray):
+        if self._validate_dims(value.dims) and self._validate_coords(
+            set(value.coords.keys())
+        ):
+            self._warehouse = value
+
+        else:
+            raise ValueError(
+                f"Inappropriate storage dimensions. Values in this storage must have:\n\tdimensions: {self.dims}\n\tcoordinates:{self.id_coord, self.type_coord} that are attached to {self.component_axis}.\nRefer to generate_store method for formatting an unlabeled array."
+            )
+
+    def _validate_dims(self, dimensions: Tuple[Hashable, ...]) -> bool:
+        return set(self.dims) == set(dimensions)
+
+    def _validate_coords(self, coords: Set) -> bool:
+        """this also validates the coordinate attachment to index.
+
+        Args:
+            coords:
+
+        Returns:
+
+        """
+        return {self.id_coord, self.type_coord, self.component_axis} == coords
+
+    def insert(
         self, data_array: np.ndarray | xr.DataArray, ids: List[str], types: List[Type]
     ) -> None:
-        self._dataset = self._generate_dataset(data_array, ids, types)
+        # make sure the data_array has no id / type coordinates
+        to_insert = self.generate_store(data_array, ids, types)
+        self._warehouse = xr.concat(
+            [self._warehouse, to_insert], dim=self.component_axis
+        )
 
-    def slice_by_coordinates(
+    def slice(
         self,
         ids: Optional[List[str]],
         types: Optional[List[Type]],
-        width: Optional[List[int]],
-        height: Optional[List[int]],
-    ) -> xr.Dataset:
-        return self._dataset.sel(
-            {
-                self.id_coord: ids,
-                self.type_coord: types,
-                self.width_axis: width,
-                self.height_axis: height,
-            }
+    ) -> xr.DataArray:
+        return self._warehouse.sel({self.id_coord: ids, self.type_coord: types})
+
+    def where(self, condition, other: Any, drop: bool = False) -> xr.DataArray:
+        """refer to xarray dataarray method for docs"""
+        return self._warehouse.where(condition, other=other, drop=drop)
+
+    def delete(self, ids: List[str], types: List[Type]) -> None:
+        self._warehouse = self._warehouse.drop_sel(
+            {self.id_coord: ids, self.type_coord: types}
         )
 
-    def insert_array(
-        self, data_array: np.ndarray | xr.DataArray, ids: List[str], types: List[Type]
-    ):
-        to_insert = self._generate_dataset(data_array, ids, types)
-        self._dataset = xr.concat([self._dataset, to_insert], dim=self.component_axis)
+    def update(self, data: xr.DataArray) -> None:
+        self._warehouse.loc[data.coords] = data  # shape safe
+
+    @abstractmethod
+    def temporal_update(
+        self, last_streamed_data: xr.DataArray, ids: List[str]
+    ) -> None: ...
+
+    """
+    updates from new frames look different for each store. 
+    e.g. if you have frame_axis or its derivative, the store shape changes. 
+    otherwise the shape stays the same.
+    
+    an abstractmethod might not be good for this since parameters might be all different.
+    """
 
     @property
     def _types(self) -> List[Type]:
-        return self._dataset.coords[self.type_coord].to_list()
+        return self._warehouse.coords[self.type_coord].to_list()
 
     @property
     def _ids(self) -> List[str]:
-        return self._dataset.coords[self.id_coord].to_list()
+        return self._warehouse.coords[self.id_coord].to_list()
 
     @property
     def id_to_type(self):
@@ -88,8 +129,3 @@ class BaseStore:
         for type_, id_ in zip(self._types, self._ids):
             dict_[type_].append(id_)
         return dict_
-
-    def ids_to_types(self, ids: List[str]) -> List[Type]:
-        if not set(self._ids).issuperset(set(ids)):
-            raise KeyError("Trying to access IDs that are not present in the array.")
-        return [type_ for id_, type_ in self.id_to_type.items() if id_ in ids]
