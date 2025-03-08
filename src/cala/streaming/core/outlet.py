@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, List
+from uuid import uuid4
 
 import xarray as xr
 
-from cala.streaming.core.components.registry import Registry
-from cala.streaming.core.components.stores import FootprintStore, TraceStore
+from cala.streaming.core.stores import FootprintStore, TraceStore
 from cala.streaming.types import FluorescentObject, Observable
 
 
@@ -59,9 +59,15 @@ class DataOutlet:
     frame_axis: str = "frames"
     """The axis of the frames."""
 
-    registry: Registry = field(default_factory=Registry)
-    footprints: FootprintStore = field(default_factory=lambda: FootprintStore())
-    traces: TraceStore = field(default_factory=lambda: TraceStore())
+    ids: List[str] = field(default_factory=list)  # idk if i need this
+
+    footprints: FootprintStore = field(init=False)
+    traces: TraceStore = field(init=False)
+
+    def __post_init__(self):
+        # Ensure consistent axis names across stores
+        self.footprints = FootprintStore(...)
+        self.traces = TraceStore(...)
 
     def get_observable_x_component(self, composite_type: Type) -> Observable:
         # Test what happens when the composite type is a member of none.
@@ -77,9 +83,8 @@ class DataOutlet:
                 f"The provided type {composite_type} is not a composite type of Observable and FluorescentObject"
             )
 
-        type_ids = self.registry.get_id_by_type(component_type)
-        return getattr(self, self.type_to_store[observable_type]).array.sel(
-            {self.component_axis: type_ids}
+        return getattr(self, self.type_to_store[observable_type]).slice(
+            types=component_type
         )
 
     @property
@@ -91,13 +96,6 @@ class DataOutlet:
             for attr, attr_class in self.__annotations__.items()
             if isinstance(getattr(self, attr), BaseStore)
         }
-
-    def __post_init__(self):
-        # Ensure consistent axis names across managers
-        self.footprints.component_axis = self.component_axis
-        self.footprints.spatial_axes = self.spatial_axes
-        self.traces.component_axis = self.component_axis
-        self.traces.frame_axis = self.frame_axis
 
     @staticmethod
     def _find_intersection_type_of(base_type: Type, instance: Any) -> Type:
@@ -126,10 +124,8 @@ class DataOutlet:
     def _is_unregistered(self, components: xr.DataArray) -> bool:
         return components.coords[self.component_axis].dtype == int
 
-    def _is_registry_subset(self, components: xr.DataArray) -> bool:
-        return set(components.coords[self.component_axis].values).issubset(
-            set(self.registry.ids)
-        )
+    def _is_ids_subset(self, ids: List[str]) -> bool:
+        return set(ids).issubset(set(self.ids))
 
     def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:
         # Init steps: assign1 -> insert2 -> assign3 -> insert4
@@ -158,16 +154,14 @@ class DataOutlet:
             # registered
             if not self._is_unregistered(value):
                 # but some ids are foreign
-                if not self._is_registry_subset(value):
+                if not self._is_ids_subset(value.ids):
                     raise ValueError(
                         "Some incoming components with an ID are not in the registry book."
                     )
             # not registered yet
             else:
-                ids = self.registry.create_many(
-                    value.sizes[self.component_axis], component_type
-                )
-                value = value.assign_coords({self.component_axis: ids})
+                ids = [uuid4().hex for _ in range(value.sizes[self.component_axis])]
+                types = [component_type] * value.sizes[self.component_axis]
 
             # determine which store to input the value into
             if store_name := self.type_to_store.get(observable_type):
