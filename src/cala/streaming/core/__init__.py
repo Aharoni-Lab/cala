@@ -1,4 +1,4 @@
-from .outlet import DataOutlet
+from .outlet import DataExchange
 from .parameters import Parameters
 
-__all__ = ["DataOutlet", "Parameters"]
+__all__ = ["DataExchange", "Parameters"]

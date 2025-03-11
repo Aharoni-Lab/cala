@@ -9,7 +9,7 @@ from cala.streaming.types import FluorescentObject, Observable
 
 
 @dataclass
-class DataOutlet:
+class DataExchange:
     """Manages a collection of fluorescent components (neurons and background)."""
 
     # CRUD: are we updating a store, or overhauling a store?
