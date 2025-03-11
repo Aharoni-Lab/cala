@@ -115,8 +115,47 @@ class TestBaseStore:
         )
 
         # Test inplace=False
-        result = basic_store.delete(["id2"], ["background"], inplace=False)
+        result = basic_store.delete(["id2"], ["neuron"], inplace=False)
+        assert "id0" in result.coords[basic_store.id_coordinate].values
+        assert "id1" in result.coords[basic_store.id_coordinate].values
         assert "id2" not in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" in result.coords[basic_store.id_coordinate].values
+
+        result = basic_store.delete(ids=["id1", "id2"], inplace=False)
+        assert "id0" in result.coords[basic_store.id_coordinate].values
+        assert "id1" not in result.coords[basic_store.id_coordinate].values
+        assert "id2" not in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" in result.coords[basic_store.id_coordinate].values
+
+        result = basic_store.delete(ids=["id1", "id4"], inplace=False)
+        assert "id0" in result.coords[basic_store.id_coordinate].values
+        assert "id1" not in result.coords[basic_store.id_coordinate].values
+        assert "id2" in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" not in result.coords[basic_store.id_coordinate].values
+
+        result = basic_store.delete(ids=["id1", "id4"], types=["neuron"], inplace=False)
+        assert "id0" in result.coords[basic_store.id_coordinate].values
+        assert "id1" not in result.coords[basic_store.id_coordinate].values
+        assert "id2" in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" in result.coords[basic_store.id_coordinate].values
+
+        result = basic_store.delete(ids=["id3", "id4"], types=["neuron"], inplace=False)
+        assert "id0" in result.coords[basic_store.id_coordinate].values
+        assert "id1" in result.coords[basic_store.id_coordinate].values
+        assert "id2" in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" in result.coords[basic_store.id_coordinate].values
+
+        result = basic_store.delete(types=["neuron"], inplace=False)
+        assert "id0" not in result.coords[basic_store.id_coordinate].values
+        assert "id1" not in result.coords[basic_store.id_coordinate].values
+        assert "id2" not in result.coords[basic_store.id_coordinate].values
+        assert "id3" in result.coords[basic_store.id_coordinate].values
+        assert "id4" in result.coords[basic_store.id_coordinate].values
 
         # Test inplace=True
         basic_store.delete(["id1"], ["neuron"], inplace=True)

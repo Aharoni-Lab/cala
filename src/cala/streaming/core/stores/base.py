@@ -117,9 +117,19 @@ class BaseStore(ABC):
 
     def slice(
         self,
-        ids: List[str],
-        types: List[str],
+        ids: Optional[List[str]] = None,
+        types: Optional[List[str]] = None,
     ) -> xr.DataArray:
+        """xarray "sel" method does not support vectorized selection for 2d coordinates (i.e. id=[1, 2, 3]), and thus
+        we're selecting by type first and then multiple id's to leverage as much vectorization as possible.
+
+        Args:
+            ids:
+            types:
+
+        Returns:
+
+        """
         # args = {self.id_coordinate: ids, self.type_coordinate: types}
         # coords = {coord: idx for coord, idx in args.items() if idx is not None}
 
@@ -177,7 +187,10 @@ class BaseStore(ABC):
     ) -> None: ...
 
     def delete(
-        self, ids: List[str], types: List[str], inplace: bool = False
+        self,
+        ids: Optional[List[str]] = None,
+        types: Optional[List[str]] = None,
+        inplace: bool = False,
     ) -> Optional[xr.DataArray]:
         """xarray's `drop_sel` does not seem to support 2d coordinates yet,
         which is odd cause the`sel` method does support it.
@@ -196,6 +209,11 @@ class BaseStore(ABC):
             return self._warehouse.drop_sel(coords)
         ```
         """
+        if ids is None:
+            ids = self._ids
+        if types is None:
+            types = self._types
+
         keep_ids = set(self._ids) - set(ids)
         keep_types = set(self._types) - set(types)
         # we delete intersection, not union
@@ -204,9 +222,9 @@ class BaseStore(ABC):
         keep_ids = list(keep_ids)
 
         if inplace:
-            self._warehouse = self._warehouse.sel({self.id_coordinate: keep_ids})
+            self._warehouse = self.slice(ids=keep_ids)
         else:
-            return self._warehouse.sel({self.id_coordinate: keep_ids})
+            return self.slice(ids=keep_ids)
 
     @overload
     def update(self, data: xr.DataArray, inplace: bool = True) -> None: ...
