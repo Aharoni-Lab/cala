@@ -41,69 +41,78 @@ class BaseStore(ABC):
             },
         )
 
+    def _validate_dims(self, dimensions: Tuple[Hashable, ...]) -> None:
+        if not set(self.dimensions) == set(dimensions):
+            raise ValueError(
+                "The dimensions do not match the store structure.\n"
+                f"\tProvided: {dimensions}\n"
+                f"\tRequired: {self.dimensions}"
+            )
+
+    def _validate_coords(self, coords: Set[Hashable]) -> None:
+        if not {self._id_coord, self._type_coord, self.component_dim}.issuperset(
+                coords
+        ):
+            raise ValueError(
+                f"The coordinates do not match the store structure.\n"
+                f"\tProvided: {coords}\n"
+                f"\tRequired: {self._id_coord, self._type_coord, self.component_dim}"
+            )
+
     @property
     def warehouse(self) -> xr.DataArray:
         return self._warehouse
 
     @warehouse.setter
     def warehouse(self, value: xr.DataArray):
-        if self._validate_dims(value.dims) and self._validate_coords(
-            set(value.coords.keys())
-        ):
-            self._warehouse = value
-
-        else:
-            raise ValueError(
-                f"Inappropriate storage dimensions. Values in this storage must have:\n\tdimensions: {self.dimensions}\n\tcoordinates:{self._id_coord, self._type_coord} that are attached to {self.component_dim}.\nRefer to generate_warehouse method for formatting an unlabeled array."
-            )
-
-    def _validate_dims(self, dimensions: Tuple[Hashable, ...]) -> bool:
-        return set(self.dimensions) == set(dimensions)
-
-    def _validate_coords(self, coords: Set[Hashable]) -> bool:
-        """this also validates the coordinate attachment to index.
-
-        Args:
-            coords:
-
-        Returns:
-
-        """
-        return {self._id_coord, self._type_coord, self.component_dim}.issuperset(coords)
+        self._validate_dims(value.dims)
+        self._validate_coords(set(value.coords.keys()))
+        self._warehouse = value
 
     @overload
     def insert(
         self,
-        data_array: np.ndarray | xr.DataArray,
-        ids: List[str],
-        types: List[str],
+            to_insert: xr.DataArray,
         inplace=True,
     ) -> None: ...
 
     @overload
     def insert(
         self,
-        data_array: np.ndarray | xr.DataArray,
-        ids: List[str],
-        types: List[str],
+            to_insert: xr.DataArray,
         inplace=False,
     ) -> xr.DataArray: ...
 
     def insert(
         self,
-        data_array: np.ndarray | xr.DataArray,
-        ids: Optional[List[str]],
-        types: Optional[List[str]],
+            to_insert: xr.DataArray,
         inplace=False,
     ) -> Optional[xr.DataArray]:
-        if ids and types:
-            to_insert = self.generate_warehouse(data_array, ids, types)
-        else:
-            to_insert = data_array
+        """
+
+        Args:
+            to_insert: only accepts Xarray DataArray formatted for the store. Refer to generate_warehouse method.
+            inplace:
+
+        Returns:
+
+        """
+
+        if inplace and not self.warehouse.dims:
+            self._warehouse = to_insert
+            return None
+
+        self._validate_dims(to_insert.dims)
+        self._validate_coords(set(to_insert.coords.keys()))
+        already_exist = set(to_insert.coords[self._id_coord].values.tolist()) & set(
+            self._ids
+        )
+        if not already_exist == set():
+            raise ValueError(
+                f"IDs {already_exist} already exist in store. Cannot be inserted."
+            )
+
         if inplace:
-            if not self.warehouse.dims:  # not sure about allowing this.
-                self._warehouse = to_insert
-                return None
             self._warehouse = xr.concat(
                 [self._warehouse, to_insert], dim=self.component_dim
             )
