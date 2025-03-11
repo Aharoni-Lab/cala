@@ -170,7 +170,8 @@ class TestBaseStore:
         )
 
         update_data = basic_store.warehouse.copy()
-        update_data.loc[{"id_": "id1"}] = np.ones((2, 2))
+        update_data.loc[{"id_": "id1"}] = np.ones((5, 5))
+        update_data.loc[{"id_": "id2"}] = np.ones((5, 5)) * 2
 
         # Test inplace=True
         basic_store.update(update_data, inplace=True)
