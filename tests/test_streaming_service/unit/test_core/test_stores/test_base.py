@@ -23,10 +23,15 @@ class TestBaseStore:
 
     @pytest.fixture
     def sample_data(self):
+        i_size = j_size = id_size = 5
+
+        x, y, z = np.meshgrid(np.arange(i_size), np.arange(j_size), np.arange(id_size))
+        data = x + y * i_size + z * i_size * j_size
+
         return {
-            "data": np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]),
-            "ids": ["id1", "id2"],
-            "types": ["neuron", "background"],
+            "data": data.transpose(2, 0, 1),  # Reshape to (id_size, j_size, i_size)
+            "ids": [f"id{i}" for i in range(id_size)],
+            "types": ["neuron"] * 3 + ["background"] * 2,
         }
 
     def test_initialization(self, basic_store):
@@ -63,13 +68,19 @@ class TestBaseStore:
         basic_store.insert(
             sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
         )
-        assert len(basic_store.warehouse.coords[basic_store.id_coordinate]) == 2
+        assert len(basic_store.warehouse.coords[basic_store.id_coordinate]) == 5
 
         # Test inplace=False
-        new_data = np.array([[[9, 10], [11, 12]]])
-        result = basic_store.insert(new_data, ["id3"], ["neuropil"], inplace=False)
+        x, y = np.meshgrid(np.arange(5), np.arange(5))
+        new_data = [x + y * 5 + 125, x + y * 5 + 150]
+        result = basic_store.insert(
+            new_data, ["id5", "id6"], ["background", "background"], inplace=False
+        )
         assert isinstance(result, xr.DataArray)
-        assert len(result.coords[basic_store.id_coordinate]) == 3
+        assert all(
+            result.coords[basic_store.id_coordinate].values
+            == [f"id{i}" for i in range(7)]
+        )
 
     def test_slice(self, basic_store, sample_data):
         """Test slice functionality"""
@@ -77,8 +88,22 @@ class TestBaseStore:
             sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
         )
 
-        result = basic_store.slice(["id1"], ["neuron"])
-        assert result.coords[basic_store.id_coordinate].values == "id1"
+        result = basic_store.slice(["id1", "id2", "id4"], ["neuron"])
+        assert np.array_equal(
+            result.coords[basic_store.id_coordinate].values, ["id1", "id2"]
+        )
+
+        result = basic_store.slice(["id1", "id4"], [])
+        assert np.array_equal(
+            result.coords[basic_store.type_coordinate].values,
+            [
+                "neuron",
+                "background",
+            ],
+        )
+
+        result = basic_store.slice([], ["neuron", "background"])
+        assert len(result.coords[basic_store.id_coordinate].values) == 5
 
     def test_delete(self, basic_store, sample_data):
         """Test delete functionality
