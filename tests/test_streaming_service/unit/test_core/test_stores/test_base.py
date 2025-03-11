@@ -160,16 +160,20 @@ class TestBaseStore:
         )
 
         update_data = basic_store.warehouse.copy()
-        update_data.loc[{"id_": "id1"}] = np.ones((5, 5))
-        update_data.loc[{"id_": "id2"}] = np.ones((5, 5)) * 2
+        update_data.set_xindex("id_coord").loc[{"id_coord": "id1"}] = np.ones((5, 5))
+        update_data.set_xindex("id_coord").loc[{"id_coord": "id2"}] = (
+            np.ones((5, 5)) * 2
+        )
 
         # Test inplace=True
         basic_store.update(update_data, inplace=True)
-        assert np.all(basic_store.warehouse.sel(id_="id1") == 1)
+        assert np.all(
+            basic_store.warehouse.set_xindex("id_coord").sel(id_coord="id1") == 1
+        )
 
         # Test inplace=False
         result = basic_store.update(update_data, inplace=False)
-        assert isinstance(result, xr.DataArray)
+        assert np.all(result.set_xindex("id_coord").sel(id_coord="id2") == 2)
 
     def test_property_accessors(self, basic_store, sample_data):
         """Test property accessors"""

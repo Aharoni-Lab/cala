@@ -217,19 +217,9 @@ class BaseStore(ABC):
         data_coords = data.coords[self._id_coord].values.tolist()
 
         if inplace:
-            types = set(data.coords[self._type_coord].values.tolist())
-            for type_ in types:
-                ids = (
-                    data.sel({self._type_coord: type_})
-                    .coords[self._id_coord]
-                    .values.tolist()
-                )
-                self._warehouse.loc[{self._type_coord: type_}] = data.sel(
-                    {self._type_coord: type_}
-                )
-
-            # self._warehouse.loc[data_coords] = data  # shape safe
-            return None
+            self._warehouse.set_xindex(self._id_coord).loc[
+                {self._id_coord: data_coords}
+            ] = data  # shape safe
         else:
             return self.slice(data_coords)
 
