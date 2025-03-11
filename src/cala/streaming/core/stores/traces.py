@@ -6,11 +6,11 @@ import xarray as xr
 from cala.streaming.core.stores import BaseStore
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TraceStore(BaseStore):
     """Manages temporal traces for components."""
 
-    frame_axis: str = "frames"
+    frame_axis: str
     """The axis of the frames."""
 
     @property

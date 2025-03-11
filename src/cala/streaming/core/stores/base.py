@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BaseStore(ABC):
     dimensions: Tuple[str, ...]
     component_dim: str

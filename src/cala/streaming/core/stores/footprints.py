@@ -6,11 +6,11 @@ import xarray as xr
 from cala.streaming.core.stores import BaseStore
 
 
-@dataclass
+@dataclass(kw_only=True)
 class FootprintStore(BaseStore):
     """Manages spatial footprints and their relationships."""
 
-    spatial_axes: Tuple[str, ...] = ("width", "height")
+    spatial_axes: Tuple[str, ...]
     """The spatial axes of the footprints."""
 
     @property
