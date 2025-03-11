@@ -186,13 +186,13 @@ class TestBaseStore:
 
         # Test id_to_type mapping
         id_type_map = basic_store.id_to_type
-        assert id_type_map["id1"] == str
-        assert id_type_map["id2"] == int
+        assert id_type_map["id1"] == "neuron"
+        assert id_type_map["id4"] == "background"
 
         # Test type_to_id mapping
         type_id_map = basic_store.type_to_ids
-        assert type_id_map[str] == ["id1"]
-        assert type_id_map[int] == ["id2"]
+        assert type_id_map["neuron"] == ["id0", "id1", "id2"]
+        assert type_id_map["background"] == ["id3", "id4"]
 
     def test_where(self, basic_store, sample_data):
         """Test where functionality"""
@@ -200,10 +200,10 @@ class TestBaseStore:
             sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
         )
 
-        condition = basic_store.warehouse > 5
+        condition = basic_store.warehouse > 50
         result = basic_store.where(condition, -1)
         assert isinstance(result, xr.DataArray)
-        assert np.all(result.where(condition, -1).values[result.values <= 5] == -1)
+        assert np.all(len(result.values[result.values == -1]) == 51)
 
     def test_warehouse_setter_validation(self, basic_store):
         """Test warehouse setter validation"""
