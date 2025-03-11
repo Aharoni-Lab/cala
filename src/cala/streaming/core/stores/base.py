@@ -117,13 +117,48 @@ class BaseStore(ABC):
 
     def slice(
         self,
-        ids: Optional[List[str]],
-        types: Optional[List[str]],
+        ids: List[str],
+        types: List[str],
     ) -> xr.DataArray:
-        args = {self.id_coordinate: ids, self.type_coordinate: types}
-        coords = {coord: idx for coord, idx in args.items() if idx is not None}
+        # args = {self.id_coordinate: ids, self.type_coordinate: types}
+        # coords = {coord: idx for coord, idx in args.items() if idx is not None}
 
-        return self._warehouse.sel(coords)
+        # return self._warehouse.sel(coords)
+        results = []
+        if not ids:
+            for group, members in self.type_to_id.items():
+                if group in types:
+                    results.append(
+                        self._warehouse.sel({self.type_coordinate: group}).sel(
+                            {self.id_coordinate: members}
+                        )
+                    )
+        else:
+            input_types = [self.id_to_type[id_] for id_ in ids]
+            groups = defaultdict(list)
+            for id_, type_ in zip(ids, input_types):
+                groups[type_].append(id_)
+            for group, members in groups.items():
+                if not types:
+                    results.append(
+                        self._warehouse.sel({self.type_coordinate: group}).sel(
+                            {self.id_coordinate: members}
+                        )
+                    )
+                else:
+                    if group in types:
+                        results.append(
+                            self._warehouse.sel({self.type_coordinate: group}).sel(
+                                {self.id_coordinate: members}
+                            )
+                        )
+
+        if not results:
+            raise KeyError("No elements match the search criteria.")
+        if len(results) == 1:
+            return results[0]
+        else:
+            return xr.concat(results, dim=self.component_dimension)
 
     def where(self, condition, other: Any, drop: bool = False) -> xr.DataArray:
         """refer to xarray dataarray method for docs
