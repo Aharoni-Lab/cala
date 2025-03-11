@@ -17,9 +17,7 @@ class Store(BaseStore):
 class TestBaseStore:
     @pytest.fixture
     def basic_store(self):
-        return Store(
-            dimensions=("component", "x", "y"), component_dimension="component"
-        )
+        return Store(dimensions=("component", "x", "y"), component_dim="component")
 
     @pytest.fixture
     def sample_data(self):
@@ -37,15 +35,15 @@ class TestBaseStore:
     def test_initialization(self, basic_store):
         """Test proper initialization of BaseStore"""
         assert basic_store.dimensions == ("component", "x", "y")
-        assert basic_store.component_dimension == "component"
-        assert basic_store.id_coordinate == "id_"
-        assert basic_store.type_coordinate == "type_"
+        assert basic_store.component_dim == "component"
+        assert basic_store._id_coord == "id_coord"
+        assert basic_store._type_coord == "type_coord"
         assert isinstance(basic_store.warehouse, xr.DataArray)
 
     def test_invalid_component_dimension(self):
         """Test initialization with invalid component dimension"""
         with pytest.raises(ValueError):
-            Store(dimensions=("x", "y"), component_dimension="component")
+            Store(dimensions=("x", "y"), component_dim="component")
 
     def test_generate_store(self, basic_store, sample_data):
         """Test store generation with sample data"""
@@ -54,12 +52,9 @@ class TestBaseStore:
         )
         assert isinstance(result, xr.DataArray)
         assert result.dims == basic_store.dimensions
+        assert list(result.coords[basic_store._id_coord].values) == sample_data["ids"]
         assert (
-            list(result.coords[basic_store.id_coordinate].values) == sample_data["ids"]
-        )
-        assert (
-            list(result.coords[basic_store.type_coordinate].values)
-            == sample_data["types"]
+            list(result.coords[basic_store._type_coord].values) == sample_data["types"]
         )
 
     def test_insert(self, basic_store, sample_data):
@@ -68,7 +63,7 @@ class TestBaseStore:
         basic_store.insert(
             sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
         )
-        assert len(basic_store.warehouse.coords[basic_store.id_coordinate]) == 5
+        assert len(basic_store.warehouse.coords[basic_store._id_coord]) == 5
 
         # Test inplace=False
         x, y = np.meshgrid(np.arange(5), np.arange(5))
@@ -77,9 +72,8 @@ class TestBaseStore:
             new_data, ["id5", "id6"], ["background", "background"], inplace=False
         )
         assert isinstance(result, xr.DataArray)
-        assert all(
-            result.coords[basic_store.id_coordinate].values
-            == [f"id{i}" for i in range(7)]
+        assert np.array_equal(
+            result.coords[basic_store._id_coord].values, [f"id{i}" for i in range(7)]
         )
 
     def test_slice(self, basic_store, sample_data):
@@ -89,21 +83,19 @@ class TestBaseStore:
         )
 
         result = basic_store.slice(["id1", "id2", "id4"], ["neuron"])
-        assert np.array_equal(
-            result.coords[basic_store.id_coordinate].values, ["id1", "id2"]
-        )
+        assert set(result.coords[basic_store._id_coord].values.tolist()) == {
+            "id1",
+            "id2",
+        }
 
         result = basic_store.slice(["id1", "id4"], [])
-        assert np.array_equal(
-            result.coords[basic_store.type_coordinate].values,
-            [
-                "neuron",
-                "background",
-            ],
-        )
+        assert set(result.coords[basic_store._type_coord].values.tolist()) == {
+            "neuron",
+            "background",
+        }
 
         result = basic_store.slice([], ["neuron", "background"])
-        assert len(result.coords[basic_store.id_coordinate].values) == 5
+        assert len(result.coords[basic_store._id_coord].values) == 5
 
     def test_delete(self, basic_store, sample_data):
         """Test delete functionality
@@ -116,52 +108,50 @@ class TestBaseStore:
 
         # Test inplace=False
         result = basic_store.delete(["id2"], ["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store.id_coordinate].values
-        assert "id1" in result.coords[basic_store.id_coordinate].values
-        assert "id2" not in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" in result.coords[basic_store.id_coordinate].values
+        assert "id0" in result.coords[basic_store._id_coord].values
+        assert "id1" in result.coords[basic_store._id_coord].values
+        assert "id2" not in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" in result.coords[basic_store._id_coord].values
 
         result = basic_store.delete(ids=["id1", "id2"], inplace=False)
-        assert "id0" in result.coords[basic_store.id_coordinate].values
-        assert "id1" not in result.coords[basic_store.id_coordinate].values
-        assert "id2" not in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" in result.coords[basic_store.id_coordinate].values
+        assert "id0" in result.coords[basic_store._id_coord].values
+        assert "id1" not in result.coords[basic_store._id_coord].values
+        assert "id2" not in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" in result.coords[basic_store._id_coord].values
 
         result = basic_store.delete(ids=["id1", "id4"], inplace=False)
-        assert "id0" in result.coords[basic_store.id_coordinate].values
-        assert "id1" not in result.coords[basic_store.id_coordinate].values
-        assert "id2" in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" not in result.coords[basic_store.id_coordinate].values
+        assert "id0" in result.coords[basic_store._id_coord].values
+        assert "id1" not in result.coords[basic_store._id_coord].values
+        assert "id2" in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" not in result.coords[basic_store._id_coord].values
 
         result = basic_store.delete(ids=["id1", "id4"], types=["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store.id_coordinate].values
-        assert "id1" not in result.coords[basic_store.id_coordinate].values
-        assert "id2" in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" in result.coords[basic_store.id_coordinate].values
+        assert "id0" in result.coords[basic_store._id_coord].values
+        assert "id1" not in result.coords[basic_store._id_coord].values
+        assert "id2" in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" in result.coords[basic_store._id_coord].values
 
         result = basic_store.delete(ids=["id3", "id4"], types=["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store.id_coordinate].values
-        assert "id1" in result.coords[basic_store.id_coordinate].values
-        assert "id2" in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" in result.coords[basic_store.id_coordinate].values
+        assert "id0" in result.coords[basic_store._id_coord].values
+        assert "id1" in result.coords[basic_store._id_coord].values
+        assert "id2" in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" in result.coords[basic_store._id_coord].values
 
         result = basic_store.delete(types=["neuron"], inplace=False)
-        assert "id0" not in result.coords[basic_store.id_coordinate].values
-        assert "id1" not in result.coords[basic_store.id_coordinate].values
-        assert "id2" not in result.coords[basic_store.id_coordinate].values
-        assert "id3" in result.coords[basic_store.id_coordinate].values
-        assert "id4" in result.coords[basic_store.id_coordinate].values
+        assert "id0" not in result.coords[basic_store._id_coord].values
+        assert "id1" not in result.coords[basic_store._id_coord].values
+        assert "id2" not in result.coords[basic_store._id_coord].values
+        assert "id3" in result.coords[basic_store._id_coord].values
+        assert "id4" in result.coords[basic_store._id_coord].values
 
         # Test inplace=True
         basic_store.delete(["id1"], ["neuron"], inplace=True)
-        assert (
-            "id1" not in basic_store.warehouse.coords[basic_store.id_coordinate].values
-        )
+        assert "id1" not in basic_store.warehouse.coords[basic_store._id_coord].values
 
     def test_update(self, basic_store, sample_data):
         """Test update functionality"""
@@ -196,7 +186,7 @@ class TestBaseStore:
         assert id_type_map["id2"] == int
 
         # Test type_to_id mapping
-        type_id_map = basic_store.type_to_id
+        type_id_map = basic_store.type_to_ids
         assert type_id_map[str] == ["id1"]
         assert type_id_map[int] == ["id2"]
 

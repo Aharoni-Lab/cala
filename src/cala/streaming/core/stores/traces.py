@@ -15,7 +15,7 @@ class TraceStore(BaseStore):
 
     @property
     def dims(self) -> Tuple[str, ...]:
-        return self.frame_axis, self.component_dimension
+        return self.frame_axis, self.component_dim
 
     def temporal_update(
         self, last_streamed_data: xr.DataArray, ids: List[str]
