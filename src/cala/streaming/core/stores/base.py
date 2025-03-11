@@ -92,12 +92,14 @@ class BaseStore(ABC):
     def insert(
         self,
         data_array: np.ndarray | xr.DataArray,
-        ids: List[str],
-        types: List[str],
+        ids: Optional[List[str]],
+        types: Optional[List[str]],
         inplace=False,
     ) -> Optional[xr.DataArray]:
-        # make sure the data_array has no id / type coordinates
-        to_insert = self.generate_warehouse(data_array, ids, types)
+        if ids and types:
+            to_insert = self.generate_warehouse(data_array, ids, types)
+        else:
+            to_insert = data_array
         if inplace:
             if not self.warehouse.dims:  # not sure about allowing this.
                 self._warehouse = to_insert
