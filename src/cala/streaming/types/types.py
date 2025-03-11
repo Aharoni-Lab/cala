@@ -31,7 +31,8 @@ class Traces(Observable):
 class FluorescentObject(object):
     """Base type for any fluorescent object detected."""
 
-    pass
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
 
 class Neuron(FluorescentObject):

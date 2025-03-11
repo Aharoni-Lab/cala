@@ -148,14 +148,15 @@ class BaseStore(ABC):
             groups = defaultdict(list)
             for id_, type_ in zip(ids, input_types):
                 groups[type_].append(id_)
-            for group, members in groups.items():
-                if not types:
+            if not types:
+                for group, members in groups.items():
                     results.append(
                         self._warehouse.sel({self.type_coordinate: group}).sel(
                             {self.id_coordinate: members}
                         )
                     )
-                else:
+            else:
+                for group, members in groups.items():
                     if group in types:
                         results.append(
                             self._warehouse.sel({self.type_coordinate: group}).sel(
@@ -236,24 +237,24 @@ class BaseStore(ABC):
         self, data: xr.DataArray, inplace: bool = False
     ) -> Optional[xr.DataArray]:
         """only allows formatted dataarray with appropriate dims and coords. can use the generate_warehouse method beforehand."""
-        id_ = self.id_coordinate
-
         data_coords = data.coords[self.id_coordinate].values.tolist()
 
-        id_indices = (
-            self.warehouse[self.id_coordinate]
-            .values.tolist()
-            .index(
-                self.warehouse.sel({self.id_coordinate: data_coords[1]})[
-                    self.id_coordinate
-                ]
-            )
-        )
         if inplace:
-            self._warehouse.loc[data_coords] = data  # shape safe
+            types = set(data.coords[self.type_coordinate].values.tolist())
+            for type_ in types:
+                ids = (
+                    data.sel({self.type_coordinate: type_})
+                    .coords[self.id_coordinate]
+                    .values.tolist()
+                )
+                self._warehouse.loc[{self.type_coordinate: type_}] = data.sel(
+                    {self.type_coordinate: type_}
+                )
+
+            # self._warehouse.loc[data_coords] = data  # shape safe
             return None
         else:
-            return self._warehouse.sel(data_coords)
+            return self.slice(data_coords)
 
     @abstractmethod
     def temporal_update(
