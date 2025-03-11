@@ -1,7 +1,7 @@
 from enum import EnumMeta
 from typing import Type
 
-import xarray as xr
+from xarray import DataArray
 
 
 class BetterEnum(EnumMeta):
@@ -14,21 +14,21 @@ class BetterEnum(EnumMeta):
             raise ValueError(msg) from None
 
 
-class Observable(xr.DataArray):
+class Observable(DataArray):
     """Base class for observable objects."""
 
-    pass
+    __slots__ = ()
 
 
 class Footprints(Observable):
-    pass
+    __slots__ = ()
 
 
 class Traces(Observable):
-    pass
+    __slots__ = ()
 
 
-class FluorescentObject(object):
+class FluorescentObject:
     """Base type for any fluorescent object detected."""
 
     def __hash__(self):
@@ -57,7 +57,7 @@ def generate_cross_product_classes() -> dict[str, Type]:
         for component_class in FluorescentObject.__subclasses__():
             class_name = f"{component_class.__name__}{observable_class.__name__}"
             generated_classes[class_name] = type(
-                class_name, (component_class, observable_class), {}
+                class_name, (component_class, observable_class), {"__slots__": ()}
             )
     return generated_classes
 

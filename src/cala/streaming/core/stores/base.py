@@ -229,10 +229,10 @@ class BaseStore(ABC):
     ) -> None: ...
 
     """
-    updates from new frames look different for each store. 
-    e.g. if you have frame_axis or its derivative, the store shape changes. 
+    updates from new frames look different for each store.
+    e.g. if you have frame_axis or its derivative, the store shape changes.
     otherwise the shape stays the same.
-    
+
     an abstractmethod might not be good for this since parameters might be all different.
     """
 
