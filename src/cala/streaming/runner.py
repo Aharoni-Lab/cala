@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict
+from typing import Callable, Any, Dict, Literal
 
 import networkx as nx
 import xarray as xr
+from river import compose
 
 from cala.streaming.core import DataExchange
 from cala.streaming.pipe_config import StreamingConfig
@@ -14,7 +15,20 @@ class Runner:
     state: DataExchange = field(default_factory=lambda: DataExchange())
     is_initialized: bool = False
 
-    def preprocess(self, frame: xr.DataArray): ...
+    def preprocess(self, frame: xr.DataArray) -> Dict[str, Any]:
+        execution_order = self._create_dependency_graph(self.config["preprocess"])
+
+        pipeline = compose.Pipeline()
+
+        for step in execution_order:
+            transformer = self._build_transformer(process="preprocess", step=step)
+
+            pipeline = pipeline | transformer
+
+        pipeline.learn_one(x=frame)
+        result = pipeline.transform_one(x=frame)
+
+        return result
 
     def initialize(self, frame: xr.DataArray):
         """Initialize transformers in dependency order."""
@@ -22,9 +36,7 @@ class Runner:
 
         # Execute transformers in order
         for step in execution_order:
-            config = self.config["initialization"][step]
-            params = config.get("params", {})
-            transformer = config["transformer"](**params)
+            transformer = self._build_transformer(process="initialization", step=step)
 
             # Get dependencies by matching signature categories
             learn_injects = self._get_injects(self.state, transformer.learn_one)
@@ -41,7 +53,24 @@ class Runner:
 
     def update(self): ...
 
-    def _get_injects(self, state: DataExchange, function: Callable) -> Dict[str, Any]:
+    def _build_transformer(
+        self, process: Literal["preprocess", "initialization", "extraction"], step: str
+    ):
+        config = self.config[process][step]
+        params = config.get("params", {})
+        transformer = config["transformer"]
+
+        param_class = transformer.__annotations__.get("params")
+        if param_class:
+            param_obj = param_class(**params)
+            transformer = transformer(param_obj)
+        else:
+            transformer = transformer()
+
+        return transformer
+
+    @staticmethod
+    def _get_injects(state: DataExchange, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
 
         Args:
@@ -60,7 +89,7 @@ class Runner:
             if param_name == "return":
                 continue
             if param_type in state_types:
-                value = getattr(state, state_types[param_type]).array
+                value = getattr(state, state_types[param_type]).warehouse
                 matches[param_name] = value
             elif getattr(param_type, "__bases__", None):
                 try:

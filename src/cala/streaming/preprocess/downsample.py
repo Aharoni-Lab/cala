@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Literal, Optional, Self, Dict
+from typing import List, Literal, Self, Dict
 
 import numpy as np
 import xarray as xr
@@ -30,6 +30,7 @@ class DownsamplerParams(Parameters):
             raise ValueError("'strides' must be greater than 1.")
 
 
+@dataclass
 class Downsampler(base.Transformer):
     """Streaming downsampler for calcium imaging data.
 
@@ -43,10 +44,7 @@ class Downsampler(base.Transformer):
 
     """
 
-    def __init__(self, params: Optional[DownsamplerParams] = None):
-        """Initialize the denoiser with given parameters."""
-        super().__init__()
-        self.params = params or DownsamplerParams()
+    params: DownsamplerParams = field(default_factory=DownsamplerParams)
 
     def learn_one(self, frame: xr.DataArray) -> Self:
         """Update statistics from new frame.

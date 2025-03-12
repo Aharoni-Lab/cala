@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Dict, Optional, Literal
+from dataclasses import dataclass, field
+from typing import Dict, Literal
 
 import cv2
 import numpy as np
@@ -32,6 +32,7 @@ class BackgroundEraserParams(Parameters):
             raise ValueError("kernel_size must be greater than zero")
 
 
+@dataclass
 class BackgroundEraser(base.Transformer):
     """Streaming transformer that removes background from video frames.
 
@@ -40,12 +41,10 @@ class BackgroundEraser(base.Transformer):
     2. Tophat - Morphological tophat operation using a disk-shaped kernel
     """
 
-    def __init__(self, params: Optional[BackgroundEraserParams] = None):
-        """Initialize the background eraser with given parameters."""
-        super().__init__()
+    params: BackgroundEraserParams = field(default_factory=BackgroundEraserParams)
 
-        # Set default parameters if none provided
-        self.params = params or BackgroundEraserParams()
+    def __post_init__(self):
+        """Initialize the background eraser with given parameters."""
 
         # Pre-compute kernel for tophat method
         if self.params.method == "tophat":

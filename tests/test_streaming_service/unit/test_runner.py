@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import cast
 
 import numpy as np
@@ -5,59 +6,110 @@ import pytest
 import xarray as xr
 from river.base import Transformer
 
+from cala.streaming.core import Parameters
 from cala.streaming.initialization.meta import TransformerMeta
 from cala.streaming.pipe_config import StreamingConfig
+from cala.streaming.preprocess.background_removal import BackgroundEraser
+from cala.streaming.preprocess.denoise import Denoiser
+from cala.streaming.preprocess.downsample import Downsampler
+from cala.streaming.preprocess.glow_removal import GlowRemover
 from cala.streaming.runner import Runner
 from cala.streaming.types import NeuronFootprints, NeuronTraces
 from tests.conftest import stabilized_video
 
 
+@dataclass
+class MockMotionCorrectionParams(Parameters):
+    """Parameters for mock motion correction."""
+
+    max_shift: int = 10
+    """Maximum allowed shift in pixels."""
+
+    def validate(self) -> None:
+        if self.max_shift < 0:
+            raise ValueError("max_shift must be non-negative")
+
+
 # Mock transformers for testing
+@dataclass
 class MockMotionCorrection(Transformer, metaclass=TransformerMeta):
-    def __init__(self, max_shift: int = 10):
-        self.max_shift = max_shift
-        self.frame = None
+    params: MockMotionCorrectionParams = field(
+        default_factory=MockMotionCorrectionParams
+    )
+    frame_: xr.DataArray = field(init=False)
 
     def learn_one(self, frame: xr.DataArray) -> None:
-        self.frame = frame
+        self.frame_ = frame
         return None
 
     def transform_one(self, _=None) -> xr.DataArray:
         # Simulate motion correction by returning the same frame
-        return xr.DataArray(self.frame)
+        if self.frame_ is None:
+            raise ValueError("No frame has been learned yet")
+        return xr.DataArray(self.frame_)
 
 
+@dataclass
+class MockNeuronDetectionParams(Parameters):
+    """Parameters for mock neuron detection."""
+
+    num_components: int = 100
+    """Number of neural components to detect."""
+
+    def validate(self) -> None:
+        if self.num_components <= 0:
+            raise ValueError("num_components must be positive")
+
+
+@dataclass
 class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
-    def __init__(self, num_components: int = 100):
-        self.num_components = num_components
-        self.frame = None
+    params: MockNeuronDetectionParams = field(default_factory=MockNeuronDetectionParams)
+    frame_: xr.DataArray = field(init=False)
 
     def learn_one(self, frame: xr.DataArray) -> None:
-        self.frame = frame
+        self.frame_ = frame
         return None
 
     def transform_one(self, _=None) -> NeuronFootprints:
         # Create mock neuron footprints
-        data = np.random.rand(self.num_components, *self.frame.shape)
+        if self.frame_ is None:
+            raise ValueError("No frame has been learned yet")
+        data = np.random.rand(self.params.num_components, *self.frame_.shape)
         return NeuronFootprints(
             data,
             dims=["components", "height", "width"],
             coords={
-                "components": range(self.num_components),
-                "height": self.frame.coords["height"],
-                "width": self.frame.coords["width"],
+                "components": range(self.params.num_components),
+                "height": self.frame_.coords["height"],
+                "width": self.frame_.coords["width"],
             },
         )
 
 
+@dataclass
+class MockTraceExtractorParams(Parameters):
+    """Parameters for mock trace extraction."""
+
+    method: str = "pca"
+    """Method used for trace extraction."""
+
+    def validate(self) -> None:
+        if self.method not in ["pca", "nmf"]:
+            raise ValueError("method must be one of ['pca', 'nmf']")
+
+
+@dataclass
 class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
-    def __init__(self, method: str = "pca"):
-        self.method = method
+    params: MockTraceExtractorParams = field(default_factory=MockTraceExtractorParams)
+    frame_: xr.DataArray = field(init=False)
 
     def learn_one(self, frame: xr.DataArray) -> None:
+        self.frame_ = frame
         return None
 
     def transform_one(self, neuron_footprints: NeuronFootprints) -> NeuronTraces:
+        if self.frame_ is None:
+            raise ValueError("No frame has been learned yet")
         # Create mock traces
         data = np.random.rand(len(neuron_footprints), 100)  # 100 timepoints
         return NeuronTraces(
@@ -95,6 +147,43 @@ def basic_config() -> StreamingConfig:
                     "transformer": MockTraceExtractor,
                     "params": {"method": "pca"},
                     "requires": ["neuron_detection"],
+                },
+            }
+        },
+    )
+
+
+@pytest.fixture
+def preprocess_config() -> StreamingConfig:
+    return cast(
+        StreamingConfig,
+        {
+            "preprocess": {
+                "downsample": {
+                    "transformer": Downsampler,
+                    "params": {
+                        "method": "mean",
+                        "dimensions": ["width", "height"],
+                        "strides": [2, 2],
+                    },
+                },
+                "denoise": {
+                    "transformer": Denoiser,
+                    "params": {
+                        "method": "gaussian",
+                        "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
+                    },
+                    "requires": ["downsample"],
+                },
+                "glow_removal": {
+                    "transformer": GlowRemover,
+                    "params": {},
+                    "requires": ["denoise"],
+                },
+                "background_removal": {
+                    "transformer": BackgroundEraser,
+                    "params": {"method": "uniform", "kernel_size": 3},
+                    "requires": ["glow_removal"],
                 },
             }
         },
@@ -170,3 +259,34 @@ def test_state_updates(basic_config, stabilized_video):
 
 
 # def test_with_footprint_and_traces
+
+
+def test_preprocess_initialization(preprocess_config):
+    runner = Runner(preprocess_config)
+    assert runner.config == preprocess_config
+
+
+def test_preprocess_execution(preprocess_config, stabilized_video):
+    runner = Runner(preprocess_config)
+    video, _, _ = stabilized_video
+    frame = next(iter(video))
+
+    # Test preprocessing pipeline
+    result = runner.preprocess(frame)
+
+    assert isinstance(result, xr.DataArray)
+
+    # Verify dimensions are reduced by downsampling
+    original_shape = frame.shape
+    processed_frame = result
+    assert processed_frame.shape[0] == original_shape[0] // 2
+    assert processed_frame.shape[1] == original_shape[1] // 2
+
+
+def test_preprocess_dependency_resolution(preprocess_config):
+    runner = Runner(preprocess_config)
+    execution_order = runner._create_dependency_graph(preprocess_config["preprocess"])
+
+    # Verify correct execution order
+    expected_order = ["downsample", "denoise", "glow_removal", "background_removal"]
+    assert list(execution_order) == expected_order
