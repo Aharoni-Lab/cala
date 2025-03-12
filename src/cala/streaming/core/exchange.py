@@ -1,26 +1,24 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Type
+from uuid import uuid4
 
 import xarray as xr
 
-from cala.streaming.core.components.registry import Registry
-from cala.streaming.core.components.stores import FootprintStore, TraceStore
+from cala.streaming.core.stores import FootprintStore, TraceStore
 from cala.streaming.types import FluorescentObject, Observable
 
 
 @dataclass
-class DataOutlet:
+class DataExchange:
     """Manages a collection of fluorescent components (neurons and background)."""
 
     # CRUD: are we updating a store, or overhauling a store?
     # REMINDER: outlet has the record of ALL ids.
     # REMINDER: Now we are type safe!!!
 
-    # Init steps: register -> assign -> insert -> assign -> insert
+    # Init steps: assign -> insert -> assign -> insert
 
     # The following list covers all operations that can ACCEPT an array. (✅🏗)
-
-    # DURING INIT: it's all different. i might need a separate state for init stage.
 
     # scenario 4: cells do not exist. new array with ids come in
     # (load) we're loading saved data into a fresh outlet.
@@ -59,9 +57,27 @@ class DataOutlet:
     frame_axis: str = "frames"
     """The axis of the frames."""
 
-    registry: Registry = field(default_factory=Registry)
-    footprints: FootprintStore = field(default_factory=lambda: FootprintStore())
-    traces: TraceStore = field(default_factory=lambda: TraceStore())
+    id_coord: str = "id_"
+    type_coord: str = "type_"
+
+    footprints: FootprintStore = field(init=False)
+    traces: TraceStore = field(init=False)
+
+    def __post_init__(self):
+        self.footprints = FootprintStore(
+            dimensions=(self.component_axis, *self.spatial_axes),
+            component_dim=self.component_axis,
+            spatial_axes=self.spatial_axes,
+            id_coord=self.id_coord,
+            type_coord=self.type_coord,
+        )
+        self.traces = TraceStore(
+            dimensions=(self.component_axis, self.frame_axis),
+            component_dim=self.component_axis,
+            frame_axis=self.frame_axis,
+            id_coord=self.id_coord,
+            type_coord=self.type_coord,
+        )
 
     def get_observable_x_component(self, composite_type: Type) -> Observable:
         # Test what happens when the composite type is a member of none.
@@ -77,9 +93,8 @@ class DataOutlet:
                 f"The provided type {composite_type} is not a composite type of Observable and FluorescentObject"
             )
 
-        type_ids = self.registry.get_id_by_type(component_type)
-        return getattr(self, self.type_to_store[observable_type]).array.sel(
-            {self.component_axis: type_ids}
+        return getattr(self, self.type_to_store[observable_type]).slice(
+            types=[component_type.__name__]
         )
 
     @property
@@ -87,17 +102,10 @@ class DataOutlet:
         from .stores import BaseStore
 
         return {
-            type(attr_class().array): attr
-            for attr, attr_class in self.__annotations__.items()
+            getattr(self, attr).data_type: attr
+            for attr in self.__annotations__.keys()
             if isinstance(getattr(self, attr), BaseStore)
         }
-
-    def __post_init__(self):
-        # Ensure consistent axis names across managers
-        self.footprints.component_axis = self.component_axis
-        self.footprints.spatial_axes = self.spatial_axes
-        self.traces.component_axis = self.component_axis
-        self.traces.frame_axis = self.frame_axis
 
     @staticmethod
     def _find_intersection_type_of(base_type: Type, instance: Any) -> Type:
@@ -124,12 +132,7 @@ class DataOutlet:
         return component_type.pop()
 
     def _is_unregistered(self, components: xr.DataArray) -> bool:
-        return components.coords[self.component_axis].dtype == int
-
-    def _is_registry_subset(self, components: xr.DataArray) -> bool:
-        return set(components.coords[self.component_axis].values).issubset(
-            set(self.registry.ids)
-        )
+        return len([k for k, v in components.coords.items() if k == self.id_coord]) == 0
 
     def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:
         # Init steps: assign1 -> insert2 -> assign3 -> insert4
@@ -144,7 +147,6 @@ class DataOutlet:
         results = (result,) if isinstance(result, xr.DataArray) else result
 
         for value in results:
-
             try:
                 observable_type = self._find_intersection_type_of(
                     base_type=Observable, instance=value
@@ -157,26 +159,19 @@ class DataOutlet:
 
             # registered
             if not self._is_unregistered(value):
-                # but some ids are foreign
-                if not self._is_registry_subset(value):
-                    raise ValueError(
-                        "Some incoming components with an ID are not in the registry book."
-                    )
+                # determine which store to input the value into
+                if store_name := self.type_to_store.get(observable_type):
+                    getattr(self, store_name).insert(value, inplace=True)
             # not registered yet
             else:
-                ids = self.registry.create_many(
-                    value.sizes[self.component_axis], component_type
-                )
-                value = value.assign_coords({self.component_axis: ids})
-
-            # determine which store to input the value into
-            if store_name := self.type_to_store.get(observable_type):
-
-                # if the store is empty, we assign instead of insert
-                if len(getattr(self, store_name).array.sizes) == 0:
-                    getattr(self, store_name).array = value
-                else:
-                    getattr(self, store_name).insert(value)
+                ids = [uuid4() for _ in range(value.sizes[self.component_axis])]
+                types = [component_type.__name__] * value.sizes[self.component_axis]
+                # determine which store to input the value into
+                if store_name := self.type_to_store.get(observable_type):
+                    value = getattr(self, store_name).generate_warehouse(
+                        value, ids, types
+                    )
+                    getattr(self, store_name).insert(value, inplace=True)
 
     def _assign(self, result: xr.DataArray | tuple[xr.DataArray, ...]):
         """Assign the entire matching store with the result.

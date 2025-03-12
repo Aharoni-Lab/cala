@@ -4,14 +4,14 @@ from typing import Callable, Any, Dict
 import networkx as nx
 import xarray as xr
 
-from cala.streaming.core.components import DataOutlet
+from cala.streaming.core import DataExchange
 from cala.streaming.pipe_config import StreamingConfig
 
 
 @dataclass
 class Runner:
     config: StreamingConfig
-    state: DataOutlet = field(default_factory=lambda: DataOutlet())
+    state: DataExchange = field(default_factory=lambda: DataExchange())
     is_initialized: bool = False
 
     def preprocess(self, frame: xr.DataArray): ...
@@ -41,7 +41,7 @@ class Runner:
 
     def update(self): ...
 
-    def _get_injects(self, state: DataOutlet, function: Callable) -> Dict[str, Any]:
+    def _get_injects(self, state: DataExchange, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
 
         Args:

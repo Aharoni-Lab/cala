@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 from typing import Self
 
 import xarray as xr
-from cala.streaming.core.components.categories import ComponentType
+from cala.streaming.core.components import ComponentBigDaddy
+from cala.streaming.core.components import ComponentType
 from river.base import SupervisedTransformer
 
 from cala.streaming.core import Parameters
-from cala.streaming.core.components import ComponentBigDaddy
 
 
 @dataclass
