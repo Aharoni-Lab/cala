@@ -18,10 +18,6 @@ class FootprintStore(BaseStore):
     def data_type(self) -> Type:
         return Footprints
 
-    @property
-    def dims(self) -> Tuple[str, ...]:
-        return self.component_dim, *self.spatial_axes
-
     def temporal_update(self, last_streamed_data: xr.DataArray, ids: List[str]) -> None:
         pass
 

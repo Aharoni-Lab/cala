@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple, List, Type
+from typing import List, Type
 
 import xarray as xr
 
@@ -17,10 +17,6 @@ class TraceStore(BaseStore):
     @property
     def data_type(self) -> Type:
         return Traces
-
-    @property
-    def dims(self) -> Tuple[str, ...]:
-        return self.frame_axis, self.component_dim
 
     def temporal_update(
         self, last_streamed_data: xr.DataArray, ids: List[str]
