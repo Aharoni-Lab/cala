@@ -64,8 +64,14 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
             data,
             dims=["components", "frames"],
             coords={
-                "components": neuron_footprints.coords["components"],
-                "frames": range(100),
+                "type_": (
+                    ["components"],
+                    neuron_footprints.coords["type_"].values,
+                ),
+                "id_": (
+                    ["components"],
+                    neuron_footprints.coords["id_"].values,
+                ),
             },
         )
 
@@ -107,13 +113,20 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             state = runner.initialize(frame=frame)
 
-    assert set(state.registry.ids) == set(
-        state.footprints.array.coords["components"].values
+    assert state.footprints.warehouse.sizes == {
+        "components": 10,
+        "width": 512,
+        "height": 512,
+    }
+    assert state.traces.warehouse.sizes == {"components": 10, "frames": 100}
+    assert np.array_equal(
+        state.footprints.warehouse.coords["id_"].values,
+        state.traces.warehouse.coords["id_"].values,
     )
-    assert set(state.registry.ids) == set(
-        state.traces.array.coords["components"].values
+    assert np.array_equal(
+        state.footprints.warehouse.coords["type_"].values,
+        state.traces.warehouse.coords["type_"].values,
     )
-    assert state.registry.n_components == 10
 
 
 def test_cyclic_dependency_detection(stabilized_video):

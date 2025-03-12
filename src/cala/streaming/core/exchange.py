@@ -72,7 +72,7 @@ class DataExchange:
             type_coord=self.type_coord,
         )
         self.traces = TraceStore(
-            dimensions=(self.component_axis, *self.spatial_axes),
+            dimensions=(self.component_axis, self.frame_axis),
             component_dim=self.component_axis,
             frame_axis=self.frame_axis,
             id_coord=self.id_coord,
@@ -161,7 +161,7 @@ class DataExchange:
             if not self._is_unregistered(value):
                 # determine which store to input the value into
                 if store_name := self.type_to_store.get(observable_type):
-                    getattr(self, store_name).insert(value)
+                    getattr(self, store_name).insert(value, inplace=True)
             # not registered yet
             else:
                 ids = [uuid4() for _ in range(value.sizes[self.component_axis])]
