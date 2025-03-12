@@ -12,10 +12,15 @@ class BaseStore(ABC):
     dimensions: Tuple[str, ...]
     component_dim: str
 
-    _id_coord: str = "id_coord"
-    _type_coord: str = "type_coord"
+    id_coord: str = "id_coord"
+    type_coord: str = "type_coord"
 
     _warehouse: xr.DataArray = field(default_factory=lambda: xr.DataArray())
+
+    @property
+    @abstractmethod
+    def data_type(self):
+        return type
 
     def __post_init__(self):
         if self.component_dim not in self.dimensions:
@@ -25,19 +30,22 @@ class BaseStore(ABC):
         empty_array = np.empty(shape=tuple([0] * len(self.dimensions)))
         empty_ids = []
         empty_types = []
-        self.generate_warehouse(
+        self.warehouse = self.generate_warehouse(
             data_array=empty_array, ids=empty_ids, types=empty_types
         )
 
     def generate_warehouse(
-        self, data_array: np.ndarray | xr.DataArray, ids: List[str], types: List[str]
+        self,
+        data_array: np.ndarray | xr.DataArray,
+        ids: List[Hashable],
+        types: List[Hashable],
     ) -> xr.DataArray:
         return xr.DataArray(
             data_array,
             dims=self.dimensions,
             coords={
-                self._type_coord: ([self.component_dim], types),
-                self._id_coord: ([self.component_dim], ids),
+                self.type_coord: ([self.component_dim], types),
+                self.id_coord: ([self.component_dim], ids),
             },
         )
 
@@ -50,13 +58,14 @@ class BaseStore(ABC):
             )
 
     def _validate_coords(self, coords: Set[Hashable]) -> None:
-        if not {self._id_coord, self._type_coord, self.component_dim}.issuperset(
-                coords
+        if not (
+            {self.id_coord, self.type_coord, self.component_dim}.issuperset(coords)
+            and len(coords) > 1
         ):
             raise ValueError(
                 f"The coordinates do not match the store structure.\n"
                 f"\tProvided: {coords}\n"
-                f"\tRequired: {self._id_coord, self._type_coord, self.component_dim}"
+                f"\tRequired: {self.id_coord, self.type_coord, self.component_dim}"
             )
 
     @property
@@ -72,20 +81,20 @@ class BaseStore(ABC):
     @overload
     def insert(
         self,
-            to_insert: xr.DataArray,
+        to_insert: xr.DataArray,
         inplace=True,
     ) -> None: ...
 
     @overload
     def insert(
         self,
-            to_insert: xr.DataArray,
+        to_insert: xr.DataArray,
         inplace=False,
     ) -> xr.DataArray: ...
 
     def insert(
         self,
-            to_insert: xr.DataArray,
+        to_insert: xr.DataArray,
         inplace=False,
     ) -> Optional[xr.DataArray]:
         """
@@ -98,13 +107,13 @@ class BaseStore(ABC):
 
         """
 
-        if inplace and not self.warehouse.dims:
+        if inplace and np.sum(self.warehouse.shape) == 0:
             self._warehouse = to_insert
             return None
 
         self._validate_dims(to_insert.dims)
         self._validate_coords(set(to_insert.coords.keys()))
-        already_exist = set(to_insert.coords[self._id_coord].values.tolist()) & set(
+        already_exist = set(to_insert.coords[self.id_coord].values.tolist()) & set(
             self._ids
         )
         if not already_exist == set():
@@ -142,9 +151,9 @@ class BaseStore(ABC):
             ids = list(set(ids) & set(self.types_to_ids(types)))
 
         return (
-            self._warehouse.set_xindex(self._id_coord)
-            .sel({self._id_coord: ids})
-            .reset_index(self._id_coord)
+            self._warehouse.set_xindex(self.id_coord)
+            .sel({self.id_coord: ids})
+            .reset_index(self.id_coord)
         )
 
     def where(self, condition, other: Any, drop: bool = False) -> xr.DataArray:
@@ -193,13 +202,13 @@ class BaseStore(ABC):
             ids = list(set(ids) & set(self.types_to_ids(types)))
 
         result = self._warehouse.set_index(
-            {self.component_dim: self._id_coord}
+            {self.component_dim: self.id_coord}
         ).drop_sel({self.component_dim: ids})
 
         if inplace:
             self._warehouse = result.assign_coords(
                 {
-                    self._id_coord: (
+                    self.id_coord: (
                         self.component_dim,
                         result.coords[self.component_dim].values.tolist(),
                     )
@@ -208,7 +217,7 @@ class BaseStore(ABC):
         else:
             return result.assign_coords(
                 {
-                    self._id_coord: (
+                    self.id_coord: (
                         self.component_dim,
                         result.coords[self.component_dim].values.tolist(),
                     )
@@ -225,11 +234,11 @@ class BaseStore(ABC):
         self, data: xr.DataArray, inplace: bool = False
     ) -> Optional[xr.DataArray]:
         """only allows formatted dataarray with appropriate dims and coords. can use the generate_warehouse method beforehand."""
-        data_coords = data.coords[self._id_coord].values.tolist()
+        data_coords = data.coords[self.id_coord].values.tolist()
 
         if inplace:
-            self._warehouse.set_xindex(self._id_coord).loc[
-                {self._id_coord: data_coords}
+            self._warehouse.set_xindex(self.id_coord).loc[
+                {self.id_coord: data_coords}
             ] = data  # shape safe
         else:
             return self.slice(data_coords)
@@ -249,11 +258,11 @@ class BaseStore(ABC):
 
     @property
     def _types(self) -> List[str]:
-        return self._warehouse.coords[self._type_coord].values.tolist()
+        return self._warehouse.coords[self.type_coord].values.tolist()
 
     @property
     def _ids(self) -> List[str]:
-        return self._warehouse.coords[self._id_coord].values.tolist()
+        return self._warehouse.coords[self.id_coord].values.tolist()
 
     @property
     def id_to_type(self) -> Dict[str, str]:

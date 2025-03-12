@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Type
 
 import xarray as xr
 
 from cala.streaming.core.stores import BaseStore
+from cala.streaming.types import Footprints
 
 
 @dataclass(kw_only=True)
@@ -12,6 +13,10 @@ class FootprintStore(BaseStore):
 
     spatial_axes: Tuple[str, ...]
     """The spatial axes of the footprints."""
+
+    @property
+    def data_type(self) -> Type:
+        return Footprints
 
     @property
     def dims(self) -> Tuple[str, ...]:
