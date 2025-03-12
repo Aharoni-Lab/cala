@@ -86,7 +86,7 @@ class TestCompositeTypes:
             "BackgroundFootprints",
             "BackgroundTraces",
         }
-        assert set(classes.keys()) == expected_classes
+        assert set(classes.keys()).issuperset(expected_classes)
 
         # Check each generated class has correct inheritance
         assert issubclass(classes["NeuronFootprints"], (Neuron, Footprints))

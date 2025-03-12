@@ -91,14 +91,14 @@ class TestDataExchangeCollection:
         exchange.collect(mock_data_array)
         # Verify that UUIDs were assigned
         assert all(
-            isinstance(UUID(comp_id, version=4), UUID)
-            for comp_id in exchange.footprints.warehouse.coords["id_coord"].values
+            isinstance(comp_id, UUID)
+            for comp_id in exchange.footprints.warehouse.coords["id_"].values
         )
 
     def test_collect_registered_components(self, exchange, mock_data_array):
         # First collection to register components
         exchange.collect(mock_data_array)
-        original_ids = exchange.footprints.warehouse.coords["id_coord"].values
+        original_ids = exchange.footprints.warehouse.coords["id_"].values
 
         # Second collection with same data
         exchange.collect(
@@ -111,7 +111,7 @@ class TestDataExchangeCollection:
 
         # Verify IDs are accumulated
         assert set(original_ids).issubset(
-            set(exchange.footprints.warehouse.coords["id_coord"].values)
+            set(exchange.footprints.warehouse.coords["id_"].values)
         )
         assert exchange.footprints.warehouse.sizes["components"] == 6
 

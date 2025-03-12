@@ -5,10 +5,13 @@ import pytest
 import xarray as xr
 
 from cala.streaming.core.stores.base import BaseStore
+from cala.streaming.types import Footprints
 
 
 class Store(BaseStore):
     """Concrete implementation of BaseStore for testing"""
+
+    data_type = Footprints
 
     def temporal_update(self, last_streamed_data: xr.DataArray, ids: List[str]) -> None:
         pass
