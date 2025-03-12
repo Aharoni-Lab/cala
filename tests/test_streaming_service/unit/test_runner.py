@@ -200,21 +200,21 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
     video, _, _ = stabilized_video
     for frame in video:
         while not runner.is_initialized:
-            state = runner.initialize(frame=frame)
+            runner.initialize(frame=frame)
 
-    assert state.footprints.warehouse.sizes == {
+    assert runner.state.footprints.warehouse.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert state.traces.warehouse.sizes == {"components": 10, "frames": 100}
+    assert runner.state.traces.warehouse.sizes == {"components": 10, "frames": 100}
     assert np.array_equal(
-        state.footprints.warehouse.coords["id_"].values,
-        state.traces.warehouse.coords["id_"].values,
+        runner.state.footprints.warehouse.coords["id_"].values,
+        runner.state.traces.warehouse.coords["id_"].values,
     )
     assert np.array_equal(
-        state.footprints.warehouse.coords["type_"].values,
-        state.traces.warehouse.coords["type_"].values,
+        runner.state.footprints.warehouse.coords["type_"].values,
+        runner.state.traces.warehouse.coords["type_"].values,
     )
 
 
@@ -249,10 +249,10 @@ def test_state_updates(basic_config, stabilized_video):
     video, _, _ = stabilized_video
     for frame in video:
         while not runner.is_initialized:
-            state = runner.initialize(frame)
+            runner.initialize(frame)
     # Check if state contains expected attributes
-    neuron_footprint = state.get_observable_x_component(NeuronFootprints)
-    neuron_traces = state.get_observable_x_component(NeuronTraces)
+    neuron_footprint = runner.state.get_observable_x_component(NeuronFootprints)
+    neuron_traces = runner.state.get_observable_x_component(NeuronTraces)
     assert neuron_footprint.__len__() != 0
     assert neuron_traces.__len__() != 0
     assert neuron_traces.__len__() == neuron_footprint.__len__()

@@ -38,20 +38,22 @@ class Runner:
         for step in execution_order:
             transformer = self._build_transformer(process="initialization", step=step)
 
-            # Get dependencies by matching signature categories
-            learn_injects = self._get_injects(self.state, transformer.learn_one)
-            transform_injects = self._get_injects(self.state, transformer.transform_one)
-
-            # Initialize and run transformer
-            transformer.learn_one(frame=frame, **learn_injects)
-            result = transformer.transform_one(**transform_injects)
+            result = self._learn_transform(transformer=transformer, frame=frame)
 
             self.state.collect(result)
 
         self.is_initialized = True
-        return self.state
 
-    def update(self): ...
+    def extract(self, frame: xr.DataArray):
+        execution_order = self._create_dependency_graph(self.config["extraction"])
+
+        # Execute transformers in order
+        for step in execution_order:
+            transformer = self._build_transformer(process="extraction", step=step)
+
+            result = self._learn_transform(transformer=transformer, frame=frame)
+
+            self.state.collect(result)
 
     def _build_transformer(
         self, process: Literal["preprocess", "initialization", "extraction"], step: str
@@ -68,6 +70,17 @@ class Runner:
             transformer = transformer()
 
         return transformer
+
+    def _learn_transform(self, transformer, frame: xr.DataArray):
+        # Get dependencies by matching signature categories
+        learn_injects = self._get_injects(self.state, transformer.learn_one)
+        transform_injects = self._get_injects(self.state, transformer.transform_one)
+
+        # Initialize and run transformer
+        transformer.learn_one(frame=frame, **learn_injects)
+        result = transformer.transform_one(**transform_injects)
+
+        return result
 
     @staticmethod
     def _get_injects(state: DataExchange, function: Callable) -> Dict[str, Any]:
