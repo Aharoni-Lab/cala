@@ -36,8 +36,8 @@ class TestBaseStore:
         """Test proper initialization of BaseStore"""
         assert basic_store.dimensions == ("component", "x", "y")
         assert basic_store.component_dim == "component"
-        assert basic_store._id_coord == "id_coord"
-        assert basic_store._type_coord == "type_coord"
+        assert basic_store.id_coord == "id_coord"
+        assert basic_store.type_coord == "type_coord"
         assert isinstance(basic_store.warehouse, xr.DataArray)
 
     def test_invalid_component_dimension(self):
@@ -52,112 +52,117 @@ class TestBaseStore:
         )
         assert isinstance(result, xr.DataArray)
         assert result.dims == basic_store.dimensions
-        assert list(result.coords[basic_store._id_coord].values) == sample_data["ids"]
+        assert list(result.coords[basic_store.id_coord].values) == sample_data["ids"]
         assert (
-            list(result.coords[basic_store._type_coord].values) == sample_data["types"]
+            list(result.coords[basic_store.type_coord].values) == sample_data["types"]
         )
 
     def test_insert(self, basic_store, sample_data):
         """Test insert functionality"""
         # Test inplace=True
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
-        assert len(basic_store.warehouse.coords[basic_store._id_coord]) == 5
+        basic_store.insert(initial_data, inplace=True)
+        assert len(basic_store.warehouse.coords[basic_store.id_coord]) == 5
 
         # Test inplace=False
         x, y = np.meshgrid(np.arange(5), np.arange(5))
         new_data = [x + y * 5 + 125, x + y * 5 + 150]
-        result = basic_store.insert(
-            new_data, ["id5", "id6"], ["background", "background"], inplace=False
+        new_warehouse = basic_store.generate_warehouse(
+            new_data, ["id5", "id6"], ["background", "background"]
         )
+        result = basic_store.insert(new_warehouse, inplace=False)
         assert isinstance(result, xr.DataArray)
         assert np.array_equal(
-            result.coords[basic_store._id_coord].values, [f"id{i}" for i in range(7)]
+            result.coords[basic_store.id_coord].values, [f"id{i}" for i in range(7)]
         )
 
     def test_slice(self, basic_store, sample_data):
         """Test slice functionality"""
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
+        basic_store.insert(initial_data, inplace=True)
 
         result = basic_store.slice(["id1", "id2", "id4"], ["neuron"])
-        assert set(result.coords[basic_store._id_coord].values.tolist()) == {
+        assert set(result.coords[basic_store.id_coord].values.tolist()) == {
             "id1",
             "id2",
         }
 
         result = basic_store.slice(["id1", "id4"], [])
-        assert set(result.coords[basic_store._type_coord].values.tolist()) == {
+        assert set(result.coords[basic_store.type_coord].values.tolist()) == {
             "neuron",
             "background",
         }
 
         result = basic_store.slice([], ["neuron", "background"])
-        assert len(result.coords[basic_store._id_coord].values) == 5
+        assert len(result.coords[basic_store.id_coord].values) == 5
 
     def test_delete(self, basic_store, sample_data):
         """Test delete functionality
 
         should add more tests for multiple ids, and types that overlap / doesn't overlap etc.
         """
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
+        basic_store.insert(initial_data, inplace=True)
 
         # Test inplace=False
         result = basic_store.delete(["id2"], ["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store._id_coord].values
-        assert "id1" in result.coords[basic_store._id_coord].values
-        assert "id2" not in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" in result.coords[basic_store._id_coord].values
+        assert "id0" in result.coords[basic_store.id_coord].values
+        assert "id1" in result.coords[basic_store.id_coord].values
+        assert "id2" not in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" in result.coords[basic_store.id_coord].values
 
         result = basic_store.delete(ids=["id1", "id2"], inplace=False)
-        assert "id0" in result.coords[basic_store._id_coord].values
-        assert "id1" not in result.coords[basic_store._id_coord].values
-        assert "id2" not in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" in result.coords[basic_store._id_coord].values
+        assert "id0" in result.coords[basic_store.id_coord].values
+        assert "id1" not in result.coords[basic_store.id_coord].values
+        assert "id2" not in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" in result.coords[basic_store.id_coord].values
 
         result = basic_store.delete(ids=["id1", "id4"], inplace=False)
-        assert "id0" in result.coords[basic_store._id_coord].values
-        assert "id1" not in result.coords[basic_store._id_coord].values
-        assert "id2" in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" not in result.coords[basic_store._id_coord].values
+        assert "id0" in result.coords[basic_store.id_coord].values
+        assert "id1" not in result.coords[basic_store.id_coord].values
+        assert "id2" in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" not in result.coords[basic_store.id_coord].values
 
         result = basic_store.delete(ids=["id1", "id4"], types=["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store._id_coord].values
-        assert "id1" not in result.coords[basic_store._id_coord].values
-        assert "id2" in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" in result.coords[basic_store._id_coord].values
+        assert "id0" in result.coords[basic_store.id_coord].values
+        assert "id1" not in result.coords[basic_store.id_coord].values
+        assert "id2" in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" in result.coords[basic_store.id_coord].values
 
         result = basic_store.delete(ids=["id3", "id4"], types=["neuron"], inplace=False)
-        assert "id0" in result.coords[basic_store._id_coord].values
-        assert "id1" in result.coords[basic_store._id_coord].values
-        assert "id2" in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" in result.coords[basic_store._id_coord].values
+        assert "id0" in result.coords[basic_store.id_coord].values
+        assert "id1" in result.coords[basic_store.id_coord].values
+        assert "id2" in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" in result.coords[basic_store.id_coord].values
 
         result = basic_store.delete(types=["neuron"], inplace=False)
-        assert "id0" not in result.coords[basic_store._id_coord].values
-        assert "id1" not in result.coords[basic_store._id_coord].values
-        assert "id2" not in result.coords[basic_store._id_coord].values
-        assert "id3" in result.coords[basic_store._id_coord].values
-        assert "id4" in result.coords[basic_store._id_coord].values
+        assert "id0" not in result.coords[basic_store.id_coord].values
+        assert "id1" not in result.coords[basic_store.id_coord].values
+        assert "id2" not in result.coords[basic_store.id_coord].values
+        assert "id3" in result.coords[basic_store.id_coord].values
+        assert "id4" in result.coords[basic_store.id_coord].values
 
         # Test inplace=True
         basic_store.delete(["id1"], ["neuron"], inplace=True)
-        assert "id1" not in basic_store.warehouse.coords[basic_store._id_coord].values
+        assert "id1" not in basic_store.warehouse.coords[basic_store.id_coord].values
 
     def test_update(self, basic_store, sample_data):
         """Test update functionality"""
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
+        basic_store.insert(initial_data, inplace=True)
 
         update_data = basic_store.warehouse.copy()
         update_data.set_xindex("id_coord").loc[{"id_coord": "id1"}] = np.ones((5, 5))
@@ -177,9 +182,10 @@ class TestBaseStore:
 
     def test_property_accessors(self, basic_store, sample_data):
         """Test property accessors"""
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
+        basic_store.insert(initial_data, inplace=True)
 
         assert basic_store._types == sample_data["types"]
         assert basic_store._ids == sample_data["ids"]
@@ -196,9 +202,10 @@ class TestBaseStore:
 
     def test_where(self, basic_store, sample_data):
         """Test where functionality"""
-        basic_store.insert(
-            sample_data["data"], sample_data["ids"], sample_data["types"], inplace=True
+        initial_data = basic_store.generate_warehouse(
+            sample_data["data"], sample_data["ids"], sample_data["types"]
         )
+        basic_store.insert(initial_data, inplace=True)
 
         condition = basic_store.warehouse > 50
         result = basic_store.where(condition, -1)

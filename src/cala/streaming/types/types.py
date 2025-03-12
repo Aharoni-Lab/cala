@@ -1,5 +1,5 @@
 from enum import EnumMeta
-from typing import Type
+from typing import Type  # NewType, Protocol
 
 from xarray import DataArray
 
@@ -31,8 +31,7 @@ class Traces(Observable):
 class FluorescentObject:
     """Base type for any fluorescent object detected."""
 
-    def __hash__(self):
-        return hash(self.__class__.__name__)
+    pass
 
 
 class Neuron(FluorescentObject):
@@ -62,7 +61,6 @@ def generate_cross_product_classes() -> dict[str, Type]:
     return generated_classes
 
 
-# Generate all the cross-product classes
 _generated_classes = generate_cross_product_classes()
 NeuronFootprints = _generated_classes["NeuronFootprints"]
 NeuronTraces = _generated_classes["NeuronTraces"]
