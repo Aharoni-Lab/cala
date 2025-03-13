@@ -1,4 +1,4 @@
-from .types import (
+from .common import (
     Observable,
     Footprints,
     Traces,

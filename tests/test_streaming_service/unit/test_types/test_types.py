@@ -1,11 +1,7 @@
-from enum import Enum
-
 import numpy as np
-import pytest
 import xarray as xr
 
-from cala.streaming.types.types import (
-    BetterEnum,
+from cala.streaming.types.common import (
     Observable,
     Footprints,
     Traces,
@@ -18,26 +14,6 @@ from cala.streaming.types.types import (
     BackgroundTraces,
     generate_cross_product_classes,
 )
-
-
-# Test BetterEnum functionality
-class TestEnum(Enum, metaclass=BetterEnum):
-    A = 1
-    B = 2
-    C = 3
-
-
-class TestEnums:
-    def test_better_enum_valid_access(self):
-        assert TestEnum["A"] == TestEnum.A
-        assert TestEnum["B"] == TestEnum.B
-        assert TestEnum["C"] == TestEnum.C
-
-    def test_better_enum_invalid_access(self):
-        with pytest.raises(ValueError) as exc_info:
-            TestEnum["D"]
-        assert "Please choose one of 'A', 'B', 'C'" in str(exc_info.value)
-        assert "'D' provided" in str(exc_info.value)
 
 
 class TestBaseTypes:
