@@ -1,4 +1,4 @@
-from typing import Type  # NewType, Protocol
+from typing import Type, Any  # NewType, Protocol
 
 from xarray import DataArray
 
@@ -55,3 +55,27 @@ NeuronFootprints = _generated_classes["NeuronFootprints"]
 NeuronTraces = _generated_classes["NeuronTraces"]
 BackgroundFootprints = _generated_classes["BackgroundFootprints"]
 BackgroundTraces = _generated_classes["BackgroundTraces"]
+
+
+def find_intersection_type_of(base_type: Type, instance: Any) -> Type:
+    component_types = set(base_type.__subclasses__())
+    try:
+        parent_types = set(instance.__bases__)
+    except AttributeError:
+        try:
+            return {
+                component_type
+                for component_type in component_types
+                if isinstance(instance, component_type)
+            }.pop()
+        except KeyError:
+            raise TypeError(
+                f"The instance type {instance.__class__.__name__} does not inherit from one of the component types: {component_types}"
+            )
+
+    component_type = parent_types & component_types
+    if len(component_type) != 1:
+        raise TypeError(
+            f"The instance type {instance.__class__.__name__} does not inherit from one of the component types: {component_types}"
+        )
+    return component_type.pop()

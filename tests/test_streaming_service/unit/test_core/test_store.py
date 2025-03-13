@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core.store import BaseStore
+from cala.streaming.core.stores.common import CommonStore
 from cala.streaming.types import Footprints
 
 
-class Store(BaseStore):
+class Store(CommonStore):
     """Concrete implementation of BaseStore for testing"""
 
     data_type = Footprints
