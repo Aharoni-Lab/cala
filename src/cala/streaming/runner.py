@@ -1,47 +1,115 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict
+from typing import Callable, Any, Dict, Literal
 
 import networkx as nx
 import xarray as xr
+from river import compose
 
-from cala.streaming.core import DataExchange
+from cala.streaming.core import Parameters, DataExchange
+from cala.streaming.data.buffer import Buffer
 from cala.streaming.pipe_config import StreamingConfig
 
 
 @dataclass
 class Runner:
     config: StreamingConfig
-    state: DataExchange = field(default_factory=lambda: DataExchange())
+    _buffer: Buffer = field(init=False)
+    _state: DataExchange = field(default_factory=lambda: DataExchange())
     is_initialized: bool = False
 
-    def preprocess(self, frame: xr.DataArray): ...
+    def __post_init__(self):
+        self._buffer = Buffer(
+            buffer_size=10,
+        )
+
+    def preprocess(self, frame: xr.DataArray) -> Dict[str, Any]:
+        execution_order = self._create_dependency_graph(self.config["preprocess"])
+
+        pipeline = compose.Pipeline()
+
+        for step in execution_order:
+            transformer = self._build_transformer(process="preprocess", step=step)
+
+            pipeline = pipeline | transformer
+
+        pipeline.learn_one(x=frame)
+        result = pipeline.transform_one(x=frame)
+
+        return result
 
     def initialize(self, frame: xr.DataArray):
         """Initialize transformers in dependency order."""
+        self._buffer.add_frame(frame)
+
         execution_order = self._create_dependency_graph(self.config["initialization"])
+        status = [False] * len(execution_order)
+
+        for idx, step in enumerate(execution_order):
+            if status[idx]:
+                continue
+
+            n_frames = self.config["initialization"][step].get("n_frames", 1)
+            if not self._buffer.is_ready(n_frames):
+                break
+
+            transformer = self._build_transformer(process="initialization", step=step)
+            result = self._learn_transform(
+                transformer=transformer, frame=self._buffer.get_latest(n_frames)
+            )
+            if result is not None:
+                status[idx] = True
+
+            self._state.collect(result)
+
+        if all(status):
+            self.is_initialized = True
+
+    def extract(self, frame: xr.DataArray):
+        execution_order = self._create_dependency_graph(self.config["extraction"])
 
         # Execute transformers in order
         for step in execution_order:
-            config = self.config["initialization"][step]
-            params = config.get("params", {})
-            transformer = config["transformer"](**params)
+            transformer = self._build_transformer(process="extraction", step=step)
+            result = self._learn_transform(transformer=transformer, frame=frame)
 
-            # Get dependencies by matching signature categories
-            learn_injects = self._get_injects(self.state, transformer.learn_one)
-            transform_injects = self._get_injects(self.state, transformer.transform_one)
+            self._state.collect(result)
 
-            # Initialize and run transformer
-            transformer.learn_one(frame=frame, **learn_injects)
-            result = transformer.transform_one(**transform_injects)
+    def _build_transformer(
+        self, process: Literal["preprocess", "initialization", "extraction"], step: str
+    ):
+        config = self.config[process][step]
+        params = config.get("params", {})
+        transformer = config["transformer"]
 
-            self.state.collect(result)
+        param_class = next(
+            (
+                type_
+                for type_ in transformer.__annotations__.values()
+                if issubclass(type_, Parameters)
+            ),
+            None,
+        )
+        if param_class:
+            param_obj = param_class(**params)
+            transformer = transformer(param_obj)
+        else:
+            transformer = transformer()
 
-        self.is_initialized = True
-        return self.state
+        return transformer
 
-    def update(self): ...
+    def _learn_transform(self, transformer, frame: xr.DataArray):
+        # Get dependencies by matching signature categories
+        learn_injects = self._get_injects(self._state, transformer.learn_one)
+        transform_injects = self._get_injects(self._state, transformer.transform_one)
 
-    def _get_injects(self, state: DataExchange, function: Callable) -> Dict[str, Any]:
+        # Initialize and run transformer
+        transformer.learn_one(frame=frame, **learn_injects)
+        result = transformer.transform_one(**transform_injects)
+
+        return result
+
+    @staticmethod
+    def _get_injects(state: DataExchange, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
 
         Args:
@@ -60,7 +128,7 @@ class Runner:
             if param_name == "return":
                 continue
             if param_type in state_types:
-                value = getattr(state, state_types[param_type]).array
+                value = getattr(state, state_types[param_type]).warehouse
                 matches[param_name] = value
             elif getattr(param_type, "__bases__", None):
                 try:

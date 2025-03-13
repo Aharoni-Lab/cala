@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Self
+from typing import Dict, ClassVar, Self, Callable
 
 import cv2
 import numpy as np
@@ -27,6 +27,7 @@ class DenoiserParams(Parameters):
             )
 
 
+@dataclass
 class Denoiser(base.Transformer):
     """Streaming denoiser for calcium imaging data.
 
@@ -36,17 +37,16 @@ class Denoiser(base.Transformer):
     - Bilateral filter
     """
 
-    METHODS = {
+    params: DenoiserParams = field(default_factory=DenoiserParams)
+
+    METHODS: ClassVar[Dict[str, Callable]] = {
         "gaussian": cv2.GaussianBlur,
         "median": cv2.medianBlur,
         "bilateral": cv2.bilateralFilter,
     }
 
-    def __init__(self, params: Optional[DenoiserParams] = None):
+    def __post_init__(self):
         """Initialize the denoiser with given parameters."""
-        super().__init__()
-
-        self.params = params or DenoiserParams()
         self.func = self.METHODS[self.params.method]
 
     def learn_one(self, frame: xr.DataArray) -> Self:

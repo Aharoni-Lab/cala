@@ -1,156 +1,119 @@
 import numpy as np
 import pytest
+import xarray as xr
 
-from cala.streaming.data.buffer import RingBuffer
-
-
-@pytest.fixture
-def frame_shape():
-    return (512, 512, 3)
+from cala.streaming.data.buffer import Buffer
 
 
-@pytest.fixture
-def buffer_size():
-    return 5
+class TestBuffer:
+    @pytest.fixture
+    def frame_shape(self):
+        return 512, 512
 
+    @pytest.fixture
+    def buffer_size(self):
+        return 5
 
-@pytest.fixture
-def sample_frame(frame_shape):
-    return np.ones(frame_shape, dtype=np.uint8) * 128
+    @pytest.fixture
+    def sample_frame(self, frame_shape):
+        # Create an xarray DataArray instead of a numpy array
+        data = np.ones(frame_shape, dtype=np.uint8) * 128
+        return xr.DataArray(data)
 
+    @pytest.fixture
+    def buffer(self, buffer_size):
+        return Buffer(buffer_size=buffer_size)
 
-@pytest.fixture
-def ring_buffer(buffer_size, frame_shape):
-    return RingBuffer(buffer_size=buffer_size, frame_shape=frame_shape)
+    def test_buffer_initialization(self, buffer, buffer_size):
+        """Test if Buffer is initialized correctly with given parameters."""
+        assert buffer.buffer_size == buffer_size
+        assert len(buffer.buffer) == 0
 
+    def test_add_frame(self, buffer, sample_frame):
+        """Test adding a single frame to the buffer."""
+        buffer.add_frame(sample_frame)
+        assert len(buffer.buffer) == 1
+        # Check that the frame in the buffer equals the sample frame
+        assert np.array_equal(
+            buffer.get_latest().values,
+            sample_frame.values.reshape(*sample_frame.shape),
+        )
 
-def test_ring_buffer_initialization(ring_buffer, buffer_size, frame_shape):
-    """Test if RingBuffer is initialized correctly with given parameters."""
-    assert ring_buffer.buffer_size == buffer_size
-    assert ring_buffer.frame_shape == frame_shape
-    assert ring_buffer.dtype == np.uint8
-    assert ring_buffer.index == 0
-    assert ring_buffer.buffer.shape == (buffer_size, *frame_shape)
-    assert np.all(ring_buffer.buffer == 0)
+    def test_add_multiple_frames(self, buffer, sample_frame, buffer_size):
+        """Test adding multiple frames and checking buffer size."""
+        # Add more frames than buffer size to test deque behavior
+        num_frames = buffer_size + 2
 
+        for i in range(num_frames):
+            # Create a new frame with different values for each iteration
+            data = np.ones(sample_frame.shape, dtype=np.uint8) * (i + 1)
+            frame = xr.DataArray(data)
+            buffer.add_frame(frame)
 
-def test_add_frame(ring_buffer, sample_frame):
-    """Test adding a single frame to the buffer."""
-    ring_buffer.add_frame(sample_frame)
-    assert ring_buffer.index == 1
-    assert np.array_equal(ring_buffer.get_frame(0), sample_frame)
+        # Check if buffer doesn't exceed buffer_size
+        assert len(buffer.buffer) == buffer_size
 
+        # Verify the most recent frame's values
+        expected_value = num_frames
+        last_frame = buffer.get_latest(1)
+        assert np.all(last_frame.values.flatten()[0] == expected_value)
 
-def test_add_multiple_frames(ring_buffer, sample_frame, buffer_size):
-    """Test adding multiple frames and wrapping behavior."""
-    # Add more frames than buffer size to test wrapping
-    num_frames = buffer_size + 2
+    def test_get_frame_not_enough_frames(self, buffer):
+        """Test getting frames when buffer doesn't have enough raises error."""
+        with pytest.raises(ValueError, match="Buffer does not have enough frames"):
+            buffer.get_latest(1)
 
-    for i in range(num_frames):
-        frame = sample_frame * (i + 1)
-        ring_buffer.add_frame(frame)
+    def test_is_ready(self, buffer, sample_frame):
+        """Test is_ready method."""
+        assert not buffer.is_ready(1)
 
-    # Check if the index wrapped correctly
-    assert ring_buffer.index == 2
+        buffer.add_frame(sample_frame)
+        assert buffer.is_ready(1)
+        assert not buffer.is_ready(2)
 
-    # Verify the most recent frame
-    assert np.array_equal(ring_buffer.get_frame(0), sample_frame * num_frames)
+        buffer.add_frame(sample_frame)
+        assert buffer.is_ready(2)
 
+    def test_get_multiple_frames(self, buffer, sample_frame):
+        """Test getting multiple frames from the buffer."""
+        # Add frames with different values
+        for i in range(3):
+            data = np.ones(sample_frame.shape, dtype=np.uint8) * (i + 1)
+            frame = xr.DataArray(data)
+            buffer.add_frame(frame)
 
-def test_get_frame_invalid_index(ring_buffer):
-    """Test getting a frame with invalid index raises error."""
-    with pytest.raises(IndexError):
-        ring_buffer.get_frame(ring_buffer.buffer_size)
+        # Get the last 2 frames
+        frames = buffer.get_latest(2)
 
+        # Check shape and dimensions
+        assert frames.shape[0] == 2
+        assert frames.shape[1:] == sample_frame.shape
 
-def test_add_frame_wrong_shape(ring_buffer):
-    """Test adding a frame with wrong shape raises error."""
-    wrong_shape_frame = np.ones((16, 16, 3), dtype=np.uint8)
-    with pytest.raises(ValueError, match="Frame shape does not match"):
-        ring_buffer.add_frame(wrong_shape_frame)
+        # Check values (last frame should be 3, second-to-last should be 2)
+        assert np.all(frames.values[1].flatten()[0] == 3)
+        assert np.all(frames.values[0].flatten()[0] == 2)
 
+    def test_buffer_wrapping(self, buffer, sample_frame, buffer_size):
+        """Test buffer wrapping behavior when buffer is full."""
+        # Fill buffer
+        for i in range(buffer_size):
+            data = np.ones(sample_frame.shape, dtype=np.uint8) * (i + 1)
+            frame = xr.DataArray(data)
+            buffer.add_frame(frame)
 
-def test_add_frame_wrong_dtype(ring_buffer, frame_shape):
-    """Test adding a frame with wrong dtype raises error."""
-    wrong_dtype_frame = np.ones(frame_shape, dtype=np.float32)
-    with pytest.raises(ValueError, match="Frame dtype does not match"):
-        ring_buffer.add_frame(wrong_dtype_frame)
+        # Add one more frame to trigger wrapping
+        new_value = buffer_size + 1
+        data = np.ones(sample_frame.shape, dtype=np.uint8) * new_value
+        new_frame = xr.DataArray(data)
+        buffer.add_frame(new_frame)
 
+        # Check buffer size remains at max
+        assert len(buffer.buffer) == buffer_size
 
-@pytest.mark.parametrize(
-    "num_frames,scenario",
-    [
-        (0, "empty"),  # No frames added
-        (3, "partially filled"),  # buffer_size - 2
-        (5, "exactly filled"),  # buffer_size
-        (7, "wrapped once"),  # buffer_size + 2
-        (10, "wrapped multiple"),  # buffer_size * 2
-    ],
-)
-def test_get_buffer_in_order(
-    ring_buffer, sample_frame, buffer_size, num_frames, scenario
-):
-    """Test getting buffer frames in chronological order from different wrap-around points."""
-    # Reset buffer for clean state
-    ring_buffer = RingBuffer(buffer_size=buffer_size, frame_shape=sample_frame.shape)
+        # Get all frames
+        all_frames = buffer.get_latest(buffer_size)
 
-    # Add frames with different values
-    for i in range(num_frames):
-        frame = sample_frame * (i + 1)
-        ring_buffer.add_frame(frame)
-
-    ordered_buffer = ring_buffer.get_buffer_in_order()
-
-    # Calculate expected frames based on how many frames were added
-    if num_frames == 0:
-        assert (
-            len(ordered_buffer) == 0
-        ), f"Empty buffer should return empty array in {scenario} case"
-        return
-
-    start_idx = max(0, num_frames - buffer_size)
-    expected_frames = [sample_frame * (i + 1) for i in range(start_idx, num_frames)]
-    expected_frames = np.stack(expected_frames)
-
-    # Verify the order and values
-    assert ordered_buffer.shape[0] == min(
-        buffer_size, num_frames
-    ), f"Buffer size mismatch in {scenario} case"
-    assert np.array_equal(
-        ordered_buffer, expected_frames
-    ), f"Frame content mismatch in {scenario} case"
-
-    # Additional verification of current buffer state
-    # Verify most recent frame is accessible via get_frame(0)
-    assert np.array_equal(
-        ring_buffer.get_frame(0), sample_frame * num_frames
-    ), f"Most recent frame mismatch in {scenario} case"
-
-
-def test_get_all_frames(ring_buffer, sample_frame, buffer_size):
-    """Test getting all frames from the buffer."""
-    # Add frames with different values
-    for i in range(buffer_size):
-        frame = sample_frame * (i + 1)
-        ring_buffer.add_frame(frame)
-
-    all_frames = ring_buffer.get_all_frames()
-
-    # Verify it's a copy
-    assert all_frames is not ring_buffer.buffer
-
-    # Verify contents
-    assert np.array_equal(all_frames, ring_buffer.buffer)
-
-
-def test_frame_retrieval_order(ring_buffer, sample_frame, buffer_size):
-    """Test retrieving frames in reverse chronological order."""
-    # Add frames with different values
-    for i in range(buffer_size):
-        frame = sample_frame * (i + 1)
-        ring_buffer.add_frame(frame)
-
-    # Verify frames can be retrieved in reverse chronological order
-    for i in range(buffer_size):
-        expected_frame = sample_frame * (buffer_size - i)
-        assert np.array_equal(ring_buffer.get_frame(i), expected_frame)
+        # Check the oldest frame is now the second one (value=2)
+        # and newest is the last added (value=buffer_size+1)
+        assert np.all(all_frames.values[0].flatten()[0] == 2)
+        assert np.all(all_frames.values[-1].flatten()[0] == new_value)

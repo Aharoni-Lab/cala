@@ -1,3 +1,3 @@
-from .buffer import RingBuffer
+from .buffer import Buffer
 
-__all__ = ["RingBuffer"]
+__all__ = ["Buffer"]

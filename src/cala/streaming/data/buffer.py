@@ -1,85 +1,57 @@
-import numpy as np
+from collections import deque
+
+import xarray as xr
 
 
-class RingBuffer:
-    def __init__(self, buffer_size, frame_shape, dtype=np.uint8):
+class Buffer:
+    def __init__(self, buffer_size):
         """
         Initialize the ring buffer with:
           - buffer_size: number of frames to store
-          - frame_shape: the shape of each frame (e.g. (height, width, channels))
           - dtype: data type of the frames (e.g. np.uint8 for typical video data)
         """
         self.buffer_size = buffer_size
-        self.frame_shape = frame_shape
-        self.dtype = dtype
+        self.frame_axis = "frame"
 
-        # pre-allocate the buffer as a 3D array: (buffer_size, height, width)
-        self.buffer = np.zeros((buffer_size, *frame_shape), dtype=dtype)
+        self.buffer: deque[xr.DataArray] = deque()
 
-        # keep track of where the next frame will be inserted
-        self.index = 0
-        # keep track of total frames added
-        self.total_frames = 0
-
-    def add_frame(self, frame: np.ndarray):
+    def add_frame(self, frame: xr.DataArray):
         """
         Add a new frame to the ring buffer.
-        The frame must match the frame_shape and dtype specified in the constructor.
         """
-        if frame.shape != self.frame_shape:
-            raise ValueError("Frame shape does not match ring buffer frame_shape.")
-        if frame.dtype != self.dtype:
-            raise ValueError("Frame dtype does not match ring buffer dtype.")
 
-        self.buffer[self.index] = frame
-        self.total_frames += 1
+        self.buffer.append(frame)
+        if len(self.buffer) > self.buffer_size:
+            self.buffer.popleft()
 
-        # Increment the index and wrap using modulus
-        self.index = (self.index + 1) % self.buffer_size
+    def get_latest(self, n: int = 1) -> xr.DataArray:
+        """Get n most recent frames.
 
-    def get_frame(self, idx_from_latest=0) -> np.ndarray:
+        Returns:
+            xr.DataArray: A 3D array containing the stacked frames.
         """
-        Retrieve a frame from the ring buffer.
+        if not self.is_ready(n):
+            raise ValueError("Buffer does not have enough frames.")
 
-        By default, idx_from_latest=0 means the most recently added frame.
-        idx_from_latest=1 means the frame before that, and so on.
+        if n == 1:
+            return self.buffer[-1]
 
-        For example, if `self.index == 10`, then the most recent frame
-        is at index 9 (because after the last add, self.index points
-        to the *next* position).
+        return xr.concat(list(self.buffer)[-n:], dim="frame")
+
+    def get_earliest(self, n: int = 1) -> xr.DataArray:
+        """Get n earliest frames.
+
+        Returns:
+            xr.DataArray: A 3D array containing the stacked frames.
         """
-        if idx_from_latest >= self.buffer_size:
-            raise IndexError(
-                "idx_from_latest is out of range for the current buffer size."
-            )
+        if not self.is_ready(n):
+            raise ValueError("Buffer does not have enough frames.")
 
-        # Compute the actual index in the buffer
-        actual_index = (self.index - 1 - idx_from_latest) % self.buffer_size
-        return self.buffer[actual_index]
+        if n == 1:
+            return self.buffer[0]
 
-    def get_all_frames(self) -> np.ndarray:
-        """
-        Returns the entire buffer. Note that the frames may not be
-        in the order they were added if self.index has wrapped around.
-        You can reorder them if you need chronological order.
-        """
-        return self.buffer.copy()
+        return xr.concat(list(self.buffer)[:n], dim="frame")
 
-    def get_buffer_in_order(self) -> np.ndarray:
-        """
-        Return the buffer frames in chronological order (oldest to newest).
-        This is useful if you want a sequence of frames in the exact order
-        they were written. Only returns frames that have been filled.
-        """
-        if self.total_frames == 0:  # No frames added yet
-            return np.array([], dtype=self.dtype)
-
-        # If we haven't filled the buffer yet
-        if self.total_frames < self.buffer_size:
-            return self.buffer[: self.index].copy()
-
-        # Buffer is full or has wrapped
-        # Start from self.index (oldest) to end, then 0 to self.index-1 (newest)
-        return np.concatenate(
-            (self.buffer[self.index :], self.buffer[: self.index]), axis=0
-        )
+    def is_ready(self, num_frames: int) -> bool:
+        """Check if buffer has enough frames."""
+        return len(self.buffer) >= num_frames

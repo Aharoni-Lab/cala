@@ -23,21 +23,9 @@ class TestTracesInitializer:
         return TracesInitializerParams()
 
     @pytest.fixture
-    def custom_params(self):
-        """Create custom initialization parameters."""
-        return TracesInitializerParams(
-            num_frames_to_use=5,
-        )
-
-    @pytest.fixture
     def default_initializer(self, default_params):
         """Create initializer with default parameters."""
         return TracesInitializer(params=default_params)
-
-    @pytest.fixture
-    def custom_initializer(self, custom_params):
-        """Create initializer with custom parameters."""
-        return TracesInitializer(params=custom_params)
 
     @pytest.fixture
     def footprints_setup(self, stabilized_video):
@@ -67,7 +55,7 @@ class TestTracesInitializer:
         video, _, _ = stabilized_video
         frames = video[0:3]
 
-        default_initializer.learn_one(footprints=footprints_setup, frames=frames)
+        default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
         assert isinstance(traces, Traces)
@@ -75,9 +63,7 @@ class TestTracesInitializer:
             traces.sizes[default_initializer.params.component_axis]
             == footprints_setup.sizes[default_initializer.params.component_axis]
         )
-        assert traces.sizes[default_initializer.params.frames_axis] == min(
-            3, default_initializer.params.num_frames_to_use
-        )
+        assert traces.sizes[default_initializer.params.frames_axis] == 3
 
     def test_transform_one_output_types(
         self, default_initializer, footprints_setup, stabilized_video
@@ -86,30 +72,12 @@ class TestTracesInitializer:
         video, _, _ = stabilized_video
         frames = video[0:3]
 
-        default_initializer.learn_one(footprints=footprints_setup, frames=frames)
+        default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
         assert isinstance(traces, Traces)
         assert isinstance(traces.values, np.ndarray)
         assert traces.values.dtype == np.float64
-
-    def test_custom_parameters(
-        self, custom_initializer, footprints_setup, stabilized_video
-    ):
-        """Test initializer with custom parameters."""
-        video, _, _ = stabilized_video
-        frames = video[0:5]  # Using more frames to test custom num_frames_to_use
-
-        custom_initializer.learn_one(footprints=footprints_setup, frames=frames)
-        traces = custom_initializer.transform_one()
-
-        assert (
-            traces.sizes[custom_initializer.params.component_axis]
-            == footprints_setup.sizes[custom_initializer.params.component_axis]
-        )
-        assert traces.sizes[custom_initializer.params.frames_axis] == min(
-            5, custom_initializer.params.num_frames_to_use
-        )
 
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""
@@ -128,18 +96,7 @@ class TestTracesInitializer:
             frames = video[0:3].drop_isel({"width": [-1]})  # Incorrect shape
 
             with pytest.raises(ValueError):
-                default_initializer.learn_one(
-                    footprints=footprints_setup, frames=frames
-                )
-
-        @pytest.mark.parametrize(
-            "param",
-            [{"num_frames_to_use": 0}, {"num_frames_to_use": -1}],
-        )
-        def test_invalid_parameters(self, param):
-            """Test initialization with invalid parameters."""
-            with pytest.raises(ValueError):
-                TracesInitializerParams(**param)
+                default_initializer.learn_one(footprints=footprints_setup, frame=frames)
 
     class TestPerformance:
         """Nested test class for performance-related tests."""
