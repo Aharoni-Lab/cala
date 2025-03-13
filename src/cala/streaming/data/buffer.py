@@ -37,7 +37,10 @@ class Buffer:
         if not self.is_ready(n):
             raise ValueError("Buffer does not have enough frames.")
 
-        return xr.concat(list(self.buffer)[-n:], dim="frame")
+        if n == 1:
+            return self.buffer[0]
+
+        return xr.concat(list(self.buffer)[:n], dim="frame")
 
     def is_ready(self, num_frames: int) -> bool:
         """Check if buffer has enough frames."""
