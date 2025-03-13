@@ -6,6 +6,7 @@ from river.base import SupervisedTransformer
 
 from cala.streaming.core import Parameters
 from cala.streaming.types import Traces
+from cala.streaming.types.odl import PixelStats
 
 
 @dataclass
@@ -45,7 +46,7 @@ class PixelStatsTransformer(SupervisedTransformer):
         """Learn pixel statistics from frames and temporal components.
 
         Args:
-            components: ComponentManager containing temporal components
+            traces: traces of all detected fluorescent components
             frames: xarray DataArray of shape (frames, height, width) containing 2D frames
 
         Returns:
@@ -78,7 +79,7 @@ class PixelStatsTransformer(SupervisedTransformer):
 
         return self
 
-    def transform_one(self, _=None):  # -> PixelStats
+    def transform_one(self, _=None) -> PixelStats:
         """Transform method updates component footprints with computed statistics.
 
         Args:
@@ -87,6 +88,8 @@ class PixelStatsTransformer(SupervisedTransformer):
             Updated ComponentManager
         """
         # Transpose to match expected footprint dimensions (components, height, width)
-        return self.pixel_stats_.transpose(
-            self.params.component_axis, *self.params.spatial_axes
+        return PixelStats(
+            self.pixel_stats_.transpose(
+                self.params.component_axis, *self.params.spatial_axes
+            )
         )
