@@ -21,13 +21,12 @@ class TestBuffer:
         return xr.DataArray(data)
 
     @pytest.fixture
-    def buffer(self, buffer_size, frame_shape):
-        return Buffer(buffer_size=buffer_size, frame_shape=frame_shape)
+    def buffer(self, buffer_size):
+        return Buffer(buffer_size=buffer_size)
 
-    def test_buffer_initialization(self, buffer, buffer_size, frame_shape):
+    def test_buffer_initialization(self, buffer, buffer_size):
         """Test if Buffer is initialized correctly with given parameters."""
         assert buffer.buffer_size == buffer_size
-        assert buffer.frame_shape == frame_shape
         assert len(buffer.buffer) == 0
 
     def test_add_frame(self, buffer, sample_frame):
@@ -36,8 +35,8 @@ class TestBuffer:
         assert len(buffer.buffer) == 1
         # Check that the frame in the buffer equals the sample frame
         assert np.array_equal(
-            buffer.get_frame().values,
-            sample_frame.values.reshape(1, *sample_frame.shape),
+            buffer.get_latest().values,
+            sample_frame.values.reshape(*sample_frame.shape),
         )
 
     def test_add_multiple_frames(self, buffer, sample_frame, buffer_size):
@@ -56,22 +55,13 @@ class TestBuffer:
 
         # Verify the most recent frame's values
         expected_value = num_frames
-        last_frame = buffer.get_frame(1)
+        last_frame = buffer.get_latest(1)
         assert np.all(last_frame.values.flatten()[0] == expected_value)
 
     def test_get_frame_not_enough_frames(self, buffer):
         """Test getting frames when buffer doesn't have enough raises error."""
         with pytest.raises(ValueError, match="Buffer does not have enough frames"):
-            buffer.get_frame(1)
-
-    def test_add_frame_wrong_shape(self, buffer, sample_frame):
-        """Test adding a frame with wrong shape raises error."""
-        wrong_shape = (16, 16, 3)
-        wrong_shape_data = np.ones(wrong_shape, dtype=np.uint8)
-        wrong_shape_frame = xr.DataArray(wrong_shape_data)
-
-        with pytest.raises(ValueError, match="Frame shape does not match"):
-            buffer.add_frame(wrong_shape_frame)
+            buffer.get_latest(1)
 
     def test_is_ready(self, buffer, sample_frame):
         """Test is_ready method."""
@@ -93,7 +83,7 @@ class TestBuffer:
             buffer.add_frame(frame)
 
         # Get the last 2 frames
-        frames = buffer.get_frame(2)
+        frames = buffer.get_latest(2)
 
         # Check shape and dimensions
         assert frames.shape[0] == 2
@@ -121,7 +111,7 @@ class TestBuffer:
         assert len(buffer.buffer) == buffer_size
 
         # Get all frames
-        all_frames = buffer.get_frame(buffer_size)
+        all_frames = buffer.get_latest(buffer_size)
 
         # Check the oldest frame is now the second one (value=2)
         # and newest is the last added (value=buffer_size+1)
