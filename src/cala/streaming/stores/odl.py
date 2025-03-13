@@ -20,7 +20,7 @@ class PixelStatsStore(BodegaStore):
         return PixelStats
 
     def temporal_update(
-            self, last_streamed_data: DataArray, ids: List[str]
+        self, last_streamed_data: DataArray, ids: List[str]
     ) -> None: ...
 
 
@@ -32,7 +32,7 @@ class ComponentStatsStore(BodegaStore):
         return ComponentStats
 
     def temporal_update(
-            self, last_streamed_data: DataArray, ids: List[str]
+        self, last_streamed_data: DataArray, ids: List[str]
     ) -> None: ...
 
 
@@ -46,7 +46,7 @@ class ResidualStore(BaseStore):
         return Residual
 
     def temporal_update(
-            self, last_streamed_data: DataArray, ids: List[str]
+        self, last_streamed_data: DataArray, ids: List[str]
     ) -> None: ...
 
     def generate_warehouse(self, data_array: np.ndarray | xr.DataArray) -> Residual:
