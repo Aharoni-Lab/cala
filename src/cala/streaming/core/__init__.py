@@ -1,6 +1,5 @@
-from .store import BaseStore
+from .exchange import DataExchange
 from .parameters import Parameters
 from .transformer_meta import TransformerMeta
-from .exchange import DataExchange
 
-__all__ = ["BaseStore", "Parameters", "TransformerMeta", "DataExchange"]
+__all__ = ["Parameters", "TransformerMeta", "DataExchange"]

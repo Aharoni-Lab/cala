@@ -1,21 +1,24 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import List, Optional, Any, Tuple, Set, Hashable, overload, Dict
+from dataclasses import dataclass
+from typing import List, Optional, Set, Hashable, overload, Dict
 
 import numpy as np
 import xarray as xr
 
+from .bodega import BodegaStore
+
+
+# component_type = find_intersection_type_of(
+#     base_type=FluorescentObject, instance=value
+# )
+# types = [component_type.__name__] * value.sizes[self.component_axis]
+
 
 @dataclass(kw_only=True)
-class BaseStore(ABC):
-    dimensions: Tuple[str, ...]
-    component_dim: str
+class CommonStore(BodegaStore):
 
-    id_coord: str = "id_coord"
     type_coord: str = "type_coord"
-
-    _warehouse: xr.DataArray = field(default_factory=lambda: xr.DataArray())
 
     @property
     @abstractmethod
@@ -30,32 +33,16 @@ class BaseStore(ABC):
         empty_array = np.empty(shape=tuple([0] * len(self.dimensions)))
         empty_ids = []
         empty_types = []
-        self.warehouse = self.generate_warehouse(
-            data_array=empty_array, ids=empty_ids, types=empty_types
-        )
+        warehouse = self.generate_warehouse(data_array=empty_array)
+        warehouse = self.register_ids(warehouse, ids=empty_ids)
+        self._warehouse = self.register_types(warehouse, empty_types)
 
-    def generate_warehouse(
-        self,
-        data_array: np.ndarray | xr.DataArray,
-        ids: List[Hashable],
-        types: List[Hashable],
-    ) -> xr.DataArray:
-        return xr.DataArray(
-            data_array,
-            dims=self.dimensions,
-            coords={
+    def register_types(self, warehouse: xr.DataArray, types: List[Hashable]):
+        return warehouse.assign_coords(
+            {
                 self.type_coord: ([self.component_dim], types),
-                self.id_coord: ([self.component_dim], ids),
-            },
+            }
         )
-
-    def _validate_dims(self, dimensions: Tuple[Hashable, ...]) -> None:
-        if not set(self.dimensions) == set(dimensions):
-            raise ValueError(
-                "The dimensions do not match the store structure.\n"
-                f"\tProvided: {dimensions}\n"
-                f"\tRequired: {self.dimensions}"
-            )
 
     def _validate_coords(self, coords: Set[Hashable]) -> None:
         if not (
@@ -67,16 +54,6 @@ class BaseStore(ABC):
                 f"\tProvided: {coords}\n"
                 f"\tRequired: {self.id_coord, self.type_coord, self.component_dim}"
             )
-
-    @property
-    def warehouse(self) -> xr.DataArray:
-        return self._warehouse
-
-    @warehouse.setter
-    def warehouse(self, value: xr.DataArray):
-        self._validate_dims(value.dims)
-        self._validate_coords(set(value.coords.keys()))
-        self._warehouse = value
 
     @overload
     def insert(
@@ -155,12 +132,6 @@ class BaseStore(ABC):
             .sel({self.id_coord: ids})
             .reset_index(self.id_coord)
         )
-
-    def where(self, condition, other: Any, drop: bool = False) -> xr.DataArray:
-        """refer to xarray dataarray method for docs
-        other: function or value to use for replacement
-        drop: whether to drop the condition dimension"""
-        return self._warehouse.where(condition, other=other, drop=drop)
 
     @overload
     def delete(
