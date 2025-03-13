@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import xarray as xr
 
-from cala.streaming.core.stores import FootprintStore, TraceStore
+from cala.streaming.stores.common import FootprintStore, TraceStore
 from cala.streaming.types import FluorescentObject, Observable
 
 
@@ -99,7 +99,7 @@ class DataExchange:
 
     @property
     def type_to_store(self) -> Dict[Type["Observable"], str]:
-        from .stores import BaseStore
+        from . import BaseStore
 
         return {
             getattr(self, attr).data_type: attr

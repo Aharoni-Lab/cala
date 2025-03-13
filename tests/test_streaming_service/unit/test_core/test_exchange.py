@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from cala.streaming.core.exchange import DataExchange
-from cala.streaming.core.stores import FootprintStore, TraceStore
+from cala.streaming.stores.common import FootprintStore, TraceStore
 from cala.streaming.types import (
     FluorescentObject,
     Observable,
