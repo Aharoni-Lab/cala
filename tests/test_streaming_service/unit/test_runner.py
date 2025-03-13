@@ -1,13 +1,16 @@
 from dataclasses import dataclass, field
 from typing import cast
 
+import cv2
 import numpy as np
 import pytest
 import xarray as xr
 from river.base import Transformer
 
 from cala.streaming.core import Parameters
+from cala.streaming.initialization import FootprintsInitializer, TracesInitializer
 from cala.streaming.initialization.meta import TransformerMeta
+from cala.streaming.motion_stabilization import RigidTranslator
 from cala.streaming.pipe_config import StreamingConfig
 from cala.streaming.preprocess.background_removal import BackgroundEraser
 from cala.streaming.preprocess.denoise import Denoiser
@@ -185,6 +188,37 @@ def preprocess_config() -> StreamingConfig:
                     "params": {"method": "uniform", "kernel_size": 3},
                     "requires": ["glow_removal"],
                 },
+                "motion_stabilization": {
+                    "transformer": RigidTranslator,
+                    "params": {"drift_speed": 1, "anchor_frame_index": 0},
+                    "requires": ["background_removal"],
+                },
+            }
+        },
+    )
+
+
+@pytest.fixture
+def initialization_config() -> StreamingConfig:
+    return cast(
+        StreamingConfig,
+        {
+            "initialization": {
+                "footprints": {
+                    "transformer": FootprintsInitializer,
+                    "params": {
+                        "threshold_factor": 0.2,
+                        "kernel_size": 3,
+                        "distance_metric": cv2.DIST_L2,
+                        "distance_mask_size": 5,
+                    },
+                },
+                "traces": {
+                    "transformer": TracesInitializer,
+                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "n_frames": 3,
+                    "requires": ["footprints"],
+                },
             }
         },
     )
@@ -202,19 +236,19 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
-    assert runner.state.footprints.warehouse.sizes == {
+    assert runner._state.footprints.warehouse.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert runner.state.traces.warehouse.sizes == {"components": 10, "frames": 100}
+    assert runner._state.traces.warehouse.sizes == {"components": 10, "frames": 100}
     assert np.array_equal(
-        runner.state.footprints.warehouse.coords["id_"].values,
-        runner.state.traces.warehouse.coords["id_"].values,
+        runner._state.footprints.warehouse.coords["id_"].values,
+        runner._state.traces.warehouse.coords["id_"].values,
     )
     assert np.array_equal(
-        runner.state.footprints.warehouse.coords["type_"].values,
-        runner.state.traces.warehouse.coords["type_"].values,
+        runner._state.footprints.warehouse.coords["type_"].values,
+        runner._state.traces.warehouse.coords["type_"].values,
     )
 
 
@@ -251,14 +285,11 @@ def test_state_updates(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame)
     # Check if state contains expected attributes
-    neuron_footprint = runner.state.get_observable_x_component(NeuronFootprints)
-    neuron_traces = runner.state.get_observable_x_component(NeuronTraces)
+    neuron_footprint = runner._state.get_observable_x_component(NeuronFootprints)
+    neuron_traces = runner._state.get_observable_x_component(NeuronTraces)
     assert neuron_footprint.__len__() != 0
     assert neuron_traces.__len__() != 0
     assert neuron_traces.__len__() == neuron_footprint.__len__()
-
-
-# def test_with_footprint_and_traces
 
 
 def test_preprocess_initialization(preprocess_config):
@@ -288,5 +319,27 @@ def test_preprocess_dependency_resolution(preprocess_config):
     execution_order = runner._create_dependency_graph(preprocess_config["preprocess"])
 
     # Verify correct execution order
-    expected_order = ["downsample", "denoise", "glow_removal", "background_removal"]
+    expected_order = [
+        "downsample",
+        "denoise",
+        "glow_removal",
+        "background_removal",
+        "motion_stabilization",
+    ]
     assert list(execution_order) == expected_order
+
+
+def test_initializer_initialization(initialization_config):
+    runner = Runner(initialization_config)
+    assert runner.config == initialization_config
+
+
+def test_initialize_execution(initialization_config, stabilized_video):
+    runner = Runner(initialization_config)
+    video, _, _ = stabilized_video
+
+    for frame in video:
+        while not runner.is_initialized:
+            runner.initialize(frame)
+
+    assert runner.is_initialized

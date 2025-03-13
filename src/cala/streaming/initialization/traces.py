@@ -21,12 +21,8 @@ class TracesInitializerParams(Parameters):
     frames_axis: str = "frames"
     """Axis for frames"""
 
-    num_frames_to_use: int = 3
-    """Number of frames to use for temporal initialization"""
-
     def validate(self):
-        if not self.num_frames_to_use > 0:
-            raise ValueError("Parameter num_frames_to_use must be a positive integer.")
+        pass
 
 
 @dataclass
@@ -42,17 +38,15 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
     def learn_one(
         self,
         footprints: Footprints,
-        frames: xr.DataArray,
+        frame: xr.DataArray,
     ) -> Self:
         """Learn temporal traces from footprints and frames."""
-        if footprints.isel({self.params.component_axis: 0}).shape != frames[0].shape:
+        if footprints.isel({self.params.component_axis: 0}).shape != frame[0].shape:
             raise ValueError("Footprint and frame dimensions must be identical.")
 
         # Get frames to use and flatten them
-        n_frames = min(
-            frames.sizes[self.params.frames_axis], self.params.num_frames_to_use
-        )
-        flattened_frames = frames[:n_frames].values.reshape(n_frames, -1)
+        n_frames = frame.sizes[self.params.frames_axis]
+        flattened_frames = frame[:n_frames].values.reshape(n_frames, -1)
         flattened_footprints = footprints.values.reshape(
             footprints.sizes[self.params.component_axis], -1
         )
@@ -71,7 +65,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
                 self.params.component_axis: footprints.coords[
                     self.params.component_axis
                 ],
-                self.params.frames_axis: frames.coords[self.params.frames_axis][
+                self.params.frames_axis: frame.coords[self.params.frames_axis][
                     :n_frames
                 ],
             },
