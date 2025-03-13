@@ -4,7 +4,7 @@ from typing import Dict, Type
 import xarray as xr
 
 from cala.streaming.stores.common import FootprintStore, TraceStore
-from cala.streaming.types import FluorescentObject, Observable
+from cala.streaming.types import Observable
 from cala.streaming.types.common import find_intersection_type_of
 
 
@@ -41,23 +41,18 @@ class DataExchange:
             type_coord=self.type_coord,
         )
 
-    def get_observable_x_component(self, composite_type: Type) -> Observable:
+    def get_type(self, type_: Type) -> Observable:
         # Test what happens when the composite type is a member of none.
         observable_type = find_intersection_type_of(
-            base_type=Observable, instance=composite_type
-        )
-        component_type = find_intersection_type_of(
-            base_type=FluorescentObject, instance=composite_type
+            base_type=Observable, instance=type_
         )
 
-        if not all([observable_type, component_type]):
+        if not observable_type:
             raise TypeError(
-                f"The provided type {composite_type} is not a composite type of Observable and FluorescentObject"
+                f"The provided type {type_} is not a composite type of Observable and FluorescentObject"
             )
 
-        return getattr(self, self.type_to_store[observable_type]).slice(
-            types=[component_type.__name__]
-        )
+        return getattr(self, self.type_to_store[observable_type]).get_type(type_=type_)
 
     @property
     def type_to_store(self) -> Dict[Type["Observable"], str]:

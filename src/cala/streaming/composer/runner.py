@@ -128,14 +128,8 @@ class Runner:
             if param_name == "return":
                 continue
             if param_type in state_types:
-                value = getattr(state, state_types[param_type]).warehouse
+                value = state.get_type(param_type)
                 matches[param_name] = value
-            elif getattr(param_type, "__bases__", None):
-                try:
-                    value = state.get_observable_x_component(param_type)
-                    matches[param_name] = value
-                except TypeError:
-                    continue
 
         return matches
 
