@@ -6,12 +6,14 @@ import xarray as xr
 from river import compose
 
 from cala.streaming.core import DataExchange
+from cala.streaming.data.buffer import Buffer
 from cala.streaming.pipe_config import StreamingConfig
 
 
 @dataclass
 class Runner:
     config: StreamingConfig
+    frame_buffer: Buffer = field(init=False)
     state: DataExchange = field(default_factory=lambda: DataExchange())
     is_initialized: bool = False
 
@@ -32,6 +34,10 @@ class Runner:
 
     def initialize(self, frame: xr.DataArray):
         """Initialize transformers in dependency order."""
+        self.frame_buffer = Buffer(
+            buffer_size=10,
+            frame_shape=frame.shape,
+        )
         execution_order = self._create_dependency_graph(self.config["initialization"])
 
         # Execute transformers in order

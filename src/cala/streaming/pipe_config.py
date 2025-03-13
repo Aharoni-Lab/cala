@@ -10,6 +10,7 @@ class PreprocessStep(TypedDict):
 class InitializationStep(TypedDict):
     transformer: type  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
+    n_frames: int  # Number of frames to use
     requires: NotRequired[Sequence[str]]  # Optional dependencies
 
 

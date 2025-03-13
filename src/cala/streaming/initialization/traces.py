@@ -64,7 +64,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         )
 
         # Store result
-        self.traces_ = xr.DataArray(
+        self.traces_ = Traces(
             temporal_traces,
             dims=(self.params.component_axis, self.params.frames_axis),
             coords={
