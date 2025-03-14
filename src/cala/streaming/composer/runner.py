@@ -6,7 +6,7 @@ import xarray as xr
 from river import compose
 
 from cala.streaming.composer.pipe_config import StreamingConfig
-from cala.streaming.core import Parameters, DataExchange
+from cala.streaming.core import Parameters, Distributor
 from cala.streaming.util.buffer import Buffer
 
 
@@ -14,7 +14,7 @@ from cala.streaming.util.buffer import Buffer
 class Runner:
     config: StreamingConfig
     _buffer: Buffer = field(init=False)
-    _state: DataExchange = field(default_factory=lambda: DataExchange())
+    _state: Distributor = field(default_factory=lambda: Distributor())
     is_initialized: bool = False
 
     def __post_init__(self):
@@ -109,7 +109,7 @@ class Runner:
         return result
 
     @staticmethod
-    def _get_injects(state: DataExchange, function: Callable) -> Dict[str, Any]:
+    def _get_injects(state: Distributor, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
 
         Args:

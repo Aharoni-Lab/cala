@@ -3,12 +3,12 @@ from typing import Tuple, List, Dict, Type
 
 import xarray as xr
 
-from cala.streaming.core.stores import CommonStore
+from cala.streaming.core.stores import UltimateStore
 from cala.streaming.types import Footprints
 
 
 @dataclass(kw_only=True)
-class FootprintStore(CommonStore):
+class FootprintStore(UltimateStore):
     """Manages spatial footprints and their relationships."""
 
     spatial_axes: Tuple[str, ...]

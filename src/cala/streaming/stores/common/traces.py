@@ -3,12 +3,12 @@ from typing import List, Type
 
 import xarray as xr
 
-from cala.streaming.core.stores import CommonStore
+from cala.streaming.core.stores import UltimateStore
 from cala.streaming.types import Traces
 
 
 @dataclass(kw_only=True)
-class TraceStore(CommonStore):
+class TraceStore(UltimateStore):
     """Manages temporal traces for components."""
 
     frame_axis: str

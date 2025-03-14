@@ -9,7 +9,7 @@ from cala.streaming.types.common import find_intersection_type_of
 
 
 @dataclass
-class DataExchange:
+class Distributor:
     """Manages a collection of fluorescent components (neurons and background)."""
 
     component_axis: str = "components"
@@ -56,12 +56,12 @@ class DataExchange:
 
     @property
     def type_to_store(self) -> Dict[Type["Observable"], str]:
-        from .stores import BaseStore
+        from .stores import EssentialStore
 
         return {
             getattr(self, attr).data_type: attr
             for attr in self.__annotations__.keys()
-            if isinstance(getattr(self, attr), BaseStore)
+            if isinstance(getattr(self, attr), EssentialStore)
         }
 
     def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:

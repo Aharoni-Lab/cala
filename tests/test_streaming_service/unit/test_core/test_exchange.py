@@ -3,7 +3,7 @@ from uuid import UUID
 import numpy as np
 import pytest
 
-from cala.streaming.core.exchange import DataExchange
+from cala.streaming.core.distribution import Distributor
 from cala.streaming.stores.common import FootprintStore, TraceStore
 from cala.streaming.types import (
     FluorescentObject,
@@ -28,7 +28,7 @@ class MockComposite(MockObservable, MockComponent):
 
 class TestDataExchangeInitialization:
     def test_default_initialization(self):
-        exchange = DataExchange()
+        exchange = Distributor()
         assert exchange.component_axis == "components"
         assert exchange.spatial_axes == ("width", "height")
         assert exchange.frame_axis == "frames"
@@ -36,7 +36,7 @@ class TestDataExchangeInitialization:
         assert isinstance(exchange.traces, TraceStore)
 
     def test_custom_axes_initialization(self):
-        exchange = DataExchange(
+        exchange = Distributor(
             component_axis="cells", spatial_axes=("x", "y"), frame_axis="time"
         )
         assert exchange.component_axis == "cells"
@@ -47,7 +47,7 @@ class TestDataExchangeInitialization:
 class TestDataExchangeTypeHandling:
     @pytest.fixture
     def exchange(self):
-        return DataExchange()
+        return Distributor()
 
     def test_find_intersection_type_success(self, exchange):
         result = exchange._find_intersection_type_of(Observable, MockObservable())
@@ -75,7 +75,7 @@ class TestDataExchangeTypeHandling:
 class TestDataExchangeCollection:
     @pytest.fixture
     def exchange(self):
-        return DataExchange()
+        return Distributor()
 
     @pytest.fixture
     def mock_data_array(self):
@@ -138,7 +138,7 @@ class TestDataExchangeCollection:
 class TestDataExchangeEdgeCases:
     @pytest.fixture
     def exchange(self):
-        return DataExchange()
+        return Distributor()
 
     def test_collect_empty_array(self, exchange):
         empty_array = NeuronFootprints(

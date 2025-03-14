@@ -7,7 +7,7 @@ from xarray import DataArray
 
 
 @dataclass(kw_only=True)
-class BaseStore(ABC, metaclass=ABCMeta):
+class EssentialStore(ABC, metaclass=ABCMeta):
     dimensions: Tuple[str, ...]
 
     _warehouse: DataArray = field(default_factory=lambda: DataArray())

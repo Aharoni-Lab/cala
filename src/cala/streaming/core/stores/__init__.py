@@ -1,5 +1,5 @@
-from .base import BaseStore
-from .bodega import BodegaStore
-from .common import CommonStore
+from .essential import EssentialStore
+from .advanced import AdvancedStore
+from .ultimate import UltimateStore
 
-__all__ = ["BaseStore", "BodegaStore", "CommonStore"]
+__all__ = ["EssentialStore", "AdvancedStore", "UltimateStore"]

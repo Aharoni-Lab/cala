@@ -6,7 +6,7 @@ from typing import List, Optional, Set, Hashable, overload, Dict
 import numpy as np
 import xarray as xr
 
-from .bodega import BodegaStore
+from .advanced import AdvancedStore
 
 
 # component_type = find_intersection_type_of(
@@ -16,7 +16,7 @@ from .bodega import BodegaStore
 
 
 @dataclass(kw_only=True)
-class CommonStore(BodegaStore):
+class UltimateStore(AdvancedStore):
 
     type_coord: str = "type_coord"
 

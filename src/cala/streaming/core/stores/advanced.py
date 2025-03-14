@@ -5,14 +5,14 @@ from typing import Hashable, List, Set
 import numpy as np
 from xarray import DataArray
 
-from . import BaseStore
+from . import EssentialStore
 
 
 # ids = [uuid4() for _ in range(value.sizes[self.component_axis])]
 
 
 @dataclass(kw_only=True)
-class BodegaStore(BaseStore):
+class AdvancedStore(EssentialStore):
     component_dim: str
 
     id_coord: str = "id_coord"
