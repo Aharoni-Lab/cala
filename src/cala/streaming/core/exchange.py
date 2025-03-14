@@ -41,7 +41,7 @@ class DataExchange:
             type_coord=self.type_coord,
         )
 
-    def get_type(self, type_: Type) -> Observable:
+    def get(self, type_: Type) -> Observable:
         # Test what happens when the composite type is a member of none.
         observable_type = find_intersection_type_of(
             base_type=Observable, instance=type_
@@ -52,7 +52,7 @@ class DataExchange:
                 f"The provided type {type_} is not a composite type of Observable and FluorescentObject"
             )
 
-        return getattr(self, self.type_to_store[observable_type]).get_type(type_=type_)
+        return getattr(self, self.type_to_store[observable_type]).get(type_=type_)
 
     @property
     def type_to_store(self) -> Dict[Type["Observable"], str]:

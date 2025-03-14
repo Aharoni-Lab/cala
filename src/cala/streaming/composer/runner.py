@@ -119,17 +119,11 @@ class Runner:
         Returns:
             Dictionary mapping parameter names to matching state values
         """
-        # Get mapping of state attribute categories
-        state_types = state.type_to_store
-
-        # Match function parameters with state attributes by type
+        # Ask data exchange for the type matching value
         matches = {}
         for param_name, param_type in function.__signature__.items():
-            if param_name == "return":
-                continue
-            if param_type in state_types:
-                value = state.get_type(param_type)
-                matches[param_name] = value
+            value = state.get(param_type)
+            matches[param_name] = value
 
         return matches
 

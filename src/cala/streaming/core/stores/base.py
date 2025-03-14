@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod, ABCMeta
 from dataclasses import dataclass, field
-from typing import Tuple, Hashable, Any
+from typing import Tuple, Hashable, Any, Type
 
 import numpy as np
 from xarray import DataArray
@@ -53,3 +53,11 @@ class BaseStore(ABC, metaclass=ABCMeta):
         other: function or value to use for replacement
         drop: whether to drop the condition dimension"""
         return self._warehouse.where(condition, other=other, drop=drop)
+
+    def get(self, type_: Type = None) -> DataArray:
+        if issubclass(type_, self.data_type):
+            return self.warehouse
+        else:
+            raise TypeError(
+                f"Store {self.__class__.__name__}'s data type is {self.data_type}. Queried type: {type_}."
+            )
