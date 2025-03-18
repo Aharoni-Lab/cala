@@ -4,7 +4,7 @@ from typing import Type, Optional
 import xarray as xr
 
 from cala.streaming.core import Observable, Footprints, Traces
-from cala.streaming.stores.odl import PixelStats, ComponentStats
+from cala.streaming.stores.odl import PixelStats, ComponentStats, Residual
 
 
 @dataclass
@@ -26,6 +26,7 @@ class Distributor:
 
     pixel_stats: PixelStats = field(default_factory=PixelStats)
     component_stats: ComponentStats = field(default_factory=ComponentStats)
+    residual: Residual = field(default_factory=Residual)
 
     def get(self, type_: Type) -> Optional[Observable]:
 

@@ -5,8 +5,11 @@ import pytest
 
 from cala.streaming.composer import StreamingConfig, Runner
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
-from cala.streaming.init.odl import PixelStatsInitializer
-from cala.streaming.init.odl.component_stats import ComponentStatsInitializer
+from cala.streaming.init.odl import (
+    PixelStatsInitializer,
+    ComponentStatsInitializer,
+    ResidualInitializer,
+)
 
 
 @pytest.fixture
@@ -40,7 +43,13 @@ def initialization_config() -> StreamingConfig:
                     "transformer": ComponentStatsInitializer,
                     "params": {},
                     "n_frames": 3,
-                    "requires": ["pixel_stats"],
+                    "requires": ["traces"],
+                },
+                "residual": {
+                    "transformer": ResidualInitializer,
+                    "params": {"buffer_length": 3},
+                    "n_frames": 3,
+                    "requires": ["footprints", "traces"],
                 },
             }
         },
@@ -55,11 +64,6 @@ def test_initializer_initialization(initialization_config):
 def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video, _, _ = stabilized_video
-
-    # video.values = np.zeros_like(video)
-    # video[1] = video[0] + 1
-    # video[2] = video[1] + 1
-    # video[3] = video[2] + 1
 
     for frame in video:
         runner.initialize(frame)
