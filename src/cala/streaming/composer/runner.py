@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict, Literal
+from typing import Callable, Any, Dict, Literal, List
 
 import networkx as nx
 import xarray as xr
@@ -15,6 +15,8 @@ class Runner:
     config: StreamingConfig
     _buffer: Buffer = field(init=False)
     _state: Distributor = field(default_factory=lambda: Distributor())
+    execution_order: List[str] = None
+    status: List[bool] = None
     is_initialized: bool = False
 
     def __post_init__(self):
@@ -41,11 +43,14 @@ class Runner:
         """Initialize transformers in dependency order."""
         self._buffer.add_frame(frame)
 
-        execution_order = self._create_dependency_graph(self.config["initialization"])
-        status = [False] * len(execution_order)
+        if not self.execution_order or not self.status:
+            self.execution_order = self._create_dependency_graph(
+                self.config["initialization"]
+            )
+            self.status = [False] * len(self.execution_order)
 
-        for idx, step in enumerate(execution_order):
-            if status[idx]:
+        for idx, step in enumerate(self.execution_order):
+            if self.status[idx]:
                 continue
 
             n_frames = self.config["initialization"][step].get("n_frames", 1)
@@ -57,11 +62,11 @@ class Runner:
                 transformer=transformer, frame=self._buffer.get_latest(n_frames)
             )
             if result is not None:
-                status[idx] = True
+                self.status[idx] = True
 
             self._state.collect(result)
 
-        if all(status):
+        if all(self.status):
             self.is_initialized = True
 
     def extract(self, frame: xr.DataArray):
