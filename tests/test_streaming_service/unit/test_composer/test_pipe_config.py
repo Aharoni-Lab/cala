@@ -3,7 +3,7 @@ from typing import Sequence
 from cala.streaming.composer.pipe_config import (
     PreprocessStep,
     InitializationStep,
-    ExtractionStep,
+    IterateStep,
     StreamingConfig,
 )
 
@@ -53,7 +53,7 @@ def test_initialization_step_valid():
 
 def test_extraction_step_valid():
     # Test basic configuration
-    step: ExtractionStep = {
+    step: IterateStep = {
         "transformer": MockTransformer,
         "params": {"param1": "value1"},
     }
@@ -61,7 +61,7 @@ def test_extraction_step_valid():
     assert step["params"] == {"param1": "value1"}
 
     # Test with optional requires field
-    step_with_requires: ExtractionStep = {
+    step_with_requires: IterateStep = {
         "transformer": MockTransformer,
         "params": {"param1": "value1"},
         "requires": ["dep1", "dep2"],

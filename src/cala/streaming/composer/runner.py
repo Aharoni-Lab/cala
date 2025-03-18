@@ -14,7 +14,7 @@ from cala.streaming.util.buffer import Buffer
 class Runner:
     """Manages the execution of streaming calcium imaging analysis pipeline.
 
-    This class orchestrates the preprocessing, initialization, and extraction steps
+    This class orchestrates the preprocessing, initialization, and iterate steps
     of the calcium imaging analysis pipeline according to a provided configuration.
     """
 
@@ -97,23 +97,23 @@ class Runner:
         if all(self.status):
             self.is_initialized = True
 
-    def extract(self, frame: xr.DataArray):
-        """Execute extraction steps on a single frame.
+    def iterate(self, frame: xr.DataArray):
+        """Execute iterate steps on a single frame.
 
         Args:
-            frame: Input frame to process for component extraction.
+            frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config["extraction"])
+        execution_order = self._create_dependency_graph(self.config["iterate"])
 
         # Execute transformers in order
         for step in execution_order:
-            transformer = self._build_transformer(process="extraction", step=step)
+            transformer = self._build_transformer(process="iterate", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
             self._state.collect(result)
 
     def _build_transformer(
-        self, process: Literal["preprocess", "initialization", "extraction"], step: str
+        self, process: Literal["preprocess", "initialization", "iterate"], step: str
     ):
         """Construct a transformer instance with configured parameters.
 
