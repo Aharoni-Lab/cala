@@ -7,7 +7,7 @@ from xarray import DataArray
 
 
 @dataclass(kw_only=True)
-class EssentialStore(ABC, metaclass=ABCMeta):
+class LowkeyStore(ABC, metaclass=ABCMeta):
     dimensions: Tuple[str, ...]
 
     _warehouse: DataArray = field(default_factory=lambda: DataArray())
@@ -61,3 +61,8 @@ class EssentialStore(ABC, metaclass=ABCMeta):
             raise TypeError(
                 f"Store {self.__class__.__name__}'s data type is {self.data_type}. Queried type: {type_}."
             )
+
+            # if exists in warehouse:
+            # update
+            # if dne in warehouse (or warehouse empty):
+            # insert

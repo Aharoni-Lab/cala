@@ -1,5 +1,5 @@
-from .essential import EssentialStore
-from .advanced import AdvancedStore
-from .ultimate import UltimateStore
+from .highkey import HighkeyStore
+from .lowkey import LowkeyStore
+from .midkey import MidkeyStore
 
-__all__ = ["EssentialStore", "AdvancedStore", "UltimateStore"]
+__all__ = ["LowkeyStore", "MidkeyStore", "HighkeyStore"]

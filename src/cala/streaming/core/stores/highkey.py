@@ -6,17 +6,13 @@ from typing import List, Optional, Set, Hashable, overload, Dict
 import numpy as np
 import xarray as xr
 
-from .advanced import AdvancedStore
-
-
-# component_type = find_intersection_type_of(
-#     base_type=FluorescentObject, instance=value
-# )
-# types = [component_type.__name__] * value.sizes[self.component_axis]
+from .midkey import MidkeyStore
 
 
 @dataclass(kw_only=True)
-class UltimateStore(AdvancedStore):
+class HighkeyStore(MidkeyStore):
+    """These stores care about the types of components, and has functionalities to
+    ingest / output parts of warehouse based on component type."""
 
     type_coord: str = "type_coord"
 
@@ -31,18 +27,7 @@ class UltimateStore(AdvancedStore):
                 f"component_axis {self.component_dim} must be in dims {self.dimensions}."
             )
         empty_array = np.empty(shape=tuple([0] * len(self.dimensions)))
-        empty_ids = []
-        empty_types = []
-        warehouse = self.generate_warehouse(data_array=empty_array)
-        warehouse = self.register_ids(warehouse, ids=empty_ids)
-        self._warehouse = self.register_types(warehouse, empty_types)
-
-    def register_types(self, warehouse: xr.DataArray, types: List[Hashable]):
-        return warehouse.assign_coords(
-            {
-                self.type_coord: ([self.component_dim], types),
-            }
-        )
+        self._warehouse = self.generate_warehouse(data_array=empty_array)
 
     def _validate_coords(self, coords: Set[Hashable]) -> None:
         if not (
@@ -54,56 +39,6 @@ class UltimateStore(AdvancedStore):
                 f"\tProvided: {coords}\n"
                 f"\tRequired: {self.id_coord, self.type_coord, self.component_dim}"
             )
-
-    @overload
-    def insert(
-        self,
-        to_insert: xr.DataArray,
-        inplace=True,
-    ) -> None: ...
-
-    @overload
-    def insert(
-        self,
-        to_insert: xr.DataArray,
-        inplace=False,
-    ) -> xr.DataArray: ...
-
-    def insert(
-        self,
-        to_insert: xr.DataArray,
-        inplace=False,
-    ) -> Optional[xr.DataArray]:
-        """
-
-        Args:
-            to_insert: only accepts Xarray DataArray formatted for the store. Refer to generate_warehouse method.
-            inplace:
-
-        Returns:
-
-        """
-
-        if inplace and np.sum(self.warehouse.shape) == 0:
-            self._warehouse = to_insert
-            return None
-
-        self._validate_dims(to_insert.dims)
-        self._validate_coords(set(to_insert.coords.keys()))
-        already_exist = set(to_insert.coords[self.id_coord].values.tolist()) & set(
-            self._ids
-        )
-        if not already_exist == set():
-            raise ValueError(
-                f"IDs {already_exist} already exist in store. Cannot be inserted."
-            )
-
-        if inplace:
-            self._warehouse = xr.concat(
-                [self._warehouse, to_insert], dim=self.component_dim
-            )
-        else:
-            return xr.concat([self._warehouse, to_insert], dim=self.component_dim)
 
     def slice(
         self,
@@ -195,45 +130,9 @@ class UltimateStore(AdvancedStore):
                 }
             )
 
-    @overload
-    def update(self, data: xr.DataArray, inplace: bool = True) -> None: ...
-
-    @overload
-    def update(self, data: xr.DataArray, inplace: bool = False) -> xr.DataArray: ...
-
-    def update(
-        self, data: xr.DataArray, inplace: bool = False
-    ) -> Optional[xr.DataArray]:
-        """only allows formatted dataarray with appropriate dims and coords. can use the generate_warehouse method beforehand."""
-        data_coords = data.coords[self.id_coord].values.tolist()
-
-        if inplace:
-            self._warehouse.set_xindex(self.id_coord).loc[
-                {self.id_coord: data_coords}
-            ] = data  # shape safe
-        else:
-            return self.slice(data_coords)
-
-    @abstractmethod
-    def temporal_update(
-        self, last_streamed_data: xr.DataArray, ids: List[str]
-    ) -> None: ...
-
-    """
-    updates from new frames look different for each store.
-    e.g. if you have frame_axis or its derivative, the store shape changes.
-    otherwise the shape stays the same.
-
-    an abstractmethod might not be good for this since parameters might be all different.
-    """
-
     @property
     def _types(self) -> List[str]:
         return self._warehouse.coords[self.type_coord].values.tolist()
-
-    @property
-    def _ids(self) -> List[str]:
-        return self._warehouse.coords[self.id_coord].values.tolist()
 
     @property
     def id_to_type(self) -> Dict[str, str]:
