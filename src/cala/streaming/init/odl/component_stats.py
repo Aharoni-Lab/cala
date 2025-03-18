@@ -10,46 +10,73 @@ from cala.streaming.stores.odl import ComponentStats
 
 @dataclass
 class ComponentStatsInitializerParams(Parameters):
-    """Parameters for component statistics computation"""
+    """Parameters for component statistics computation.
+
+    This class defines the configuration parameters needed for computing statistics
+    across components, including axis names and coordinate specifications.
+    """
 
     component_axis: str = "components"
-    """Axis for components"""
+    """Axis for components in the data array."""
+
     id_coordinates: str = "id_"
+    """Name of the coordinate used to identify individual components with unique IDs."""
+
     type_coordinates: str = "type_"
+    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
+
     frames_axis: str = "frame"
-    """Frames axis"""
+    """Axis representing temporal dimension in the data."""
+
     spatial_axes: tuple = ("height", "width")
-    """Spatial axes for pixel statistics"""
+    """Tuple of spatial dimensions for the field of view."""
 
     def validate(self):
+        """Validate parameter configurations.
+
+        Raises:
+            ValueError: If spatial_axes is not a tuple of length 2.
+        """
         if not isinstance(self.spatial_axes, tuple) or len(self.spatial_axes) != 2:
             raise ValueError("spatial_axes must be a tuple of length 2")
 
 
 @dataclass
 class ComponentStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta):
-    """Computes pixel statistics using temporal components.
+    """Computes correlation statistics between temporal components.
 
-    Implements the equation:  M = C * C.T / t'
+    This transformer calculates the correlation matrix between temporal components
+    using their activity traces. The correlation is computed as a normalized
+    outer product of the temporal components.
+
+    The computation follows the equation:  M = C * C.T / t'
     where:
-    - C is the temporal components matrix
+    - C is the temporal components matrix (components × time)
     - t' is the current timestep
+    - M is the resulting correlation matrix (components × components)
     """
 
     params: ComponentStatsInitializerParams
-    """Parameters for component statistics computation"""
+    """Configuration parameters for the computation."""
+
     component_stats_: xr.DataArray = field(init=False)
-    """Computed component statistics"""
+    """Computed correlation matrix between components."""
 
     def learn_one(self, traces: Traces, frame: xr.DataArray) -> Self:
-        """Learn pixel statistics from frames and temporal components.
+        """Compute correlation statistics from temporal components.
+
+        This method implements the correlation computation between components
+        using their temporal traces. The correlation matrix is normalized by
+        the current timestep.
 
         Args:
-            traces: traces of all detected fluorescent components
-            frame: xarray DataArray of shape (frames, height, width) containing 2D frames
+            traces (Traces): Temporal traces of all detected fluorescent components.
+                Shape: (components × time)
+            frame (xr.DataArray): Current frame data, used for temporal normalization.
+                Shape: (frames × height × width)
 
         Returns:
-            self
+            Self: The transformer instance for method chaining.
         """
         # Get current timestep
         t_prime = frame.sizes[self.params.frames_axis]
@@ -82,12 +109,15 @@ class ComponentStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta
         return self
 
     def transform_one(self, _=None) -> ComponentStats:
-        """Transform method updates component footprints with computed statistics.
+        """Return the computed component statistics.
+
+        This method wraps the computed correlation matrix in a ComponentStats
+        object for consistent typing in the pipeline.
 
         Args:
+            _: Unused parameter maintained for API compatibility.
 
         Returns:
-            New ComponentStats
+            ComponentStats: Wrapped correlation matrix between components.
         """
-        # Transpose to match expected footprint dimensions (components, height, width)
         return ComponentStats(self.component_stats_)
