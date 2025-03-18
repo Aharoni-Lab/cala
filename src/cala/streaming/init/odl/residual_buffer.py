@@ -10,20 +10,37 @@ from cala.streaming.stores.odl import Residual
 
 @dataclass
 class ResidualInitializerParams(Parameters):
-    """Parameters for residual computation"""
+    """Parameters for residual signal computation.
+
+    This class defines the configuration parameters needed for computing and maintaining
+    a buffer of residual signals, including axis names, spatial specifications, and
+    buffer characteristics.
+    """
 
     component_axis: str = "components"
-    """Axis for components"""
+    """Name of the dimension representing individual components."""
+
     id_coordinates: str = "id_"
+    """Name of the coordinate used to identify individual components with unique IDs."""
+
     type_coordinates: str = "type_"
+    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
+
     frames_axis: str = "frame"
-    """Frames axis"""
+    """Name of the dimension representing time points."""
+
     spatial_axes: tuple = ("height", "width")
-    """Spatial axes for pixel statistics"""
+    """Names of the dimensions representing spatial coordinates (height, width)."""
+
     buffer_length: int = 50
-    """Number of frames to keep in the residual buffer (l_b)"""
+    """Number of recent frames to maintain in the residual buffer (l_b)."""
 
     def validate(self):
+        """Validate parameter configurations.
+
+        Raises:
+            ValueError: If spatial_axes is not a tuple of length 2 or buffer_length is not positive.
+        """
         if not isinstance(self.spatial_axes, tuple) or len(self.spatial_axes) != 2:
             raise ValueError("spatial_axes must be a tuple of length 2")
         if self.buffer_length <= 0:
@@ -32,35 +49,50 @@ class ResidualInitializerParams(Parameters):
 
 @dataclass
 class ResidualInitializer(SupervisedTransformer, metaclass=TransformerMeta):
-    """Computes residual buffer that contains the last l_b instances of the residual signal rt = yt − Act − bft,
-    where l_b is a reasonably small number.
+    """Computes and maintains a buffer of residual signals.
 
-    Implements the equation: R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
+    This transformer calculates the residual signal by subtracting the reconstructed
+    signal (using components and their temporal activities) from the original data.
+    It maintains a buffer of recent residual frames for ongoing analysis.
+
+    The computation follows the equation: R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
     where:
-    - Y is the data matrix (pixels x time)
-    - [A, b] is the footprint matrix of both neuron and background
-    - [C; f] is the traces matrix of both neuron and background
+    - Y is the data matrix (pixels × time)
+    - [A, b] is the spatial footprint matrix of neurons and background
+    - [C; f] is the temporal traces matrix of neurons and background
     - t' is the current timestep
-    - R_buf is the resulting buffer
+    - l_b is the buffer length
+    - R_buf is the resulting residual buffer
+
+    The residual buffer contains the recent history of unexplained variance
+    in the data after accounting for known components.
     """
 
     params: ResidualInitializerParams
-    """Parameters for residual computation"""
+    """Configuration parameters for the residual computation."""
+
     residual_: xr.DataArray = field(init=False)
-    """Computed residual"""
+    """Computed residual buffer containing recent unexplained signals."""
 
     def learn_one(
         self, footprints: Footprints, traces: Traces, frame: xr.DataArray
     ) -> Self:
-        """Learn residual from frames, temporal components, and footprints.
+        """Compute residual signals from frames, components, and their activities.
+
+        This method implements the residual computation by subtracting the
+        reconstructed signal from the original data. It maintains only the
+        most recent frames as specified by the buffer length.
 
         Args:
-            footprints: xarray DataArray of shape (components, height, width) containing spatial footprints
-            traces: traces of all detected fluorescent components
-            frame: xarray DataArray of shape (frames, height, width) containing 2D frames
+            footprints (Footprints): Spatial footprints of all components.
+                Shape: (components × height × width)
+            traces (Traces): Temporal traces of all components.
+                Shape: (components × time)
+            frame (xr.DataArray): Stack of frames up to current timestep.
+                Shape: (frames × height × width)
 
         Returns:
-            self
+            Self: The transformer instance for method chaining.
         """
         # Get current timestep
         t_prime = frame.sizes[self.params.frames_axis]
@@ -92,9 +124,15 @@ class ResidualInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         return self
 
     def transform_one(self, _=None) -> Residual:
-        """Transform method returns the computed residual buffer.
+        """Return the computed residual buffer.
+
+        This method wraps the residual buffer in a Residual object
+        for consistent typing in the pipeline.
+
+        Args:
+            _: Unused parameter maintained for API compatibility.
 
         Returns:
-            Residual buffer
+            Residual: Wrapped residual buffer containing recent unexplained signals.
         """
         return Residual(self.residual_)
