@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Dict, Type
+from typing import Type, Optional
 
 import xarray as xr
 
-from cala.streaming.stores.common import FootprintStore, TraceStore
-from cala.streaming.types import Observable
-from cala.streaming.types.common import find_intersection_type_of
+from cala.streaming.core import Observable, Footprints, Traces
+from cala.streaming.stores.odl import PixelStats
 
 
 @dataclass
@@ -22,69 +21,21 @@ class Distributor:
     id_coord: str = "id_"
     type_coord: str = "type_"
 
-    footprints: FootprintStore = field(init=False)
-    traces: TraceStore = field(init=False)
+    footprints: Footprints = field(default_factory=Footprints)
+    traces: Traces = field(default_factory=Traces)
+    pixel_stats: PixelStats = field(default_factory=PixelStats)
 
-    def __post_init__(self):
-        self.footprints = FootprintStore(
-            dimensions=(self.component_axis, *self.spatial_axes),
-            component_dim=self.component_axis,
-            spatial_axes=self.spatial_axes,
-            id_coord=self.id_coord,
-            type_coord=self.type_coord,
-        )
-        self.traces = TraceStore(
-            dimensions=(self.component_axis, self.frame_axis),
-            component_dim=self.component_axis,
-            frame_axis=self.frame_axis,
-            id_coord=self.id_coord,
-            type_coord=self.type_coord,
-        )
+    def get(self, type_: Type) -> Optional[Observable]:
 
-    def get(self, type_: Type) -> Observable:
-        # Test what happens when the composite type is a member of none.
-        observable_type = find_intersection_type_of(
-            base_type=Observable, instance=type_
-        )
-
-        if not observable_type:
-            raise TypeError(
-                f"The provided type {type_} is not a composite type of Observable and FluorescentObject"
-            )
-
-        return getattr(self, self.type_to_store[observable_type]).get(type_=type_)
-
-    @property
-    def type_to_store(self) -> Dict[Type["Observable"], str]:
-        from .stores import EssentialStore
-
-        return {
-            getattr(self, attr).data_type: attr
-            for attr in self.__annotations__.keys()
-            if isinstance(getattr(self, attr), EssentialStore)
-        }
+        for attr_name, attr_type in self.__annotations__.items():
+            if issubclass(attr_type, Observable) and attr_type == type_:
+                return getattr(self, attr_name)
 
     def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:
-        # Init steps: assign1 -> insert2 -> assign3 -> insert4
-        # assign1: these are new cells, there are no arrays. --> so we create cells and assign
-        # insert2: these are new cells, there is a same type array. -->
-        # assign3: these are existing cells, there is a same type array.
-        # insert4: these are existing cells, there is a same type array.
-
-        # checking new cell status: check if coords is hex or int! hex: existing, int: new
-        # then, all we need is if already exists --> insert, if does not exist --> assign
-
         results = (result,) if isinstance(result, xr.DataArray) else result
 
-        for value in results:
-            try:
-                observable_type = find_intersection_type_of(
-                    base_type=Observable, instance=value
-                )
-
-            except TypeError:
-                continue
-
+        for result in results:
             # determine which store to input the value into
-            if store_name := self.type_to_store.get(observable_type):
-                getattr(self, store_name).insert(value, inplace=True)
+            for attr_name, attr_type in self.__annotations__.items():
+                if issubclass(attr_type, Observable) and isinstance(result, attr_type):
+                    setattr(self, attr_name, result)

@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from cala.streaming.types.common import (
+from cala.streaming.core.stores import (
     Observable,
     Footprints,
     Traces,

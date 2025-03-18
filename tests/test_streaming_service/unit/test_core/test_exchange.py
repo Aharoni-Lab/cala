@@ -2,10 +2,10 @@ from uuid import UUID
 
 import numpy as np
 import pytest
+from cala.streaming.stores.common import FootprintStore, TraceStore
 
 from cala.streaming.core.distribution import Distributor
-from cala.streaming.stores.common import FootprintStore, TraceStore
-from cala.streaming.types import (
+from cala.streaming.stores import (
     FluorescentObject,
     Observable,
     NeuronFootprints,
@@ -42,34 +42,6 @@ class TestDataExchangeInitialization:
         assert exchange.component_axis == "cells"
         assert exchange.spatial_axes == ("x", "y")
         assert exchange.frame_axis == "time"
-
-
-class TestDataExchangeTypeHandling:
-    @pytest.fixture
-    def exchange(self):
-        return Distributor()
-
-    def test_find_intersection_type_success(self, exchange):
-        result = exchange._find_intersection_type_of(Observable, MockObservable())
-        assert result == MockObservable
-
-    def test_find_intersection_type_failure(self, exchange):
-        class UnrelatedClass:
-            pass
-
-        with pytest.raises(TypeError):
-            exchange._find_intersection_type_of(Observable, UnrelatedClass())
-
-    def test_get_observable_x_component(self, exchange):
-        with pytest.raises(KeyError):
-            exchange.get_observable_x_component(MockComposite)
-
-    def test_get_observable_x_component_invalid_type(self, exchange):
-        class InvalidType:
-            pass
-
-        with pytest.raises(TypeError):
-            exchange.get_observable_x_component(InvalidType)
 
 
 class TestDataExchangeCollection:

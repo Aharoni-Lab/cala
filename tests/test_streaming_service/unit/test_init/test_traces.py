@@ -10,7 +10,7 @@ from cala.streaming.init.common import (
     TracesInitializer,
     TracesInitializerParams,
 )
-from cala.streaming.types import Traces
+from cala.streaming.stores import Traces
 from tests.fixtures import stabilized_video
 
 

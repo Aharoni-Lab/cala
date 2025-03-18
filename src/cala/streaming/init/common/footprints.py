@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Self, Tuple, List
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -9,7 +10,7 @@ from skimage.segmentation import watershed
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.core import Parameters, TransformerMeta
-from cala.streaming.types.common import NeuronFootprints, BackgroundFootprints
+from cala.streaming.core.stores import Footprints, Component
 
 
 @dataclass
@@ -18,6 +19,9 @@ class FootprintsInitializerParams(Parameters):
 
     component_axis: str = "components"
     """Axis for components"""
+
+    id_coordinates: str = "id_"
+    type_coordinates: str = "type_"
 
     threshold_factor: float = 0.2
     """Factor for thresholding distance transform"""
@@ -47,54 +51,46 @@ class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
 
     params: FootprintsInitializerParams
     """Parameters for footprints initialization"""
-    spatial_axes: tuple = field(init=False)
-    """Spatial axes for footprints"""
     num_markers_: int = field(init=False)
     """Number of markers"""
     markers_: np.ndarray = field(init=False)
     """Markers"""
-    neurons_: NeuronFootprints = field(init=False)
-    """Neuron footprints"""
-    background_: BackgroundFootprints = field(init=False)
-    """Background footprints"""
+    footprints_: xr.DataArray = field(init=False)
+
     is_fitted_: bool = False
 
     def learn_one(self, frame: xr.DataArray) -> Self:
         """Learn footprints from a frame."""
-        # Get spatial axes
-        self.spatial_axes = frame.dims
         # Compute markers
         self.markers_ = self._compute_markers(frame)
         # Extract components
         background, neurons = self._extract_components(self.markers_, frame)
 
-        # Store results
-        self.background_ = BackgroundFootprints(
-            background,
-            dims=(self.params.component_axis, *self.spatial_axes),
+        self.footprints_ = xr.DataArray(
+            background + neurons,
+            dims=(self.params.component_axis, *frame.dims),
             coords={
-                self.params.component_axis: range(len(background)),
-                **{axis: frame.coords[axis] for axis in self.spatial_axes},
-            },
-        )
-        self.neurons_ = NeuronFootprints(
-            neurons,
-            dims=(self.params.component_axis, *self.spatial_axes),
-            coords={
-                self.params.component_axis: range(len(neurons)),
-                **{axis: frame.coords[axis] for axis in self.spatial_axes},
+                self.params.id_coordinates: (
+                    self.params.component_axis,
+                    [uuid4() for _ in range(len(background) + len(neurons))],
+                ),
+                self.params.type_coordinates: (
+                    self.params.component_axis,
+                    [Component.BACKGROUND] * len(background)
+                    + [Component.NEURON] * len(neurons),
+                ),
             },
         )
 
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Tuple[NeuronFootprints, BackgroundFootprints]:
+    def transform_one(self, _=None) -> Footprints:
         """Return initialization result."""
         if not self.is_fitted_:
             raise NotFittedError
 
-        return NeuronFootprints(self.neurons_), BackgroundFootprints(self.background_)
+        return Footprints(self.footprints_)
 
     def _compute_markers(self, frame: xr.DataArray) -> np.ndarray:
         """Compute markers for watershed algorithm."""

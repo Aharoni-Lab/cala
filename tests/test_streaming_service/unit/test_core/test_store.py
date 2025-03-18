@@ -3,12 +3,12 @@ from typing import List
 import numpy as np
 import pytest
 import xarray as xr
+from cala.streaming.core.stores.highkey import HighkeyStore
 
-from cala.streaming.core.stores.ultimate import UltimateStore
-from cala.streaming.types import Footprints
+from cala.streaming.stores import Footprints
 
 
-class Store(UltimateStore):
+class Store(HighkeyStore):
     """Concrete implementation of BaseStore for testing"""
 
     data_type = Footprints

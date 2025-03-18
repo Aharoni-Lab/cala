@@ -17,7 +17,7 @@ from cala.streaming.preprocess.background_removal import BackgroundEraser
 from cala.streaming.preprocess.denoise import Denoiser
 from cala.streaming.preprocess.downsample import Downsampler
 from cala.streaming.preprocess.glow_removal import GlowRemover
-from cala.streaming.types import NeuronFootprints, NeuronTraces
+from cala.streaming.stores import NeuronFootprints, NeuronTraces
 from tests.conftest import stabilized_video
 
 

@@ -122,8 +122,11 @@ class Runner:
         # Ask data exchange for the type matching value
         matches = {}
         for param_name, param_type in function.__signature__.items():
+            if param_name == "return":
+                continue
             value = state.get(param_type)
-            matches[param_name] = value
+            if value is not None:
+                matches[param_name] = value
 
         return matches
 
