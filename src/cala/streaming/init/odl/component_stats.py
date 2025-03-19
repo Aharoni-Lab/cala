@@ -93,7 +93,7 @@ class ComponentStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta
         # Create xarray DataArray with proper dimensions and coordinates
         self.component_stats_ = xr.DataArray(
             M,
-            dims=(self.params.component_axis, self.params.component_axis),
+            dims=(self.params.component_axis, self.params.component_axis + "'"),
             coords={
                 self.params.id_coordinates: (
                     self.params.component_axis,

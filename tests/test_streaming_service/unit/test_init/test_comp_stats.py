@@ -110,7 +110,7 @@ class TestComponentStatsInitializer:
         assert isinstance(initializer.component_stats_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.component_stats_.dims == ("components", "components")
+        assert initializer.component_stats_.dims == ("components", "components'")
         assert initializer.component_stats_.shape == (
             sample_data["n_components"],
             sample_data["n_components"],
@@ -119,7 +119,7 @@ class TestComponentStatsInitializer:
         # Check coordinates
         assert "id_" in initializer.component_stats_.coords
         assert "type_" in initializer.component_stats_.coords
-        assert list(initializer.component_stats_.coords["type_"].values) == [
+        assert initializer.component_stats_.coords["type_"].values.tolist() == [
             "neuron",
             "neuron",
             "background",
@@ -137,7 +137,7 @@ class TestComponentStatsInitializer:
         assert isinstance(result, ComponentStats)
 
         # Check dimensions
-        assert result.dims == ("components", "components")
+        assert result.dims == ("components", "components'")
         assert result.shape == (
             sample_data["n_components"],
             sample_data["n_components"],
