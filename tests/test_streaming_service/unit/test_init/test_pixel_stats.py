@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Traces
+from cala.streaming.core import TraceStore
 from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
@@ -63,7 +63,7 @@ class TestPixelStatsInitializer:
 
         # Create sample traces
         traces_data = np.random.rand(n_components, n_frames)
-        traces = Traces(traces_data, dims=("components", "frames"), coords=coords)
+        traces = TraceStore(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample frames
         frames_data = np.random.rand(n_frames, height, width)
@@ -173,7 +173,7 @@ class TestPixelStatsInitializer:
     def test_invalid_input_handling(self, initializer):
         """Test handling of invalid inputs."""
         # Test with mismatched dimensions
-        invalid_traces = Traces(
+        invalid_traces = TraceStore(
             np.random.rand(3, 10),
             dims=("components", "frames"),
             coords={

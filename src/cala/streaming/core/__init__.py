@@ -7,12 +7,10 @@ from .stores import (
     Footprints,
     Traces,
 )
-from .transformer_meta import TransformerMeta
 
 __all__ = [
     "Parameters",
     "ObservableStore",
-    "TransformerMeta",
     "Component",
     "ComponentTypes",
     "FootprintStore",

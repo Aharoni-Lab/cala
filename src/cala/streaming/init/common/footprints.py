@@ -9,8 +9,7 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, TransformerMeta
-from cala.streaming.core.stores import Footprints, Component
+from cala.streaming.core import Parameters, Component, Footprints
 
 
 @dataclass
@@ -46,7 +45,7 @@ class FootprintsInitializerParams(Parameters):
 
 
 @dataclass
-class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
+class FootprintsInitializer(Transformer):
     """Footprints component initialization methods."""
 
     params: FootprintsInitializerParams
@@ -90,7 +89,7 @@ class FootprintsInitializer(Transformer, metaclass=TransformerMeta):
         if not self.is_fitted_:
             raise NotFittedError
 
-        return Footprints(self.footprints_)
+        return self.footprints_
 
     def _compute_markers(self, frame: xr.DataArray) -> np.ndarray:
         """Compute markers for watershed algorithm."""

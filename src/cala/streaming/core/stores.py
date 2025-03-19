@@ -23,7 +23,7 @@ class FootprintStore(ObservableStore):
     __slots__ = ()
 
 
-Footprints = Annotated[DataArray, ObservableStore(FootprintStore)]
+Footprints = Annotated[DataArray, FootprintStore]
 
 
 class TraceStore(ObservableStore):
@@ -36,4 +36,4 @@ class TraceStore(ObservableStore):
     __slots__ = ()
 
 
-Traces = Annotated[DataArray, ObservableStore(TraceStore)]
+Traces = Annotated[DataArray, TraceStore]

@@ -7,7 +7,7 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, TransformerMeta, Footprints, Traces
+from cala.streaming.core import Parameters, Footprints, Traces
 
 
 @dataclass
@@ -26,7 +26,7 @@ class TracesInitializerParams(Parameters):
 
 
 @dataclass
-class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+class TracesInitializer(SupervisedTransformer):
     """Initializes temporal components using projection methods."""
 
     params: TracesInitializerParams
@@ -81,7 +81,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         if not self.is_fitted_:
             raise NotFittedError
 
-        return Traces(self.traces_)
+        return self.traces_
 
 
 @jit(nopython=True, cache=True, parallel=True)

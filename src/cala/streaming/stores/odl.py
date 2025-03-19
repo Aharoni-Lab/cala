@@ -25,7 +25,7 @@ class PixelStatStore(ObservableStore):
     __slots__ = ()
 
 
-PixelStats = Annotated[DataArray, ObservableStore(PixelStatStore)]
+PixelStats = Annotated[DataArray, PixelStatStore]
 
 
 # components x components
@@ -44,7 +44,7 @@ class ComponentStatStore(ObservableStore):
     __slots__ = ()
 
 
-ComponentStats = Annotated[DataArray, ObservableStore(ComponentStatStore)]
+ComponentStats = Annotated[DataArray, ComponentStatStore]
 
 
 class ResidualStore(ObservableStore):
@@ -64,7 +64,7 @@ class ResidualStore(ObservableStore):
     __slots__ = ()
 
 
-Residuals = Annotated[DataArray, ObservableStore(ResidualStore)]
+Residuals = Annotated[DataArray, ResidualStore]
 
 
 class OverlapStore(ObservableStore):
@@ -91,4 +91,4 @@ class OverlapStore(ObservableStore):
         return labels
 
 
-Overlaps = Annotated[DataArray, ObservableStore(OverlapStore)]
+Overlaps = Annotated[DataArray, OverlapStore]

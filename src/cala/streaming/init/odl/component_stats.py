@@ -4,7 +4,7 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Traces, TransformerMeta
+from cala.streaming.core import Parameters, Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
@@ -42,7 +42,7 @@ class ComponentStatsInitializerParams(Parameters):
 
 
 @dataclass
-class ComponentStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+class ComponentStatsInitializer(SupervisedTransformer):
     """Computes correlation statistics between temporal components.
 
     This transformer calculates the correlation matrix between temporal components
@@ -120,4 +120,4 @@ class ComponentStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta
         Returns:
             ComponentStats: Wrapped correlation matrix between components.
         """
-        return ComponentStats(self.component_stats_)
+        return self.component_stats_
