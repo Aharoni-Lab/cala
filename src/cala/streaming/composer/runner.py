@@ -6,7 +6,8 @@ import xarray as xr
 from river import compose
 
 from cala.streaming.composer.pipe_config import StreamingConfig
-from cala.streaming.core import Parameters, Distributor
+from cala.streaming.core import Parameters
+from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
 
 

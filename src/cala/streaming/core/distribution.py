@@ -9,7 +9,7 @@ from cala.streaming.stores.odl import PixelStats, ComponentStats, Residual
 
 @dataclass
 class Distributor:
-    """Manages a collection of fluorescent components (neurons and background) in calcium imaging data.
+    """Manages a collection of fluorescent components (neurons and background).
 
     This class serves as a central manager for different storages,
     including spatial footprints, temporal traces, and various statistics.

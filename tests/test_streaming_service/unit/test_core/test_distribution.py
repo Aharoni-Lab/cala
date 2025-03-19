@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Distributor, Footprints, Traces
+from cala.streaming.core import Footprints, Traces
+from cala.streaming.core.distribution import Distributor
 from cala.streaming.stores.odl import PixelStats, ComponentStats, Residual
 
 
@@ -98,42 +99,42 @@ class TestDistributor:
         """Test retrieving Observable instances by type."""
         # Test getting each type of Observable
         assert (
-                (sample_distributor.get(Footprints) == sample_distributor.footprints)
-                | (
-                        np.isnan(sample_distributor.get(Footprints))
-                        & np.isnan(sample_distributor.footprints)
-                )
-        ).all()
-        assert (
-                (sample_distributor.get(Traces) == sample_distributor.traces)
-                | (
-                        np.isnan(sample_distributor.get(Traces))
-                        & np.isnan(sample_distributor.traces)
-                )
-        ).all()
-        assert (
-                (sample_distributor.get(PixelStats) == sample_distributor.pixel_stats)
-                | (
-                        np.isnan(sample_distributor.get(PixelStats))
-                        & np.isnan(sample_distributor.pixel_stats)
-                )
-        ).all()
-        assert (
-                (
-                        sample_distributor.get(ComponentStats)
-                        == sample_distributor.component_stats
-                )
-                | (
-                        np.isnan(sample_distributor.get(ComponentStats))
-                        & np.isnan(sample_distributor.component_stats)
+            (sample_distributor.get(Footprints) == sample_distributor.footprints)
+            | (
+                np.isnan(sample_distributor.get(Footprints))
+                & np.isnan(sample_distributor.footprints)
             )
         ).all()
         assert (
-                (sample_distributor.get(Residual) == sample_distributor.residual)
-                | (
-                        np.isnan(sample_distributor.get(Residual))
-                        & np.isnan(sample_distributor.residual)
-                )
+            (sample_distributor.get(Traces) == sample_distributor.traces)
+            | (
+                np.isnan(sample_distributor.get(Traces))
+                & np.isnan(sample_distributor.traces)
+            )
+        ).all()
+        assert (
+            (sample_distributor.get(PixelStats) == sample_distributor.pixel_stats)
+            | (
+                np.isnan(sample_distributor.get(PixelStats))
+                & np.isnan(sample_distributor.pixel_stats)
+            )
+        ).all()
+        assert (
+            (
+                sample_distributor.get(ComponentStats)
+                == sample_distributor.component_stats
+            )
+            | (
+                np.isnan(sample_distributor.get(ComponentStats))
+                & np.isnan(sample_distributor.component_stats)
+            )
+        ).all()
+        assert (
+            (sample_distributor.get(Residual) == sample_distributor.residual)
+            | (
+                np.isnan(sample_distributor.get(Residual))
+                & np.isnan(sample_distributor.residual)
+            )
         ).all()
 
         # Test getting non-existent type
