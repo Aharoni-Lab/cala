@@ -100,7 +100,10 @@ class Runner:
             if result is not None:
                 self.status[idx] = True
 
-            self._state.collect(result)
+            result_type = get_type_hints(
+                transformer.transform_one, include_extras=True
+            )["return"]
+            self._state.init(result, result_type)
 
         if all(self.status):
             self.is_initialized = True
@@ -183,9 +186,12 @@ class Runner:
             Dictionary mapping parameter names to matching state values.
         """
         matches = {}
-        for param_name, param_type in function.__signature__.items():
+        for param_name, param_type in get_type_hints(
+            function, include_extras=True
+        ).items():
             if param_name == "return":
                 continue
+
             value = state.get(param_type)
             if value is not None:
                 matches[param_name] = value

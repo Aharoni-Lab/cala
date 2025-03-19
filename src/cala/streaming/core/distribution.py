@@ -1,10 +1,9 @@
-from dataclasses import dataclass, field
-from typing import Type, Optional
+from dataclasses import dataclass
+from typing import Type, Optional, get_origin, Annotated
 
 import xarray as xr
 
-from cala.streaming.core import Observable, Footprints, Traces
-from cala.streaming.stores.odl import PixelStats, ComponentStats, Residual
+from cala.streaming.core import ObservableStore
 
 
 @dataclass
@@ -46,26 +45,37 @@ class Distributor:
             type_ (Type): The type of Observable to retrieve (e.g., Footprints, Traces).
 
         Returns:
-            Optional[Observable]: The requested Observable instance if found, None otherwise.
+            Optional[ObservableStore]: The requested Observable instance if found, None otherwise.
         """
+        store_type = self._get_store_type(type_)
+        if store_type is None:
+            return
         for attr_name, attr_type in self.__annotations__.items():
-            if issubclass(attr_type, Observable) and attr_type == type_:
+            if attr_type == store_type:
                 return getattr(self, attr_name)
 
-    def collect(self, result: xr.DataArray | tuple[xr.DataArray, ...]) -> None:
+    def init(self, result: xr.DataArray, type_: Type) -> None:
         """Store one or more DataArray results in their appropriate Observable containers.
 
         This method automatically determines the correct storage location based on the
         type of the input DataArray(s).
 
         Args:
-            result: Either a single xr.DataArray or a tuple of DataArrays to be stored.
-                    Each DataArray must correspond to a valid Observable type.
+            result: A single xr.DataArray to be stored. Must correspond to a valid Observable type.
+            type_: type of the result. If an observable, should be an Annotated type that links to Store class.
         """
-        results = (result,) if isinstance(result, xr.DataArray) else result
+        target_store_type = self._get_store_type(type_)
+        if target_store_type is None:
+            return
 
-        for result in results:
-            # determine which store to input the value into
-            for attr_name, attr_type in self.__annotations__.items():
-                if issubclass(attr_type, Observable) and isinstance(result, attr_type):
-                    setattr(self, attr_name, result)
+        store_name = target_store_type.__name__.lower()
+        # Add to annotations
+        self.__annotations__[store_name] = target_store_type
+        # Create and set the store
+        setattr(self, store_name, result)
+
+    @staticmethod
+    def _get_store_type(type_: Type) -> type | None:
+        if get_origin(type_) is Annotated:
+            if issubclass(type_.__metadata__[0], ObservableStore):
+                return type_.__metadata__[0]
