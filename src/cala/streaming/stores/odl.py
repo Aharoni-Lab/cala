@@ -1,8 +1,14 @@
-from cala.streaming.core import Observable
+from typing import Annotated
+
+import numpy as np
+from scipy.sparse.csgraph import connected_components
+from xarray import DataArray
+
+from cala.streaming.core import ObservableStore
 
 
 # pixels x components
-class PixelStats(Observable):
+class PixelStatStore(ObservableStore):
     """Storage for pixel-component statistics.
 
     This class stores the correlation statistics between each pixel and each component,
@@ -19,8 +25,11 @@ class PixelStats(Observable):
     __slots__ = ()
 
 
+PixelStats = Annotated[DataArray, ObservableStore(PixelStatStore)]
+
+
 # components x components
-class ComponentStats(Observable):
+class ComponentStatStore(ObservableStore):
     """Storage for component-component correlation statistics.
 
     This class stores the correlation matrix between all components,
@@ -35,7 +44,10 @@ class ComponentStats(Observable):
     __slots__ = ()
 
 
-class Residual(Observable):
+ComponentStats = Annotated[DataArray, ObservableStore(ComponentStatStore)]
+
+
+class ResidualStore(ObservableStore):
     """Storage for residual signals.
 
     This class stores the unexplained variance in the data after accounting
@@ -52,7 +64,10 @@ class Residual(Observable):
     __slots__ = ()
 
 
-class OverlapGroups(Observable):
+Residuals = Annotated[DataArray, ObservableStore(ResidualStore)]
+
+
+class OverlapStore(ObservableStore):
     """Storage for spatially overlapping component groups.
 
     This class stores information about which components share spatial overlap
@@ -67,3 +82,13 @@ class OverlapGroups(Observable):
     """
 
     __slots__ = ()
+
+    @property
+    def labels(self) -> np.ndarray:
+        _, labels = connected_components(
+            csgraph=self.data, directed=False, return_labels=True
+        )
+        return labels
+
+
+Overlaps = Annotated[DataArray, ObservableStore(OverlapStore)]
