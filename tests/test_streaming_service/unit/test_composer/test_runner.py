@@ -10,8 +10,12 @@ from river.base import Transformer
 
 from cala.streaming.composer.pipe_config import StreamingConfig
 from cala.streaming.composer.runner import Runner
-from cala.streaming.core import Parameters, Footprints, Traces, Component
-from cala.streaming.core.transformer_meta import TransformerMeta
+from cala.streaming.core import (
+    Parameters,
+    Component,
+    Footprints,
+    Traces,
+)
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.preprocess import RigidStabilizer
 from cala.streaming.preprocess.background_removal import BackgroundEraser
@@ -35,7 +39,7 @@ class MockMotionCorrectionParams(Parameters):
 
 # Mock transformers for testing
 @dataclass
-class MockMotionCorrection(Transformer, metaclass=TransformerMeta):
+class MockMotionCorrection(Transformer):
     params: MockMotionCorrectionParams = field(
         default_factory=MockMotionCorrectionParams
     )
@@ -65,7 +69,7 @@ class MockNeuronDetectionParams(Parameters):
 
 
 @dataclass
-class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
+class MockNeuronDetection(Transformer):
     params: MockNeuronDetectionParams = field(default_factory=MockNeuronDetectionParams)
     frame_: xr.DataArray = field(init=False)
 
@@ -78,7 +82,7 @@ class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
         data = np.random.rand(self.params.num_components, *self.frame_.shape)
-        return Footprints(
+        return xr.DataArray(
             data,
             dims=["components", "height", "width"],
             coords={
@@ -108,7 +112,7 @@ class MockTraceExtractorParams(Parameters):
 
 
 @dataclass
-class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
+class MockTraceExtractor(Transformer):
     params: MockTraceExtractorParams = field(default_factory=MockTraceExtractorParams)
     frame_: xr.DataArray = field(init=False)
 
@@ -121,7 +125,7 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
             raise ValueError("No frame has been learned yet")
         # Create mock traces
         data = np.random.rand(len(neuron_footprints), 100)  # 100 timepoints
-        return Traces(
+        return xr.DataArray(
             data,
             dims=["components", "frames"],
             coords={

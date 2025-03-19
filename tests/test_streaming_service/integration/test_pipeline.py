@@ -10,7 +10,7 @@ from cala.streaming.init.odl import (
     ComponentStatsInitializer,
     ResidualInitializer,
 )
-from cala.streaming.init.odl.overlap_groups import OverlapGroupsInitializer
+from cala.streaming.init.odl.overlaps import OverlapsInitializer
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def initialization_config() -> StreamingConfig:
                     "requires": ["footprints", "traces"],
                 },
                 "overlap_groups": {
-                    "transformer": OverlapGroupsInitializer,
+                    "transformer": OverlapsInitializer,
                     "params": {},
                     "requires": ["footprints"],
                 },
