@@ -121,7 +121,7 @@ class Runner:
             transformer = self._build_transformer(process="iterate", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
-            self._state.collect(result)
+            self._state.init(result)
 
     def _build_transformer(
         self, process: Literal["preprocess", "initialization", "iterate"], step: str

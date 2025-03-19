@@ -14,31 +14,9 @@ class Distributor:
     including spatial footprints, temporal traces, and various statistics.
     """
 
-    component_axis: str = "components"
-    """The axis of the component."""
-    spatial_axes: tuple = ("width", "height")
-    """The spatial axes of the component."""
-    frame_axis: str = "frames"
-    """The axis of the frames."""
+    _: bool = True
 
-    id_coord: str = "id_"
-    """Name of the coordinate used to identify individual components with unique IDs."""
-    type_coord: str = "type_"
-    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
-
-    footprints: Footprints = field(default_factory=Footprints)
-    """Storage for spatial footprints of components, representing their locations and shapes."""
-    traces: Traces = field(default_factory=Traces)
-    """Storage for temporal traces, containing the time-varying activity of each component."""
-
-    pixel_stats: PixelStats = field(default_factory=PixelStats)
-    """Storage for pixel-level statistics computed across the field of view."""
-    component_stats: ComponentStats = field(default_factory=ComponentStats)
-    """Storage for component-level statistics computed for each identified component."""
-    residual: Residual = field(default_factory=Residual)
-    """Storage for residual signals remaining after component extraction."""
-
-    def get(self, type_: Type) -> Optional[Observable]:
+    def get(self, type_: Type) -> Optional[ObservableStore]:
         """Retrieve a specific Observable instance based on its type.
 
         Args:
