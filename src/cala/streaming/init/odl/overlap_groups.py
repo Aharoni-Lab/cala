@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Self, List, Set
+from typing import Self
 
 import numpy as np
 import sparse
@@ -62,50 +62,6 @@ class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta)
     overlap_groups_: xr.DataArray = field(init=False)
     """Computed sparse matrix indicating component group memberships."""
 
-    def _join_groups(
-        self,
-        footprints: xr.DataArray,
-        groups: List[Set[int]],
-        component_idx: int,
-        component: xr.DataArray,
-    ) -> List[Set[int]]:
-        """Implementation of Algorithm 3 (JOINGROUPS).
-
-        Determines which group(s) a new component should join based on spatial overlap.
-
-        Args:
-            footprints: Spatial footprints of all components up to current index.
-            groups: Current list of component groups.
-            component_idx: Index of the new component.
-            component: Spatial footprint of the new component.
-
-        Returns:
-            Updated list of component groups including the new component.
-        """
-        if not groups:
-            return [{component_idx}]
-
-        # Try to add to existing groups
-        for group_idx, group in enumerate(groups):
-            # Test for overlap with current group members
-            has_overlap = False
-            for member_idx in group:
-                member = footprints[member_idx]
-                if (component * member).sum() != 0:  # Test for spatial overlap
-                    has_overlap = True
-                    break
-
-            if not has_overlap:
-                continue
-
-            # Add to existing group if overlap found
-            groups[group_idx].add(component_idx)
-            return groups
-
-        # Create new group if no overlap with existing groups
-        groups.append({component_idx})
-        return groups
-
     def learn_one(self, footprints: Footprints, frame: xr.DataArray = None) -> Self:
         """Determine overlap groups from spatial footprints.
 
@@ -121,26 +77,18 @@ class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta)
             Self: The transformer instance for method chaining.
         """
         n_components = footprints.sizes[self.params.component_axis]
-        groups: List[Set[int]] = []
+        data = np.zeros((n_components, n_components), dtype=int)
 
-        # Process components sequentially (Algorithm 2)
         for i in range(n_components):
-            component = footprints[i]
-            groups = self._join_groups(footprints[:i], groups, i, component)
+            for j in range(n_components):
+                data[i, j] = (
+                    1
+                    if np.logical_and(footprints[i].values, footprints[j].values).sum()
+                    > 0
+                    else 0
+                )
 
-        # Convert groups to sparse COO format
-        coords = [], []  # (row, col) coordinates
-        for group in groups:
-            for i in group:
-                for j in group:
-                    coords[0].append(i)
-                    coords[1].append(j)
-
-        # Create sparse COO array
-        data = np.ones(len(coords[0]), dtype=np.float32)
-        sparse_matrix = sparse.COO(
-            coords=coords, data=data, shape=(n_components, n_components)
-        )
+        sparse_matrix = sparse.COO(data)
 
         # Create xarray DataArray with sparse data
         self.overlap_groups_ = xr.DataArray(
