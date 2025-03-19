@@ -76,17 +76,10 @@ class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta)
         Returns:
             Self: The transformer instance for method chaining.
         """
-        n_components = footprints.sizes[self.params.component_axis]
-        data = np.zeros((n_components, n_components), dtype=int)
-
-        for i in range(n_components):
-            for j in range(n_components):
-                data[i, j] = (
-                    1
-                    if np.logical_and(footprints[i].values, footprints[j].values).sum()
-                    > 0
-                    else 0
-                )
+        # Use matrix multiplication with broadcasting to compute overlaps
+        data = (np.tensordot(footprints, footprints, axes=((1, 2), (1, 2))) > 0).astype(
+            int
+        )
 
         sparse_matrix = sparse.COO(data)
 

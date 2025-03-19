@@ -35,7 +35,7 @@ class TestOverlapGroupsInitializerParams:
         """Test validation with invalid spatial axes."""
         # Test with wrong type
         with pytest.raises(ValueError):
-            params = OverlapGroupsInitializerParams(spatial_axes=("height", "width"))
+            params = OverlapGroupsInitializerParams(spatial_axes=["height", "width"])
             params.validate()
 
         # Test with wrong length

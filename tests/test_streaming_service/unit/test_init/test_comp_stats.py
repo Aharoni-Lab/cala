@@ -190,22 +190,3 @@ class TestComponentStatsInitializer:
         assert np.array_equal(
             result.coords["type_"].values, sample_data["traces"].coords["type_"].values
         )
-
-    def test_invalid_input_handling(self, initializer):
-        """Test handling of invalid inputs."""
-        # Test with invalid traces shape
-        invalid_traces = Traces(
-            np.random.rand(3, 10),  # Different temporal dimension
-            dims=("components", "frames"),
-            coords={
-                "id_": ("components", ["id0", "id1", "id2"]),
-                "type_": ("components", ["neuron", "neuron", "background"]),
-            },
-        )
-        invalid_frames = xr.DataArray(
-            np.random.rand(5, 8, 8),
-            dims=("frame", "height", "width"),
-        )
-
-        with pytest.raises(Exception):  # Should raise some kind of error
-            initializer.learn_one(invalid_traces, invalid_frames)

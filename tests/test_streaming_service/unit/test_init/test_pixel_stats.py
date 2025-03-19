@@ -35,7 +35,7 @@ class TestPixelStatsInitializerParams:
         """Test validation with invalid spatial axes."""
         # Test with wrong type
         with pytest.raises(ValueError):
-            params = PixelStatsInitializerParams(spatial_axes=("height", "width"))
+            params = PixelStatsInitializerParams(spatial_axes=["height", "width"])
             params.validate()
 
         # Test with wrong length
