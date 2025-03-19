@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import cast
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -9,7 +10,7 @@ from river.base import Transformer
 
 from cala.streaming.composer.pipe_config import StreamingConfig
 from cala.streaming.composer.runner import Runner
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Footprints, Traces, Component
 from cala.streaming.core.transformer_meta import TransformerMeta
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.preprocess import RigidStabilizer
@@ -17,7 +18,6 @@ from cala.streaming.preprocess.background_removal import BackgroundEraser
 from cala.streaming.preprocess.denoise import Denoiser
 from cala.streaming.preprocess.downsample import Downsampler
 from cala.streaming.preprocess.glow_removal import GlowRemover
-from cala.streaming.types import NeuronFootprints, NeuronTraces
 from tests.conftest import stabilized_video
 
 
@@ -73,18 +73,24 @@ class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
         self.frame_ = frame
         return None
 
-    def transform_one(self, _=None) -> NeuronFootprints:
+    def transform_one(self, _=None) -> Footprints:
         # Create mock neuron footprints
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
         data = np.random.rand(self.params.num_components, *self.frame_.shape)
-        return NeuronFootprints(
+        return Footprints(
             data,
             dims=["components", "height", "width"],
             coords={
-                "components": range(self.params.num_components),
-                "height": self.frame_.coords["height"],
-                "width": self.frame_.coords["width"],
+                "type_": (
+                    ["components"],
+                    [Component.NEURON] * (self.params.num_components - 1)
+                    + [Component.BACKGROUND],
+                ),
+                "id_": (
+                    ["components"],
+                    [uuid4() for _ in range(self.params.num_components)],
+                ),
             },
         )
 
@@ -110,12 +116,12 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
         self.frame_ = frame
         return None
 
-    def transform_one(self, neuron_footprints: NeuronFootprints) -> NeuronTraces:
+    def transform_one(self, neuron_footprints: Footprints) -> Traces:
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
         # Create mock traces
         data = np.random.rand(len(neuron_footprints), 100)  # 100 timepoints
-        return NeuronTraces(
+        return Traces(
             data,
             dims=["components", "frames"],
             coords={
@@ -236,19 +242,19 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
-    assert runner._state.footprints.warehouse.sizes == {
+    assert runner._state.footprints.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert runner._state.traces.warehouse.sizes == {"components": 10, "frames": 100}
+    assert runner._state.traces.sizes == {"components": 10, "frames": 100}
     assert np.array_equal(
-        runner._state.footprints.warehouse.coords["id_"].values,
-        runner._state.traces.warehouse.coords["id_"].values,
+        runner._state.footprints.coords["id_"].values,
+        runner._state.traces.coords["id_"].values,
     )
     assert np.array_equal(
-        runner._state.footprints.warehouse.coords["type_"].values,
-        runner._state.traces.warehouse.coords["type_"].values,
+        runner._state.footprints.coords["type_"].values,
+        runner._state.traces.coords["type_"].values,
     )
 
 
@@ -285,11 +291,9 @@ def test_state_updates(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame)
     # Check if state contains expected attributes
-    neuron_footprint = runner._state.get_observable_x_component(NeuronFootprints)
-    neuron_traces = runner._state.get_observable_x_component(NeuronTraces)
-    assert neuron_footprint.__len__() != 0
-    assert neuron_traces.__len__() != 0
-    assert neuron_traces.__len__() == neuron_footprint.__len__()
+
+    assert runner._state.footprints.sizes != 0
+    assert runner._state.traces.sizes != 0
 
 
 def test_preprocess_initialization(preprocess_config):

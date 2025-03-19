@@ -14,7 +14,7 @@ class InitializationStep(TypedDict):
     requires: NotRequired[Sequence[str]]  # Optional dependencies
 
 
-class ExtractionStep(TypedDict):
+class IterateStep(TypedDict):
     transformer: type  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
     requires: NotRequired[Sequence[str]]  # Optional dependencies
@@ -23,7 +23,7 @@ class ExtractionStep(TypedDict):
 class StreamingConfig(TypedDict):
     preprocess: dict[str, PreprocessStep]
     initialization: dict[str, InitializationStep]
-    extraction: dict[str, ExtractionStep]
+    iterate: dict[str, IterateStep]
 
 
 # Example config

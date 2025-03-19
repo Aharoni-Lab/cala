@@ -1,28 +1,52 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict, Literal
+from typing import Callable, Any, Dict, Literal, List
 
 import networkx as nx
 import xarray as xr
 from river import compose
 
 from cala.streaming.composer.pipe_config import StreamingConfig
-from cala.streaming.core import Parameters, DataExchange
+from cala.streaming.core import Parameters
+from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
 
 
 @dataclass
 class Runner:
+    """Manages the execution of streaming calcium imaging analysis pipeline.
+
+    This class orchestrates the preprocessing, initialization, and iterate steps
+    of the calcium imaging analysis pipeline according to a provided configuration.
+    """
+
     config: StreamingConfig
+    """Configuration defining the pipeline structure and parameters."""
     _buffer: Buffer = field(init=False)
-    _state: DataExchange = field(default_factory=lambda: DataExchange())
+    """Internal frame buffer for multi-frame operations."""
+    _state: Distributor = field(default_factory=lambda: Distributor())
+    """Current state of the pipeline containing computed results."""
+    execution_order: List[str] = None
+    """Ordered list of initialization steps."""
+    status: List[bool] = None
+    """Completion status for each initialization step."""
     is_initialized: bool = False
+    """Whether the pipeline initialization is complete."""
 
     def __post_init__(self):
+        """Initialize the frame buffer after instance creation."""
         self._buffer = Buffer(
             buffer_size=10,
         )
 
     def preprocess(self, frame: xr.DataArray) -> Dict[str, Any]:
+        """Execute preprocessing steps on a single frame.
+
+        Args:
+            frame: Input frame to preprocess.
+
+        Returns:
+            Dictionary containing preprocessed results.
+        """
         execution_order = self._create_dependency_graph(self.config["preprocess"])
 
         pipeline = compose.Pipeline()
@@ -38,14 +62,24 @@ class Runner:
         return result
 
     def initialize(self, frame: xr.DataArray):
-        """Initialize transformers in dependency order."""
+        """Initialize pipeline transformers in dependency order.
+
+        Executes initialization steps that may require multiple frames. Steps are executed
+        in topological order based on their dependencies.
+
+        Args:
+            frame: New frame to use for initialization.
+        """
         self._buffer.add_frame(frame)
 
-        execution_order = self._create_dependency_graph(self.config["initialization"])
-        status = [False] * len(execution_order)
+        if not self.execution_order or not self.status:
+            self.execution_order = self._create_dependency_graph(
+                self.config["initialization"]
+            )
+            self.status = [False] * len(self.execution_order)
 
-        for idx, step in enumerate(execution_order):
-            if status[idx]:
+        for idx, step in enumerate(self.execution_order):
+            if self.status[idx]:
                 continue
 
             n_frames = self.config["initialization"][step].get("n_frames", 1)
@@ -57,26 +91,40 @@ class Runner:
                 transformer=transformer, frame=self._buffer.get_latest(n_frames)
             )
             if result is not None:
-                status[idx] = True
+                self.status[idx] = True
 
             self._state.collect(result)
 
-        if all(status):
+        if all(self.status):
             self.is_initialized = True
 
-    def extract(self, frame: xr.DataArray):
-        execution_order = self._create_dependency_graph(self.config["extraction"])
+    def iterate(self, frame: xr.DataArray):
+        """Execute iterate steps on a single frame.
+
+        Args:
+            frame: Input frame to process for component iterate.
+        """
+        execution_order = self._create_dependency_graph(self.config["iterate"])
 
         # Execute transformers in order
         for step in execution_order:
-            transformer = self._build_transformer(process="extraction", step=step)
+            transformer = self._build_transformer(process="iterate", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
             self._state.collect(result)
 
     def _build_transformer(
-        self, process: Literal["preprocess", "initialization", "extraction"], step: str
+        self, process: Literal["preprocess", "initialization", "iterate"], step: str
     ):
+        """Construct a transformer instance with configured parameters.
+
+        Args:
+            process: Type of process the transformer belongs to.
+            step: Name of the configuration step.
+
+        Returns:
+            Configured transformer instance.
+        """
         config = self.config[process][step]
         params = config.get("params", {})
         transformer = config["transformer"]
@@ -98,7 +146,15 @@ class Runner:
         return transformer
 
     def _learn_transform(self, transformer, frame: xr.DataArray):
-        # Get dependencies by matching signature categories
+        """Execute learn and transform steps for a transformer.
+
+        Args:
+            transformer: Transformer instance to execute.
+            frame: Input frame to process.
+
+        Returns:
+            Transformation results.
+        """
         learn_injects = self._get_injects(self._state, transformer.learn_one)
         transform_injects = self._get_injects(self._state, transformer.transform_one)
 
@@ -109,39 +165,39 @@ class Runner:
         return result
 
     @staticmethod
-    def _get_injects(state: DataExchange, function: Callable) -> Dict[str, Any]:
+    def _get_injects(state: Distributor, function: Callable) -> Dict[str, Any]:
         """Extract required dependencies from the current state based on function signature.
 
         Args:
-            state: Current pipeline state containing all computed results
-            function: function to get signature from
+            state: Current pipeline state containing all computed results.
+            function: Function to get signature from.
 
         Returns:
-            Dictionary mapping parameter names to matching state values
+            Dictionary mapping parameter names to matching state values.
         """
-        # Get mapping of state attribute categories
-        state_types = state.type_to_store
-
-        # Match function parameters with state attributes by type
         matches = {}
         for param_name, param_type in function.__signature__.items():
             if param_name == "return":
                 continue
-            if param_type in state_types:
-                value = getattr(state, state_types[param_type]).warehouse
+            value = state.get(param_type)
+            if value is not None:
                 matches[param_name] = value
-            elif getattr(param_type, "__bases__", None):
-                try:
-                    value = state.get_observable_x_component(param_type)
-                    matches[param_name] = value
-                except TypeError:
-                    continue
 
         return matches
 
     @staticmethod
     def _create_dependency_graph(steps: dict) -> list:
-        # Create dependency graph
+        """Create and validate a dependency graph for execution ordering.
+
+        Args:
+            steps: Dictionary of pipeline steps and their configurations.
+
+        Returns:
+            List of steps in topological order.
+
+        Raises:
+            ValueError: If dependencies contain cycles.
+        """
         graph = nx.DiGraph()
 
         for step in steps:

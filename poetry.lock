@@ -1908,6 +1908,28 @@ files = [
 ]
 
 [[package]]
+name = "sparse"
+version = "0.15.5"
+description = "Sparse n-dimensional arrays for the PyData ecosystem"
+optional = false
+python-versions = ">=3.8"
+files = [
+    { file = "sparse-0.15.5-py2.py3-none-any.whl", hash = "sha256:cf608731f8564916443427bca323fe118e8c25a712ddf02dbe7673a961139706" },
+    { file = "sparse-0.15.5.tar.gz", hash = "sha256:4c76ce0c96f5cd5c31b7e79e650f0022424c2b16f05f10049e9c6381ee4be266" },
+]
+
+[package.dependencies]
+numba = ">=0.49"
+numpy = ">=1.17"
+scipy = ">=0.19"
+
+[package.extras]
+all = ["matrepr", "sparse[docs,tox]"]
+docs = ["sphinx", "sphinx_rtd_theme"]
+tests = ["dask[array]", "pre-commit", "pytest (>=3.5)", "pytest-cov"]
+tox = ["sparse[tests]", "tox"]
+
+[[package]]
 name = "threadpoolctl"
 version = "3.5.0"
 description = "threadpoolctl"
@@ -2073,4 +2095,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "77500b24468ee2e7280254063b3d5b7e6e36909406c8e914154499e32a50c19f"
+content-hash = "74036a9bc137519e528da8460077912b61cc845a8d8edfe7221703dc49490693"

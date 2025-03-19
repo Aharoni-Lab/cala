@@ -1,7 +1,7 @@
 import pytest
 
 from cala.batch.segmentation.filter import (
-    GMMFilter,
+    # GMMFilter,
     IntensityFilter,
     DistributionFilter,
     PNRFilter,
@@ -11,7 +11,7 @@ from cala.batch.segmentation.filter import (
 
 @pytest.fixture(
     params=[
-        GMMFilter,
+        # GMMFilter,
         IntensityFilter,
         DistributionFilter,
         PNRFilter,

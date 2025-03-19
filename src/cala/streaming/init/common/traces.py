@@ -7,8 +7,7 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, TransformerMeta
-from cala.streaming.types import Footprints, Traces
+from cala.streaming.core import Parameters, TransformerMeta, Footprints, Traces
 
 
 @dataclass
@@ -19,6 +18,8 @@ class TracesInitializerParams(Parameters):
     """Axis for components"""
     frames_axis: str = "frames"
     """Axis for frames"""
+    id_coordinates: str = "id_"
+    type_coordinates: str = "type_"
 
     def validate(self):
         pass
@@ -30,7 +31,7 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
 
     params: TracesInitializerParams
     """Parameters for temporal initialization"""
-    traces_: Traces = field(init=False, repr=False)
+    traces_: xr.DataArray = field(init=False, repr=False)
 
     is_fitted_: bool = False
 
@@ -57,16 +58,18 @@ class TracesInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         )
 
         # Store result
-        self.traces_ = Traces(
+        self.traces_ = xr.DataArray(
             temporal_traces,
             dims=(self.params.component_axis, self.params.frames_axis),
             coords={
-                self.params.component_axis: footprints.coords[
-                    self.params.component_axis
-                ],
-                self.params.frames_axis: frame.coords[self.params.frames_axis][
-                    :n_frames
-                ],
+                self.params.id_coordinates: (
+                    self.params.component_axis,
+                    footprints.coords[self.params.id_coordinates].values,
+                ),
+                self.params.type_coordinates: (
+                    self.params.component_axis,
+                    footprints.coords[self.params.type_coordinates].values,
+                ),
             },
         )
 

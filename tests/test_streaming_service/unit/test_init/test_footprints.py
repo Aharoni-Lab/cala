@@ -1,11 +1,11 @@
 import pytest
 from sklearn.exceptions import NotFittedError
 
+from cala.streaming.core import Footprints
 from cala.streaming.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
 )
-from cala.streaming.types import NeuronFootprints, BackgroundFootprints
 from tests.fixtures import stabilized_video
 
 
@@ -46,9 +46,7 @@ class TestFootprintsInitializer:
         default_initializer.learn_one(frame=first_frame)
 
         assert default_initializer.markers_.shape == first_frame.shape
-        assert default_initializer.num_markers_ == len(
-            default_initializer.neurons_
-        ) + len(default_initializer.background_)
+        assert default_initializer.num_markers_ == len(default_initializer.footprints_)
 
     def test_transform_one_output_shapes(self, default_initializer, stabilized_video):
         """Test output shapes from transform_one."""
@@ -56,11 +54,10 @@ class TestFootprintsInitializer:
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
-        neuron_footprints, background_footprints = default_initializer.transform_one()
+        footprints = default_initializer.transform_one()
 
         # Check shapes match input frame
-        assert neuron_footprints[0].shape == first_frame.shape
-        assert background_footprints[0].shape == first_frame.shape
+        assert footprints[0].shape == first_frame.shape
 
     def test_transform_one_output_types(self, default_initializer, stabilized_video):
         """Test output types from transform_one."""
@@ -68,11 +65,10 @@ class TestFootprintsInitializer:
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
-        neuron_footprints, background_footprints = default_initializer.transform_one()
+        footprints = default_initializer.transform_one()
 
         # Check types
-        assert isinstance(neuron_footprints, NeuronFootprints)
-        assert isinstance(background_footprints, BackgroundFootprints)
+        assert isinstance(footprints, Footprints)
 
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""
