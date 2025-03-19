@@ -4,10 +4,10 @@ import sparse
 import xarray as xr
 
 from cala.streaming.stores.odl import (
-    PixelStats,
-    ComponentStats,
-    Residual,
-    OverlapGroups,
+    PixelStatStore,
+    ComponentStatStore,
+    ResidualStore,
+    OverlapStore,
 )
 
 
@@ -24,11 +24,11 @@ class TestPixelStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
-        return PixelStats(data, dims=("pixels", "components"), coords=coords)
+        return PixelStatStore(data, dims=("pixels", "components"), coords=coords)
 
     def test_initialization(self, sample_pixel_stats):
         """Test proper initialization of PixelStats."""
-        assert isinstance(sample_pixel_stats, PixelStats)
+        assert isinstance(sample_pixel_stats, PixelStatStore)
         assert isinstance(sample_pixel_stats, xr.DataArray)
         assert sample_pixel_stats.dims == ("pixels", "components")
         assert "id_" in sample_pixel_stats.coords
@@ -61,11 +61,13 @@ class TestComponentStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
-        return ComponentStats(data, dims=("components", "components"), coords=coords)
+        return ComponentStatStore(
+            data, dims=("components", "components"), coords=coords
+        )
 
     def test_initialization(self, sample_component_stats):
         """Test proper initialization of ComponentStats."""
-        assert isinstance(sample_component_stats, ComponentStats)
+        assert isinstance(sample_component_stats, ComponentStatStore)
         assert isinstance(sample_component_stats, xr.DataArray)
         assert sample_component_stats.dims == ("components", "components")
         assert "id_" in sample_component_stats.coords
@@ -81,11 +83,11 @@ class TestResidual:
         height, width = 10, 10
         n_frames = 5
         data = np.random.randn(height, width, n_frames)  # Should be zero-centered
-        return Residual(data, dims=("height", "width", "frames"))
+        return ResidualStore(data, dims=("height", "width", "frames"))
 
     def test_initialization(self, sample_residual):
         """Test proper initialization of Residual."""
-        assert isinstance(sample_residual, Residual)
+        assert isinstance(sample_residual, ResidualStore)
         assert isinstance(sample_residual, xr.DataArray)
         assert sample_residual.dims == ("height", "width", "frames")
 
@@ -111,13 +113,13 @@ class TestOverlapGroups:
             "type_": ("components", ["neuron"] * 3 + ["background"] * 2),
         }
 
-        return OverlapGroups(
+        return OverlapStore(
             sparse_matrix, dims=("components", "components"), coords=coords_dict
         )
 
     def test_initialization(self, sample_overlap_groups):
         """Test proper initialization of OverlapGroups."""
-        assert isinstance(sample_overlap_groups, OverlapGroups)
+        assert isinstance(sample_overlap_groups, OverlapStore)
         assert isinstance(sample_overlap_groups, xr.DataArray)
         assert sample_overlap_groups.dims == ("components", "components")
         assert "id_" in sample_overlap_groups.coords
