@@ -1,7 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict, Literal, List
+from graphlib import TopologicalSorter
+from typing import (
+    Callable,
+    Any,
+    Dict,
+    Literal,
+    List,
+    get_type_hints,
+)
 
-import networkx as nx
 import xarray as xr
 from river import compose
 
@@ -198,17 +205,14 @@ class Runner:
         Raises:
             ValueError: If dependencies contain cycles.
         """
-        graph = nx.DiGraph()
-
+        graph = {}
         for step in steps:
-            graph.add_node(step)
+            graph[step] = set()
 
         for step, config in steps.items():
             if "requires" in config:
-                for dep in config["requires"]:
-                    graph.add_edge(dep, step)
+                graph[step] = set(config["requires"])
 
-        if not nx.is_directed_acyclic_graph(graph):
-            raise ValueError("Transformer dependencies contain cycles")
-
-        return list(nx.topological_sort(graph))
+        # Create and prepare the sorter
+        ts = TopologicalSorter(graph)
+        return list(ts.static_order())
