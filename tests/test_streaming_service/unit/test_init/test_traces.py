@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from sklearn.exceptions import NotFittedError
 
+from cala.streaming.core import Traces
 from cala.streaming.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
     TracesInitializer,
     TracesInitializerParams,
 )
-from cala.streaming.stores import Traces
 from tests.fixtures import stabilized_video
 
 
@@ -35,9 +35,9 @@ class TestTracesInitializer:
         video, _, _ = stabilized_video
 
         initializer.learn_one(frame=video[0])
-        neuron_footprints, _ = initializer.transform_one()
+        footprints = initializer.transform_one()
 
-        return neuron_footprints
+        return footprints
 
     def test_initialization(self, default_initializer, default_params):
         """Test basic initialization of TracesInitializer."""
