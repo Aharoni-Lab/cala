@@ -71,6 +71,10 @@ class StreamingConfig(TypedDict):
 #                         "distance_metric": cv2.DIST_L2,
 #                         "distance_mask_size": 5,
 #                     },
+#                     "output": [
+#                     {"source": "fp", "target": "traces.fp"},
+#                     {"source": "fp_stats", "target": "logger.value"}
+#                    ]
 #                 },
 #                 "traces": {
 #                     "transformer": TracesInitializer,
