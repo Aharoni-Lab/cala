@@ -7,7 +7,6 @@ from cala.streaming.init.odl.residual_buffer import (
     ResidualInitializer,
     ResidualInitializerParams,
 )
-from cala.streaming.stores.odl import Residuals
 
 
 class TestResidualInitializerParams:
@@ -138,7 +137,7 @@ class TestResidualInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, Residuals)
+        assert isinstance(result, xr.DataArray)
         assert result.dims == ("height", "width", "frame")
 
     def test_computation_correctness(self, initializer, sample_data):

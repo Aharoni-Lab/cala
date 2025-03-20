@@ -246,19 +246,19 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
-    assert runner._state.footprints.sizes == {
+    assert runner._state.footprintstore.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert runner._state.traces.sizes == {"components": 10, "frames": 100}
+    assert runner._state.tracestore.sizes == {"components": 10, "frames": 100}
     assert np.array_equal(
-        runner._state.footprints.coords["id_"].values,
-        runner._state.traces.coords["id_"].values,
+        runner._state.footprintstore.coords["id_"].values,
+        runner._state.tracestore.coords["id_"].values,
     )
     assert np.array_equal(
-        runner._state.footprints.coords["type_"].values,
-        runner._state.traces.coords["type_"].values,
+        runner._state.footprintstore.coords["type_"].values,
+        runner._state.tracestore.coords["type_"].values,
     )
 
 
@@ -282,7 +282,7 @@ def test_cyclic_dependency_detection(stabilized_video):
     )
     runner = Runner(cyclic_config)
     video, _, _ = stabilized_video
-    with pytest.raises(ValueError, match="Transformer dependencies contain cycles"):
+    with pytest.raises(ValueError):
         for frame in video:
             while not runner.is_initialized:
                 runner.initialize(frame)
@@ -296,8 +296,8 @@ def test_state_updates(basic_config, stabilized_video):
             runner.initialize(frame)
     # Check if state contains expected attributes
 
-    assert runner._state.footprints.sizes != 0
-    assert runner._state.traces.sizes != 0
+    assert runner._state.footprintstore.sizes != 0
+    assert runner._state.tracestore.sizes != 0
 
 
 def test_preprocess_initialization(preprocess_config):

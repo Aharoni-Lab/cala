@@ -7,7 +7,6 @@ from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
-from cala.streaming.stores.odl import PixelStats
 
 
 class TestPixelStatsInitializerParams:
@@ -110,7 +109,7 @@ class TestPixelStatsInitializer:
         # Check coordinates
         assert "id_" in initializer.pixel_stats_.coords
         assert "type_" in initializer.pixel_stats_.coords
-        assert list(initializer.pixel_stats_.coords["type_"].values) == [
+        assert initializer.pixel_stats_.coords["type_"].values.tolist() == [
             "neuron",
             "neuron",
             "background",
@@ -125,7 +124,7 @@ class TestPixelStatsInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, PixelStats)
+        assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
         assert result.dims == ("components", "height", "width")

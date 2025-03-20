@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import pytest
+import xarray as xr
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Traces
 from cala.streaming.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
@@ -58,7 +58,7 @@ class TestTracesInitializer:
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
-        assert isinstance(traces, Traces)
+        assert isinstance(traces, xr.DataArray)
         assert (
             traces.sizes[default_initializer.params.component_axis]
             == footprints_setup.sizes[default_initializer.params.component_axis]
@@ -75,7 +75,7 @@ class TestTracesInitializer:
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
-        assert isinstance(traces, Traces)
+        assert isinstance(traces, xr.DataArray)
         assert isinstance(traces.values, np.ndarray)
         assert traces.values.dtype == np.float64
 

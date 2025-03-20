@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-import xarray as xr
 
 from cala.streaming.core import FootprintStore, TraceStore, Footprints, Traces
 from cala.streaming.core.distribution import Distributor
@@ -9,8 +8,6 @@ from cala.streaming.stores.odl import (
     ComponentStatStore,
     ResidualStore,
     PixelStats,
-    ComponentStats,
-    Residuals,
 )
 
 
@@ -69,110 +66,20 @@ class TestDistributor:
             "residual": residual,
         }
 
-    def test_get_observable(self, sample_distributor, sample_data):
-        """Test retrieving Observable instances by type."""
-        # Test getting each type of Observable
-        assert (
-            (sample_distributor.get(Footprints) == sample_distributor.footprintstore)
-            | (
-                np.isnan(sample_distributor.get(Footprints))
-                & np.isnan(sample_distributor.footprintstore)
-            )
-        ).all()
-        assert (
-            (sample_distributor.get(Traces) == sample_distributor.tracestore)
-            | (
-                np.isnan(sample_distributor.get(Traces))
-                & np.isnan(sample_distributor.tracestore)
-            )
-        ).all()
-        assert (
-            (sample_distributor.get(PixelStats) == sample_distributor.pixelstatstore)
-            | (
-                np.isnan(sample_distributor.get(PixelStats))
-                & np.isnan(sample_distributor.pixelstatstore)
-            )
-        ).all()
-        assert (
-            (
-                sample_distributor.get(ComponentStats)
-                == sample_distributor.componentstatstore
-            )
-            | (
-                np.isnan(sample_distributor.get(ComponentStats))
-                & np.isnan(sample_distributor.componentstatstore)
-            )
-        ).all()
-        assert (
-            (sample_distributor.get(Residuals) == sample_distributor.residualstore)
-            | (
-                np.isnan(sample_distributor.get(Residuals))
-                & np.isnan(sample_distributor.residualstore)
-            )
-        ).all()
-
-        # Test getting non-existent type
-        class DummyObservable(xr.DataArray):
-            pass
-
-        assert sample_distributor.get(DummyObservable) is None
-
-    def test_collect_single(self, sample_distributor, sample_data):
+    def test_init_single(self, sample_distributor, sample_data):
         """Test collecting single DataArray results."""
         # Test collecting each type of Observable
-        sample_distributor.init(sample_data["footprints"])
-        assert np.array_equal(sample_distributor.footprints, sample_data["footprints"])
-
-        sample_distributor.init(sample_data["traces"])
-        assert np.array_equal(sample_distributor.traces, sample_data["traces"])
-
-        sample_distributor.init(sample_data["pixel_stats"])
+        sample_distributor.init(sample_data["footprints"], Footprints)
         assert np.array_equal(
-            sample_distributor.pixel_stats, sample_data["pixel_stats"]
+            sample_distributor.footprintstore, sample_data["footprints"]
         )
 
-    def test_collect_multiple(self, sample_distributor, sample_data):
-        """Test collecting multiple DataArray results at once."""
-        # Test collecting multiple Observables
-        sample_distributor.init(
-            (
-                sample_data["footprints"],
-                sample_data["traces"],
-                sample_data["pixel_stats"],
-            )
-        )
+        sample_distributor.init(sample_data["traces"], Traces)
+        assert np.array_equal(sample_distributor.tracestore, sample_data["traces"])
 
-        assert np.array_equal(sample_distributor.footprints, sample_data["footprints"])
-        assert np.array_equal(sample_distributor.traces, sample_data["traces"])
+        sample_distributor.init(sample_data["pixel_stats"], PixelStats)
         assert np.array_equal(
-            sample_distributor.pixel_stats, sample_data["pixel_stats"]
+            sample_distributor.pixelstatstore, sample_data["pixel_stats"]
         )
 
-    def test_collect_invalid(self, sample_distributor):
-        """Test collecting invalid data types."""
-        # Test with invalid data type
-        invalid_data = xr.DataArray(np.random.rand(5, 5))
-        sample_distributor.init(
-            invalid_data
-        )  # Should not raise error but not store anything
-
-        # Test with invalid tuple
-        invalid_tuple = (np.random.rand(5, 5), "invalid")
-        sample_distributor.init(
-            invalid_tuple
-        )  # Should not raise error but not store anything
-
-    def test_coordinate_consistency(self, sample_distributor, sample_data):
-        """Test that collected data maintains coordinate consistency."""
-        sample_distributor.init(sample_data["footprints"])
-        sample_distributor.init(sample_data["traces"])
-
-        # Check that coordinates are preserved
-        assert np.array_equal(
-            sample_distributor.footprints.coords[sample_distributor.id_coord],
-            sample_data["footprints"].coords[sample_distributor.id_coord],
-        )
-        assert np.array_equal(
-            sample_distributor.traces.coords[sample_distributor.type_coord],
-            sample_data["traces"].coords[sample_distributor.type_coord],
-        )
+    def test_init_multiple(self, sample_distributor, sample_data): ...

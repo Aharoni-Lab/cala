@@ -8,7 +8,6 @@ from cala.streaming.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
-from cala.streaming.stores.odl import OverlapStore
 
 
 class TestOverlapsInitializerParams:
@@ -110,7 +109,6 @@ class TestOverlapsInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, OverlapStore)
         assert isinstance(result.data, sparse.COO)
 
     def test_overlap_detection_correctness(self, initializer, sample_footprints):

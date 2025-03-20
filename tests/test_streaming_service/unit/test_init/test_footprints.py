@@ -1,7 +1,7 @@
 import pytest
+import xarray as xr
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Footprints
 from cala.streaming.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
@@ -68,7 +68,7 @@ class TestFootprintsInitializer:
         footprints = default_initializer.transform_one()
 
         # Check types
-        assert isinstance(footprints, Footprints)
+        assert isinstance(footprints, xr.DataArray)
 
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""

@@ -7,7 +7,6 @@ from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
-from cala.streaming.stores.odl import ComponentStats
 
 
 class TestComponentStatsInitializerParams:
@@ -134,7 +133,7 @@ class TestComponentStatsInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, ComponentStats)
+        assert isinstance(result, xr.DataArray)
 
         # Check dimensions
         assert result.dims == ("components", "components'")
