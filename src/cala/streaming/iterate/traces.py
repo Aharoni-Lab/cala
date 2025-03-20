@@ -4,11 +4,11 @@ from typing import Self
 import numpy as np
 import xarray as xr
 from river.base import SupervisedTransformer
-from scipy import sparse
+from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, FootprintStore, TraceStore
-from cala.streaming.stores.odl import OverlapStore
+from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
@@ -22,7 +22,7 @@ class TracesUpdaterParams(Parameters):
     component_axis: str = "components"
     """Name of the dimension representing individual components."""
 
-    frames_axis: str = "frames"
+    frames_axis: str = "frame"
     """Name of the dimension representing time points."""
 
     tolerance: float = 1e-3
@@ -68,10 +68,10 @@ class TracesUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        footprints: FootprintStore,
+        footprints: Footprints,
         frame: xr.DataArray,
-        traces: TraceStore,
-        overlaps: OverlapStore,
+        traces: Traces,
+        overlaps: Overlaps,
     ) -> Self:
         """Update temporal traces using current spatial footprints and frame data.
 
@@ -81,13 +81,13 @@ class TracesUpdater(SupervisedTransformer):
         convergence.
 
         Args:
-            footprints (FootprintStore): Spatial footprints of all components.
+            footprints (Footprints): Spatial footprints of all components.
                 Shape: (components × height × width)
             frame (xr.DataArray): Current frame data.
                 Shape: (height × width)
-            traces (TraceStore): Current temporal traces to be updated.
+            traces (Traces): Current temporal traces to be updated.
                 Shape: (components × time)
-            overlaps (OverlapStore): Sparse matrix indicating component overlaps.
+            overlaps (Overlaps): Sparse matrix indicating component overlaps.
                 Shape: (components × components), where entry (i,j) is 1 if
                 components i and j overlap, and 0 otherwise.
 
@@ -97,15 +97,17 @@ class TracesUpdater(SupervisedTransformer):
         # Prepare inputs for the update algorithm
         A = footprints.values.reshape(footprints.sizes[self.params.component_axis], -1)
         y = frame.values.reshape(-1)
-        c = traces.values
+        c = traces.isel({self.params.frames_axis: -1}).values
 
-        for unique_val, id_ in zip(overlaps.labels, overlaps.coords["id_"]):
-            clusters = overlaps.labels[unique_val]
+        _, labels = connected_components(
+            csgraph=overlaps.data, directed=False, return_labels=True
+        )
+        clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
         # Run the update algorithm
         updated_traces = update_traces(A, y, c, clusters, self.params.tolerance)
 
-        # Store result with proper coordinates
+        # store result with proper coordinates
         self.traces_ = xr.DataArray(
             updated_traces, dims=(self.params.component_axis,), coords=traces.coords
         )
@@ -113,7 +115,7 @@ class TracesUpdater(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> TraceStore:
+    def transform_one(self, _=None) -> Traces:
         """Transform the updated traces into the expected format.
 
         This method wraps the updated temporal traces in a Traces object
@@ -131,7 +133,7 @@ class TracesUpdater(SupervisedTransformer):
         if not self.is_fitted_:
             raise NotFittedError
 
-        return TraceStore(self.traces_)
+        return self.traces_
 
 
 def update_traces(A, y, c, clusters, eps):
@@ -148,8 +150,7 @@ def update_traces(A, y, c, clusters, eps):
             Shape: (pixels,)
         c (np.ndarray): Current value of temporal traces.
             Shape: (components,)
-        clusters (sparse.csr_matrix): Sparse matrix of component overlaps.
-            Shape: (components × components)
+        clusters (list[np.ndarray]): list of groups that each contain component indices that have overlapping footprints.
         eps (float): Tolerance level for convergence checking.
 
     Returns:
@@ -157,13 +158,13 @@ def update_traces(A, y, c, clusters, eps):
             Shape: (components,)
     """
     # Step 1: Compute projection of current frame
-    u = A.T @ y
+    u = A @ y
 
     # Step 2: Compute gram matrix of spatial components
-    V = A.T @ A
+    V = A @ A.T
 
     # Step 3: Extract diagonal elements for normalization
-    V = np.diag(np.diag(V))
+    V_diag = np.diag(V)
 
     # Step 4: Initialize previous iteration value
     c_old = np.zeros_like(c)
@@ -176,6 +177,6 @@ def update_traces(A, y, c, clusters, eps):
         for cluster in clusters:
             # Update traces for current group (division is pointwise)
             numerator = u[cluster] - V[cluster, :] @ c
-            c[cluster] = np.maximum(c[cluster] + numerator / np.diag(V)[cluster], 0)
+            c[cluster] = np.maximum(c[cluster] + numerator / V_diag[cluster], 0)
 
     return c
