@@ -14,7 +14,7 @@ class Distributor:
     including spatial footprints, temporal traces, and various statistics.
     """
 
-    _: bool = True
+    _: int = 0
 
     def get(self, type_: Type) -> Optional[ObservableStore]:
         """Retrieve a specific Observable instance based on its type.
@@ -50,7 +50,26 @@ class Distributor:
         # Add to annotations
         self.__annotations__[store_name] = target_store_type
         # Create and set the store
-        setattr(self, store_name, result)
+        setattr(self, store_name, target_store_type(result))
+
+    def update(self, result: xr.DataArray, type_: Type) -> None:
+        """Update an appropriate Observable containers with a result DataArray.
+
+        This method automatically determines the correct storage location based on the
+        type of the input DataArray.
+
+        Args:
+            result: A single xr.DataArray to be stored. Must correspond to a valid Observable type.
+            type_: type of the result. If an observable, should be an Annotated type that links to Store class.
+        """
+        target_store_type = self._get_store_type(type_)
+        if target_store_type is None:
+            return
+
+        store_name = target_store_type.__name__.lower()
+
+        # Update the store
+        getattr(self, store_name).update(result)
 
     @staticmethod
     def _get_store_type(type_: Type) -> type | None:
