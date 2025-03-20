@@ -484,6 +484,16 @@ test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "d
 tqdm = ["tqdm"]
 
 [[package]]
+name = "graphlib"
+version = "0.9.5"
+description = "Graph API"
+optional = false
+python-versions = "*"
+files = [
+    { file = "graphlib-0.9.5.tar.gz", hash = "sha256:6b74e169ef0fb92bab15e617f9eb4c60a2d9ad4187cc5e4e4fb24d9601f2437f" },
+]
+
+[[package]]
 name = "imageio"
 version = "2.36.0"
 description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats."
@@ -2095,4 +2105,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "74036a9bc137519e528da8460077912b61cc845a8d8edfe7221703dc49490693"
+content-hash = "3fe10b412a893d3b333bc497d7707420a1a2a09c9bbdddffa742b1990a15570c"

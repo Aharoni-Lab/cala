@@ -1,7 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any, Dict, Literal, List
+from graphlib import TopologicalSorter
+from typing import (
+    Callable,
+    Any,
+    Dict,
+    Literal,
+    List,
+    get_type_hints,
+)
 
-import networkx as nx
 import xarray as xr
 from river import compose
 
@@ -38,7 +45,7 @@ class Runner:
             buffer_size=10,
         )
 
-    def preprocess(self, frame: xr.DataArray) -> Dict[str, Any]:
+    def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
         """Execute preprocessing steps on a single frame.
 
         Args:
@@ -93,7 +100,10 @@ class Runner:
             if result is not None:
                 self.status[idx] = True
 
-            self._state.collect(result)
+            result_type = get_type_hints(
+                transformer.transform_one, include_extras=True
+            )["return"]
+            self._state.init(result, result_type)
 
         if all(self.status):
             self.is_initialized = True
@@ -104,17 +114,21 @@ class Runner:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config["iterate"])
+        execution_order = self._create_dependency_graph(self.config["iteration"])
 
         # Execute transformers in order
         for step in execution_order:
-            transformer = self._build_transformer(process="iterate", step=step)
+            transformer = self._build_transformer(process="iteration", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
-            self._state.collect(result)
+            result_type = get_type_hints(
+                transformer.transform_one, include_extras=True
+            )["return"]
+
+            self._state.update(result, result_type)
 
     def _build_transformer(
-        self, process: Literal["preprocess", "initialization", "iterate"], step: str
+        self, process: Literal["preprocess", "initialization", "iteration"], step: str
     ):
         """Construct a transformer instance with configured parameters.
 
@@ -176,9 +190,12 @@ class Runner:
             Dictionary mapping parameter names to matching state values.
         """
         matches = {}
-        for param_name, param_type in function.__signature__.items():
+        for param_name, param_type in get_type_hints(
+            function, include_extras=True
+        ).items():
             if param_name == "return":
                 continue
+
             value = state.get(param_type)
             if value is not None:
                 matches[param_name] = value
@@ -198,17 +215,14 @@ class Runner:
         Raises:
             ValueError: If dependencies contain cycles.
         """
-        graph = nx.DiGraph()
-
+        graph = {}
         for step in steps:
-            graph.add_node(step)
+            graph[step] = set()
 
         for step, config in steps.items():
             if "requires" in config:
-                for dep in config["requires"]:
-                    graph.add_edge(dep, step)
+                graph[step] = set(config["requires"])
 
-        if not nx.is_directed_acyclic_graph(graph):
-            raise ValueError("Transformer dependencies contain cycles")
-
-        return list(nx.topological_sort(graph))
+        # Create and prepare the sorter
+        ts = TopologicalSorter(graph)
+        return list(ts.static_order())

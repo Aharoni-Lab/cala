@@ -2,12 +2,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Traces
 from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
-from cala.streaming.stores.odl import ComponentStats
 
 
 class TestComponentStatsInitializerParams:
@@ -75,7 +73,7 @@ class TestComponentStatsInitializer:
                 [-1.0, -0.5, 0.0, 0.5, 1.0],  # Component 3 (anti-correlated with 1&2)
             ]
         )
-        traces = Traces(traces_data, dims=("components", "frames"), coords=coords)
+        traces = xr.DataArray(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample frames
         frames_data = np.random.rand(n_frames, height, width)
@@ -134,7 +132,7 @@ class TestComponentStatsInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, ComponentStats)
+        assert isinstance(result, xr.DataArray)
 
         # Check dimensions
         assert result.dims == ("components", "components'")

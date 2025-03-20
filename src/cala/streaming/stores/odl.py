@@ -1,8 +1,15 @@
-from cala.streaming.core import Observable
+from typing import Annotated
+from uuid import UUID
+
+import numpy as np
+from scipy.sparse.csgraph import connected_components
+from xarray import DataArray
+
+from cala.streaming.core import ObservableStore
 
 
 # pixels x components
-class PixelStats(Observable):
+class PixelStatStore(ObservableStore):
     """Storage for pixel-component statistics.
 
     This class stores the correlation statistics between each pixel and each component,
@@ -16,11 +23,14 @@ class PixelStats(Observable):
     time series and component temporal traces.
     """
 
-    __slots__ = ()
+    pass
+
+
+PixelStats = Annotated[DataArray, PixelStatStore]
 
 
 # components x components
-class ComponentStats(Observable):
+class ComponentStatStore(ObservableStore):
     """Storage for component-component correlation statistics.
 
     This class stores the correlation matrix between all components,
@@ -32,10 +42,13 @@ class ComponentStats(Observable):
       the temporal traces of components i and j.
     """
 
-    __slots__ = ()
+    pass
 
 
-class Residual(Observable):
+ComponentStats = Annotated[DataArray, ComponentStatStore]
+
+
+class ResidualStore(ObservableStore):
     """Storage for residual signals.
 
     This class stores the unexplained variance in the data after accounting
@@ -49,10 +62,13 @@ class Residual(Observable):
       original data and component reconstructions
     """
 
-    __slots__ = ()
+    pass
 
 
-class OverlapGroups(Observable):
+Residuals = Annotated[DataArray, ResidualStore]
+
+
+class OverlapStore(ObservableStore):
     """Storage for spatially overlapping component groups.
 
     This class stores information about which components share spatial overlap
@@ -66,4 +82,23 @@ class OverlapGroups(Observable):
         https://docs.xarray.dev/en/latest/user-guide/duckarrays.html
     """
 
-    __slots__ = ()
+    @property
+    def labels(self) -> np.ndarray:
+        _, labels = connected_components(
+            csgraph=self.warehouse, directed=False, return_labels=True
+        )
+        return labels
+
+    @property
+    def _ids(self):
+        return self.warehouse.coords["id_"].values
+
+    @property
+    def groups(self) -> list[set[UUID]]:
+        return [
+            set(self.warehouse._ids[self.labels == label])
+            for label in np.unique(self.labels)
+        ]
+
+
+Overlaps = Annotated[DataArray, OverlapStore]

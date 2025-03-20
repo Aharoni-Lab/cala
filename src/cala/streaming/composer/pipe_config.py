@@ -14,7 +14,7 @@ class InitializationStep(TypedDict):
     requires: NotRequired[Sequence[str]]  # Optional dependencies
 
 
-class IterateStep(TypedDict):
+class IterationStep(TypedDict):
     transformer: type  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
     requires: NotRequired[Sequence[str]]  # Optional dependencies
@@ -23,7 +23,7 @@ class IterateStep(TypedDict):
 class StreamingConfig(TypedDict):
     preprocess: dict[str, PreprocessStep]
     initialization: dict[str, InitializationStep]
-    iterate: dict[str, IterateStep]
+    iteration: dict[str, IterationStep]
 
 
 # Example config
@@ -71,6 +71,10 @@ class StreamingConfig(TypedDict):
 #                         "distance_metric": cv2.DIST_L2,
 #                         "distance_mask_size": 5,
 #                     },
+#                     "output": [
+#                     {"source": "fp", "target": "traces.fp"},
+#                     {"source": "fp_stats", "target": "logger.value"}
+#                    ]
 #                 },
 #                 "traces": {
 #                     "transformer": TracesInitializer,

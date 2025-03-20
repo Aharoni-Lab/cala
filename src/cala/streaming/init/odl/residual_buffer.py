@@ -4,8 +4,8 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, TransformerMeta, Traces, Footprints
-from cala.streaming.stores.odl import Residual
+from cala.streaming.core import Parameters, Traces, Footprints
+from cala.streaming.stores.odl import Residuals
 
 
 @dataclass
@@ -48,7 +48,7 @@ class ResidualInitializerParams(Parameters):
 
 
 @dataclass
-class ResidualInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+class ResidualInitializer(SupervisedTransformer):
     """Computes and maintains a buffer of residual signals.
 
     This transformer calculates the residual signal by subtracting the reconstructed
@@ -123,7 +123,7 @@ class ResidualInitializer(SupervisedTransformer, metaclass=TransformerMeta):
 
         return self
 
-    def transform_one(self, _=None) -> Residual:
+    def transform_one(self, _=None) -> Residuals:
         """Return the computed residual buffer.
 
         This method wraps the residual buffer in a Residual object
@@ -133,6 +133,6 @@ class ResidualInitializer(SupervisedTransformer, metaclass=TransformerMeta):
             _: Unused parameter maintained for API compatibility.
 
         Returns:
-            Residual: Wrapped residual buffer containing recent unexplained signals.
+            Residuals: Wrapped residual buffer containing recent unexplained signals.
         """
-        return Residual(self.residual_)
+        return self.residual_

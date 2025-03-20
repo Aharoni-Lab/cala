@@ -3,9 +3,9 @@ import pytest
 import xarray as xr
 
 from cala.streaming.core import (
-    Footprints,
-    Observable,
-    Traces,
+    FootprintStore,
+    ObservableStore,
+    TraceStore,
     Component,
     ComponentTypes,
 )
@@ -17,9 +17,8 @@ class TestObservable:
     def test_inheritance(self):
         """Test that Observable properly inherits from DataArray."""
         data = np.random.rand(5, 5)
-        observable = Observable(data)
-        assert isinstance(observable, xr.DataArray)
-        assert isinstance(observable, Observable)
+        observable = ObservableStore(data)
+        assert isinstance(observable, ObservableStore)
 
 
 class TestFootprints:
@@ -33,15 +32,17 @@ class TestFootprints:
             "id_": ("components", ["id0", "id1", "id2"]),
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
-        return Footprints(data, dims=("components", "height", "width"), coords=coords)
+        return FootprintStore(
+            xr.DataArray(data, dims=("components", "height", "width"), coords=coords)
+        )
 
     def test_initialization(self, sample_footprints):
         """Test proper initialization of Footprints."""
-        assert isinstance(sample_footprints, Observable)
-        assert isinstance(sample_footprints, Footprints)
-        assert sample_footprints.dims == ("components", "height", "width")
-        assert "id_" in sample_footprints.coords
-        assert "type_" in sample_footprints.coords
+        assert isinstance(sample_footprints, ObservableStore)
+        assert isinstance(sample_footprints, FootprintStore)
+        assert sample_footprints.warehouse.dims == ("components", "height", "width")
+        assert "id_" in sample_footprints.warehouse.coords
+        assert "type_" in sample_footprints.warehouse.coords
 
 
 class TestTraces:
@@ -55,15 +56,17 @@ class TestTraces:
             "id_": ("components", ["id0", "id1", "id2"]),
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
-        return Traces(data, dims=("components", "frames"), coords=coords)
+        return TraceStore(
+            xr.DataArray(data, dims=("components", "frames"), coords=coords)
+        )
 
     def test_initialization(self, sample_traces):
         """Test proper initialization of Traces."""
-        assert isinstance(sample_traces, Observable)
-        assert isinstance(sample_traces, Traces)
-        assert sample_traces.dims == ("components", "frames")
-        assert "id_" in sample_traces.coords
-        assert "type_" in sample_traces.coords
+        assert isinstance(sample_traces, ObservableStore)
+        assert isinstance(sample_traces, TraceStore)
+        assert sample_traces.warehouse.dims == ("components", "frames")
+        assert "id_" in sample_traces.warehouse.coords
+        assert "type_" in sample_traces.warehouse.coords
 
 
 class TestComponent:

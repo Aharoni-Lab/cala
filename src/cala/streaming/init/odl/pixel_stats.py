@@ -4,7 +4,7 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Traces, TransformerMeta
+from cala.streaming.core import Parameters, Traces
 from cala.streaming.stores.odl import PixelStats
 
 
@@ -42,7 +42,7 @@ class PixelStatsInitializerParams(Parameters):
 
 
 @dataclass
-class PixelStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+class PixelStatsInitializer(SupervisedTransformer):
     """Computes pixel-component statistics using temporal components and frame data.
 
     This transformer calculates the correlation between each pixel's temporal trace
@@ -128,8 +128,6 @@ class PixelStatsInitializer(SupervisedTransformer, metaclass=TransformerMeta):
         Returns:
             PixelStats: Wrapped pixel-wise statistics with proper dimensionality.
         """
-        return PixelStats(
-            self.pixel_stats_.transpose(
-                self.params.component_axis, *self.params.spatial_axes
-            )
+        return self.pixel_stats_.transpose(
+            self.params.component_axis, *self.params.spatial_axes
         )

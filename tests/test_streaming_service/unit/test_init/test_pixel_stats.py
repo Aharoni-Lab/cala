@@ -2,12 +2,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Traces
 from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
-from cala.streaming.stores.odl import PixelStats
 
 
 class TestPixelStatsInitializerParams:
@@ -63,7 +61,7 @@ class TestPixelStatsInitializer:
 
         # Create sample traces
         traces_data = np.random.rand(n_components, n_frames)
-        traces = Traces(traces_data, dims=("components", "frames"), coords=coords)
+        traces = xr.DataArray(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample frames
         frames_data = np.random.rand(n_frames, height, width)
@@ -110,7 +108,7 @@ class TestPixelStatsInitializer:
         # Check coordinates
         assert "id_" in initializer.pixel_stats_.coords
         assert "type_" in initializer.pixel_stats_.coords
-        assert list(initializer.pixel_stats_.coords["type_"].values) == [
+        assert initializer.pixel_stats_.coords["type_"].values.tolist() == [
             "neuron",
             "neuron",
             "background",
@@ -125,7 +123,7 @@ class TestPixelStatsInitializer:
         result = initializer.transform_one()
 
         # Check result type
-        assert isinstance(result, PixelStats)
+        assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
         assert result.dims == ("components", "height", "width")
@@ -173,7 +171,7 @@ class TestPixelStatsInitializer:
     def test_invalid_input_handling(self, initializer):
         """Test handling of invalid inputs."""
         # Test with mismatched dimensions
-        invalid_traces = Traces(
+        invalid_traces = xr.DataArray(
             np.random.rand(3, 10),
             dims=("components", "frames"),
             coords={

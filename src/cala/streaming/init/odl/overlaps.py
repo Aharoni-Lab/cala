@@ -6,12 +6,12 @@ import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Footprints, TransformerMeta
-from cala.streaming.stores.odl import OverlapGroups
+from cala.streaming.core import Parameters, Footprints
+from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class OverlapGroupsInitializerParams(Parameters):
+class OverlapsInitializerParams(Parameters):
     """Parameters for computing spatially overlapping component groups.
 
     This class defines the configuration parameters needed for determining
@@ -41,32 +41,26 @@ class OverlapGroupsInitializerParams(Parameters):
 
 
 @dataclass
-class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta):
+class OverlapsInitializer(SupervisedTransformer):
     """Computes groups of spatially overlapping components.
 
-    This transformer implements Algorithms 2 (DETERMINEGROUPS) and 3 (JOINGROUPS)
-    to identify groups of components that share spatial overlap in their footprints.
+    This transformer identifies groups of components that share spatial overlap in their footprints.
     Components are grouped together if their spatial footprints have non-zero overlap.
-
-    The algorithm processes components sequentially, either:
-    - Adding a component to an existing group if it overlaps with any member
-    - Creating a new group if the component doesn't overlap with existing groups
 
     The result is stored as a sparse matrix where non-zero elements indicate
     components belonging to the same overlap group.
     """
 
-    params: OverlapGroupsInitializerParams
+    params: OverlapsInitializerParams
     """Configuration parameters for the overlap group computation."""
 
-    overlap_groups_: xr.DataArray = field(init=False)
+    overlaps_: xr.DataArray = field(init=False)
     """Computed sparse matrix indicating component group memberships."""
 
     def learn_one(self, footprints: Footprints, frame: xr.DataArray = None) -> Self:
-        """Determine overlap groups from spatial footprints.
+        """Determine overlaps from spatial footprints.
 
-        This method implements Algorithm 2 (DETERMINEGROUPS) by processing
-        components sequentially and grouping them based on spatial overlap.
+        This method links components based on spatial overlap.
 
         Args:
             frame: Not used
@@ -84,7 +78,7 @@ class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta)
         sparse_matrix = sparse.COO(data)
 
         # Create xarray DataArray with sparse data
-        self.overlap_groups_ = xr.DataArray(
+        self.overlaps_ = xr.DataArray(
             sparse_matrix,
             dims=(self.params.component_axis, self.params.component_axis),
             coords={
@@ -101,16 +95,16 @@ class OverlapGroupsInitializer(SupervisedTransformer, metaclass=TransformerMeta)
 
         return self
 
-    def transform_one(self, _=None) -> OverlapGroups:
-        """Return the computed overlap groups.
+    def transform_one(self, _=None) -> Overlaps:
+        """Return the computed overlaps.
 
-        This method wraps the overlap groups matrix in an OverlapGroups object
+        This method wraps the overlaps matrix in an OverlapGroups object
         for consistent typing in the pipeline.
 
         Args:
             _: Unused parameter maintained for API compatibility.
 
         Returns:
-            OverlapGroups: Wrapped sparse matrix indicating component group memberships.
+            Overlaps: Wrapped sparse matrix indicating component group memberships.
         """
-        return OverlapGroups(self.overlap_groups_)
+        return self.overlaps_

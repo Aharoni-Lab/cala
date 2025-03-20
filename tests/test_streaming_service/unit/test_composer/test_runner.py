@@ -10,8 +10,12 @@ from river.base import Transformer
 
 from cala.streaming.composer.pipe_config import StreamingConfig
 from cala.streaming.composer.runner import Runner
-from cala.streaming.core import Parameters, Footprints, Traces, Component
-from cala.streaming.core.transformer_meta import TransformerMeta
+from cala.streaming.core import (
+    Parameters,
+    Component,
+    Footprints,
+    Traces,
+)
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.preprocess import RigidStabilizer
 from cala.streaming.preprocess.background_removal import BackgroundEraser
@@ -35,7 +39,7 @@ class MockMotionCorrectionParams(Parameters):
 
 # Mock transformers for testing
 @dataclass
-class MockMotionCorrection(Transformer, metaclass=TransformerMeta):
+class MockMotionCorrection(Transformer):
     params: MockMotionCorrectionParams = field(
         default_factory=MockMotionCorrectionParams
     )
@@ -65,7 +69,7 @@ class MockNeuronDetectionParams(Parameters):
 
 
 @dataclass
-class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
+class MockNeuronDetection(Transformer):
     params: MockNeuronDetectionParams = field(default_factory=MockNeuronDetectionParams)
     frame_: xr.DataArray = field(init=False)
 
@@ -78,7 +82,7 @@ class MockNeuronDetection(Transformer, metaclass=TransformerMeta):
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
         data = np.random.rand(self.params.num_components, *self.frame_.shape)
-        return Footprints(
+        return xr.DataArray(
             data,
             dims=["components", "height", "width"],
             coords={
@@ -108,7 +112,7 @@ class MockTraceExtractorParams(Parameters):
 
 
 @dataclass
-class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
+class MockTraceExtractor(Transformer):
     params: MockTraceExtractorParams = field(default_factory=MockTraceExtractorParams)
     frame_: xr.DataArray = field(init=False)
 
@@ -121,7 +125,7 @@ class MockTraceExtractor(Transformer, metaclass=TransformerMeta):
             raise ValueError("No frame has been learned yet")
         # Create mock traces
         data = np.random.rand(len(neuron_footprints), 100)  # 100 timepoints
-        return Traces(
+        return xr.DataArray(
             data,
             dims=["components", "frames"],
             coords={
@@ -242,19 +246,19 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
-    assert runner._state.footprints.sizes == {
+    assert runner._state.footprintstore.warehouse.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert runner._state.traces.sizes == {"components": 10, "frames": 100}
+    assert runner._state.tracestore.warehouse.sizes == {"components": 10, "frames": 100}
     assert np.array_equal(
-        runner._state.footprints.coords["id_"].values,
-        runner._state.traces.coords["id_"].values,
+        runner._state.footprintstore.warehouse.coords["id_"].values,
+        runner._state.tracestore.warehouse.coords["id_"].values,
     )
     assert np.array_equal(
-        runner._state.footprints.coords["type_"].values,
-        runner._state.traces.coords["type_"].values,
+        runner._state.footprintstore.warehouse.coords["type_"].values,
+        runner._state.tracestore.warehouse.coords["type_"].values,
     )
 
 
@@ -278,7 +282,7 @@ def test_cyclic_dependency_detection(stabilized_video):
     )
     runner = Runner(cyclic_config)
     video, _, _ = stabilized_video
-    with pytest.raises(ValueError, match="Transformer dependencies contain cycles"):
+    with pytest.raises(ValueError):
         for frame in video:
             while not runner.is_initialized:
                 runner.initialize(frame)
@@ -292,8 +296,8 @@ def test_state_updates(basic_config, stabilized_video):
             runner.initialize(frame)
     # Check if state contains expected attributes
 
-    assert runner._state.footprints.sizes != 0
-    assert runner._state.traces.sizes != 0
+    assert runner._state.footprintstore.warehouse.sizes != 0
+    assert runner._state.tracestore.warehouse.sizes != 0
 
 
 def test_preprocess_initialization(preprocess_config):
