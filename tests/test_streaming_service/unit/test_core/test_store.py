@@ -18,7 +18,6 @@ class TestObservable:
         """Test that Observable properly inherits from DataArray."""
         data = np.random.rand(5, 5)
         observable = ObservableStore(data)
-        assert isinstance(observable, xr.DataArray)
         assert isinstance(observable, ObservableStore)
 
 
@@ -34,16 +33,16 @@ class TestFootprints:
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
         return FootprintStore(
-            data, dims=("components", "height", "width"), coords=coords
+            xr.DataArray(data, dims=("components", "height", "width"), coords=coords)
         )
 
     def test_initialization(self, sample_footprints):
         """Test proper initialization of Footprints."""
         assert isinstance(sample_footprints, ObservableStore)
         assert isinstance(sample_footprints, FootprintStore)
-        assert sample_footprints.dims == ("components", "height", "width")
-        assert "id_" in sample_footprints.coords
-        assert "type_" in sample_footprints.coords
+        assert sample_footprints.warehouse.dims == ("components", "height", "width")
+        assert "id_" in sample_footprints.warehouse.coords
+        assert "type_" in sample_footprints.warehouse.coords
 
 
 class TestTraces:
@@ -57,15 +56,17 @@ class TestTraces:
             "id_": ("components", ["id0", "id1", "id2"]),
             "type_": ("components", ["neuron", "neuron", "background"]),
         }
-        return TraceStore(data, dims=("components", "frames"), coords=coords)
+        return TraceStore(
+            xr.DataArray(data, dims=("components", "frames"), coords=coords)
+        )
 
     def test_initialization(self, sample_traces):
         """Test proper initialization of Traces."""
         assert isinstance(sample_traces, ObservableStore)
         assert isinstance(sample_traces, TraceStore)
-        assert sample_traces.dims == ("components", "frames")
-        assert "id_" in sample_traces.coords
-        assert "type_" in sample_traces.coords
+        assert sample_traces.warehouse.dims == ("components", "frames")
+        assert "id_" in sample_traces.warehouse.coords
+        assert "type_" in sample_traces.warehouse.coords
 
 
 class TestComponent:

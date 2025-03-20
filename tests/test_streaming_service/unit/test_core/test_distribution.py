@@ -1,12 +1,10 @@
 import numpy as np
 import pytest
+import xarray as xr
 
-from cala.streaming.core import FootprintStore, TraceStore, Footprints, Traces
+from cala.streaming.core import Footprints, Traces
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.stores.odl import (
-    PixelStatStore,
-    ComponentStatStore,
-    ResidualStore,
     PixelStats,
 )
 
@@ -34,29 +32,29 @@ class TestDistributor:
 
         # Create sample footprints
         footprints_data = np.random.rand(n_components, height, width)
-        footprints = FootprintStore(
+        footprints = xr.DataArray(
             footprints_data, dims=("components", "height", "width"), coords=coords
         )
 
         # Create sample traces
         traces_data = np.random.rand(n_components, n_frames)
-        traces = TraceStore(traces_data, dims=("components", "frames"), coords=coords)
+        traces = xr.DataArray(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample pixel stats
         pixel_stats_data = np.random.rand(n_components, height, width)
-        pixel_stats = PixelStatStore(
+        pixel_stats = xr.DataArray(
             pixel_stats_data, dims=("components", "height", "width"), coords=coords
         )
 
         # Create sample component stats
         comp_stats_data = np.random.rand(n_components, n_components)
-        component_stats = ComponentStatStore(
+        component_stats = xr.DataArray(
             comp_stats_data, dims=("components", "components"), coords=coords
         )
 
         # Create sample residual
         residual_data = np.random.rand(height, width, n_frames)
-        residual = ResidualStore(residual_data, dims=("height", "width", "frames"))
+        residual = xr.DataArray(residual_data, dims=("height", "width", "frames"))
 
         return {
             "footprints": footprints,
@@ -71,15 +69,17 @@ class TestDistributor:
         # Test collecting each type of Observable
         sample_distributor.init(sample_data["footprints"], Footprints)
         assert np.array_equal(
-            sample_distributor.footprintstore, sample_data["footprints"]
+            sample_distributor.footprintstore.warehouse, sample_data["footprints"]
         )
 
         sample_distributor.init(sample_data["traces"], Traces)
-        assert np.array_equal(sample_distributor.tracestore, sample_data["traces"])
+        assert np.array_equal(
+            sample_distributor.tracestore.warehouse, sample_data["traces"]
+        )
 
         sample_distributor.init(sample_data["pixel_stats"], PixelStats)
         assert np.array_equal(
-            sample_distributor.pixelstatstore, sample_data["pixel_stats"]
+            sample_distributor.pixelstatstore.warehouse, sample_data["pixel_stats"]
         )
 
     def test_init_multiple(self, sample_distributor, sample_data): ...

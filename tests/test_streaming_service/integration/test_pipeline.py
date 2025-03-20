@@ -224,15 +224,15 @@ def streaming_config() -> StreamingConfig:
 
 
 def test_streaming_execution(streaming_config, raw_calcium_video):
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
 
     runner = Runner(streaming_config)
     video, _, _ = raw_calcium_video
 
     for idx, frame in enumerate(video):
-        plt.imsave(f"preprocess_{idx}.png", frame)
+        # plt.imsave(f"preprocess_{idx}.png", frame)
         frame = runner.preprocess(frame)
-        plt.imsave(f"postprocess_{idx}.png", frame)
+        # plt.imsave(f"postprocess_{idx}.png", frame)
 
         if not runner.is_initialized:
             runner.initialize(frame)

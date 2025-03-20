@@ -3,7 +3,6 @@ import pytest
 import sparse
 import xarray as xr
 
-from cala.streaming.core import FootprintStore
 from cala.streaming.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
@@ -73,7 +72,7 @@ class TestOverlapsInitializer:
             "type_": ("components", ["neuron"] * 3 + ["background"] * 2),
         }
 
-        return FootprintStore(
+        return xr.DataArray(
             footprints_data, dims=("components", "height", "width"), coords=coords
         )
 

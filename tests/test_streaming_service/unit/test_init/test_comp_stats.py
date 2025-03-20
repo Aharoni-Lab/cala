@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import TraceStore
 from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
@@ -74,7 +73,7 @@ class TestComponentStatsInitializer:
                 [-1.0, -0.5, 0.0, 0.5, 1.0],  # Component 3 (anti-correlated with 1&2)
             ]
         )
-        traces = TraceStore(traces_data, dims=("components", "frames"), coords=coords)
+        traces = xr.DataArray(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample frames
         frames_data = np.random.rand(n_frames, height, width)

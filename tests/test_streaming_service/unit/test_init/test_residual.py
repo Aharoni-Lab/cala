@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import TraceStore, FootprintStore
 from cala.streaming.init.odl.residual_buffer import (
     ResidualInitializer,
     ResidualInitializerParams,
@@ -72,13 +71,13 @@ class TestResidualInitializer:
 
         # Create sample footprints
         footprints_data = np.random.rand(n_components, height, width)
-        footprints = FootprintStore(
+        footprints = xr.DataArray(
             footprints_data, dims=("components", "height", "width"), coords=coords
         )
 
         # Create sample traces
         traces_data = np.random.rand(n_components, n_frames)
-        traces = TraceStore(traces_data, dims=("components", "frames"), coords=coords)
+        traces = xr.DataArray(traces_data, dims=("components", "frames"), coords=coords)
 
         # Create sample frames
         frames_data = np.random.rand(n_frames, height, width)
@@ -183,7 +182,7 @@ class TestResidualInitializer:
     def test_invalid_input_handling(self, initializer):
         """Test handling of invalid inputs."""
         # Test with mismatched dimensions
-        invalid_footprints = FootprintStore(
+        invalid_footprints = xr.DataArray(
             np.random.rand(3, 8, 8),  # Different spatial dimensions
             dims=("components", "height", "width"),
             coords={
@@ -191,7 +190,7 @@ class TestResidualInitializer:
                 "type_": ("components", ["neuron", "neuron", "background"]),
             },
         )
-        invalid_traces = TraceStore(
+        invalid_traces = xr.DataArray(
             np.random.rand(3, 10),
             dims=("components", "frames"),
             coords={
