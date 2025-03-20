@@ -91,12 +91,13 @@ class OverlapStore(ObservableStore):
 
     @property
     def _ids(self):
-        return self.coords["id_"].values
+        return self.warehouse.coords["id_"].values
 
     @property
     def groups(self) -> list[set[UUID]]:
         return [
-            set(self._ids[self.labels == label]) for label in np.unique(self.labels)
+            set(self.warehouse._ids[self.labels == label])
+            for label in np.unique(self.labels)
         ]
 
 
