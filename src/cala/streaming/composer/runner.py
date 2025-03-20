@@ -45,7 +45,7 @@ class Runner:
             buffer_size=10,
         )
 
-    def preprocess(self, frame: xr.DataArray) -> Dict[str, Any]:
+    def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
         """Execute preprocessing steps on a single frame.
 
         Args:
@@ -121,7 +121,11 @@ class Runner:
             transformer = self._build_transformer(process="iteration", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
-            self._state.init(result)
+            result_type = get_type_hints(
+                transformer.transform_one, include_extras=True
+            )["return"]
+
+            self._state.update(result, result_type)
 
     def _build_transformer(
         self, process: Literal["preprocess", "initialization", "iteration"], step: str
