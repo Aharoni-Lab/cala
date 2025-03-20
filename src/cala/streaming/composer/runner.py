@@ -114,17 +114,17 @@ class Runner:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config["iterate"])
+        execution_order = self._create_dependency_graph(self.config["iteration"])
 
         # Execute transformers in order
         for step in execution_order:
-            transformer = self._build_transformer(process="iterate", step=step)
+            transformer = self._build_transformer(process="iteration", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 
             self._state.init(result)
 
     def _build_transformer(
-        self, process: Literal["preprocess", "initialization", "iterate"], step: str
+        self, process: Literal["preprocess", "initialization", "iteration"], step: str
     ):
         """Construct a transformer instance with configured parameters.
 
