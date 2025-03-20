@@ -1,29 +1,28 @@
+from dataclasses import dataclass
 from typing import Annotated
 
-from xarray import DataArray
+import xarray as xr
 
 
-class ObservableStore(DataArray):
-    """Base class for observable objects in calcium imaging data.
+@dataclass
+class ObservableStore:
+    """Base class for observable objects in calcium imaging data."""
 
-    Extends xarray.DataArray.
-    """
-
-    __slots__ = ()
+    warehouse: xr.DataArray
 
 
 class FootprintStore(ObservableStore):
-    """Spatial footprints of identified components in calcium imaging data.
+    """Spatial footprints of identified components.
 
     Represents the spatial distribution patterns of components (neurons or background)
     in the field of view. Each footprint typically contains the spatial extent and
     intensity weights of a component.
     """
 
-    __slots__ = ()
+    pass
 
 
-Footprints = Annotated[DataArray, FootprintStore]
+Footprints = Annotated[xr.DataArray, FootprintStore]
 
 
 class TraceStore(ObservableStore):
@@ -33,7 +32,13 @@ class TraceStore(ObservableStore):
     representing their activity patterns over time.
     """
 
-    __slots__ = ()
+    def update(self, data: xr.DataArray) -> None:
+        # either has frames or components axis.
+        # are we making copies??
+        self.warehouse = xr.concat(
+            [self.warehouse, data],
+            dim=(set(self.warehouse.dims) - set(data.dims)).pop(),
+        )
 
 
-Traces = Annotated[DataArray, TraceStore]
+Traces = Annotated[xr.DataArray, TraceStore]

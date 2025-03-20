@@ -30,13 +30,13 @@ class Distributor:
             return
         for attr_name, attr_type in self.__annotations__.items():
             if attr_type == store_type:
-                return getattr(self, attr_name)
+                return getattr(self, attr_name).warehouse
 
     def init(self, result: xr.DataArray, type_: Type) -> None:
-        """Store one or more DataArray results in their appropriate Observable containers.
+        """Store a DataArray results in their appropriate Observable containers.
 
         This method automatically determines the correct storage location based on the
-        type of the input DataArray(s).
+        type of the input DataArray.
 
         Args:
             result: A single xr.DataArray to be stored. Must correspond to a valid Observable type.

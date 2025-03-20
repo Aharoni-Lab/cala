@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 import numpy as np
 from scipy.sparse.csgraph import connected_components
@@ -22,7 +23,7 @@ class PixelStatStore(ObservableStore):
     time series and component temporal traces.
     """
 
-    __slots__ = ()
+    pass
 
 
 PixelStats = Annotated[DataArray, PixelStatStore]
@@ -41,7 +42,7 @@ class ComponentStatStore(ObservableStore):
       the temporal traces of components i and j.
     """
 
-    __slots__ = ()
+    pass
 
 
 ComponentStats = Annotated[DataArray, ComponentStatStore]
@@ -61,7 +62,7 @@ class ResidualStore(ObservableStore):
       original data and component reconstructions
     """
 
-    __slots__ = ()
+    pass
 
 
 Residuals = Annotated[DataArray, ResidualStore]
@@ -81,14 +82,22 @@ class OverlapStore(ObservableStore):
         https://docs.xarray.dev/en/latest/user-guide/duckarrays.html
     """
 
-    __slots__ = ()
-
     @property
     def labels(self) -> np.ndarray:
         _, labels = connected_components(
-            csgraph=self.data, directed=False, return_labels=True
+            csgraph=self.warehouse, directed=False, return_labels=True
         )
         return labels
+
+    @property
+    def _ids(self):
+        return self.coords["id_"].values
+
+    @property
+    def groups(self) -> list[set[UUID]]:
+        return [
+            set(self._ids[self.labels == label]) for label in np.unique(self.labels)
+        ]
 
 
 Overlaps = Annotated[DataArray, OverlapStore]
