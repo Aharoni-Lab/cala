@@ -96,7 +96,7 @@ def solve_all_component_traces(footprints, frames):
     """
     n_components = footprints.shape[0]
     n_frames = frames.shape[0]
-    results = np.zeros((n_components, n_frames))
+    results = np.zeros((n_components, n_frames), dtype=frames.dtype)
 
     # Parallel loop over components
     for i in prange(n_components):
@@ -120,7 +120,7 @@ def fast_nnls_vector(A, B):
     """
     ata = (A * A).sum()  # Compute once for all frames
     if ata <= 0:
-        return np.zeros(B.shape[0])
+        return np.zeros(B.shape[0], dtype=B.dtype)
 
     # Vectorized computation for all frames
     atb = A @ B.T  # dot product with each frame
