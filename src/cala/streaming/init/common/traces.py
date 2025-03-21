@@ -7,7 +7,8 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints, Traces
 
 
 @dataclass

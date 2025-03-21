@@ -75,7 +75,7 @@ def test_streaming_config_valid():
     config: StreamingConfig = {
         "preprocess": {},
         "initialization": {},
-        "extraction": {},
+        "iteration": {},
     }
     assert isinstance(config["preprocess"], dict)
     assert isinstance(config["initialization"], dict)
@@ -96,7 +96,7 @@ def test_streaming_config_valid():
                 "requires": ["step1"],
             }
         },
-        "extraction": {
+        "iteration": {
             "step3": {
                 "transformer": MockTransformer,
                 "params": {"param3": "value3"},
@@ -107,7 +107,7 @@ def test_streaming_config_valid():
 
     assert "step1" in full_config["preprocess"]
     assert "step2" in full_config["initialization"]
-    assert "step3" in full_config["extraction"]
+    assert "step3" in full_config["iteration"]
 
 
 def test_streaming_config_dependencies():
@@ -130,7 +130,7 @@ def test_streaming_config_dependencies():
                 "requires": ["neuron_detection"],
             },
         },
-        "extraction": {},
+        "iteration": {},
     }
 
     # Verify the dependency chain

@@ -8,20 +8,17 @@ import pytest
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.composer.pipe_config import StreamingConfig
-from cala.streaming.composer.runner import Runner
-from cala.streaming.core import (
-    Parameters,
-    Component,
-    Footprints,
-    Traces,
-)
+from cala.streaming.composer import StreamingConfig, Runner
+from cala.streaming.core import Parameters, Component
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
-from cala.streaming.preprocess import RigidStabilizer
-from cala.streaming.preprocess.background_removal import BackgroundEraser
-from cala.streaming.preprocess.denoise import Denoiser
-from cala.streaming.preprocess.downsample import Downsampler
-from cala.streaming.preprocess.glow_removal import GlowRemover
+from cala.streaming.preprocess import (
+    RigidStabilizer,
+    BackgroundEraser,
+    Denoiser,
+    Downsampler,
+    GlowRemover,
+)
+from cala.streaming.stores.common import Footprints, Traces
 from tests.conftest import stabilized_video
 
 

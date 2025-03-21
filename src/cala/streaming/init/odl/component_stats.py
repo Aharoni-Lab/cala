@@ -4,7 +4,8 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 

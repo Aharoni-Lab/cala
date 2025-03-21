@@ -8,7 +8,8 @@ from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
 

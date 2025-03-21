@@ -7,7 +7,8 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
