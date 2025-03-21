@@ -79,7 +79,7 @@ def test_streaming_config_valid():
     }
     assert isinstance(config["preprocess"], dict)
     assert isinstance(config["initialization"], dict)
-    assert isinstance(config["extraction"], dict)
+    assert isinstance(config["iteration"], dict)
 
     # Test full configuration with all optional fields
     full_config: StreamingConfig = {

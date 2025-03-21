@@ -70,7 +70,8 @@ def preprocess_config() -> StreamingConfig:
 def test_preprocess_execution(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
     video, _, _ = raw_calcium_video
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         frame = runner.preprocess(frame)
 
 
@@ -133,7 +134,8 @@ def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video, _, _ = stabilized_video
 
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         runner.initialize(frame)
 
     assert runner.is_initialized
