@@ -3,14 +3,14 @@ from typing import cast
 import cv2
 import pytest
 
-from cala.streaming.composer import StreamingConfig, Runner
+from cala.streaming.composer import StreamingConfig, Runner, Frame
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.init.odl import (
     PixelStatsInitializer,
     ComponentStatsInitializer,
     ResidualInitializer,
+    OverlapsInitializer,
 )
-from cala.streaming.init.odl.overlaps import OverlapsInitializer
 from cala.streaming.iterate.traces import TracesUpdater
 from cala.streaming.preprocess import (
     Downsampler,
@@ -230,6 +230,7 @@ def test_streaming_execution(streaming_config, raw_calcium_video):
     video, _, _ = raw_calcium_video
 
     for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         # plt.imsave(f"preprocess_{idx}.png", frame)
         frame = runner.preprocess(frame)
         # plt.imsave(f"postprocess_{idx}.png", frame)

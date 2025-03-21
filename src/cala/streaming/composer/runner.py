@@ -9,10 +9,9 @@ from typing import (
     get_type_hints,
 )
 
-import xarray as xr
 from river import compose
 
-from cala.streaming.composer.pipe_config import StreamingConfig
+from cala.streaming.composer import StreamingConfig, Frame
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
@@ -45,7 +44,7 @@ class Runner:
             buffer_size=10,
         )
 
-    def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
+    def preprocess(self, frame: Frame) -> Frame:
         """Execute preprocessing steps on a single frame.
 
         Args:
@@ -63,12 +62,13 @@ class Runner:
 
             pipeline = pipeline | transformer
 
-        pipeline.learn_one(x=frame)
-        result = pipeline.transform_one(x=frame)
+        pipeline.learn_one(x=frame.value)
+        result = pipeline.transform_one(x=frame.value)
 
-        return result
+        frame.value = result
+        return frame
 
-    def initialize(self, frame: xr.DataArray):
+    def initialize(self, frame: Frame):
         """Initialize pipeline transformers in dependency order.
 
         Executes initialization steps that may require multiple frames. Steps are executed
@@ -77,7 +77,7 @@ class Runner:
         Args:
             frame: New frame to use for initialization.
         """
-        self._buffer.add_frame(frame)
+        self._buffer.add_frame(frame.value)
 
         if not self.execution_order or not self.status:
             self.execution_order = self._create_dependency_graph(
@@ -108,7 +108,7 @@ class Runner:
         if all(self.status):
             self.is_initialized = True
 
-    def iterate(self, frame: xr.DataArray):
+    def iterate(self, frame: Frame):
         """Execute iterate steps on a single frame.
 
         Args:
@@ -159,7 +159,7 @@ class Runner:
 
         return transformer
 
-    def _learn_transform(self, transformer, frame: xr.DataArray):
+    def _learn_transform(self, transformer, frame: Frame):
         """Execute learn and transform steps for a transformer.
 
         Args:
