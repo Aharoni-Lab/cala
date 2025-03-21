@@ -98,10 +98,8 @@ if __name__ == "__main__":
 ```
 
 ## Roadmap
-*EOM 11/2024:* Batch processing complete\
-*EOM 12/2024:* Engineering first iteration complete\
-*EOM 01/2025:* Orchestration first integration complete\
-*EOM 02/2025:* UI first iteration complete
+*EOM 03/2025:* Streaming first iteration complete\
+*EOM 04/2025:* UI first iteration complete
 
 ## Contributing
 We welcome contributions! Please fork this repository and submit a pull request if you would like to contribute to the project. You can also open issues for bug reports, feature requests, or discussions.
