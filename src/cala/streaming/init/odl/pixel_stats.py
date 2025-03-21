@@ -98,7 +98,7 @@ class PixelStatsInitializer(SupervisedTransformer):
         W = Y @ C.T / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.pixel_stats_ = W
+        self.pixel_stats_ = W.unstack(self.params.pixel_axis)
 
         return self
 

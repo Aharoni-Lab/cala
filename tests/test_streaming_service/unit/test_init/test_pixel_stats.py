@@ -98,10 +98,11 @@ class TestPixelStatsInitializer:
         assert isinstance(initializer.pixel_stats_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.pixel_stats_.dims == ("pixel", "components")
+        assert initializer.pixel_stats_.dims == ("components", "height", "width")
         assert initializer.pixel_stats_.shape == (
-            sample_data["height"] * sample_data["width"],
             sample_data["n_components"],
+            sample_data["height"],
+            sample_data["width"],
         )
 
         # Check coordinates
@@ -125,10 +126,11 @@ class TestPixelStatsInitializer:
         assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
-        assert result.dims == ("pixel", "components")
+        assert result.dims == ("components", "height", "width")
         assert result.shape == (
-            sample_data["height"] * sample_data["width"],
             sample_data["n_components"],
+            sample_data["height"],
+            sample_data["width"],
         )
 
     def test_computation_correctness(self, initializer, sample_data):

@@ -13,7 +13,8 @@ class FootprintStore(ObservableStore):
     intensity weights of a component.
     """
 
-    pass
+    def update(self, data: xr.DataArray):
+        self.warehouse = data
 
 
 Footprints = Annotated[xr.DataArray, FootprintStore]
