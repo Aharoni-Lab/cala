@@ -6,7 +6,8 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters
+from cala.streaming.composer import Frame
+from cala.streaming.core import Parameters, Traces
 from cala.streaming.stores.odl import PixelStats
 
 
@@ -21,8 +22,12 @@ class PixelStatsUpdaterParams(Parameters):
     component_axis: str = "components"
     """Name of the dimension representing individual components."""
 
+    frames_axis: str = "frame"
+
     spatial_axes: tuple = ("height", "width")
     """Names of the dimensions representing spatial coordinates (height, width)."""
+
+    pixel_axis: str = "pixel"
 
     def validate(self):
         """Validate parameter configurations.
@@ -59,10 +64,9 @@ class PixelStatsUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: xr.DataArray,
-        temporal_component: xr.DataArray,
+        frame: Frame,
+        traces: Traces,
         pixel_stats: PixelStats,
-        timestep: int,
     ) -> Self:
         """Update pixel statistics using current frame and component.
 
@@ -71,33 +75,35 @@ class PixelStatsUpdater(SupervisedTransformer):
         temporal component with appropriate time-based scaling.
 
         Args:
-            frame (xr.DataArray): Current frame y_t.
+            frame (Frame): Current frame y_t.
                 Shape: (height × width)
-            temporal_component (xr.DataArray): Current temporal component c_t.
+            traces (Traces): Current temporal component c_t.
                 Shape: (components)
             pixel_stats (PixelStats): Current pixel-wise statistics W_{t-1}.
                 Shape: (pixels × components)
-            timestep (int): Current timestep t.
 
         Returns:
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
+        timestep = frame.index + 1
         prev_scale = (timestep - 1) / timestep
         new_scale = 1 / timestep
 
         # Flatten spatial dimensions of frame
-        y_t = frame.values.reshape(-1)
-        c_t = temporal_component.values
+        y_t = frame.array.stack({self.params.pixel_axis: self.params.spatial_axes})
+        # New frame traces
+        c_t = traces.isel({self.params.frames_axis: -1})
 
-        # Update pixel-wise statistics W_t
+        # Update pixel-component statistics W_t
         # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
-        W_update = prev_scale * pixel_stats.values + new_scale * np.outer(y_t, c_t)
+        new_corr = xr.DataArray(
+            np.outer(y_t, c_t), dims=y_t.dims + c_t.dims, coords=c_t.coords
+        )
+        W_update = prev_scale * pixel_stats + new_scale * new_corr
 
         # Create updated xarray DataArrays with same coordinates/dimensions
-        self.pixel_stats_ = xr.DataArray(
-            W_update, dims=pixel_stats.dims, coords=pixel_stats.coords
-        )
+        self.pixel_stats_ = W_update
 
         self.is_fitted_ = True
         return self

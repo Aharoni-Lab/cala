@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Self
 
-import numpy as np
 import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
@@ -71,27 +70,18 @@ class OverlapsInitializer(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Use matrix multiplication with broadcasting to compute overlaps
-        data = (np.tensordot(footprints, footprints, axes=((1, 2), (1, 2))) > 0).astype(
-            int
-        )
-
-        sparse_matrix = sparse.COO(data)
+        data = (
+            footprints.dot(
+                footprints.rename(
+                    {self.params.component_axis: f"{self.params.component_axis}'"}
+                )
+            )
+            > 0
+        ).astype(int)
 
         # Create xarray DataArray with sparse data
-        self.overlaps_ = xr.DataArray(
-            sparse_matrix,
-            dims=(self.params.component_axis, self.params.component_axis),
-            coords={
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.id_coordinates].values,
-                ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.type_coordinates].values,
-                ),
-            },
-        )
+        data.values = sparse.COO(data.values)
+        self.overlaps_ = data.assign_coords(footprints.coords)
 
         return self
 

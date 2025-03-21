@@ -31,6 +31,8 @@ class PixelStatsInitializerParams(Parameters):
     spatial_axes: tuple = ("height", "width")
     """Names of the dimensions representing spatial coordinates (height, width)."""
 
+    pixel_axis: str = "pixel"
+
     def validate(self):
         """Validate parameter configurations.
 
@@ -86,32 +88,16 @@ class PixelStatsInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Reshape frames to pixels x time
-        Y = frame.values.reshape(-1, t_prime)
+        Y = frame.stack({self.params.pixel_axis: self.params.spatial_axes})
 
         # Get temporal components C
-        C = traces.values  # components x time
+        C = traces  # components x time
 
         # Compute W = Y[:, 1:t']C^T/t'
         W = Y @ C.T / t_prime
 
-        # Reshape W back to spatial dimensions x components
-        W = W.reshape(*[frame.sizes[ax] for ax in self.params.spatial_axes], -1)
-
         # Create xarray DataArray with proper dimensions and coordinates
-        self.pixel_stats_ = xr.DataArray(
-            W,
-            dims=(*self.params.spatial_axes, self.params.component_axis),
-            coords={
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    traces.coords[self.params.id_coordinates].values,
-                ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
-                    traces.coords[self.params.type_coordinates].values,
-                ),
-            },
-        )
+        self.pixel_stats_ = W
 
         return self
 
@@ -128,6 +114,4 @@ class PixelStatsInitializer(SupervisedTransformer):
         Returns:
             PixelStats: Wrapped pixel-wise statistics with proper dimensionality.
         """
-        return self.pixel_stats_.transpose(
-            self.params.component_axis, *self.params.spatial_axes
-        )
+        return self.pixel_stats_

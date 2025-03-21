@@ -11,7 +11,7 @@ from cala.streaming.stores.odl import PixelStats, ComponentStats
 
 
 @dataclass
-class UpdateShapesParams(Parameters):
+class FootprintsUpdaterParams(Parameters):
     """Parameters for spatial footprint updates.
 
     This class defines the configuration parameters needed for updating
@@ -38,7 +38,7 @@ class UpdateShapesParams(Parameters):
 
 
 @dataclass
-class UpdateShapes(SupervisedTransformer):
+class FootprintsUpdater(SupervisedTransformer):
     """Updates spatial footprints using sufficient statistics.
 
     This transformer implements Algorithm 6 (UpdateShapes) which updates
@@ -54,7 +54,7 @@ class UpdateShapes(SupervisedTransformer):
     - p are the pixels where component i can be non-zero
     """
 
-    params: UpdateShapesParams
+    params: FootprintsUpdaterParams
     """Configuration parameters for the update process."""
 
     footprints_: xr.DataArray = None

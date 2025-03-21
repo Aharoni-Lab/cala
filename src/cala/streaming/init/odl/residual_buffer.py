@@ -35,6 +35,8 @@ class ResidualInitializerParams(Parameters):
     buffer_length: int = 50
     """Number of recent frames to maintain in the residual buffer (l_b)."""
 
+    pixel_axis: str = "pixel"
+
     def validate(self):
         """Validate parameter configurations.
 
@@ -98,28 +100,23 @@ class ResidualInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Reshape frames to pixels x time
-        Y = frame.values.reshape(-1, t_prime)
+        Y = frame.stack({self.params.pixel_axis: self.params.spatial_axes})
 
         # Get temporal components [C; f]
-        C = traces.values  # components x time
+        C = traces  # components x time
 
         # Reshape footprints to (pixels x components)
-        A = footprints.values.reshape(
-            footprints.sizes[self.params.component_axis], -1
-        ).T
+        A = footprints.stack({self.params.pixel_axis: self.params.spatial_axes})
 
         # Compute residual R = Y - [A,b][C;f]
-        R = Y - A @ C
+        R = Y - (A @ C)
 
         # Only keep the last l_b frames
         start_idx = max(0, t_prime - self.params.buffer_length)
-        R = R[:, start_idx:]
+        R = R.isel({self.params.frames_axis: slice(start_idx, None)})
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.residual_ = xr.DataArray(
-            R.reshape(*[frame.sizes[ax] for ax in self.params.spatial_axes], -1),
-            dims=(*self.params.spatial_axes, self.params.frames_axis),
-        )
+        self.residual_ = R
 
         return self
 

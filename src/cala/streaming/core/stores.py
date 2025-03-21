@@ -8,7 +8,7 @@ import xarray as xr
 class ObservableStore:
     """Base class for observable objects in calcium imaging data."""
 
-    warehouse: xr.DataArray
+    _warehouse: xr.DataArray
 
 
 class FootprintStore(ObservableStore):
@@ -36,8 +36,8 @@ class TraceStore(ObservableStore):
         # either has frames or components axis.
         # are we making copies??
         self.warehouse = xr.concat(
-            [self.warehouse, data],
-            dim=(set(self.warehouse.dims) - set(data.dims)).pop(),
+            [self._warehouse, data],
+            dim=(set(self._warehouse.dims) - set(data.dims)).pop(),
         )
 
 

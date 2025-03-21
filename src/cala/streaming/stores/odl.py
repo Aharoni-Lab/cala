@@ -23,7 +23,7 @@ class PixelStatStore(ObservableStore):
     time series and component temporal traces.
     """
 
-    pass
+    def update(self, data: DataArray) -> None: ...
 
 
 PixelStats = Annotated[DataArray, PixelStatStore]
@@ -42,7 +42,7 @@ class ComponentStatStore(ObservableStore):
       the temporal traces of components i and j.
     """
 
-    pass
+    def update(self, data: DataArray) -> None: ...
 
 
 ComponentStats = Annotated[DataArray, ComponentStatStore]
@@ -85,19 +85,18 @@ class OverlapStore(ObservableStore):
     @property
     def labels(self) -> np.ndarray:
         _, labels = connected_components(
-            csgraph=self.warehouse, directed=False, return_labels=True
+            csgraph=self._warehouse, directed=False, return_labels=True
         )
         return labels
 
     @property
     def _ids(self):
-        return self.warehouse.coords["id_"].values
+        return self._warehouse.coords["id_"].values
 
     @property
-    def groups(self) -> list[set[UUID]]:
+    def groups(self) -> list[list[UUID]]:
         return [
-            set(self.warehouse._ids[self.labels == label])
-            for label in np.unique(self.labels)
+            list(self._ids[self.labels == label]) for label in np.unique(self.labels)
         ]
 
 

@@ -6,7 +6,8 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters
+from cala.streaming.composer import Frame
+from cala.streaming.core import Parameters, Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
@@ -20,6 +21,8 @@ class ComponentStatsUpdaterParams(Parameters):
 
     component_axis: str = "components"
     """Name of the dimension representing individual components."""
+
+    frames_axis: str = "frame"
 
     spatial_axes: tuple = ("height", "width")
     """Names of the dimensions representing spatial coordinates (height, width)."""
@@ -59,10 +62,9 @@ class ComponentStatsUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: xr.DataArray,
-        temporal_component: xr.DataArray,
+        frame: Frame,
+        traces: Traces,
         component_stats: ComponentStats,
-        timestep: int,
     ) -> Self:
         """Update component statistics using current frame and component.
 
@@ -71,32 +73,33 @@ class ComponentStatsUpdater(SupervisedTransformer):
         with appropriate time-based scaling.
 
         Args:
-            frame (xr.DataArray): Current frame y_t.
+            frame (Frame): Current frame y_t.
                 Shape: (height × width)
-            temporal_component (xr.DataArray): Current temporal component c_t.
+            traces (Traces): Current temporal component c_t.
                 Shape: (components)
             component_stats (ComponentStats): Current component-wise statistics M_{t-1}.
                 Shape: (components × components)
-            timestep (int): Current timestep t.
 
         Returns:
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
+        timestep = frame.index
         prev_scale = (timestep - 1) / timestep
         new_scale = 1 / timestep
 
-        # Flatten spatial dimensions of frame
-        c_t = temporal_component.values
+        # New frame traces
+        c_t = traces.isel({self.params.frames_axis: -1})
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
-        M_update = prev_scale * component_stats.values + new_scale * np.outer(c_t, c_t)
+        new_corr = xr.DataArray(
+            np.outer(c_t, c_t), dims=(c_t.dims[0], f"{c_t.dims[0]}'"), coords=c_t.coords
+        )
+        M_update = prev_scale * component_stats + new_scale * new_corr
 
         # Create updated xarray DataArrays with same coordinates/dimensions
-        self.component_stats_ = xr.DataArray(
-            M_update, dims=component_stats.dims, coords=component_stats.coords
-        )
+        self.component_stats_ = M_update
 
         self.is_fitted_ = True
         return self

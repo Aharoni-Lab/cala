@@ -246,19 +246,22 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
-    assert runner._state.footprintstore.warehouse.sizes == {
+    assert runner._state.footprintstore._warehouse.sizes == {
         "components": 10,
         "width": 512,
         "height": 512,
     }
-    assert runner._state.tracestore.warehouse.sizes == {"components": 10, "frames": 100}
+    assert runner._state.tracestore._warehouse.sizes == {
+        "components": 10,
+        "frames": 100,
+    }
     assert np.array_equal(
-        runner._state.footprintstore.warehouse.coords["id_"].values,
-        runner._state.tracestore.warehouse.coords["id_"].values,
+        runner._state.footprintstore._warehouse.coords["id_"].values,
+        runner._state.tracestore._warehouse.coords["id_"].values,
     )
     assert np.array_equal(
-        runner._state.footprintstore.warehouse.coords["type_"].values,
-        runner._state.tracestore.warehouse.coords["type_"].values,
+        runner._state.footprintstore._warehouse.coords["type_"].values,
+        runner._state.tracestore._warehouse.coords["type_"].values,
     )
 
 
@@ -296,8 +299,8 @@ def test_state_updates(basic_config, stabilized_video):
             runner.initialize(frame)
     # Check if state contains expected attributes
 
-    assert runner._state.footprintstore.warehouse.sizes != 0
-    assert runner._state.tracestore.warehouse.sizes != 0
+    assert runner._state.footprintstore._warehouse.sizes != 0
+    assert runner._state.tracestore._warehouse.sizes != 0
 
 
 def test_preprocess_initialization(preprocess_config):

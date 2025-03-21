@@ -11,7 +11,11 @@ from cala.streaming.init.odl import (
     ResidualInitializer,
     OverlapsInitializer,
 )
-from cala.streaming.iterate.traces import TracesUpdater
+from cala.streaming.iterate import (
+    TracesUpdater,
+    ComponentStatsUpdater,
+    PixelStatsUpdater,
+)
 from cala.streaming.preprocess import (
     Downsampler,
     Denoiser,
@@ -214,10 +218,20 @@ def streaming_config() -> StreamingConfig:
                 },
             },
             "iteration": {
-                "update_trace": {
+                "traces": {
                     "transformer": TracesUpdater,
                     "params": {"tolerance": 1e-3},
-                }
+                },
+                "pixel_stats": {
+                    "transformer": PixelStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
+                "component_stats": {
+                    "transformer": ComponentStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
             },
         },
     )
