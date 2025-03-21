@@ -93,6 +93,7 @@ class PixelStatsUpdater(SupervisedTransformer):
 
         # Flatten spatial dimensions of frame
         y_t = frame.array.stack({self.params.pixel_axis: self.params.spatial_axes})
+        W = pixel_stats.stack({self.params.pixel_axis: self.params.spatial_axes})
         # New frame traces
         c_t = traces.isel({self.params.frames_axis: -1})
 
@@ -101,10 +102,10 @@ class PixelStatsUpdater(SupervisedTransformer):
         new_corr = xr.DataArray(
             np.outer(y_t, c_t), dims=y_t.dims + c_t.dims, coords=c_t.coords
         )
-        W_update = prev_scale * pixel_stats + new_scale * new_corr
+        W_update = prev_scale * W + new_scale * new_corr
 
         # Create updated xarray DataArrays with same coordinates/dimensions
-        self.pixel_stats_ = W_update
+        self.pixel_stats_ = W_update.unstack(self.params.pixel_axis)
 
         self.is_fitted_ = True
         return self
