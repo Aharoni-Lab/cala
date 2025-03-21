@@ -15,6 +15,7 @@ from cala.streaming.iterate import (
     TracesUpdater,
     ComponentStatsUpdater,
     PixelStatsUpdater,
+    FootprintsUpdater,
 )
 from cala.streaming.preprocess import (
     Downsampler,
@@ -119,12 +120,6 @@ def initialization_config() -> StreamingConfig:
                     "params": {},
                     "requires": ["footprints"],
                 },
-            },
-            "iteration": {
-                "update_trace": {
-                    "transformer": TracesUpdater,
-                    "params": {"tolerance": 1e-3},
-                }
             },
         },
     )
@@ -233,6 +228,11 @@ def streaming_config() -> StreamingConfig:
                     "transformer": ComponentStatsUpdater,
                     "params": {},
                     "requires": ["traces"],
+                },
+                "footprints": {
+                    "transformer": FootprintsUpdater,
+                    "params": {},
+                    "requires": ["pixel_stats", "component_stats"],
                 },
             },
         },

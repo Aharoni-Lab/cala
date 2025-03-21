@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Self, List
+from typing import Self
 
 import numpy as np
 import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
+from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import PixelStats, ComponentStats
@@ -69,7 +70,7 @@ class FootprintsUpdater(SupervisedTransformer):
         footprints: Footprints,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
-        components_to_update: List[int],
+        frame: Frame,
     ) -> Self:
         """Update spatial footprints using sufficient statistics.
 
@@ -85,38 +86,40 @@ class FootprintsUpdater(SupervisedTransformer):
                 Shape: (pixels × components)
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components)
-            components_to_update (List[int]): List of component indices to update.
+            frame (Frame): Streaming frame (Unused).
 
         Returns:
             Self: The transformer instance for method chaining.
         """
-        # Get working copies of the arrays
-        A = footprints.values.copy()
-        W = pixel_stats.values
-        M = component_stats.values
+        A = footprints
+        M = component_stats
 
-        # Step 1: Initialize iteration counter
-        iter_count = 0
+        for _ in range(self.params.max_iterations):
+            # Create mask for non-zero pixels per component
+            mask = A > 0
 
-        # Steps 2-8: Main iteration loop
-        while iter_count < self.params.max_iterations:
-            # Step 3: Loop over components to be updated
-            for i in components_to_update:
-                # Step 4: Find pixels where component i can be non-zero
-                p = np.where(A[:, i] > 0)[0]
+            # Compute AM product using xarray operations
+            # Reshape M to align dimensions for broadcasting
+            AM = (A @ M).rename(
+                {f"{self.params.component_axis}'": f"{self.params.component_axis}"}
+            )
+            numerator = pixel_stats - AM
 
-                # Step 5: Update footprint values using the update equation
-                numerator = W[p, i] - np.sum(A[p, :] * M[i, :], axis=1)
-                A[p, i] = np.maximum(A[p, i] + numerator / M[i, i], 0)
+            # Compute update using vectorized operations
+            # Expand M diagonal for broadcasting
+            M_diag = xr.apply_ufunc(
+                np.diag,
+                component_stats,
+                input_core_dims=[component_stats.dims],
+                output_core_dims=[[self.params.component_axis]],
+            )
 
-            # Step 7: Increment iteration counter
-            iter_count += 1
+            # Apply update equation with masking
+            update = numerator / M_diag
+            A = xr.where(mask, A + update, A)
+            A = xr.where(A > 0, A, 0)
 
-        # Create updated xarray DataArray with same coordinates/dimensions
-        self.footprints_ = xr.DataArray(
-            A, dims=footprints.dims, coords=footprints.coords
-        )
-
+        self.footprints_ = A
         self.is_fitted_ = True
         return self
 
