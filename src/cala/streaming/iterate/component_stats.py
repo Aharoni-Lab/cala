@@ -85,9 +85,9 @@ class ComponentStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        timestep = frame.index
-        prev_scale = (timestep - 1) / timestep
-        new_scale = 1 / timestep
+        frame_idx = frame.index + 1
+        prev_scale = (frame_idx - 1) / frame_idx
+        new_scale = 1 / frame_idx
 
         # New frame traces
         c_t = traces.isel({self.params.frames_axis: -1})

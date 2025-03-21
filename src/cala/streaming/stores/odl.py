@@ -23,7 +23,10 @@ class PixelStatStore(ObservableStore):
     time series and component temporal traces.
     """
 
-    def update(self, data: DataArray) -> None: ...
+    def update(self, data: DataArray) -> None:
+        # make sure dim, coords, and ids are the same?
+        # if not np.array_equal(self.warehouse.coords["id_"].values != data.coords["id_"].values)
+        self.warehouse = data
 
 
 PixelStats = Annotated[DataArray, PixelStatStore]
@@ -42,7 +45,10 @@ class ComponentStatStore(ObservableStore):
       the temporal traces of components i and j.
     """
 
-    def update(self, data: DataArray) -> None: ...
+    def update(self, data: DataArray) -> None:
+        # idt streaming frame index to here makes sense.
+        # the actual update calculation should thus happen in update transformer
+        self.warehouse = data
 
 
 ComponentStats = Annotated[DataArray, ComponentStatStore]
