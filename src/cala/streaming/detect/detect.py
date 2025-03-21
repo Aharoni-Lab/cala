@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Self, Tuple, List
+from typing import Self, Tuple
 
-import numpy as np
-import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 from scipy.ndimage import gaussian_filter
-from sklearn.exceptions import NotFittedError
+from sklearn.decomposition import NMF
 
-from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
 
 
@@ -29,6 +28,12 @@ class DetectNewComponentsParams(Parameters):
 
     spatial_axes: tuple = ("height", "width")
     """Names of the dimensions representing spatial coordinates (height, width)."""
+
+    id_coordinates: str = "id_"
+    """Name of the coordinate representing component IDs. (attached to the component_axis)"""
+
+    type_coordinates: str = "type_"
+    """Name of the coordinate representing component types. (attached to the component_axis)"""
 
     gaussian_radius: float = 2.0
     """Radius (τ) of Gaussian kernel for spatial filtering."""
@@ -86,7 +91,7 @@ class DetectNewComponents(SupervisedTransformer):
     traces_: Traces = None
     """Updated temporal traces [C; f]."""
 
-    groups_: Overlaps = None
+    overlaps_: Overlaps = None
     """Updated component overlaps G as a sparse matrix."""
 
     residuals_: Residuals = None
@@ -109,7 +114,7 @@ class DetectNewComponents(SupervisedTransformer):
         residuals: Residuals,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
-        groups: Overlaps,
+        overlaps: Overlaps,
     ) -> Self:
         """Process current frame to detect new components.
 
@@ -130,375 +135,227 @@ class DetectNewComponents(SupervisedTransformer):
             pixel_stats (PixelStats): Sufficient statistics W.
                 Shape: (pixels × components)
             component_stats (ComponentStats): Sufficient statistics M.
-                Shape: (components × components)
-            groups (Overlaps): Current component overlaps G (sparse matrix)
+                Shape: (components × components')
+            overlaps (Overlaps): Current component overlaps G (sparse matrix)
+                Shape: (components × components')
 
         Returns:
             Self: The transformer instance for method chaining.
         """
-        # Steps 1: Update and process residual buffer
-        reconstruction = compute_reconstruction(footprints, traces)
-        current_residual = frame - reconstruction
-        residual_buffer = update_residual_buffer(residuals, current_residual)
-        median = np.median(residual_buffer, axis=0)
-        residual_buffer = residual_buffer - median
+        # Update and process residuals
+        self._update_residual_buffer(frame, footprints, traces, residuals)
+        V, E = self._process_residuals()
 
-        # Step 2: Apply spatial filtering
-        filtered_residual = gaussian_filter(
-            residual_buffer, sigma=self.params.gaussian_radius, mode="reflect"
+        # Find and analyze neighborhood of maximum variance
+        neighborhood = self._get_max_variance_neighborhood(E)
+        a_new, c_new = self._local_nnmf(neighborhood)
+
+        # Validate new component
+        if not self._validate_component(a_new, c_new, traces, overlaps):
+            return self
+
+        # Update model with new component
+        self._update_model(
+            a_new,
+            c_new,
+            V,
+            footprints,
+            traces,
+            pixel_stats,
+            component_stats,
+            overlaps,
+            frame,
         )
-
-        # Step 3: Compute energy values
-        energy = np.sum(filtered_residual**2, axis=0)
-
-        # Step 4: Begin repeat loop for new component detection
-        repeat = True
-        while repeat:
-            # Step 5: Find point of maximum variance
-            ix, iy = np.unravel_index(np.argmax(energy), energy.shape)
-
-            # Step 6: Define neighborhood around maximum point
-            neighborhood = get_neighborhood(
-                ix, iy, self.params.gaussian_radius, residual_buffer.shape[1:]
-            )
-
-            # Step 7: Perform local rank-1 NMF in the neighborhood
-            a_new, c_new = local_rank1_nmf(
-                residual_buffer[:, neighborhood[:, 0], neighborhood[:, 1]]
-            )
-
-            # Step 8: Compute spatial correlation
-            r = np.corrcoef(a_new, np.mean(residual_buffer, axis=0).flatten())[0, 1]
-
-            # Step 9: Check for overlapping components
-            overlaps = find_overlapping_components(a_new, footprints)
-            if overlaps:
-                # Check temporal correlation with overlapping components
-                t_start = residual_buffer.shape[0] - traces.shape[1]
-                for j in overlaps:
-                    if (
-                        np.corrcoef(c_new, traces[j, t_start:])[0, 1]
-                        > self.params.temporal_threshold
-                    ):
-                        r = 0  # Duplicate detected
-                        break
-
-            # Steps 10: Accept or reject new component
-            if r > self.params.spatial_threshold:
-                # Zero-pad the spatial footprint to match full frame size
-                a_new_padded = zero_pad_component(a_new, neighborhood, energy.shape)
-
-                # Update component count
-                K = footprints.sizes[self.params.component_axis] + 1
-
-                # Update groups using sparse matrix operations
-                new_overlaps = compute_new_overlaps(footprints, a_new_padded)
-                groups = update_overlap_groups(groups, new_overlaps)
-
-                # Update footprints and traces
-                footprints = xr.concat(
-                    [footprints, a_new_padded], dim=self.params.component_axis
-                )
-                traces = xr.concat(
-                    [traces, c_new[np.newaxis, :]], dim=self.params.component_axis
-                )
-
-                # Update residual buffer and energy
-                residual_buffer -= np.outer(c_new, a_new_padded).reshape(
-                    (-1,) + energy.shape
-                )
-                energy = np.sum(residual_buffer**2, axis=0)
-
-                # Update sufficient statistics (W, M)
-                pixel_stats, component_stats = update_sufficient_statistics(
-                    pixel_stats,
-                    component_stats,
-                    residual_buffer,  # Y_buf: buffer of recent residual frames
-                    traces,  # [C; f]: current temporal components
-                    c_new,  # newly detected temporal component
-                )
-            else:
-                repeat = False
-
-        # Store all updated components
-        self.footprints_ = footprints
-        self.traces_ = traces
-        self.groups_ = groups
-        self.residuals_ = xr.DataArray(
-            residual_buffer, dims=residuals.dims, coords=residuals.coords
-        )
-        self.pixel_stats_ = pixel_stats
-        self.component_stats_ = component_stats
 
         self.is_fitted_ = True
         return self
 
     def transform_one(
-        self, _=None
-    ) -> Tuple[Footprints, Traces, Overlaps, Residuals, PixelStats, ComponentStats]:
-        """Return all updated model components.
+        self,
+        _=None,
+    ) -> Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]: ...
 
-        Following Algorithm 5, this method returns all updated components including
-        spatial footprints, temporal traces, overlap groups (sparse matrix), residual buffer,
-        and sufficient statistics matrices.
+    def _update_residual_buffer(
+        self,
+        frame: xr.DataArray,
+        footprints: Footprints,
+        traces: Traces,
+        residuals: Residuals,
+    ) -> None:
+        """Update residual buffer with new frame."""
+        prediction = (footprints * traces.isel({self.params.frames_axis: -1})).sum(
+            dim=self.params.component_axis
+        )
+        new_residual = frame - prediction
+        self.residuals_ = xr.concat(
+            [
+                residuals.isel({self.params.frames_axis: slice(1, None)}),
+                new_residual.expand_dims(self.params.frames_axis),
+            ],
+            dim=self.params.frames_axis,
+        )
+
+    def _process_residuals(self) -> Tuple[xr.DataArray, xr.DataArray]:
+        """Process residuals through median subtraction and spatial filtering."""
+        # Center residuals
+        R_med = self.residuals_.median(dim=self.params.frames_axis)
+        R_centered = self.residuals_ - R_med
+
+        # Apply spatial filter
+        V = xr.apply_ufunc(
+            lambda x: gaussian_filter(x, self.params.gaussian_radius),
+            R_centered,
+            input_core_dims=[[*self.params.spatial_axes]],
+            output_core_dims=[[*self.params.spatial_axes]],
+            vectorize=True,
+        )
+
+        # Compute energy
+        E = (V**2).sum(dim=self.params.frames_axis)
+
+        return V, E
+
+    def _get_max_variance_neighborhood(
+        self,
+        E: xr.DataArray,
+    ) -> xr.DataArray:
+        """Find neighborhood around point of maximum variance."""
+        # Find maximum point
+        max_coords = E.argmax(dim=self.params.spatial_axes)
+        ix = max_coords[self.params.spatial_axes[0]]
+        iy = max_coords[self.params.spatial_axes[1]]
+
+        # Define neighborhood
+        radius = self.params.gaussian_radius
+        return self.residuals_.sel(
+            {
+                self.params.spatial_axes[0]: slice(
+                    max(0, ix - radius),
+                    min(E.sizes[self.params.spatial_axes[0]], ix + radius + 1),
+                ),
+                self.params.spatial_axes[1]: slice(
+                    max(0, iy - radius),
+                    min(E.sizes[self.params.spatial_axes[1]], iy + radius + 1),
+                ),
+            }
+        )
+
+    def _validate_component(
+        self,
+        anew: xr.DataArray,
+        cnew: xr.DataArray,
+        traces: Traces,
+        overlaps: Overlaps,
+    ) -> bool:
+        """Validate new component against spatial and temporal criteria."""
+        # Check spatial correlation
+        r = xr.corr(
+            anew,
+            self.residuals_.mean(dim=self.params.frames_axis),
+            dim=self.params.spatial_axes,
+        )
+        if r <= self.params.spatial_threshold:
+            return False
+
+        # Check for duplicates
+        overlapping = overlaps.sel({self.params.component_axis: anew > 0})
+        if len(overlapping) > 0:
+            temporal_corr = xr.corr(
+                cnew,
+                traces.isel(
+                    {
+                        self.params.frames_axis: slice(
+                            -self.residuals_.sizes[self.params.frames_axis], None
+                        )
+                    }
+                ),
+                dim=self.params.frames_axis,
+            )
+            if (temporal_corr > self.params.temporal_threshold).any():
+                return False
+
+        return True
+
+    def _update_model(
+        self,
+        anew: xr.DataArray,
+        cnew: xr.DataArray,
+        V: xr.DataArray,
+        footprints: Footprints,
+        traces: Traces,
+        pixel_stats: PixelStats,
+        component_stats: ComponentStats,
+        overlaps: Overlaps,
+        frame: xr.DataArray,
+    ) -> None:
+        """Update model with new accepted component."""
+        # Update footprints and traces
+        self.footprints_ = xr.concat(
+            [footprints, anew.expand_dims(self.params.component_axis)],
+            dim=self.params.component_axis,
+        )
+        self.traces_ = xr.concat(
+            [traces, cnew.expand_dims(self.params.component_axis)],
+            dim=self.params.component_axis,
+        )
+
+        # Update residuals and energy
+        new_component = anew * cnew
+        self.residuals_ = self.residuals_ - new_component
+        V = V - (anew**2) * (cnew**2).sum()
+
+        # Update statistics and overlaps
+        self.pixel_stats_, self.component_stats_ = self._update_sufficient_statistics(
+            pixel_stats, component_stats, frame, cnew
+        )
+        self.overlaps_ = self._update_overlaps(overlaps, anew)
+
+    def _local_nnmf(
+        self,
+        neighborhood: xr.DataArray,
+    ) -> Tuple[xr.DataArray, xr.DataArray]:
+        """Perform local rank-1 Non-negative Matrix Factorization.
+
+        Uses scikit-learn's NMF implementation to decompose the neighborhood
+        into spatial (a) and temporal (c) components.
 
         Args:
-            _: Unused parameter maintained for API compatibility.
+            neighborhood (xr.DataArray): Local region of residual buffer.
+                Shape: (frames × height × width)
 
         Returns:
-            tuple:
-                - Footprints: Updated spatial footprints [A, b]
-                - Traces: Updated temporal traces [C; f]
-                - Overlaps: Updated component overlap groups G (sparse matrix)
-                - Residuals: Updated residual buffer R_buf
-                - PixelStats: Updated pixel-wise sufficient statistics W
-                - ComponentStats: Updated component-wise sufficient statistics M
-
-        Raises:
-            NotFittedError: If the transformer hasn't been fitted yet.
+            Tuple[xr.DataArray, xr.DataArray]:
+                - Spatial component a_new (height × width)
+                - Temporal component c_new (frames)
         """
-        if not self.is_fitted_:
-            raise NotFittedError
-
-        return (
-            self.footprints_,
-            self.traces_,
-            self.groups_,
-            self.residuals_,
-            self.pixel_stats_,
-            self.component_stats_,
+        # Reshape neighborhood to 2D matrix (time × space)
+        R = neighborhood.stack(space=self.params.spatial_axes).transpose(
+            self.params.frames_axis, "space"
         )
 
+        # Apply NMF
+        model = NMF(n_components=1, init="random")
+        c = model.fit_transform(R)  # temporal component
+        a = model.components_  # spatial component
 
-def compute_reconstruction(footprints: Footprints, traces: Traces) -> np.ndarray:
-    """Compute reconstruction from current components.
-
-    Args:
-        footprints: Spatial footprints [A, b]
-        traces: Temporal traces [C; f]
-
-    Returns:
-        Reconstructed frame from current components
-    """
-    return footprints.values @ traces.values
-
-
-def update_residual_buffer(
-    buffer: xr.DataArray, new_residual: xr.DataArray
-) -> np.ndarray:
-    """Update residual buffer with new frame.
-
-    Args:
-        buffer: Current residual buffer
-        new_residual: New residual frame to add
-
-    Returns:
-        Updated residual buffer with the oldest frame removed and new frame added
-    """
-    # Roll buffer back one position and add new frame at the end
-    buffer_values = buffer.values
-    buffer_values = np.roll(buffer_values, -1, axis=0)
-    buffer_values[-1] = new_residual.values
-    return buffer_values
-
-
-def get_neighborhood(
-    ix: int, iy: int, radius: float, shape: Tuple[int, int]
-) -> np.ndarray:
-    """Define a neighborhood around a point within given radius.
-
-    Args:
-        ix, iy: Center point coordinates
-        radius: Neighborhood radius
-        shape: Shape of the full frame
-
-    Returns:
-        Array of coordinates within the neighborhood
-    """
-    y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
-    mask = x * x + y * y <= radius * radius
-
-    # Get valid coordinates within frame bounds
-    coords = np.where(mask)
-    y_coords = np.clip(coords[0] + ix, 0, shape[0] - 1)
-    x_coords = np.clip(coords[1] + iy, 0, shape[1] - 1)
-
-    return np.column_stack([y_coords, x_coords])
-
-
-def local_rank1_nmf(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Perform rank-1 NMF on local data.
-
-    Args:
-        data: Local spatiotemporal data for NMF
-
-    Returns:
-        Spatial and temporal components (a_new, c_new)
-    """
-    # Initialize with random non-negative values
-    h = np.random.rand(data.shape[0])  # temporal
-    w = np.random.rand(data.shape[1])  # spatial
-
-    # Simple multiplicative update rules for rank-1 NMF
-    for _ in range(10):  # Fixed number of iterations
-        h = h * (data.T @ w) / (w.sum() * h)
-        w = w * (data @ h) / (h.sum() * w)
-
-        # Normalize
-        h_norm = np.linalg.norm(h)
-        h = h / h_norm
-        w = w * h_norm
-
-    return w, h
-
-
-def find_overlapping_components(a_new: np.ndarray, footprints: Footprints) -> List[int]:
-    """Find components that overlap with the new component.
-
-    Args:
-        a_new: New spatial component
-        footprints: Existing component footprints
-
-    Returns:
-        List of indices of overlapping components
-    """
-    overlaps = []
-    for i in range(footprints.shape[0]):
-        if np.sum(a_new * footprints[i].values.flatten()) > 0:
-            overlaps.append(i)
-    return overlaps
-
-
-def zero_pad_component(
-    a_new: np.ndarray, neighborhood: np.ndarray, full_shape: Tuple[int, int]
-) -> np.ndarray:
-    """Zero-pad local component to match full frame dimensions.
-
-    Args:
-        a_new: Local spatial component
-        neighborhood: Neighborhood coordinates
-        full_shape: Full frame shape
-
-    Returns:
-        Zero-padded spatial component
-    """
-    padded = np.zeros(full_shape)
-    padded[neighborhood[:, 0], neighborhood[:, 1]] = a_new
-    return padded
-
-
-def update_sufficient_statistics(
-    pixel_stats: PixelStats,
-    component_stats: ComponentStats,
-    frame_buffer: xr.DataArray,
-    traces_buffer: xr.DataArray,
-    c_new: np.ndarray,
-) -> Tuple[PixelStats, ComponentStats]:
-    """Update sufficient statistics W and M with new component.
-
-    Implements the update equations:
-    W_t = [W_t, (1/t)Y_buf c_new^T]
-    M_t = (1/t)[tM_t, C_buf c_new; c_new^T C_buf^T, ||c_new||^2]
-
-    where Y_buf and C_buf are the matrices [Y; [C; f]] restricted to
-    the last N frames in the buffer.
-
-    Args:
-        pixel_stats: Current pixel statistics W_t
-        component_stats: Current component statistics M_t
-        frame_buffer: Buffer of recent frames Y_buf
-        traces_buffer: Buffer of recent temporal components [C; f]
-        c_new: New temporal component c_new
-
-    Returns:
-        Updated pixel and component statistics (W_t, M_t)
-    """
-    # Get buffer size and current timestep
-    buffer_size = frame_buffer.sizes[frame_buffer.dims[0]]
-    t = traces_buffer.sizes[traces_buffer.dims[1]]  # total number of timepoints
-
-    # Get the last N frames from buffers
-    Y_buf = frame_buffer.values.reshape(-1, buffer_size)  # pixels × frames
-    C_buf = traces_buffer.values[:, -buffer_size:]  # components × frames
-
-    # Update pixel statistics W_t
-    # W_t = [W_t, (1/t)Y_buf c_new^T]
-    W_new_col = (1 / t) * Y_buf @ c_new  # using matrix multiplication for Y_buf c_new^T
-    W_update = np.column_stack([pixel_stats.values, W_new_col])
-
-    # Update component statistics M_t
-    # M_t = (1/t)[tM_t, C_buf c_new; c_new^T C_buf^T, ||c_new||^2]
-    M_current = component_stats.values
-    C_buf_c_new = C_buf @ c_new  # C_buf c_new using matrix multiplication
-    c_new_norm = np.dot(c_new, c_new)  # ||c_new||^2
-
-    # Construct new M matrix
-    M_top = np.column_stack([t * M_current, C_buf_c_new])
-    M_bottom = np.append(C_buf_c_new, c_new_norm)
-    M_update = (1 / t) * np.vstack([M_top, M_bottom])
-
-    # Create updated xarray DataArrays with expanded dimensions
-    new_component_coord = {
-        pixel_stats.dims[1]: np.append(
-            pixel_stats.coords[pixel_stats.dims[1]],
-            pixel_stats.coords[pixel_stats.dims[1]][-1] + 1,
+        # Convert back to xarray with proper dimensions and coordinates
+        c_new = xr.DataArray(
+            c.squeeze(),
+            dims=[self.params.frames_axis],
+            coords={
+                self.params.frames_axis: neighborhood.coords[self.params.frames_axis]
+            },
         )
-    }
 
-    updated_pixel_stats = xr.DataArray(
-        W_update,
-        dims=pixel_stats.dims,
-        coords={**pixel_stats.coords, **new_component_coord},
-    )
+        a_new = xr.DataArray(
+            a.squeeze().reshape(
+                tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)
+            ),
+            dims=self.params.spatial_axes,
+            coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
+        )
 
-    updated_component_stats = xr.DataArray(
-        M_update,
-        dims=component_stats.dims,
-        coords={**component_stats.coords, **new_component_coord},
-    )
+        # Normalize spatial component
+        a_new = a_new / a_new.sum()
 
-    return updated_pixel_stats, updated_component_stats
-
-
-def compute_new_overlaps(footprints: Footprints, a_new: np.ndarray) -> np.ndarray:
-    """Compute overlap between new component and existing components.
-
-    Args:
-        footprints: Existing component footprints
-        a_new: New component spatial footprint
-
-    Returns:
-        Array indicating which components overlap with the new one
-    """
-    overlaps = np.zeros(footprints.shape[0] + 1, dtype=int)
-    for i in range(footprints.shape[0]):
-        if np.sum(a_new * footprints[i].values.flatten()) > 0:
-            overlaps[i] = 1
-            overlaps[-1] = 1  # Mark new component as overlapping
-    return overlaps
-
-
-def update_overlap_groups(groups: Overlaps, new_overlaps: np.ndarray) -> Overlaps:
-    """Update overlap groups sparse matrix with new component.
-
-    Args:
-        groups: Current overlap groups sparse matrix
-        new_overlaps: Overlap information for new component
-
-    Returns:
-        Updated sparse matrix including new component
-    """
-    # Convert to dense temporarily for update
-    current_matrix = groups.data.todense()
-    n = current_matrix.shape[0]
-
-    # Create new expanded matrix
-    new_matrix = np.zeros((n + 1, n + 1), dtype=int)
-    new_matrix[:n, :n] = current_matrix
-
-    # Add new component overlaps
-    new_matrix[n, :] = new_overlaps
-    new_matrix[:, n] = new_overlaps
-
-    # Convert back to sparse and wrap in xarray
-    return xr.DataArray(sparse.COO(new_matrix), dims=groups.dims, coords=groups.coords)
+        return a_new, c_new
