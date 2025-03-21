@@ -3,15 +3,19 @@ from typing import cast
 import cv2
 import pytest
 
-from cala.streaming.composer import StreamingConfig, Runner
+from cala.streaming.composer import StreamingConfig, Runner, Frame
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.init.odl import (
     PixelStatsInitializer,
     ComponentStatsInitializer,
     ResidualInitializer,
+    OverlapsInitializer,
 )
-from cala.streaming.init.odl.overlaps import OverlapsInitializer
-from cala.streaming.iterate.traces import TracesUpdater
+from cala.streaming.iterate import (
+    TracesUpdater,
+    ComponentStatsUpdater,
+    PixelStatsUpdater,
+)
 from cala.streaming.preprocess import (
     Downsampler,
     Denoiser,
@@ -66,7 +70,8 @@ def preprocess_config() -> StreamingConfig:
 def test_preprocess_execution(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
     video, _, _ = raw_calcium_video
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         frame = runner.preprocess(frame)
 
 
@@ -129,7 +134,8 @@ def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video, _, _ = stabilized_video
 
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         runner.initialize(frame)
 
     assert runner.is_initialized
@@ -214,10 +220,20 @@ def streaming_config() -> StreamingConfig:
                 },
             },
             "iteration": {
-                "update_trace": {
+                "traces": {
                     "transformer": TracesUpdater,
                     "params": {"tolerance": 1e-3},
-                }
+                },
+                "pixel_stats": {
+                    "transformer": PixelStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
+                "component_stats": {
+                    "transformer": ComponentStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
             },
         },
     )
@@ -230,6 +246,7 @@ def test_streaming_execution(streaming_config, raw_calcium_video):
     video, _, _ = raw_calcium_video
 
     for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         # plt.imsave(f"preprocess_{idx}.png", frame)
         frame = runner.preprocess(frame)
         # plt.imsave(f"postprocess_{idx}.png", frame)

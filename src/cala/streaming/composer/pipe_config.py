@@ -1,4 +1,15 @@
+from dataclasses import dataclass
+from datetime import datetime
 from typing import TypedDict, Any, Sequence, NotRequired
+
+import xarray as xr
+
+
+@dataclass
+class Frame:
+    array: xr.DataArray
+    index: int
+    timestamp: datetime | None = None
 
 
 class PreprocessStep(TypedDict):

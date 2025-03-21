@@ -8,20 +8,17 @@ import pytest
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.composer.pipe_config import StreamingConfig
-from cala.streaming.composer.runner import Runner
-from cala.streaming.core import (
-    Parameters,
-    Component,
-    Footprints,
-    Traces,
-)
+from cala.streaming.composer import StreamingConfig, Runner, Frame
+from cala.streaming.core import Parameters, Component
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
-from cala.streaming.preprocess import RigidStabilizer
-from cala.streaming.preprocess.background_removal import BackgroundEraser
-from cala.streaming.preprocess.denoise import Denoiser
-from cala.streaming.preprocess.downsample import Downsampler
-from cala.streaming.preprocess.glow_removal import GlowRemover
+from cala.streaming.preprocess import (
+    RigidStabilizer,
+    BackgroundEraser,
+    Denoiser,
+    Downsampler,
+    GlowRemover,
+)
+from cala.streaming.stores.common import Footprints, Traces
 from tests.conftest import stabilized_video
 
 
@@ -242,7 +239,8 @@ def test_runner_initialization(basic_config):
 def test_runner_dependency_resolution(basic_config, stabilized_video):
     runner = Runner(basic_config)
     video, _, _ = stabilized_video
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         while not runner.is_initialized:
             runner.initialize(frame=frame)
 
@@ -251,7 +249,10 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
         "width": 512,
         "height": 512,
     }
-    assert runner._state.tracestore.warehouse.sizes == {"components": 10, "frames": 100}
+    assert runner._state.tracestore.warehouse.sizes == {
+        "components": 10,
+        "frames": 100,
+    }
     assert np.array_equal(
         runner._state.footprintstore.warehouse.coords["id_"].values,
         runner._state.tracestore.warehouse.coords["id_"].values,
@@ -283,7 +284,8 @@ def test_cyclic_dependency_detection(stabilized_video):
     runner = Runner(cyclic_config)
     video, _, _ = stabilized_video
     with pytest.raises(ValueError):
-        for frame in video:
+        for idx, frame in enumerate(video):
+            frame = Frame(frame, idx)
             while not runner.is_initialized:
                 runner.initialize(frame)
 
@@ -291,7 +293,8 @@ def test_cyclic_dependency_detection(stabilized_video):
 def test_state_updates(basic_config, stabilized_video):
     runner = Runner(basic_config)
     video, _, _ = stabilized_video
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         while not runner.is_initialized:
             runner.initialize(frame)
     # Check if state contains expected attributes
@@ -308,18 +311,19 @@ def test_preprocess_initialization(preprocess_config):
 def test_preprocess_execution(preprocess_config, stabilized_video):
     runner = Runner(preprocess_config)
     video, _, _ = stabilized_video
-    frame = next(iter(video))
+    idx, frame = next(iter(enumerate(video)))
+    frame = Frame(frame, idx)
+    original_shape = frame.array.shape
 
     # Test preprocessing pipeline
     result = runner.preprocess(frame)
 
-    assert isinstance(result, xr.DataArray)
+    assert isinstance(result, Frame)
 
     # Verify dimensions are reduced by downsampling
-    original_shape = frame.shape
     processed_frame = result
-    assert processed_frame.shape[0] == original_shape[0] // 2
-    assert processed_frame.shape[1] == original_shape[1] // 2
+    assert processed_frame.array.shape[0] == original_shape[0] // 2
+    assert processed_frame.array.shape[1] == original_shape[1] // 2
 
 
 def test_preprocess_dependency_resolution(preprocess_config):
@@ -346,7 +350,8 @@ def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video, _, _ = stabilized_video
 
-    for frame in video:
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         while not runner.is_initialized:
             runner.initialize(frame)
 

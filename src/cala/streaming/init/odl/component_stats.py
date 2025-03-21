@@ -4,7 +4,8 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
@@ -82,29 +83,17 @@ class ComponentStatsInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Get temporal components C
-        C = traces.values  # components x time
+        C = traces  # components x time
 
         # Compute M = C * C.T / t'
-        M = C @ C.T / t_prime
-
-        # Reshape M back to components x components
-        M = M.reshape(traces.sizes[self.params.component_axis], -1)
+        M = (
+            C
+            @ C.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+            / t_prime
+        )
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.component_stats_ = xr.DataArray(
-            M,
-            dims=(self.params.component_axis, self.params.component_axis + "'"),
-            coords={
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    traces.coords[self.params.id_coordinates].values,
-                ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
-                    traces.coords[self.params.type_coordinates].values,
-                ),
-            },
-        )
+        self.component_stats_ = M.assign_coords(C.coords)
 
         return self
 

@@ -7,7 +7,9 @@ from river.base import SupervisedTransformer
 from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.composer import Frame
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
 
@@ -24,6 +26,16 @@ class TracesUpdaterParams(Parameters):
 
     frames_axis: str = "frame"
     """Name of the dimension representing time points."""
+
+    spatial_axes: tuple[str] = ("width", "height")
+
+    pixel_axis: str = "pixel"
+
+    id_coordinates: str = "id_"
+    """Name of the coordinate used to identify individual components with unique IDs."""
+
+    type_coordinates: str = "type_"
+    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
 
     tolerance: float = 1e-3
     """Convergence tolerance level (ε) for the iterative update process."""
@@ -69,7 +81,7 @@ class TracesUpdater(SupervisedTransformer):
     def learn_one(
         self,
         footprints: Footprints,
-        frame: xr.DataArray,
+        frame: Frame,
         traces: Traces,
         overlaps: Overlaps,
     ) -> Self:
@@ -95,9 +107,9 @@ class TracesUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Prepare inputs for the update algorithm
-        A = footprints.values.reshape(footprints.sizes[self.params.component_axis], -1)
-        y = frame.values.reshape(-1)
-        c = traces.isel({self.params.frames_axis: -1}).values
+        A = footprints.stack({self.params.pixel_axis: self.params.spatial_axes})
+        y = frame.array.stack({self.params.pixel_axis: self.params.spatial_axes})
+        c = traces.isel({self.params.frames_axis: -1})
 
         _, labels = connected_components(
             csgraph=overlaps.data, directed=False, return_labels=True
@@ -105,12 +117,10 @@ class TracesUpdater(SupervisedTransformer):
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
         # Run the update algorithm
-        updated_traces = update_traces(A, y, c, clusters, self.params.tolerance)
+        updated_traces = self.update_traces(A, y, c, clusters, self.params.tolerance)
 
         # store result with proper coordinates
-        self.traces_ = xr.DataArray(
-            updated_traces, dims=(self.params.component_axis,), coords=traces.coords
-        )
+        self.traces_ = updated_traces
 
         self.is_fitted_ = True
         return self
@@ -135,48 +145,61 @@ class TracesUpdater(SupervisedTransformer):
 
         return self.traces_
 
+    def update_traces(
+        self,
+        A: xr.DataArray,
+        y: xr.DataArray,
+        c: xr.DataArray,
+        clusters: list[np.ndarray],
+        eps: float,
+    ):
+        """Implementation of the temporal traces update algorithm.
 
-def update_traces(A, y, c, clusters, eps):
-    """Implementation of the temporal traces update algorithm.
+        This function implements the core update logic of Algorithm 4 (UpdateTraces).
+        It uses block coordinate descent to update temporal traces for overlapping
+        components together while maintaining non-negativity constraints.
 
-    This function implements the core update logic of Algorithm 4 (UpdateTraces).
-    It uses block coordinate descent to update temporal traces for overlapping
-    components together while maintaining non-negativity constraints.
+        Args:
+            A (xr.DataArray): Spatial footprints matrix [A, b].
+                Shape: (components × pixels)
+            y (xr.DataArray): Current data frame.
+                Shape: (pixels,)
+            c (xr.DataArray): Current value of temporal traces.
+                Shape: (components,)
+            clusters (list[np.ndarray]): list of groups that each contain component indices that have overlapping footprints.
+            eps (float): Tolerance level for convergence checking.
 
-    Args:
-        A (np.ndarray): Spatial footprints matrix [A, b].
-            Shape: (components × pixels)
-        y (np.ndarray): Current data frame.
-            Shape: (pixels,)
-        c (np.ndarray): Current value of temporal traces.
-            Shape: (components,)
-        clusters (list[np.ndarray]): list of groups that each contain component indices that have overlapping footprints.
-        eps (float): Tolerance level for convergence checking.
+        Returns:
+            xr.DataArray: Updated temporal traces satisfying non-negativity constraints.
+                Shape: (components,)
+        """
+        # Step 1: Compute projection of current frame
+        u = A @ y
 
-    Returns:
-        np.ndarray: Updated temporal traces satisfying non-negativity constraints.
-            Shape: (components,)
-    """
-    # Step 1: Compute projection of current frame
-    u = A @ y
+        # Step 2: Compute gram matrix of spatial components
+        V = A @ A.rename({self.params.component_axis: f"{self.params.component_axis}'"})
 
-    # Step 2: Compute gram matrix of spatial components
-    V = A @ A.T
+        # Step 3: Extract diagonal elements for normalization
+        V_diag = np.diag(V)
 
-    # Step 3: Extract diagonal elements for normalization
-    V_diag = np.diag(V)
+        # Step 4: Initialize previous iteration value
+        c_old = np.zeros_like(c)
 
-    # Step 4: Initialize previous iteration value
-    c_old = np.zeros_like(c)
+        # Steps 5-10: Main iteration loop until convergence
+        while np.linalg.norm(c - c_old) >= eps * np.linalg.norm(c_old):
+            c_old = c.copy()
 
-    # Steps 5-10: Main iteration loop until convergence
-    while np.linalg.norm(c - c_old) >= eps * np.linalg.norm(c_old):
-        c_old = c.copy()
+            # Steps 7-9: Update each group using block coordinate descent
+            for cluster in clusters:
+                # Update traces for current group (division is pointwise)
+                numerator = u.isel({self.params.component_axis: cluster}) - (
+                    V.isel({f"{self.params.component_axis}'": cluster}) @ c
+                ).rename({f"{self.params.component_axis}'": self.params.component_axis})
 
-        # Steps 7-9: Update each group using block coordinate descent
-        for cluster in clusters:
-            # Update traces for current group (division is pointwise)
-            numerator = u[cluster] - V[cluster, :] @ c
-            c[cluster] = np.maximum(c[cluster] + numerator / V_diag[cluster], 0)
+                c.loc[{self.params.component_axis: cluster}] = np.maximum(
+                    c.isel({self.params.component_axis: cluster})
+                    + numerator / V_diag[cluster],
+                    0,
+                )
 
-    return c
+        return c

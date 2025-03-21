@@ -7,7 +7,8 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Footprints, Traces
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints, Traces
 
 
 @dataclass
@@ -18,6 +19,10 @@ class TracesInitializerParams(Parameters):
     """Axis for components"""
     frames_axis: str = "frames"
     """Axis for frames"""
+
+    pixel_axis: str = "pixel"
+    spatial_axes: tuple[str] = ("width", "height")
+
     id_coordinates: str = "id_"
     type_coordinates: str = "type_"
 
@@ -46,15 +51,19 @@ class TracesInitializer(SupervisedTransformer):
 
         # Get frames to use and flatten them
         n_frames = frame.sizes[self.params.frames_axis]
-        flattened_frames = frame[:n_frames].values.reshape(n_frames, -1)
-        flattened_footprints = footprints.values.reshape(
-            footprints.sizes[self.params.component_axis], -1
+        flattened_frames = frame[:n_frames].stack(
+            {self.params.pixel_axis: self.params.spatial_axes}
+        )
+        flattened_footprints = footprints.stack(
+            {self.params.pixel_axis: self.params.spatial_axes}
         )
 
         # Process all components
         temporal_traces = solve_all_component_traces(
-            flattened_footprints,
-            flattened_frames,
+            flattened_footprints.values,
+            flattened_frames.values,
+            flattened_footprints.sizes[self.params.component_axis],
+            flattened_frames.sizes[self.params.frames_axis],
         )
 
         # Store result
@@ -85,7 +94,9 @@ class TracesInitializer(SupervisedTransformer):
 
 
 @jit(nopython=True, cache=True, parallel=True)
-def solve_all_component_traces(footprints, frames):
+def solve_all_component_traces(
+    footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
+):
     """Solve temporal traces for all components in parallel
 
     Args:
@@ -94,13 +105,11 @@ def solve_all_component_traces(footprints, frames):
     Returns:
         Array of shape (n_components, n_frames)
     """
-    n_components = footprints.shape[0]
-    n_frames = frames.shape[0]
     results = np.zeros((n_components, n_frames), dtype=frames.dtype)
 
     # Parallel loop over components
     for i in prange(n_components):
-        footprint = footprints[i].reshape(-1)
+        footprint = footprints[i]
         active_pixels = footprint > 0
 
         if np.any(active_pixels):

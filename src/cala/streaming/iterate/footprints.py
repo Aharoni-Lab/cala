@@ -6,12 +6,13 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Footprints
+from cala.streaming.core import Parameters
+from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import PixelStats, ComponentStats
 
 
 @dataclass
-class UpdateShapesParams(Parameters):
+class FootprintsUpdaterParams(Parameters):
     """Parameters for spatial footprint updates.
 
     This class defines the configuration parameters needed for updating
@@ -38,7 +39,7 @@ class UpdateShapesParams(Parameters):
 
 
 @dataclass
-class UpdateShapes(SupervisedTransformer):
+class FootprintsUpdater(SupervisedTransformer):
     """Updates spatial footprints using sufficient statistics.
 
     This transformer implements Algorithm 6 (UpdateShapes) which updates
@@ -54,7 +55,7 @@ class UpdateShapes(SupervisedTransformer):
     - p are the pixels where component i can be non-zero
     """
 
-    params: UpdateShapesParams
+    params: FootprintsUpdaterParams
     """Configuration parameters for the update process."""
 
     footprints_: xr.DataArray = None

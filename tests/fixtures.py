@@ -182,11 +182,6 @@ def raw_calcium_video(params: CalciumVideoParams):
     video_xr = xr.DataArray(
         video,
         dims=["frames", "height", "width"],
-        coords={
-            "frames": np.arange(params.frames),
-            "height": np.arange(params.height),
-            "width": np.arange(params.width),
-        },
     )
 
     # Additional metadata

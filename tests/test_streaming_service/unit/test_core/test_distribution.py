@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Footprints, Traces
 from cala.streaming.core.distribution import Distributor
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import (
     PixelStats,
 )

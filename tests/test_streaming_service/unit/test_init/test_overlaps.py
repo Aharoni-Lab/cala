@@ -95,7 +95,7 @@ class TestOverlapsInitializer:
         assert isinstance(initializer.overlaps_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.overlaps_.dims == ("components", "components")
+        assert initializer.overlaps_.dims == ("components", "components'")
         assert initializer.overlaps_.shape == (5, 5)
 
         # Check coordinates
