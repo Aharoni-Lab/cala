@@ -231,7 +231,7 @@ def streaming_config() -> StreamingConfig:
                 },
                 "footprints": {
                     "transformer": FootprintsUpdater,
-                    "params": {},
+                    "params": {"boundary_expansion_pixels": 1},
                     "requires": ["pixel_stats", "component_stats"],
                 },
             },

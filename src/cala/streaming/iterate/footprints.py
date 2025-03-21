@@ -4,12 +4,13 @@ from typing import Self
 import numpy as np
 import xarray as xr
 from river.base import SupervisedTransformer
+from scipy.ndimage import binary_dilation
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Footprints
-from cala.streaming.stores.odl import PixelStats, ComponentStats
+from cala.streaming.stores.odl import ComponentStats, PixelStats
 
 
 @dataclass
@@ -25,6 +26,9 @@ class FootprintsUpdaterParams(Parameters):
 
     spatial_axes: tuple = ("height", "width")
     """Names of the dimensions representing spatial coordinates (height, width)."""
+
+    boundary_expansion_pixels: int | None = None
+    """Number of pixels to explore the boundary of the footprint outside of the current footprint."""
 
     max_iterations: int = 100
     """Maximum number of iterations for shape update convergence."""
@@ -97,7 +101,17 @@ class FootprintsUpdater(SupervisedTransformer):
         for _ in range(self.params.max_iterations):
             # Create mask for non-zero pixels per component
             mask = A > 0
-
+            if self.params.boundary_expansion_pixels:
+                mask = xr.apply_ufunc(
+                    lambda x: binary_dilation(
+                        x, iterations=self.params.boundary_expansion_pixels
+                    ),
+                    mask,
+                    input_core_dims=[[*self.params.spatial_axes]],
+                    output_core_dims=[[*self.params.spatial_axes]],
+                    vectorize=True,
+                    dask="allowed",
+                )
             # Compute AM product using xarray operations
             # Reshape M to align dimensions for broadcasting
             AM = (A @ M).rename(
