@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Footprints, Traces
 from cala.streaming.core.distribution import Distributor
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import (
     PixelStats,
 )
@@ -69,17 +69,17 @@ class TestDistributor:
         # Test collecting each type of Observable
         sample_distributor.init(sample_data["footprints"], Footprints)
         assert np.array_equal(
-            sample_distributor.footprintstore._warehouse, sample_data["footprints"]
+            sample_distributor.footprintstore.warehouse, sample_data["footprints"]
         )
 
         sample_distributor.init(sample_data["traces"], Traces)
         assert np.array_equal(
-            sample_distributor.tracestore._warehouse, sample_data["traces"]
+            sample_distributor.tracestore.warehouse, sample_data["traces"]
         )
 
         sample_distributor.init(sample_data["pixel_stats"], PixelStats)
         assert np.array_equal(
-            sample_distributor.pixelstatstore._warehouse, sample_data["pixel_stats"]
+            sample_distributor.pixelstatstore.warehouse, sample_data["pixel_stats"]
         )
 
     def test_init_multiple(self, sample_distributor, sample_data): ...

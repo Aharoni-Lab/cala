@@ -25,9 +25,9 @@ class TestFootprints:
         """Test proper initialization of Footprints."""
         assert isinstance(sample_footprints, ObservableStore)
         assert isinstance(sample_footprints, FootprintStore)
-        assert sample_footprints._warehouse.dims == ("components", "height", "width")
-        assert "id_" in sample_footprints._warehouse.coords
-        assert "type_" in sample_footprints._warehouse.coords
+        assert sample_footprints.warehouse.dims == ("components", "height", "width")
+        assert "id_" in sample_footprints.warehouse.coords
+        assert "type_" in sample_footprints.warehouse.coords
 
 
 class TestTraces:

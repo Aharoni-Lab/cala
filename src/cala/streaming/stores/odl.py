@@ -85,13 +85,13 @@ class OverlapStore(ObservableStore):
     @property
     def labels(self) -> np.ndarray:
         _, labels = connected_components(
-            csgraph=self._warehouse, directed=False, return_labels=True
+            csgraph=self.warehouse, directed=False, return_labels=True
         )
         return labels
 
     @property
     def _ids(self):
-        return self._warehouse.coords["id_"].values
+        return self.warehouse.coords["id_"].values
 
     @property
     def groups(self) -> list[list[UUID]]:

@@ -32,15 +32,15 @@ class TestPixelStats:
     def test_initialization(self, sample_pixel_stats):
         """Test proper initialization of PixelStats."""
         assert isinstance(sample_pixel_stats, ObservableStore)
-        assert sample_pixel_stats._warehouse.dims == ("pixels", "components")
-        assert "id_" in sample_pixel_stats._warehouse.coords
-        assert "type_" in sample_pixel_stats._warehouse.coords
+        assert sample_pixel_stats.warehouse.dims == ("pixels", "components")
+        assert "id_" in sample_pixel_stats.warehouse.coords
+        assert "type_" in sample_pixel_stats.warehouse.coords
 
     def test_data_consistency(self, sample_pixel_stats):
         """Test data and coordinate consistency."""
-        assert sample_pixel_stats._warehouse.shape[1] == 3  # number of components
-        assert len(sample_pixel_stats._warehouse.coords["id_"]) == 3
-        assert sample_pixel_stats._warehouse.coords["type_"].values.tolist() == [
+        assert sample_pixel_stats.warehouse.shape[1] == 3  # number of components
+        assert len(sample_pixel_stats.warehouse.coords["id_"]) == 3
+        assert sample_pixel_stats.warehouse.coords["type_"].values.tolist() == [
             "neuron",
             "neuron",
             "background",
@@ -70,9 +70,9 @@ class TestComponentStats:
     def test_initialization(self, sample_component_stats):
         """Test proper initialization of ComponentStats."""
         assert isinstance(sample_component_stats, ComponentStatStore)
-        assert sample_component_stats._warehouse.dims == ("components", "components")
-        assert "id_" in sample_component_stats._warehouse.coords
-        assert "type_" in sample_component_stats._warehouse.coords
+        assert sample_component_stats.warehouse.dims == ("components", "components")
+        assert "id_" in sample_component_stats.warehouse.coords
+        assert "type_" in sample_component_stats.warehouse.coords
 
 
 class TestResidual:
@@ -89,7 +89,7 @@ class TestResidual:
     def test_initialization(self, sample_residual):
         """Test proper initialization of Residual."""
         assert isinstance(sample_residual, ResidualStore)
-        assert sample_residual._warehouse.dims == ("height", "width", "frames")
+        assert sample_residual.warehouse.dims == ("height", "width", "frames")
 
 
 class TestOverlapGroups:
@@ -122,6 +122,6 @@ class TestOverlapGroups:
     def test_initialization(self, sample_overlap_groups):
         """Test proper initialization of OverlapGroups."""
         assert isinstance(sample_overlap_groups, OverlapStore)
-        assert sample_overlap_groups._warehouse.dims == ("components", "components")
-        assert "id_" in sample_overlap_groups._warehouse.coords
-        assert "type_" in sample_overlap_groups._warehouse.coords
+        assert sample_overlap_groups.warehouse.dims == ("components", "components")
+        assert "id_" in sample_overlap_groups.warehouse.coords
+        assert "type_" in sample_overlap_groups.warehouse.coords
