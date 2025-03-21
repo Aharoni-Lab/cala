@@ -7,7 +7,7 @@ import xarray as xr
 
 @dataclass
 class Frame:
-    value: xr.DataArray
+    array: xr.DataArray
     index: int
     timestamp: datetime | None = None
 

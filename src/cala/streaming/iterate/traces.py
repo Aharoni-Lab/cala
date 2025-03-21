@@ -97,7 +97,7 @@ class TracesUpdater(SupervisedTransformer):
         """
         # Prepare inputs for the update algorithm
         A = footprints.values.reshape(footprints.sizes[self.params.component_axis], -1)
-        y = frame.value.values.reshape(-1)
+        y = frame.array.values.reshape(-1)
         c = traces.isel({self.params.frames_axis: -1}).values
 
         _, labels = connected_components(

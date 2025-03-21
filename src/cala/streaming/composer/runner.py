@@ -62,10 +62,10 @@ class Runner:
 
             pipeline = pipeline | transformer
 
-        pipeline.learn_one(x=frame.value)
-        result = pipeline.transform_one(x=frame.value)
+        pipeline.learn_one(x=frame.array)
+        result = pipeline.transform_one(x=frame.array)
 
-        frame.value = result
+        frame.array = result
         return frame
 
     def initialize(self, frame: Frame):
@@ -77,7 +77,7 @@ class Runner:
         Args:
             frame: New frame to use for initialization.
         """
-        self._buffer.add_frame(frame.value)
+        self._buffer.add_frame(frame.array)
 
         if not self.execution_order or not self.status:
             self.execution_order = self._create_dependency_graph(
