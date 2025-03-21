@@ -69,32 +69,110 @@ if __name__ == "__main__":
     main()
 ```
 ### Stream
+Due to various reasons, the streaming side is structured in a graph-&-state based manner rather than a linear pipeline. This accompanies a config file that maps how the transformations are related to each other, and a short python code that actually runs the configured plan. The design schematic can be viewed here: (**[link](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931)**)
+#### Config
 ```python
+"preprocess": {
+    "downsample": {
+        "transformer": Downsampler,
+        "params": {
+            "method": "mean",
+            "dimensions": ["width", "height"],
+            "strides": [2, 2],
+        },
+    },
+    "denoise": {
+        "transformer": Denoiser,
+        "params": {
+            "method": "gaussian",
+            "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
+        },
+        "requires": ["downsample"],
+    },
+    "glow_removal": {
+        "transformer": GlowRemover,
+        "params": {"learning_rate": 0.1},
+        "requires": ["denoise"],
+    },
+    "motion_stabilization": {
+        "transformer": RigidStabilizer,
+        "params": {"drift_speed": 1, "anchor_frame_index": 0},
+        "requires": ["glow_removal"],
+    },
+},
+"initialization": {
+    "footprints": {
+        "transformer": FootprintsInitializer,
+        "params": {
+            "threshold_factor": 0.5,
+            "kernel_size": 3,
+            "distance_metric": cv2.DIST_L2,
+            "distance_mask_size": 5,
+        },
+    },
+    "traces": {
+        "transformer": TracesInitializer,
+        "params": {"component_axis": "components", "frames_axis": "frame"},
+        "n_frames": 3,
+        "requires": ["footprints"],
+    },
+    "pixel_stats": {
+        "transformer": PixelStatsInitializer,
+        "params": {},
+        "n_frames": 3,
+        "requires": ["traces"],
+    },
+    "component_stats": {
+        "transformer": ComponentStatsInitializer,
+        "params": {},
+        "n_frames": 3,
+        "requires": ["traces"],
+    },
+    "residual": {
+        "transformer": ResidualInitializer,
+        "params": {"buffer_length": 3},
+        "n_frames": 3,
+        "requires": ["footprints", "traces"],
+    },
+    "overlap_groups": {
+        "transformer": OverlapsInitializer,
+        "params": {},
+        "requires": ["footprints"],
+    },
+},
+"iteration": {
+    "traces": {
+        "transformer": TracesUpdater,
+        "params": {"tolerance": 1e-3},
+    },
+    "pixel_stats": {
+        "transformer": PixelStatsUpdater,
+        "params": {},
+        "requires": ["traces"],
+    },
+    "component_stats": {
+        "transformer": ComponentStatsUpdater,
+        "params": {},
+        "requires": ["traces"],
+    },
+    ...
+},
+```
 
-        self.motion_stabilizer = RigidTranslator(self.params.motion_params)
-        self.spatial_updater = SpatialComponentUpdater()
-        self.temporal_updater = TemporalComponentUpdater()
-        self.deconvolver = OASIS()
-        self.component_detector = NewComponentDetector(self.params.detection_params)
-        self.visualizer = StreamPlotter()
+the actual python main.py looks like the following (will be eventually implemented as a cli `run` command:
+```python
+runner = Runner(streaming_config)
+video, _, _ = raw_calcium_video
 
-        self.preprocess = compose.Pipeline(self.motion_stabilizer)
-        self.deconvolve = compose.Pipeline(
-            self.spatial_updater,
-            self.temporal_updater,
-            self.component_detector,
-            self.deconvolver,
-        )
+for idx, frame in enumerate(video):
+    frame = Frame(frame, idx)
+    frame = runner.preprocess(frame)
 
-        self.process = compose.Pipeline(
-            self.preprocess,
-            self.deconvolve
-        )
+    if not runner.is_initialized:
+        runner.initialize(frame)
+        continue
 
-        for frame in video:
-            self.process.learn_one(frame).transform_one(frame)
-            self.visualizer.play_one()
-
+    runner.iterate(frame)
 ```
 
 ## Roadmap
