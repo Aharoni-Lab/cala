@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self, Tuple
 
 import xarray as xr
@@ -6,6 +6,7 @@ from river.base import SupervisedTransformer
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import NMF
 
+from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
@@ -85,11 +86,11 @@ class DetectNewComponents(SupervisedTransformer):
     params: DetectNewComponentsParams
     """Configuration parameters for the detection process."""
 
-    footprints_: Footprints = None
-    """Updated spatial footprints [A, b]."""
+    new_footprints_: Footprints = field(default_factory=list)
+    """New spatial footprints [A, b]."""
 
-    traces_: Traces = None
-    """Updated temporal traces [C; f]."""
+    new_traces_: Traces = field(default_factory=list)
+    """New temporal traces [C; f]."""
 
     overlaps_: Overlaps = None
     """Updated component overlaps G as a sparse matrix."""
@@ -97,23 +98,17 @@ class DetectNewComponents(SupervisedTransformer):
     residuals_: Residuals = None
     """Updated residual buffer R_buf."""
 
-    pixel_stats_: PixelStats = None
-    """Updated pixel-wise sufficient statistics W."""
-
-    component_stats_: ComponentStats = None
-    """Updated component-wise sufficient statistics M."""
+    frame_: Frame = None
 
     is_fitted_: bool = False
     """Indicator whether the transformer has been fitted."""
 
     def learn_one(
         self,
-        frame: xr.DataArray,
+        frame: Frame,
         footprints: Footprints,
         traces: Traces,
         residuals: Residuals,
-        pixel_stats: PixelStats,
-        component_stats: ComponentStats,
         overlaps: Overlaps,
     ) -> Self:
         """Process current frame to detect new components.
@@ -124,7 +119,7 @@ class DetectNewComponents(SupervisedTransformer):
         model when new components are found.
 
         Args:
-            frame (xr.DataArray): Current data frame y.
+            frame (Frame): Current data frame y.
                 Shape: (height × width)
             footprints (Footprints): Current spatial footprints [A, b].
                 Shape: (components × height × width)
@@ -132,48 +127,81 @@ class DetectNewComponents(SupervisedTransformer):
                 Shape: (components × time)
             residuals (Residuals): Current residual buffer R_buf.
                 Shape: (buffer_size × height × width)
-            pixel_stats (PixelStats): Sufficient statistics W.
-                Shape: (pixels × components)
-            component_stats (ComponentStats): Sufficient statistics M.
-                Shape: (components × components')
             overlaps (Overlaps): Current component overlaps G (sparse matrix)
                 Shape: (components × components')
 
         Returns:
             Self: The transformer instance for method chaining.
         """
+
+        self.frame_ = frame
         # Update and process residuals
-        self._update_residual_buffer(frame, footprints, traces, residuals)
-        V, E = self._process_residuals()
+        self._update_residual_buffer(frame.array, footprints, traces, residuals)
+        V = self._process_residuals()
 
-        # Find and analyze neighborhood of maximum variance
-        neighborhood = self._get_max_variance_neighborhood(E)
-        a_new, c_new = self._local_nnmf(neighborhood)
+        valid = True
+        while valid:
+            # Compute energy
+            E = (V**2).sum(dim=self.params.frames_axis)
 
-        # Validate new component
-        if not self._validate_component(a_new, c_new, traces, overlaps):
-            return self
+            # Find and analyze neighborhood of maximum variance
+            neighborhood = self._get_max_variance_neighborhood(E)
+            a_new, c_new = self._local_nmf(neighborhood)
 
-        # Update model with new component
-        self._update_model(
-            a_new,
-            c_new,
-            V,
-            footprints,
-            traces,
-            pixel_stats,
-            component_stats,
-            overlaps,
-            frame,
-        )
+            # Update residuals and energy
+            new_component = a_new * c_new
+            self.residuals_ = self.residuals_ - new_component
+            V = V - (a_new**2) * (c_new**2).sum()
+
+            # Validate new component
+            if not self._validate_component(a_new, c_new, traces, overlaps):
+                valid = False
+                continue
+
+            self.new_footprints_.append(a_new)
+            self.new_traces_.append(c_new)
 
         self.is_fitted_ = True
+        self.new_footprints_ = xr.concat(
+            self.new_footprints_, dim=self.params.component_axis
+        )
+        self.new_traces_ = xr.concat(self.new_traces_, dim=self.params.component_axis)
         return self
 
     def transform_one(
         self,
-        _=None,
-    ) -> Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]: ...
+        pixel_stats: PixelStats,
+        component_stats: ComponentStats,
+        overlaps: Overlaps,
+    ) -> Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
+        """
+
+        Args:
+            pixel_stats (PixelStats): Sufficient statistics W.
+                Shape: (pixels × components)
+            component_stats (ComponentStats): Sufficient statistics M.
+                Shape: (components × components')
+            overlaps (Overlaps): Current component overlaps G (sparse matrix)
+                Shape: (components × components'):
+
+        Returns:
+
+        """
+
+        # Update statistics and overlaps
+        pixel_stats_, component_stats_ = self._update_sufficient_statistics(
+            pixel_stats, component_stats, self.frame_, self.new_traces_
+        )
+        overlaps_ = self._update_overlaps(overlaps, self.new_footprints_)
+
+        return (
+            self.new_footprints_,
+            self.new_traces_,
+            self.residuals_,
+            pixel_stats_,
+            component_stats_,
+            overlaps_,
+        )
 
     def _update_residual_buffer(
         self,
@@ -195,7 +223,7 @@ class DetectNewComponents(SupervisedTransformer):
             dim=self.params.frames_axis,
         )
 
-    def _process_residuals(self) -> Tuple[xr.DataArray, xr.DataArray]:
+    def _process_residuals(self) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
         # Center residuals
         R_med = self.residuals_.median(dim=self.params.frames_axis)
@@ -210,10 +238,7 @@ class DetectNewComponents(SupervisedTransformer):
             vectorize=True,
         )
 
-        # Compute energy
-        E = (V**2).sum(dim=self.params.frames_axis)
-
-        return V, E
+        return V
 
     def _get_max_variance_neighborhood(
         self,
@@ -242,15 +267,15 @@ class DetectNewComponents(SupervisedTransformer):
 
     def _validate_component(
         self,
-        anew: xr.DataArray,
-        cnew: xr.DataArray,
+        a_new: xr.DataArray,
+        c_new: xr.DataArray,
         traces: Traces,
         overlaps: Overlaps,
     ) -> bool:
         """Validate new component against spatial and temporal criteria."""
         # Check spatial correlation
         r = xr.corr(
-            anew,
+            a_new,
             self.residuals_.mean(dim=self.params.frames_axis),
             dim=self.params.spatial_axes,
         )
@@ -258,10 +283,10 @@ class DetectNewComponents(SupervisedTransformer):
             return False
 
         # Check for duplicates
-        overlapping = overlaps.sel({self.params.component_axis: anew > 0})
+        overlapping = overlaps.sel({self.params.component_axis: a_new > 0})
         if len(overlapping) > 0:
             temporal_corr = xr.corr(
-                cnew,
+                c_new,
                 traces.isel(
                     {
                         self.params.frames_axis: slice(
@@ -276,41 +301,7 @@ class DetectNewComponents(SupervisedTransformer):
 
         return True
 
-    def _update_model(
-        self,
-        anew: xr.DataArray,
-        cnew: xr.DataArray,
-        V: xr.DataArray,
-        footprints: Footprints,
-        traces: Traces,
-        pixel_stats: PixelStats,
-        component_stats: ComponentStats,
-        overlaps: Overlaps,
-        frame: xr.DataArray,
-    ) -> None:
-        """Update model with new accepted component."""
-        # Update footprints and traces
-        self.footprints_ = xr.concat(
-            [footprints, anew.expand_dims(self.params.component_axis)],
-            dim=self.params.component_axis,
-        )
-        self.traces_ = xr.concat(
-            [traces, cnew.expand_dims(self.params.component_axis)],
-            dim=self.params.component_axis,
-        )
-
-        # Update residuals and energy
-        new_component = anew * cnew
-        self.residuals_ = self.residuals_ - new_component
-        V = V - (anew**2) * (cnew**2).sum()
-
-        # Update statistics and overlaps
-        self.pixel_stats_, self.component_stats_ = self._update_sufficient_statistics(
-            pixel_stats, component_stats, frame, cnew
-        )
-        self.overlaps_ = self._update_overlaps(overlaps, anew)
-
-    def _local_nnmf(
+    def _local_nmf(
         self,
         neighborhood: xr.DataArray,
     ) -> Tuple[xr.DataArray, xr.DataArray]:
