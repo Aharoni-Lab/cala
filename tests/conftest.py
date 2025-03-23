@@ -3,7 +3,17 @@ import os
 import pytest
 from numpy.random import RandomState
 
-from .fixtures import params, raw_calcium_video, preprocessed_video, stabilized_video
+from tests.fixtures import (
+    params,
+    raw_calcium_video,
+    preprocessed_video,
+    stabilized_video,
+    footprints,
+    spikes,
+    traces,
+    camera_motion,
+    residuals,
+)
 
 
 @pytest.fixture(autouse=True)
