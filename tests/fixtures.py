@@ -126,10 +126,10 @@ def spikes(params):
     return xr.DataArray(
         spikes,
         dims=["components", "frames"],
-        coords={
-            "components": range(params.num_neurons),
-            "frames": range(params.frames),
-        },
+        # coords={
+        #     "components": range(params.num_neurons),
+        #     "frames": range(params.frames),
+        # },
     )
 
 
