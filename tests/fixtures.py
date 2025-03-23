@@ -215,6 +215,7 @@ def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
     for n in range(params.num_neurons):
         video += footprints[0][n] * traces[n]
 
+    video = video.reset_coords(["components", "id_", "type_"], drop=True)
     # Apply blur
     video = xr.apply_ufunc(
         lambda x: gaussian_filter(x, params.blur_sigma),

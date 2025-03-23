@@ -32,7 +32,7 @@ class TestTracesInitializer:
         """Setup footprints for traces initialization."""
         params = FootprintsInitializerParams()
         initializer = FootprintsInitializer(params=params)
-        video, _, _ = stabilized_video
+        video = stabilized_video
 
         initializer.learn_one(frame=video[0])
         footprints = initializer.transform_one()
@@ -52,7 +52,7 @@ class TestTracesInitializer:
         if not jit_enabled:
             os.environ["NUMBA_DISABLE_JIT"] = "1"
 
-        video, _, _ = stabilized_video
+        video = stabilized_video
         frames = video[0:3]
 
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
@@ -69,7 +69,7 @@ class TestTracesInitializer:
         self, default_initializer, footprints_setup, stabilized_video
     ):
         """Test output types from transform_one."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         frames = video[0:3]
 
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
@@ -91,7 +91,7 @@ class TestTracesInitializer:
             self, default_initializer, footprints_setup, stabilized_video
         ):
             """Test learning with mismatched dimensions."""
-            video, _, _ = stabilized_video
+            video = stabilized_video
             # Modify frames to create dimension mismatch
             frames = video[0:3].drop_isel({"width": [-1]})  # Incorrect shape
 

@@ -40,7 +40,7 @@ class TestFootprintsInitializer:
 
     def test_learn_one_first_frame(self, default_initializer, stabilized_video):
         """Test learning from the first frame."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
@@ -50,7 +50,7 @@ class TestFootprintsInitializer:
 
     def test_transform_one_output_shapes(self, default_initializer, stabilized_video):
         """Test output shapes from transform_one."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
@@ -61,7 +61,7 @@ class TestFootprintsInitializer:
 
     def test_transform_one_output_types(self, default_initializer, stabilized_video):
         """Test output types from transform_one."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)

@@ -53,7 +53,7 @@ class TestStreamingDownsampler:
 
     def test_mean_downsampling(self, downsampler_mean, raw_calcium_video):
         """Test downsampling using mean method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -80,7 +80,7 @@ class TestStreamingDownsampler:
 
     def test_subset_downsampling(self, downsampler_subset, raw_calcium_video):
         """Test downsampling using mean method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -105,7 +105,7 @@ class TestStreamingDownsampler:
 
     def test_streaming_consistency(self, downsampler_mean, raw_calcium_video):
         """Test consistency of streaming downsampling"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frames = video[:5]
 
         # Process frames sequentially

@@ -27,10 +27,10 @@ class TestMotionStabilizer:
         assert stabilizer.motion_ == []
 
     def test_rigid_translator_motion_estimation(
-        self, default_stabilizer, preprocessed_video
+        self, default_stabilizer, preprocessed_video, camera_motion
     ):
-        """Test that RigidTranslator correctly estimates the known motion_stabilization."""
-        video, ground_truth, metadata = preprocessed_video
+        """Test that RigidTranslator correctly estimates the known motion."""
+        video = preprocessed_video
 
         transformed_frames = []
         # Initialize and fit the rigid translator
@@ -39,11 +39,11 @@ class TestMotionStabilizer:
                 default_stabilizer.learn_one(frame).transform_one(frame)
             )
 
-        # Get the true motion_stabilization that was applied
+        # Get the true motion from camera_motion fixture
         true_motion = np.column_stack(
             [
-                metadata["motion"]["y"],
-                metadata["motion"]["x"],
+                camera_motion.sel(direction="y"),
+                camera_motion.sel(direction="x"),
             ]
         )
         # True and estimated share same origin point
@@ -72,11 +72,12 @@ class TestMotionStabilizer:
         )
 
     def test_rigid_translator_preserves_neuron_traces(
-        self, default_stabilizer, preprocessed_video, stabilized_video
+        self, default_stabilizer, preprocessed_video, stabilized_video, footprints
     ):
         """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
-        video, ground_truth, _ = preprocessed_video
-        ground_truth_stabilized, _, _ = stabilized_video
+        video = preprocessed_video
+        ground_truth_stabilized = stabilized_video
+        _, positions, radii = footprints
 
         corrected_video = []
         for frame in video:
@@ -91,10 +92,9 @@ class TestMotionStabilizer:
         # Extract and compare calcium traces from both corrections
         trace_correlations = []
 
-        for n in range(len(ground_truth)):
-            y_pos = ground_truth["height"].iloc[n]
-            x_pos = ground_truth["width"].iloc[n]
-            radius = int(ground_truth["radius"].iloc[n])
+        for n in range(len(positions)):
+            y_pos, x_pos = positions[n]
+            radius = int(radii[n])
 
             # Function to extract trace from a video
             def extract_trace(vid):

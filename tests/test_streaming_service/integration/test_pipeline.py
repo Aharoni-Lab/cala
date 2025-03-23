@@ -70,7 +70,7 @@ def preprocess_config() -> StreamingConfig:
 
 def test_preprocess_execution(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
         frame = runner.preprocess(frame)
@@ -127,7 +127,7 @@ def initialization_config() -> StreamingConfig:
 
 def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
 
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
@@ -243,7 +243,7 @@ def test_streaming_execution(streaming_config, raw_calcium_video):
     # import matplotlib.pyplot as plt
 
     runner = Runner(streaming_config)
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)

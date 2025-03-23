@@ -238,7 +238,7 @@ def test_runner_initialization(basic_config):
 
 def test_runner_dependency_resolution(basic_config, stabilized_video):
     runner = Runner(basic_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
         while not runner.is_initialized:
@@ -282,7 +282,7 @@ def test_cyclic_dependency_detection(stabilized_video):
         },
     )
     runner = Runner(cyclic_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
     with pytest.raises(ValueError):
         for idx, frame in enumerate(video):
             frame = Frame(frame, idx)
@@ -292,7 +292,7 @@ def test_cyclic_dependency_detection(stabilized_video):
 
 def test_state_updates(basic_config, stabilized_video):
     runner = Runner(basic_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
         while not runner.is_initialized:
@@ -310,7 +310,7 @@ def test_preprocess_initialization(preprocess_config):
 
 def test_preprocess_execution(preprocess_config, stabilized_video):
     runner = Runner(preprocess_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
     idx, frame = next(iter(enumerate(video)))
     frame = Frame(frame, idx)
     original_shape = frame.array.shape
@@ -348,7 +348,7 @@ def test_initializer_initialization(initialization_config):
 
 def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
 
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
