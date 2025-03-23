@@ -170,6 +170,8 @@ class DetectNewComponents(SupervisedTransformer):
 
     def transform_one(
         self,
+        footprints: Footprints,
+        traces: Traces,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
         overlaps: Overlaps,
@@ -178,27 +180,36 @@ class DetectNewComponents(SupervisedTransformer):
 
         Args:
             pixel_stats (PixelStats): Sufficient statistics W.
-                Shape: (pixels × components)
+                Shape: (width x height × components)
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components')
             overlaps (Overlaps): Current component overlaps G (sparse matrix)
                 Shape: (components × components'):
 
         Returns:
-
+            Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
+                - New footprints
+                - New traces
+                - New residuals
+                - New pixel statistics
+                - New component statistics
+                - New overlaps
         """
 
         # Update statistics and overlaps
-        pixel_stats_, component_stats_ = self._update_sufficient_statistics(
-            pixel_stats, component_stats, self.frame_, self.new_traces_
+        new_pixel_stats_ = self._update_pixel_stats(
+            self.frame_, pixel_stats, self.new_traces_
         )
-        overlaps_ = self._update_overlaps(overlaps, self.new_footprints_)
+        component_stats_ = self._update_component_stats(
+            component_stats, traces, self.new_traces_, self.frame_.index
+        )
+        overlaps_ = self._update_overlaps(footprints, overlaps, self.new_footprints_)
 
         return (
             self.new_footprints_,
             self.new_traces_,
             self.residuals_,
-            pixel_stats_,
+            new_pixel_stats_,
             component_stats_,
             overlaps_,
         )
@@ -350,3 +361,164 @@ class DetectNewComponents(SupervisedTransformer):
         a_new = a_new / a_new.sum()
 
         return a_new, c_new
+
+    def _update_pixel_stats(
+        self,
+        frame: Frame,
+        pixel_stats: PixelStats,
+        new_traces: Traces,
+    ) -> PixelStats:
+        """Update pixel statistics with new components.
+
+        Updates W_t according to the equation:
+        W_t = [W_t, (1/t)Y_buf c_new^T]
+        where t is the current frame index.
+
+        Args:
+            pixel_stats (PixelStats): Current pixel statistics W_t
+            frame (Frame): Current frame with index information
+            new_footprints (Footprints): Newly detected spatial components
+            new_traces (Traces): Newly detected temporal components
+
+        Returns:
+            PixelStats: Updated pixel statistics matrix
+        """
+        if len(new_traces) == 0:
+            return pixel_stats
+
+        # Compute scaling factor (1/t)
+        frame_idx = frame.index + 1
+        scale = 1 / frame_idx
+
+        # Reshape frame to match pixel stats dimensions
+        y_buf = frame.array.stack(pixels=self.params.spatial_axes)
+
+        # Compute outer product of frame and new traces
+        # (1/t)Y_buf c_new^T
+        new_stats = scale * xr.DataArray(
+            y_buf.values[:, None] * new_traces.values[None, :],
+            dims=["pixels", self.params.component_axis],
+            coords={
+                "pixels": y_buf.pixels,
+                self.params.component_axis: new_traces[self.params.component_axis],
+            },
+        ).unstack("pixels")
+
+        # Concatenate with existing pixel stats along component axis
+        return xr.concat([pixel_stats, new_stats], dim=self.params.component_axis)
+
+    def _update_component_stats(
+        self,
+        component_stats: ComponentStats,
+        traces: Traces,
+        new_traces: Traces,
+        frame_idx: int,
+    ) -> ComponentStats:
+        """Update component statistics with new components.
+
+        Updates M_t according to the equation:
+        M_t = (1/t) [ tM_t,         C_buf^T c_new  ]
+                 [ c_new C_buf^T, ||c_new||^2   ]
+        where:
+        - t is the current frame index
+        - M_t is the existing component statistics
+        - C_buf are the traces in the buffer
+        - c_new are the new component traces
+
+        Args:
+            component_stats (ComponentStats): Current component statistics M_t
+            traces (Traces): Current temporal traces in buffer
+            new_traces (Traces): Newly detected temporal components
+            frame_idx (int): Current frame index
+
+        Returns:
+            ComponentStats: Updated component statistics matrix
+        """
+        if len(new_traces) == 0:
+            return component_stats
+
+        # Get current frame index (1-based)
+        t = frame_idx + 1
+
+        # Scale existing statistics: (t-1)/t * M_t
+        M_scaled = component_stats * ((t - 1) / t)
+
+        # Compute cross-correlation between buffer and new components
+        # C_buf^T c_new
+        cross_corr = xr.dot(traces, new_traces, dims=self.params.frames_axis) / t
+
+        # Compute auto-correlation of new components
+        # ||c_new||^2
+        auto_corr = (new_traces**2).sum(dim=self.params.frames_axis) / t
+
+        # Create the block matrix structure
+        # Top block: [M_scaled, cross_corr]
+        top_block = xr.concat([M_scaled, cross_corr], dim=self.params.component_axis)
+
+        # Bottom block: [cross_corr.T, auto_corr]
+        bottom_block = xr.concat(
+            [
+                cross_corr.transpose(),
+                auto_corr.expand_dims(self.params.component_axis, axis=0),
+            ],
+            dim=self.params.component_axis,
+        )
+
+        # Combine blocks
+        return xr.concat([top_block, bottom_block], dim=self.params.component_axis)
+
+    def _update_overlaps(
+        self,
+        footprints: Footprints,
+        overlaps: Overlaps,  # xarray with sparse array (N × N binary adjacency matrix)
+        new_footprints: Footprints,
+    ) -> Overlaps:
+        """Update component overlap matrix with new components.
+
+        Updates the binary adjacency matrix that represents component overlaps.
+        Matrix element (i,j) is 1 if components i and j overlap spatially, 0 otherwise.
+
+        Args:
+            footprints (Footprints): Current spatial footprints [A, b]
+            overlaps (Overlaps): Current overlap matrix as sparse array wrapped in xarray
+                Shape: (components × components)
+            new_footprints (Footprints): Newly detected spatial components
+
+        Returns:
+            Overlaps: Updated overlap matrix including new components
+        """
+        if len(new_footprints) == 0:
+            return overlaps
+
+        # Compute spatial overlaps between new and existing components
+        new_overlaps = xr.dot(new_footprints, footprints, dims=self.params.spatial_axes)
+
+        # Convert to binary overlap indicator (1 where overlap exists, 0 otherwise)
+        new_overlaps = (new_overlaps != 0).astype(int)
+
+        # Compute overlaps between new components themselves
+        new_new_overlaps = xr.dot(
+            new_footprints, new_footprints, dims=self.params.spatial_axes
+        )
+        new_new_overlaps = (new_new_overlaps != 0).astype(int)
+
+        # Construct the new overlap matrix by blocks
+        # [existing_overlaps    new_overlaps.T    ]
+        # [new_overlaps        new_new_overlaps   ]
+
+        # First concatenate horizontally: [existing_overlaps, new_overlaps.T]
+        top_block = xr.concat(
+            [overlaps, new_overlaps.T], dim=self.params.component_axis
+        )
+
+        # Then concatenate vertically with [new_overlaps, new_new_overlaps]
+        bottom_block = xr.concat(
+            [new_overlaps, new_new_overlaps], dim=self.params.component_axis
+        )
+
+        # Finally combine top and bottom blocks
+        updated_overlaps = xr.concat(
+            [top_block, bottom_block], dim=self.params.component_axis
+        )
+
+        return updated_overlaps
