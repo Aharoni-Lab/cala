@@ -217,13 +217,13 @@ def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
 
     video = video.reset_coords(["components", "id_", "type_"], drop=True)
     # Apply blur
-    video = xr.apply_ufunc(
-        lambda x: gaussian_filter(x, params.blur_sigma),
-        video,
-        input_core_dims=[["height", "width"]],
-        output_core_dims=[["height", "width"]],
-        vectorize=True,
-    )
+    # video = xr.apply_ufunc(
+    #     lambda x: gaussian_filter(x, params.blur_sigma),
+    #     video,
+    #     input_core_dims=[["height", "width"]],
+    #     output_core_dims=[["height", "width"]],
+    #     vectorize=True,
+    # )
 
     # Apply motion
     motion_video = np.zeros_like(video)

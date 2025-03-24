@@ -258,59 +258,33 @@ class DetectNewComponents(SupervisedTransformer):
         """Find neighborhood around point of maximum variance."""
         # Find maximum point
         max_coords = E.argmax(dim=self.params.spatial_axes)
-        ix = max_coords[self.params.spatial_axes[0]]
-        iy = max_coords[self.params.spatial_axes[1]]
+        ix = max_coords[self.params.spatial_axes[0]].values.tolist()
+        iy = max_coords[self.params.spatial_axes[1]].values.tolist()
 
         # Define neighborhood
-        radius = self.params.gaussian_radius
-        return self.residuals_.sel(
+        radius = int(self.params.gaussian_radius)
+        y_slice = slice(
+            max(0, iy - radius),
+            min(E.sizes["height"], iy + radius + 1),
+        )
+        x_slice = slice(
+            max(0, ix - radius),
+            min(E.sizes["width"], ix + radius + 1),
+        )
+
+        # ok embed the actual coordinates onto the array
+        neighborhood = E.isel(height=y_slice, width=x_slice).assign_coords(
             {
-                self.params.spatial_axes[0]: slice(
-                    max(0, ix - radius),
-                    min(E.sizes[self.params.spatial_axes[0]], ix + radius + 1),
-                ),
-                self.params.spatial_axes[1]: slice(
-                    max(0, iy - radius),
-                    min(E.sizes[self.params.spatial_axes[1]], iy + radius + 1),
-                ),
+                self.params.spatial_axes[0]: E.coords[self.params.spatial_axes[0]][
+                    x_slice
+                ],
+                self.params.spatial_axes[1]: E.coords[self.params.spatial_axes[1]][
+                    y_slice
+                ],
             }
         )
 
-    def _validate_component(
-        self,
-        a_new: xr.DataArray,
-        c_new: xr.DataArray,
-        traces: Traces,
-        overlaps: Overlaps,
-    ) -> bool:
-        """Validate new component against spatial and temporal criteria."""
-        # Check spatial correlation
-        r = xr.corr(
-            a_new,
-            self.residuals_.mean(dim=self.params.frames_axis),
-            dim=self.params.spatial_axes,
-        )
-        if r <= self.params.spatial_threshold:
-            return False
-
-        # Check for duplicates
-        overlapping = overlaps.sel({self.params.component_axis: a_new > 0})
-        if len(overlapping) > 0:
-            temporal_corr = xr.corr(
-                c_new,
-                traces.isel(
-                    {
-                        self.params.frames_axis: slice(
-                            -self.residuals_.sizes[self.params.frames_axis], None
-                        )
-                    }
-                ),
-                dim=self.params.frames_axis,
-            )
-            if (temporal_corr > self.params.temporal_threshold).any():
-                return False
-
-        return True
+        return neighborhood
 
     def _local_nmf(
         self,
@@ -361,6 +335,42 @@ class DetectNewComponents(SupervisedTransformer):
         a_new = a_new / a_new.sum()
 
         return a_new, c_new
+
+    def _validate_component(
+        self,
+        a_new: xr.DataArray,
+        c_new: xr.DataArray,
+        traces: Traces,
+        overlaps: Overlaps,
+    ) -> bool:
+        """Validate new component against spatial and temporal criteria."""
+        # Check spatial correlation
+        r = xr.corr(
+            a_new,
+            self.residuals_.mean(dim=self.params.frames_axis),
+            dim=self.params.spatial_axes,
+        )
+        if r <= self.params.spatial_threshold:
+            return False
+
+        # Check for duplicates
+        overlapping = overlaps.sel({self.params.component_axis: a_new > 0})
+        if len(overlapping) > 0:
+            temporal_corr = xr.corr(
+                c_new,
+                traces.isel(
+                    {
+                        self.params.frames_axis: slice(
+                            -self.residuals_.sizes[self.params.frames_axis], None
+                        )
+                    }
+                ),
+                dim=self.params.frames_axis,
+            )
+            if (temporal_corr > self.params.temporal_threshold).any():
+                return False
+
+        return True
 
     def _update_pixel_stats(
         self,
