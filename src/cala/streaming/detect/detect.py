@@ -172,6 +172,7 @@ class DetectNewComponents(SupervisedTransformer):
         self,
         footprints: Footprints,
         traces: Traces,
+        residuals: Residuals,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
         overlaps: Overlaps,
@@ -198,7 +199,7 @@ class DetectNewComponents(SupervisedTransformer):
 
         # Update statistics and overlaps
         new_pixel_stats_ = self._update_pixel_stats(
-            self.frame_, pixel_stats, self.new_traces_
+            self.frame_, footprints, traces, residuals, pixel_stats, self.new_traces_
         )
         component_stats_ = self._update_component_stats(
             component_stats, traces, self.new_traces_, self.frame_.index
@@ -416,6 +417,9 @@ class DetectNewComponents(SupervisedTransformer):
     def _update_pixel_stats(
         self,
         frame: Frame,
+        footprints: Footprints,
+        traces: Traces,
+        residuals: Residuals,
         pixel_stats: PixelStats,
         new_traces: Traces,
     ) -> PixelStats:
@@ -441,19 +445,18 @@ class DetectNewComponents(SupervisedTransformer):
         frame_idx = frame.index + 1
         scale = 1 / frame_idx
 
+        # traces has to be the same number of frames as residuals
+        y_buf = (
+            footprints
+            @ traces.isel({self.params.frames_axis: slice(-len(residuals), None)})
+            + residuals
+        ).stack(pixels=self.params.spatial_axes)
         # Reshape frame to match pixel stats dimensions
-        y_buf = frame.array.stack(pixels=self.params.spatial_axes)
+        # y_buf = frame.array.stack(pixels=self.params.spatial_axes)
 
         # Compute outer product of frame and new traces
         # (1/t)Y_buf c_new^T
-        new_stats = scale * xr.DataArray(
-            y_buf.values[:, None] * new_traces.values[None, :],
-            dims=["pixels", self.params.component_axis],
-            coords={
-                "pixels": y_buf.pixels,
-                self.params.component_axis: new_traces[self.params.component_axis],
-            },
-        ).unstack("pixels")
+        new_stats = scale * (y_buf @ new_traces).unstack("pixels")
 
         # Concatenate with existing pixel stats along component axis
         return xr.concat([pixel_stats, new_stats], dim=self.params.component_axis)
@@ -496,6 +499,7 @@ class DetectNewComponents(SupervisedTransformer):
 
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
+        # C_buf probably has to be the same number of frames as c_new
         cross_corr = xr.dot(traces, new_traces, dims=self.params.frames_axis) / t
 
         # Compute auto-correlation of new components

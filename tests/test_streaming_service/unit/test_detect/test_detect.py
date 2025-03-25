@@ -39,24 +39,29 @@ def overlaps(footprints):
 def component_stats(traces):
     """Create component statistics from traces"""
     # Compute correlation matrix between components
-    corr_matrix = xr.corr(traces, traces, dim="frames")
+    corr_matrix = (
+        traces @ traces.rename({"components": f"components'"}) / traces.sizes["frame"]
+    )
 
     return corr_matrix
 
 
 @pytest.fixture
-def pixel_stats(frame, traces):
+def pixel_stats(stabilized_video, traces):
     """Create pixel statistics"""
-    # Reshape frame and compute outer product with traces
-    y_buf = frame.array.stack(pixels=["height", "width"])
+    # Reshape frames to pixels x time
+    Y = stabilized_video.stack({"pixel": ("width", "height")})
 
-    pixel_stats = xr.DataArray(
-        np.outer(y_buf, traces[0]),  # Use first timepoint
-        dims=["pixels", "components"],
-        coords={"pixels": y_buf.pixels, "components": traces.components},
-    ).unstack("pixels")
+    # Get temporal components C
+    C = traces  # components x time
 
-    return pixel_stats
+    # Compute W = Y[:, 1:t']C^T/t'
+    W = Y @ C.T / len(stabilized_video)
+
+    # Create xarray DataArray with proper dimensions and coordinates
+    pixel_stats_ = W.unstack("pixel")
+
+    return pixel_stats_
 
 
 def test_update_residual_buffer(detector, stabilized_video, footprints, traces):
@@ -200,20 +205,27 @@ def test_validate_component(detector, footprints, traces, residuals):
     assert not detector._validate_component(a_bad, c_bad, traces, footprints[:-1])
 
 
-def test_update_pixel_stats(detector, frame, pixel_stats, new_traces):
+def test_update_pixel_stats(
+    detector, stabilized_video, footprints, traces, pixel_stats, residuals
+):
     """Test pixel statistics update"""
+
+    frame = Frame(stabilized_video[-1], index=len(stabilized_video) - 1)
+    footprints, _, _ = footprints
+
     # Create new traces for testing
     new_traces = xr.DataArray(
         np.random.rand(5, 2),  # 2 new components
         dims=["frames", "components"],
         coords={
-            "components": ["new1", "new2"],
             "id_": ("components", ["new1", "new2"]),
             "type_": ("components", ["neuron", "neuron"]),
         },
     )
 
-    updated_stats = detector._update_pixel_stats(frame, pixel_stats, new_traces)
+    updated_stats = detector._update_pixel_stats(
+        frame, footprints, traces, residuals[-5:], pixel_stats, new_traces
+    )
 
     # Check shape
     assert updated_stats.sizes["components"] == (
