@@ -500,23 +500,44 @@ class DetectNewComponents(SupervisedTransformer):
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
         # C_buf probably has to be the same number of frames as c_new
-        cross_corr = xr.dot(traces, new_traces, dims=self.params.frames_axis) / t
+        cross_corr = (
+            traces.sel(
+                {
+                    self.params.frames_axis: slice(
+                        -new_traces.sizes[self.params.frames_axis], None
+                    )
+                }
+            )
+            @ new_traces.rename(
+                {self.params.component_axis: f"{self.params.component_axis}'"}
+            )
+            / t
+        ).assign_coords(traces.coords)
 
         # Compute auto-correlation of new components
         # ||c_new||^2
-        auto_corr = (new_traces**2).sum(dim=self.params.frames_axis) / t
+        auto_corr = (
+            new_traces
+            @ new_traces.rename(
+                {self.params.component_axis: f"{self.params.component_axis}'"}
+            )
+            / t
+        ).assign_coords(new_traces.coords)
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]
-        top_block = xr.concat([M_scaled, cross_corr], dim=self.params.component_axis)
+        top_block = xr.concat(
+            [M_scaled, cross_corr], dim=f"{self.params.component_axis}'"
+        )
 
         # Bottom block: [cross_corr.T, auto_corr]
         bottom_block = xr.concat(
-            [
-                cross_corr.transpose(),
-                auto_corr.expand_dims(self.params.component_axis, axis=0),
-            ],
-            dim=self.params.component_axis,
+            [cross_corr, auto_corr], dim=self.params.component_axis
+        ).rename(
+            {
+                self.params.component_axis: f"{self.params.component_axis}'",
+                f"{self.params.component_axis}'": self.params.component_axis,
+            }
         )
 
         # Combine blocks

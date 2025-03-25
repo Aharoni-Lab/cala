@@ -40,8 +40,8 @@ def component_stats(traces):
     """Create component statistics from traces"""
     # Compute correlation matrix between components
     corr_matrix = (
-        traces @ traces.rename({"components": f"components'"}) / traces.sizes["frame"]
-    )
+        traces @ traces.rename({"components": f"components'"}) / traces.sizes["frames"]
+    ).assign_coords(traces.coords)
 
     return corr_matrix
 
@@ -59,7 +59,7 @@ def pixel_stats(stabilized_video, traces):
     W = Y @ C.T / len(stabilized_video)
 
     # Create xarray DataArray with proper dimensions and coordinates
-    pixel_stats_ = W.unstack("pixel")
+    pixel_stats_ = W.unstack("pixel").assign_coords(traces.coords)
 
     return pixel_stats_
 
@@ -240,14 +240,14 @@ def test_update_pixel_stats(
     )
 
 
-def test_update_component_stats(detector, component_stats, traces, frame):
+def test_update_component_stats(detector, component_stats, traces, stabilized_video):
     """Test component statistics update"""
+    frame = Frame(stabilized_video[-1], len(stabilized_video) - 1)
     # Create new traces for testing
     new_traces = xr.DataArray(
         np.random.rand(5, 2),  # 2 new components
         dims=["frames", "components"],
         coords={
-            "components": ["new1", "new2"],
             "id_": ("components", ["new1", "new2"]),
             "type_": ("components", ["neuron", "neuron"]),
         },
@@ -266,7 +266,7 @@ def test_update_component_stats(detector, component_stats, traces, frame):
     scale = frame.index / (frame.index + 1)
     np.testing.assert_array_almost_equal(
         updated_stats.isel(
-            components=slice(None, -2), components_prime=slice(None, -2)
+            {"components": slice(None, -2), "components'": slice(None, -2)}
         ),
         component_stats * scale,
     )
