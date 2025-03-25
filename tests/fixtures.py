@@ -56,7 +56,17 @@ def params():
 
 
 @pytest.fixture
-def footprints(params):
+def ids(params):
+    return [f"comp_{i}" for i in range(params.num_neurons)]
+
+
+@pytest.fixture
+def types(params):
+    return ["background"] + ["neuron"] * (params.num_neurons - 1)
+
+
+@pytest.fixture
+def footprints(params, ids, types):
     """Generate spatial footprints for neurons."""
     footprints_data = []
     positions = []
@@ -98,9 +108,8 @@ def footprints(params):
         np.zeros((params.num_neurons, params.height, params.width)),
         dims=["components", "height", "width"],
         coords={
-            "components": range(params.num_neurons),
-            "id_": ("components", [f"comp_{i}" for i in range(params.num_neurons)]),
-            "type_": ("components", ["neuron"] * params.num_neurons),
+            "id_": ("components", ids),
+            "type_": ("components", types),
         },
     )
 
@@ -116,7 +125,7 @@ def footprints(params):
 
 
 @pytest.fixture
-def spikes(params):
+def spikes(params, ids, types):
     """Generate spike times for neurons."""
     firing_rates = np.random.uniform(*params.firing_rate_range, params.num_neurons)
     spikes = (
@@ -126,15 +135,15 @@ def spikes(params):
     return xr.DataArray(
         spikes,
         dims=["components", "frames"],
-        # coords={
-        #     "components": range(params.num_neurons),
-        #     "frames": range(params.frames),
-        # },
+        coords={
+            "id_": ("components", ids),
+            "type_": ("components", types),
+        },
     )
 
 
 @pytest.fixture
-def traces(params, spikes):
+def traces(params, spikes, ids, types):
     """Generate calcium traces from spikes."""
     decay_times = np.random.uniform(*params.decay_time_range, params.num_neurons)
     amplitudes = np.random.uniform(*params.amplitude_range, params.num_neurons)

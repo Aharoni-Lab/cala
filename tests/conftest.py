@@ -8,6 +8,8 @@ from tests.fixtures import (
     raw_calcium_video,
     preprocessed_video,
     stabilized_video,
+    ids,
+    types,
     footprints,
     spikes,
     traces,
