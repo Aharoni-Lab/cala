@@ -146,7 +146,7 @@ class DetectNewComponents(SupervisedTransformer):
 
             # Find and analyze neighborhood of maximum variance
             neighborhood = self._get_max_variance_neighborhood(E)
-            a_new, c_new = self._local_nmf(neighborhood)
+            a_new, c_new = self._local_nmf(neighborhood, self.frame_.array)
 
             # Update residuals and energy
             new_component = a_new * c_new
@@ -154,7 +154,7 @@ class DetectNewComponents(SupervisedTransformer):
             V = V - (a_new**2) * (c_new**2).sum()
 
             # Validate new component
-            if not self._validate_component(a_new, c_new, traces, overlaps):
+            if not self._validate_component(a_new, c_new, traces, footprints):
                 valid = False
                 continue
 
@@ -289,6 +289,7 @@ class DetectNewComponents(SupervisedTransformer):
     def _local_nmf(
         self,
         neighborhood: xr.DataArray,
+        frame: xr.DataArray,
     ) -> Tuple[xr.DataArray, xr.DataArray]:
         """Perform local rank-1 Non-negative Matrix Factorization.
 
@@ -318,21 +319,27 @@ class DetectNewComponents(SupervisedTransformer):
         c_new = xr.DataArray(
             c.squeeze(),
             dims=[self.params.frames_axis],
-            coords={
-                self.params.frames_axis: neighborhood.coords[self.params.frames_axis]
-            },
+            # coords={
+            #     self.params.frames_axis: neighborhood.coords[self.params.frames_axis]
+            # },
         )
 
-        a_new = xr.DataArray(
-            a.squeeze().reshape(
-                tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)
-            ),
-            dims=self.params.spatial_axes,
-            coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
+        # Create full-frame zero array with proper coordinates
+        a_new = xr.zeros_like(frame)
+
+        # Place the NMF result in the correct location
+        a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = (
+            xr.DataArray(
+                a.squeeze().reshape(
+                    tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)
+                ),
+                dims=self.params.spatial_axes,
+                coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
+            )
         )
 
-        # Normalize spatial component
-        a_new = a_new / a_new.sum()
+        # # Normalize spatial component
+        # a_new = a_new / a_new.sum()
 
         return a_new, c_new
 
@@ -341,21 +348,49 @@ class DetectNewComponents(SupervisedTransformer):
         a_new: xr.DataArray,
         c_new: xr.DataArray,
         traces: Traces,
-        overlaps: Overlaps,
+        footprints: Footprints,
     ) -> bool:
         """Validate new component against spatial and temporal criteria."""
-        # Check spatial correlation
+        nonzero_y, nonzero_x = a_new.values.nonzero()
+        if len(nonzero_y) == 0:
+            return False
+
+        # it should look like something from a residual
         r = xr.corr(
-            a_new,
-            self.residuals_.mean(dim=self.params.frames_axis),
-            dim=self.params.spatial_axes,
+            a_new.isel(
+                {
+                    self.params.spatial_axes[0]: sorted(list(set(nonzero_y))),
+                    self.params.spatial_axes[1]: sorted(list(set(nonzero_x))),
+                }
+            ),
+            self.residuals_.mean(dim=self.params.frames_axis).isel(
+                {
+                    self.params.spatial_axes[0]: sorted(list(set(nonzero_y))),
+                    self.params.spatial_axes[1]: sorted(list(set(nonzero_x))),
+                }
+            ),
         )
         if r <= self.params.spatial_threshold:
             return False
 
-        # Check for duplicates
-        overlapping = overlaps.sel({self.params.component_axis: a_new > 0})
-        if len(overlapping) > 0:
+        # Check for duplicates by computing spatial overlap with existing footprints
+        overlaps = xr.dot(a_new, footprints, dims=self.params.spatial_axes)
+        overlapping_components = (overlaps > 0).assign_coords(
+            {
+                self.params.id_coordinates: (
+                    self.params.component_axis,
+                    footprints.coords[self.params.id_coordinates].values,
+                )
+            }
+        )
+        overlapping_components = (
+            overlapping_components.where(overlapping_components == True, drop=True)
+            .coords[self.params.id_coordinates]
+            .values
+        )
+
+        if overlapping_components.any():
+            # For components with spatial overlap, check temporal correlation
             temporal_corr = xr.corr(
                 c_new,
                 traces.isel(
@@ -363,6 +398,12 @@ class DetectNewComponents(SupervisedTransformer):
                         self.params.frames_axis: slice(
                             -self.residuals_.sizes[self.params.frames_axis], None
                         )
+                    }
+                )
+                .set_xindex(self.params.id_coordinates)
+                .sel(
+                    {
+                        self.params.id_coordinates: overlapping_components,
                     }
                 ),
                 dim=self.params.frames_axis,
