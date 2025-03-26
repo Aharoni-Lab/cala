@@ -1,13 +1,15 @@
 from dataclasses import dataclass, field
 from typing import Self, Tuple
+from uuid import uuid4
 
+import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import NMF
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Component
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
 
@@ -161,11 +163,26 @@ class DetectNewComponents(SupervisedTransformer):
             self.new_footprints_.append(a_new)
             self.new_traces_.append(c_new)
 
-        self.is_fitted_ = True
+        new_ids = [uuid4() for _ in self.new_footprints_]
+        new_types = [Component.NEURON for _ in self.new_footprints_]
+
         self.new_footprints_ = xr.concat(
             self.new_footprints_, dim=self.params.component_axis
+        ).assign_coords(
+            {
+                self.params.id_coordinates: (self.params.component_axis, new_ids),
+                self.params.type_coordinates: (self.params.component_axis, new_types),
+            }
         )
-        self.new_traces_ = xr.concat(self.new_traces_, dim=self.params.component_axis)
+        self.new_traces_ = xr.concat(
+            self.new_traces_, dim=self.params.component_axis
+        ).assign_coords(
+            {
+                self.params.id_coordinates: (self.params.component_axis, new_ids),
+                self.params.type_coordinates: (self.params.component_axis, new_types),
+            }
+        )
+        self.is_fitted_ = True
         return self
 
     def transform_one(
@@ -500,7 +517,7 @@ class DetectNewComponents(SupervisedTransformer):
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
         # C_buf probably has to be the same number of frames as c_new
-        cross_corr = (
+        bottom_left_corr = (
             traces.sel(
                 {
                     self.params.frames_axis: slice(
@@ -513,6 +530,12 @@ class DetectNewComponents(SupervisedTransformer):
             )
             / t
         ).assign_coords(traces.coords)
+
+        top_right_corr = xr.DataArray(
+            bottom_left_corr.values,
+            dims=bottom_left_corr.dims[::-1],
+            coords=new_traces.coords,
+        )
 
         # Compute auto-correlation of new components
         # ||c_new||^2
@@ -527,21 +550,17 @@ class DetectNewComponents(SupervisedTransformer):
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]
         top_block = xr.concat(
-            [M_scaled, cross_corr], dim=f"{self.params.component_axis}'"
+            [M_scaled, top_right_corr], dim=self.params.component_axis
         )
 
         # Bottom block: [cross_corr.T, auto_corr]
         bottom_block = xr.concat(
-            [cross_corr, auto_corr], dim=self.params.component_axis
-        ).rename(
-            {
-                self.params.component_axis: f"{self.params.component_axis}'",
-                f"{self.params.component_axis}'": self.params.component_axis,
-            }
+            [bottom_left_corr, auto_corr], dim=self.params.component_axis
         )
-
         # Combine blocks
-        return xr.concat([top_block, bottom_block], dim=self.params.component_axis)
+        return xr.concat(
+            [top_block, bottom_block], dim=f"{self.params.component_axis}'"
+        )
 
     def _update_overlaps(
         self,
@@ -567,34 +586,52 @@ class DetectNewComponents(SupervisedTransformer):
             return overlaps
 
         # Compute spatial overlaps between new and existing components
-        new_overlaps = xr.dot(new_footprints, footprints, dims=self.params.spatial_axes)
+        old_new_overlap = footprints.dot(
+            new_footprints.rename(
+                {self.params.component_axis: f"{self.params.component_axis}'"}
+            )
+        )
+        bottom_left_overlap = (
+            (old_new_overlap != 0).astype(int).assign_coords(footprints.coords)
+        )
 
-        # Convert to binary overlap indicator (1 where overlap exists, 0 otherwise)
-        new_overlaps = (new_overlaps != 0).astype(int)
+        bottom_left_overlap.values = sparse.COO(bottom_left_overlap.values)
+
+        top_right_overlap = xr.DataArray(
+            bottom_left_overlap,
+            dims=bottom_left_overlap.dims[::-1],
+            coords=new_footprints.coords,
+        )
 
         # Compute overlaps between new components themselves
-        new_new_overlaps = xr.dot(
-            new_footprints, new_footprints, dims=self.params.spatial_axes
+        new_new_overlaps = new_footprints.dot(
+            new_footprints.rename(
+                {self.params.component_axis: f"{self.params.component_axis}'"}
+            )
         )
-        new_new_overlaps = (new_new_overlaps != 0).astype(int)
+        new_new_overlaps = (
+            (new_new_overlaps != 0).astype(int).assign_coords(new_footprints.coords)
+        )
+
+        new_new_overlaps.values = sparse.COO(new_new_overlaps.values)
 
         # Construct the new overlap matrix by blocks
         # [existing_overlaps    new_overlaps.T    ]
         # [new_overlaps        new_new_overlaps   ]
 
-        # First concatenate horizontally: [existing_overlaps, new_overlaps.T]
+        # First concatenate horizontally: [existing_overlaps, old_new_overlaps]
         top_block = xr.concat(
-            [overlaps, new_overlaps.T], dim=self.params.component_axis
+            [overlaps, top_right_overlap], dim=self.params.component_axis
         )
 
         # Then concatenate vertically with [new_overlaps, new_new_overlaps]
         bottom_block = xr.concat(
-            [new_overlaps, new_new_overlaps], dim=self.params.component_axis
+            [bottom_left_overlap, new_new_overlaps], dim=self.params.component_axis
         )
 
         # Finally combine top and bottom blocks
         updated_overlaps = xr.concat(
-            [top_block, bottom_block], dim=self.params.component_axis
+            [top_block, bottom_block], dim=f"{self.params.component_axis}'"
         )
 
         return updated_overlaps

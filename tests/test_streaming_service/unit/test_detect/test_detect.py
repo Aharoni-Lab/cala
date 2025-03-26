@@ -278,18 +278,19 @@ def test_update_component_stats(detector, component_stats, traces, stabilized_vi
 def test_update_overlaps(detector, footprints, overlaps):
     """Test overlap matrix update"""
     # Create new footprints for testing
+    footprints, _, _ = footprints
     new_footprints = xr.DataArray(
         np.zeros((2, footprints.sizes["height"], footprints.sizes["width"])),
         dims=["components", "height", "width"],
         coords={
-            "components": ["new1", "new2"],
             "id_": ("components", ["new1", "new2"]),
             "type_": ("components", ["neuron", "neuron"]),
         },
     )
 
     # Make first new component overlap with first existing component
-    new_footprints[0, :3, :3] = footprints.isel(components=0)[:3, :3]
+    new_footprints[0, :, :] = footprints.isel(components=0)[:, :]
+    new_footprints[1, :, :] = footprints.isel(components=1)[:, :]
 
     updated_overlaps = detector._update_overlaps(footprints, overlaps, new_footprints)
 
@@ -300,23 +301,25 @@ def test_update_overlaps(detector, footprints, overlaps):
     # Check that original overlaps are preserved
     np.testing.assert_array_equal(
         updated_overlaps.isel(
-            components=slice(None, -2), components_prime=slice(None, -2)
-        ),
-        overlaps,
+            {"components": slice(None, -2), "components'": slice(None, -2)}
+        ).data.todense(),
+        overlaps.data.todense(),
     )
 
     # Check new overlaps
     assert (
-        updated_overlaps.sel(components="new1", components_prime=overlaps.components[0])
+        updated_overlaps.set_xindex("id_").sel({"id_": "new1"}).isel({"components'": 0})
         == 1
     )  # Should overlap with first component
 
     assert (
-        updated_overlaps.sel(components="new2", components_prime=overlaps.components[0])
-        == 0
-    )  # Should not overlap with first component
+        updated_overlaps.set_xindex("id_").sel({"id_": "new2"}).isel({"components'": 1})
+        == 1
+    )  # Should overlap with second component
 
     # Check symmetry
     np.testing.assert_array_equal(
-        updated_overlaps.values.todense(), updated_overlaps.values.todense().T
+        updated_overlaps.data.todense(), updated_overlaps.data.todense().T
     )
+
+    # all updates must have id_ and type_ coordinates
