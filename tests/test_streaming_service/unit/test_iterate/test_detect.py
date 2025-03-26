@@ -4,17 +4,17 @@ import sparse
 import xarray as xr
 
 from cala.streaming.composer import Frame
-from cala.streaming.detect.detect import DetectNewComponents, DetectNewComponentsParams
+from cala.streaming.iterate.detect import Detector, DetectorParams
 
 
 @pytest.fixture
 def dtc_params():
-    return DetectNewComponentsParams(frames_axis="frames")
+    return DetectorParams(frames_axis="frames")
 
 
 @pytest.fixture
 def detector(dtc_params):
-    return DetectNewComponents(params=dtc_params)
+    return Detector(params=dtc_params)
 
 
 @pytest.fixture

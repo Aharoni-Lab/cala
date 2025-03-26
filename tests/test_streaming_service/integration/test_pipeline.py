@@ -17,6 +17,8 @@ from cala.streaming.iterate import (
     PixelStatsUpdater,
     FootprintsUpdater,
 )
+from cala.streaming.iterate.detect import Detector
+from cala.streaming.iterate.overlaps import OverlapsUpdater
 from cala.streaming.preprocess import (
     Downsampler,
     Denoiser,
@@ -219,20 +221,34 @@ def streaming_config() -> StreamingConfig:
                     "transformer": TracesUpdater,
                     "params": {"tolerance": 1e-3},
                 },
+                "detect": {
+                    "transformer": Detector,
+                    "params": {
+                        "gaussian_radius": 4.0,
+                        "spatial_threshold": 0.8,
+                        "temporal_threshold": 0.8,
+                    },
+                    "requires": ["traces"],
+                },
                 "pixel_stats": {
                     "transformer": PixelStatsUpdater,
                     "params": {},
-                    "requires": ["traces"],
+                    "requires": ["detect"],
                 },
                 "component_stats": {
                     "transformer": ComponentStatsUpdater,
                     "params": {},
-                    "requires": ["traces"],
+                    "requires": ["detect"],
                 },
                 "footprints": {
                     "transformer": FootprintsUpdater,
                     "params": {"boundary_expansion_pixels": 1},
                     "requires": ["pixel_stats", "component_stats"],
+                },
+                "overlaps": {
+                    "transformer": OverlapsUpdater,
+                    "params": {},
+                    "requires": ["footprints"],
                 },
             },
         },

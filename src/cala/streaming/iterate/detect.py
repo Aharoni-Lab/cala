@@ -15,7 +15,7 @@ from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Ove
 
 
 @dataclass
-class DetectNewComponentsParams(Parameters):
+class DetectorParams(Parameters):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new
@@ -26,7 +26,7 @@ class DetectNewComponentsParams(Parameters):
     component_axis: str = "components"
     """Name of the dimension representing individual components."""
 
-    frames_axis: str = "frames"
+    frames_axis: str = "frame"
     """Name of the dimension representing time points."""
 
     spatial_axes: tuple = ("height", "width")
@@ -37,6 +37,9 @@ class DetectNewComponentsParams(Parameters):
 
     type_coordinates: str = "type_"
     """Name of the coordinate representing component types. (attached to the component_axis)"""
+
+    num_past_frames: int = 3
+    """The number of past frames to use for NMF."""
 
     gaussian_radius: float = 2.0
     """Radius (τ) of Gaussian kernel for spatial filtering."""
@@ -63,7 +66,7 @@ class DetectNewComponentsParams(Parameters):
 
 
 @dataclass
-class DetectNewComponents(SupervisedTransformer):
+class Detector(SupervisedTransformer):
     """Detects new components from residual signals.
 
     This transformer implements Algorithm 5 (DetectNewComponents) which identifies
@@ -79,13 +82,13 @@ class DetectNewComponents(SupervisedTransformer):
     - R_buf ← [R_buf[:, 1:l_b-1], y - [A,b][C;f][:, end]]
     - V ← Filter(R_buf - Median(R_buf), GaussianKernel(τ))
     - E ← ∑_i V[:, i]^2
-    - [a_new, c_new] = NNMF(R_buf[N_(i_x,i_y), :], 1)
+    - [a_new, c_new] = NMF(R_buf[N_(i_x,i_y), :], 1)
 
     New components are accepted if they meet correlation thresholds and
     don't duplicate existing components.
     """
 
-    params: DetectNewComponentsParams
+    params: DetectorParams
     """Configuration parameters for the detection process."""
 
     new_footprints_: Footprints = field(default_factory=list)
@@ -244,9 +247,13 @@ class DetectNewComponents(SupervisedTransformer):
             dim=self.params.component_axis
         )
         new_residual = frame - prediction
+        if len(residuals) >= self.params.num_past_frames:
+            residual_slice = residuals.isel({self.params.frames_axis: slice(1, None)})
+        else:
+            residual_slice = residuals
         self.residuals_ = xr.concat(
             [
-                residuals.isel({self.params.frames_axis: slice(1, None)}),
+                residual_slice,
                 new_residual.expand_dims(self.params.frames_axis),
             ],
             dim=self.params.frames_axis,
@@ -291,7 +298,9 @@ class DetectNewComponents(SupervisedTransformer):
         )
 
         # ok embed the actual coordinates onto the array
-        neighborhood = E.isel(height=y_slice, width=x_slice).assign_coords(
+        neighborhood = self.residuals_.isel(
+            height=y_slice, width=x_slice
+        ).assign_coords(
             {
                 self.params.spatial_axes[0]: E.coords[self.params.spatial_axes[0]][
                     x_slice
