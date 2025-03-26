@@ -117,7 +117,9 @@ class TracesUpdater(SupervisedTransformer):
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
         # Run the update algorithm
-        updated_traces = self.update_traces(A, y, c, clusters, self.params.tolerance)
+        updated_traces = self.update_traces(
+            A, y, c.copy(), clusters, self.params.tolerance
+        )
 
         # store result with proper coordinates
         self.traces_ = updated_traces
