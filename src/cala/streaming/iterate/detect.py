@@ -153,15 +153,15 @@ class Detector(SupervisedTransformer):
             neighborhood = self._get_max_variance_neighborhood(E)
             a_new, c_new = self._local_nmf(neighborhood, self.frame_.array)
 
-            # Update residuals and energy
-            new_component = a_new * c_new
-            self.residuals_ = self.residuals_ - new_component
-            V = V - (a_new**2) * (c_new**2).sum()
-
             # Validate new component
             if not self._validate_component(a_new, c_new, traces, footprints):
                 valid = False
                 continue
+
+            # Update residuals and energy
+            new_component = a_new * c_new
+            self.residuals_ = self.residuals_ - new_component
+            V = V - (a_new**2) * (c_new**2).sum()
 
             self.new_footprints_.append(a_new)
             self.new_traces_.append(c_new)
@@ -290,16 +290,16 @@ class Detector(SupervisedTransformer):
         radius = int(self.params.gaussian_radius)
         y_slice = slice(
             max(0, iy - radius),
-            min(E.sizes["height"], iy + radius + 1),
+            min(E.sizes[self.params.spatial_axes[1]], iy + radius + 1),
         )
         x_slice = slice(
             max(0, ix - radius),
-            min(E.sizes["width"], ix + radius + 1),
+            min(E.sizes[self.params.spatial_axes[0]], ix + radius + 1),
         )
 
         # ok embed the actual coordinates onto the array
         neighborhood = self.residuals_.isel(
-            height=y_slice, width=x_slice
+            {self.params.spatial_axes[1]: y_slice, self.params.spatial_axes[0]: x_slice}
         ).assign_coords(
             {
                 self.params.spatial_axes[0]: E.coords[self.params.spatial_axes[0]][
@@ -339,7 +339,7 @@ class Detector(SupervisedTransformer):
 
         # Apply NMF
         model = NMF(n_components=1, init="random")
-        c = model.fit_transform(R)  # temporal component
+        c = model.fit_transform(R.clip(0))  # temporal component
         a = model.components_  # spatial component
 
         # Convert back to xarray with proper dimensions and coordinates
