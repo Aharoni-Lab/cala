@@ -117,7 +117,7 @@ class ResidualInitializer(SupervisedTransformer):
         R = R.isel({self.params.frames_axis: slice(start_idx, None)})
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.residual_ = R
+        self.residual_ = R.unstack(self.params.pixel_axis)
 
         return self
 
