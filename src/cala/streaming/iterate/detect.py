@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Self, Tuple
+from typing import Self
 from uuid import uuid4
 
 import sparse
@@ -23,7 +23,7 @@ class DetectorParams(Parameters, Axis):
     temporal correlations, and filtering parameters for spatial processing.
     """
 
-    num_past_frames: int = 3
+    num_nmf_residual_frames: int
     """The number of past frames to use for NMF."""
 
     gaussian_radius: float = 2.0
@@ -151,6 +151,9 @@ class Detector(SupervisedTransformer):
             self.new_footprints_.append(a_new)
             self.new_traces_.append(c_new)
 
+        if len(self.new_footprints_) == 0:
+            return self
+
         new_ids = [uuid4() for _ in self.new_footprints_]
         new_types = [Component.NEURON for _ in self.new_footprints_]
 
@@ -181,7 +184,7 @@ class Detector(SupervisedTransformer):
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
         overlaps: Overlaps,
-    ) -> Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
+    ) -> tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
         """
 
         Args:
@@ -193,7 +196,7 @@ class Detector(SupervisedTransformer):
                 Shape: (components × components'):
 
         Returns:
-            Tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
+            tuple[Footprints, Traces, Residuals, PixelStats, ComponentStats, Overlaps]:
                 - New footprints
                 - New traces
                 - New residuals
@@ -202,8 +205,12 @@ class Detector(SupervisedTransformer):
                 - New overlaps
         """
 
+        footprints_ = self._update_common(footprints, self.new_footprints_)
+
+        traces_ = self._update_common(traces, self.new_traces_)
+
         # Update statistics and overlaps
-        new_pixel_stats_ = self._update_pixel_stats(
+        pixel_stats_ = self._update_pixel_stats(
             self.frame_, footprints, traces, residuals, pixel_stats, self.new_traces_
         )
         component_stats_ = self._update_component_stats(
@@ -212,10 +219,10 @@ class Detector(SupervisedTransformer):
         overlaps_ = self._update_overlaps(footprints, overlaps, self.new_footprints_)
 
         return (
-            self.new_footprints_,
-            self.new_traces_,
+            footprints_,
+            traces_,
             self.residuals_,
-            new_pixel_stats_,
+            pixel_stats_,
             component_stats_,
             overlaps_,
         )
@@ -232,7 +239,7 @@ class Detector(SupervisedTransformer):
             dim=self.params.component_axis
         )
         new_residual = frame - prediction
-        if len(residuals) >= self.params.num_past_frames:
+        if len(residuals) >= self.params.num_nmf_residual_frames:
             residual_slice = residuals.isel({self.params.frames_axis: slice(1, None)})
         else:
             residual_slice = residuals
@@ -302,7 +309,7 @@ class Detector(SupervisedTransformer):
         self,
         neighborhood: xr.DataArray,
         frame: xr.DataArray,
-    ) -> Tuple[xr.DataArray, xr.DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         """Perform local rank-1 Non-negative Matrix Factorization.
 
         Uses scikit-learn's NMF implementation to decompose the neighborhood
@@ -313,7 +320,7 @@ class Detector(SupervisedTransformer):
                 Shape: (frames × height × width)
 
         Returns:
-            Tuple[xr.DataArray, xr.DataArray]:
+            tuple[xr.DataArray, xr.DataArray]:
                 - Spatial component a_new (height × width)
                 - Temporal component c_new (frames)
         """
@@ -424,6 +431,11 @@ class Detector(SupervisedTransformer):
                 return False
 
         return True
+
+    def _update_common(self, original_data: xr.DataArray, new_data: xr.DataArray):
+        if len(new_data) == 0:
+            return original_data
+        return xr.concat([original_data, new_data], dim=self.params.component_axis)
 
     def _update_pixel_stats(
         self,
