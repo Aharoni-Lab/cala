@@ -78,8 +78,22 @@ class TraceStore(ObservableStore):
                 dim=Axis.frames_axis,
             )
         elif new_ids:  # detect only returned new elements
+            n_frames_to_backfill = len(self.warehouse.coords[Axis.frames_axis]) - len(
+                data.coords[Axis.frames_axis]
+            )
+
+            if n_frames_to_backfill > 0:
+                # Create zeros array with same shape as data but for missing frames
+                zeros = xr.zeros_like(data).expand_dims(
+                    Axis.frames_axis, n_frames_to_backfill
+                )
+                # Combine zeros and data along frames axis
+                backfilled_data = xr.concat([zeros, data], dim=Axis.frames_axis)
+            else:
+                backfilled_data = data
+
             self.warehouse = xr.concat(
-                [self.warehouse, data],
+                [self.warehouse, backfilled_data],
                 dim=Axis.component_axis,
             )
 
