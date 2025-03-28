@@ -68,7 +68,8 @@ class ResidualStore(ObservableStore):
       original data and component reconstructions
     """
 
-    pass
+    def update(self, data: DataArray) -> None:
+        self.warehouse = data
 
 
 Residuals = Annotated[DataArray, ResidualStore]
@@ -104,6 +105,9 @@ class OverlapStore(ObservableStore):
         return [
             list(self._ids[self.labels == label]) for label in np.unique(self.labels)
         ]
+
+    def update(self, data: DataArray) -> None:
+        self.warehouse = data
 
 
 Overlaps = Annotated[DataArray, OverlapStore]
