@@ -76,7 +76,18 @@ class OverlapsUpdater(SupervisedTransformer):
 
         # Create xarray DataArray with sparse data
         data.values = sparse.COO(data.values)
-        self.overlaps_ = data.assign_coords(footprints.coords)
+        self.overlaps_ = data.assign_coords(
+            {
+                self.params.id_coordinates: (
+                    self.params.component_axis,
+                    footprints.coords[self.params.id_coordinates].values,
+                ),
+                self.params.type_coordinates: (
+                    self.params.component_axis,
+                    footprints.coords[self.params.type_coordinates].values,
+                ),
+            }
+        )
 
         self.is_fitted_ = True
         return self
