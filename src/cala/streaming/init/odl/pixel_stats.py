@@ -4,44 +4,22 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats
 
 
 @dataclass
-class PixelStatsInitializerParams(Parameters):
+class PixelStatsInitializerParams(Parameters, Axis):
     """Parameters for pixel-component statistics computation.
 
     This class defines the configuration parameters needed for computing statistics
     across pixels and components, including axis names and spatial specifications.
     """
 
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    id_coordinates: str = "id_"
-    """Name of the coordinate used to identify individual components with unique IDs."""
-
-    type_coordinates: str = "type_"
-    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
-
-    frames_axis: str = "frame"
-    """Name of the dimension representing time points."""
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
-
-    pixel_axis: str = "pixel"
-
     def validate(self):
-        """Validate parameter configurations.
-
-        Raises:
-            ValueError: If spatial_axes is not a tuple of length 2.
-        """
-        if not isinstance(self.spatial_axes, tuple) or len(self.spatial_axes) != 2:
-            raise ValueError("spatial_axes must be a tuple of length 2")
+        """Validate parameter configurations."""
+        pass
 
 
 @dataclass
@@ -89,7 +67,7 @@ class PixelStatsInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Reshape frames to pixels x time
-        Y = frame.stack({self.params.pixel_axis: self.params.spatial_axes})
+        Y = frame.stack({"pixels": self.params.spatial_axes})
 
         # Get temporal components C
         C = traces  # components x time
@@ -98,7 +76,7 @@ class PixelStatsInitializer(SupervisedTransformer):
         W = Y @ C.T / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.pixel_stats_ = W.unstack(self.params.pixel_axis)
+        self.pixel_stats_ = W.unstack("pixels")
 
         return self
 

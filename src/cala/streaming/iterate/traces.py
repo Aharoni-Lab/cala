@@ -8,34 +8,18 @@ from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class TracesUpdaterParams(Parameters):
+class TracesUpdaterParams(Parameters, Axis):
     """Parameters for temporal trace updates.
 
     This class defines the configuration parameters needed for updating temporal
     traces of components, including axis names and convergence criteria.
     """
-
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    frames_axis: str = "frame"
-    """Name of the dimension representing time points."""
-
-    spatial_axes: tuple[str] = ("width", "height")
-
-    pixel_axis: str = "pixel"
-
-    id_coordinates: str = "id_"
-    """Name of the coordinate used to identify individual components with unique IDs."""
-
-    type_coordinates: str = "type_"
-    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
 
     tolerance: float = 1e-3
     """Convergence tolerance level (ε) for the iterative update process."""
@@ -107,8 +91,8 @@ class TracesUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Prepare inputs for the update algorithm
-        A = footprints.stack({self.params.pixel_axis: self.params.spatial_axes})
-        y = frame.array.stack({self.params.pixel_axis: self.params.spatial_axes})
+        A = footprints.stack({"pixels": self.params.spatial_axes})
+        y = frame.array.stack({"pixels": self.params.spatial_axes})
         c = traces.isel({self.params.frames_axis: -1})
 
         _, labels = connected_components(

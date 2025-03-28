@@ -7,26 +7,18 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
 @dataclass
-class ComponentStatsUpdaterParams(Parameters):
+class ComponentStatsUpdaterParams(Parameters, Axis):
     """Parameters for component statistics updates.
 
     This class defines the configuration parameters needed for updating
     component-wise statistics matrices.
     """
-
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    frames_axis: str = "frame"
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
 
     def validate(self):
         """Validate parameter configurations.

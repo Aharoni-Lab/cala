@@ -5,39 +5,22 @@ import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class OverlapsInitializerParams(Parameters):
+class OverlapsInitializerParams(Parameters, Axis):
     """Parameters for computing spatially overlapping component groups.
 
     This class defines the configuration parameters needed for determining
     groups of components that share spatial overlap in their footprints.
     """
 
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    id_coordinates: str = "id_"
-    """Name of the coordinate used to identify individual components with unique IDs."""
-
-    type_coordinates: str = "type_"
-    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
-
     def validate(self):
-        """Validate parameter configurations.
-
-        Raises:
-            ValueError: If spatial_axes is not a tuple of length 2.
-        """
-        if not isinstance(self.spatial_axes, tuple) or len(self.spatial_axes) != 2:
-            raise ValueError("spatial_axes must be a tuple of length 2")
+        """Validate parameter configurations."""
+        pass
 
 
 @dataclass
@@ -57,7 +40,9 @@ class OverlapsInitializer(SupervisedTransformer):
     overlaps_: xr.DataArray = field(init=False)
     """Computed sparse matrix indicating component group memberships."""
 
-    def learn_one(self, footprints: Footprints, frame: xr.DataArray = None) -> Self:
+    def learn_one(
+        self, footprints: Footprints, frame: xr.DataArray | None = None
+    ) -> Self:
         """Determine overlaps from spatial footprints.
 
         This method links components based on spatial overlap.

@@ -7,24 +7,13 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Footprints, Traces
 
 
 @dataclass
-class TracesInitializerParams(Parameters):
+class TracesInitializerParams(Parameters, Axis):
     """Parameters for traces initialization"""
-
-    component_axis: str = "components"
-    """Axis for components"""
-    frames_axis: str = "frames"
-    """Axis for frames"""
-
-    pixel_axis: str = "pixel"
-    spatial_axes: tuple[str] = ("width", "height")
-
-    id_coordinates: str = "id_"
-    type_coordinates: str = "type_"
 
     def validate(self):
         pass
@@ -51,12 +40,8 @@ class TracesInitializer(SupervisedTransformer):
 
         # Get frames to use and flatten them
         n_frames = frame.sizes[self.params.frames_axis]
-        flattened_frames = frame[:n_frames].stack(
-            {self.params.pixel_axis: self.params.spatial_axes}
-        )
-        flattened_footprints = footprints.stack(
-            {self.params.pixel_axis: self.params.spatial_axes}
-        )
+        flattened_frames = frame[:n_frames].stack({"pixels": self.params.spatial_axes})
+        flattened_footprints = footprints.stack({"pixels": self.params.spatial_axes})
 
         # Process all components
         temporal_traces = solve_all_component_traces(

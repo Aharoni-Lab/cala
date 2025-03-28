@@ -4,13 +4,13 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Traces, Footprints
 from cala.streaming.stores.odl import Residuals
 
 
 @dataclass
-class ResidualInitializerParams(Parameters):
+class ResidualInitializerParams(Parameters, Axis):
     """Parameters for residual signal computation.
 
     This class defines the configuration parameters needed for computing and maintaining
@@ -18,34 +18,15 @@ class ResidualInitializerParams(Parameters):
     buffer characteristics.
     """
 
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    id_coordinates: str = "id_"
-    """Name of the coordinate used to identify individual components with unique IDs."""
-
-    type_coordinates: str = "type_"
-    """Name of the coordinate used to specify component types (e.g., neuron, background)."""
-
-    frames_axis: str = "frame"
-    """Name of the dimension representing time points."""
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
-
     buffer_length: int = 50
     """Number of recent frames to maintain in the residual buffer (l_b)."""
-
-    pixel_axis: str = "pixel"
 
     def validate(self):
         """Validate parameter configurations.
 
         Raises:
-            ValueError: If spatial_axes is not a tuple of length 2 or buffer_length is not positive.
+            ValueError: If buffer_length is not positive.
         """
-        if not isinstance(self.spatial_axes, tuple) or len(self.spatial_axes) != 2:
-            raise ValueError("spatial_axes must be a tuple of length 2")
         if self.buffer_length <= 0:
             raise ValueError("buffer_length must be positive")
 
@@ -101,13 +82,13 @@ class ResidualInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Reshape frames to pixels x time
-        Y = frame.stack({self.params.pixel_axis: self.params.spatial_axes})
+        Y = frame.stack({"pixels": self.params.spatial_axes})
 
         # Get temporal components [C; f]
         C = traces  # components x time
 
         # Reshape footprints to (pixels x components)
-        A = footprints.stack({self.params.pixel_axis: self.params.spatial_axes})
+        A = footprints.stack({"pixels": self.params.spatial_axes})
 
         # Compute residual R = Y - [A,b][C;f]
         R = Y - (A @ C)
@@ -117,7 +98,7 @@ class ResidualInitializer(SupervisedTransformer):
         R = R.isel({self.params.frames_axis: slice(start_idx, None)})
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.residual_ = R.unstack(self.params.pixel_axis)
+        self.residual_ = R.unstack("pixels")
 
         return self
 

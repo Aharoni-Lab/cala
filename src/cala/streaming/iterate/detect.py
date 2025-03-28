@@ -9,34 +9,19 @@ from scipy.ndimage import gaussian_filter
 from sklearn.decomposition import NMF
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Component
+from cala.streaming.core import Parameters, Component, Axis
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
 
 
 @dataclass
-class DetectorParams(Parameters):
+class DetectorParams(Parameters, Axis):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new
     components from residual signals, including thresholds for spatial and
     temporal correlations, and filtering parameters for spatial processing.
     """
-
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    frames_axis: str = "frame"
-    """Name of the dimension representing time points."""
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
-
-    id_coordinates: str = "id_"
-    """Name of the coordinate representing component IDs. (attached to the component_axis)"""
-
-    type_coordinates: str = "type_"
-    """Name of the coordinate representing component types. (attached to the component_axis)"""
 
     num_past_frames: int = 3
     """The number of past frames to use for NMF."""
