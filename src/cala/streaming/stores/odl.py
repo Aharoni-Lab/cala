@@ -24,8 +24,6 @@ class PixelStatStore(ObservableStore):
     """
 
     def update(self, data: DataArray) -> None:
-        # make sure dim, coords, and ids are the same?
-        # if not np.array_equal(self.warehouse.coords["id_"].values != data.coords["id_"].values)
         self.warehouse = data
 
 
