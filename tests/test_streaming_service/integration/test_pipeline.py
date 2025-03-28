@@ -96,7 +96,7 @@ def initialization_config() -> StreamingConfig:
                 },
                 "traces": {
                     "transformer": TracesInitializer,
-                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "params": {},
                     "n_frames": 3,
                     "requires": ["footprints"],
                 },
@@ -189,7 +189,7 @@ def streaming_config() -> StreamingConfig:
                 },
                 "traces": {
                     "transformer": TracesInitializer,
-                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "params": {},
                     "n_frames": 3,
                     "requires": ["footprints"],
                 },
@@ -225,6 +225,7 @@ def streaming_config() -> StreamingConfig:
                 "detect": {
                     "transformer": Detector,
                     "params": {
+                        "num_nmf_residual_frames": 10,
                         "gaussian_radius": 4.0,
                         "spatial_threshold": 0.8,
                         "temporal_threshold": 0.8,
