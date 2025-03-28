@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type, Optional, get_origin, Annotated
+from typing import Type, Optional, get_origin, Annotated, get_args
 
 import xarray as xr
 
@@ -67,8 +67,11 @@ class Distributor:
             type_: Type or tuple of types of the result(s). If an observable, should be an Annotated type that links to Store class.
         """
         # Convert single inputs to tuples for uniform handling
-        results = (result,) if isinstance(result, xr.DataArray) else result
-        types = (type_,) if isinstance(type_, type) else type_
+        results, types = (
+            ((result,), (type_,))
+            if not isinstance(result, tuple)
+            else (result, get_args(type_))
+        )
 
         if len(results) != len(types):
             raise ValueError("Number of results must match number of types")
