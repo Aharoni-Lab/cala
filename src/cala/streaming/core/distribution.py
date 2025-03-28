@@ -53,9 +53,9 @@ class Distributor:
         setattr(self, store_name, target_store_type(result))
 
     def update(
-            self,
-            result: xr.DataArray | tuple[xr.DataArray, ...],
-            type_: Type | tuple[Type, ...],
+        self,
+        result: xr.DataArray | tuple[xr.DataArray, ...],
+        type_: Type | tuple[Type, ...],
     ) -> None:
         """Update appropriate Observable containers with result DataArray(s).
 
