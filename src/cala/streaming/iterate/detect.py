@@ -126,7 +126,9 @@ class Detector(SupervisedTransformer):
 
         self.frame_ = frame
         # Update and process residuals
-        self._update_residual_buffer(frame.array, footprints, traces, residuals)
+        self._update_residual_buffer(
+            frame=frame.array, footprints=footprints, traces=traces, residuals=residuals
+        )
         V = self._process_residuals()
 
         valid = True
@@ -136,10 +138,14 @@ class Detector(SupervisedTransformer):
 
             # Find and analyze neighborhood of maximum variance
             neighborhood = self._get_max_variance_neighborhood(E)
-            a_new, c_new = self._local_nmf(neighborhood, self.frame_.array)
+            a_new, c_new = self._local_nmf(
+                neighborhood=neighborhood, frame=self.frame_.array
+            )
 
             # Validate new component
-            if not self._validate_component(a_new, c_new, traces, footprints):
+            if not self._validate_component(
+                a_new=a_new, c_new=c_new, traces=traces, footprints=footprints
+            ):
                 valid = False
                 continue
 
@@ -152,6 +158,8 @@ class Detector(SupervisedTransformer):
             self.new_traces_.append(c_new)
 
         if len(self.new_footprints_) == 0:
+            self.new_footprints_ = xr.DataArray([])
+            self.new_traces_ = xr.DataArray([])
             return self
 
         new_ids = [uuid4() for _ in self.new_footprints_]
@@ -180,7 +188,6 @@ class Detector(SupervisedTransformer):
         self,
         footprints: Footprints,
         traces: Traces,
-        residuals: Residuals,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
         overlaps: Overlaps,
@@ -205,22 +212,31 @@ class Detector(SupervisedTransformer):
                 - New overlaps
         """
 
-        footprints_ = self._update_common(footprints, self.new_footprints_)
-
-        traces_ = self._update_common(traces, self.new_traces_)
-
         # Update statistics and overlaps
         pixel_stats_ = self._update_pixel_stats(
-            self.frame_, footprints, traces, residuals, pixel_stats, self.new_traces_
+            frame=self.frame_,
+            og_footprints=footprints,
+            new_footprints=self.new_footprints_,
+            og_traces=traces,
+            new_traces=self.new_traces_,
+            residuals=self.residuals_,
+            pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            component_stats, traces, self.new_traces_, self.frame_.index
+            frame_idx=self.frame_.index,
+            traces=traces,
+            new_traces=self.new_traces_,
+            component_stats=component_stats,
         )
-        overlaps_ = self._update_overlaps(footprints, overlaps, self.new_footprints_)
+        overlaps_ = self._update_overlaps(
+            footprints=footprints,
+            new_footprints=self.new_footprints_,
+            overlaps=overlaps,
+        )
 
         return (
-            footprints_,
-            traces_,
+            self.new_footprints_,
+            self.new_traces_,
             self.residuals_,
             pixel_stats_,
             component_stats_,
@@ -432,19 +448,15 @@ class Detector(SupervisedTransformer):
 
         return True
 
-    def _update_common(self, original_data: xr.DataArray, new_data: xr.DataArray):
-        if len(new_data) == 0:
-            return original_data
-        return xr.concat([original_data, new_data], dim=self.params.component_axis)
-
     def _update_pixel_stats(
         self,
         frame: Frame,
-        footprints: Footprints,
-        traces: Traces,
+        og_footprints: Footprints,
+        new_footprints: Footprints,
+        og_traces: Traces,
+        new_traces: Traces,
         residuals: Residuals,
         pixel_stats: PixelStats,
-        new_traces: Traces,
     ) -> PixelStats:
         """Update pixel statistics with new components.
 
@@ -455,7 +467,6 @@ class Detector(SupervisedTransformer):
         Args:
             pixel_stats (PixelStats): Current pixel statistics W_t
             frame (Frame): Current frame with index information
-            new_footprints (Footprints): Newly detected spatial components
             new_traces (Traces): Newly detected temporal components
 
         Returns:
@@ -468,14 +479,19 @@ class Detector(SupervisedTransformer):
         frame_idx = frame.index + 1
         scale = 1 / frame_idx
 
+        footprints = xr.concat(
+            [og_footprints, new_footprints], dim=self.params.component_axis
+        )
+        traces = xr.concat(
+            [
+                og_traces.isel({self.params.frames_axis: slice(-len(residuals), None)}),
+                new_traces,
+            ],
+            dim=self.params.component_axis,
+        )
+
         # traces has to be the same number of frames as residuals
-        y_buf = (
-            footprints
-            @ traces.isel({self.params.frames_axis: slice(-len(residuals), None)})
-            + residuals
-        ).stack(pixels=self.params.spatial_axes)
-        # Reshape frame to match pixel stats dimensions
-        # y_buf = frame.array.stack(pixels=self.params.spatial_axes)
+        y_buf = (footprints @ traces + residuals).stack(pixels=self.params.spatial_axes)
 
         # Compute outer product of frame and new traces
         # (1/t)Y_buf c_new^T
@@ -571,8 +587,8 @@ class Detector(SupervisedTransformer):
     def _update_overlaps(
         self,
         footprints: Footprints,
-        overlaps: Overlaps,  # xarray with sparse array (N × N binary adjacency matrix)
         new_footprints: Footprints,
+        overlaps: Overlaps,  # xarray with sparse array (N × N binary adjacency matrix)
     ) -> Overlaps:
         """Update component overlap matrix with new components.
 
@@ -598,7 +614,20 @@ class Detector(SupervisedTransformer):
             )
         )
         bottom_left_overlap = (
-            (old_new_overlap != 0).astype(int).assign_coords(footprints.coords)
+            (old_new_overlap != 0)
+            .astype(int)
+            .assign_coords(
+                {
+                    self.params.id_coordinates: (
+                        self.params.component_axis,
+                        footprints.coords[self.params.id_coordinates].values,
+                    ),
+                    self.params.type_coordinates: (
+                        self.params.component_axis,
+                        footprints.coords[self.params.type_coordinates].values,
+                    ),
+                }
+            )
         )
 
         bottom_left_overlap.values = sparse.COO(bottom_left_overlap.values)
