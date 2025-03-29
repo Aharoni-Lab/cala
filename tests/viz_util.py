@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import Optional, Tuple, Callable, List
+from typing import Optional, Tuple, Callable, List, Union
 
 import cv2
+import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -13,7 +14,12 @@ from skimage.measure import find_contours
 class Visualizer:
     """Utility class for visualization."""
 
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path | str):
+        if isinstance(output_dir, str):
+            try:
+                self.output_dir = Path(output_dir)
+            except ValueError as e:
+                raise ValueError(e)
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -307,19 +313,28 @@ class Visualizer:
 
     def save_video_frames(
         self,
-        video,
+        videos: Union[xr.DataArray, List[Tuple[xr.DataArray, str]]],
         name: str = "video",
         subdir: Optional[str] = None,
         frame_processor: Optional[Callable] = None,
+        n_cols: Optional[int] = None,
     ) -> None:
         """
-        Save video frames with optional processing function.
+        Save video frames with optional processing function. Can handle single or multiple videos.
 
         Parameters:
         -----------
-        frame_processor : Callable
+        videos : Union[xr.DataArray, List[Tuple[xr.DataArray, str]]]
+            Either a single video DataArray or list of (video, title) tuples for comparison
+        name : str
+            Base name for saved files
+        subdir : Optional[str]
+            Subdirectory within output directory
+        frame_processor : Optional[Callable]
             Function to process each frame before saving
             Should take (frame, index) as arguments
+        n_cols : Optional[int]
+            Number of columns when displaying multiple videos. If None, tries to make square grid
         """
         save_dir = self.output_dir
         if subdir:
@@ -327,30 +342,71 @@ class Visualizer:
         save_dir = save_dir / name
         save_dir.mkdir(parents=True, exist_ok=True)
 
-        vmin, vmax = np.percentile(video, [2, 98])
+        # Handle single video case
+        if isinstance(videos, xr.DataArray):
+            videos = [(videos, "")]
 
-        for i, frame in enumerate(video):
-            fig, ax = plt.subplots(figsize=(8, 8))
+        n_videos = len(videos)
+        if n_cols is None:
+            n_cols = int(np.ceil(np.sqrt(n_videos))) if n_videos > 1 else 1
+        n_rows = int(np.ceil(n_videos / n_cols))
 
-            # Apply frame processing if provided
-            if frame_processor:
-                frame = frame_processor(frame, i)
+        # Get global min/max for consistent scaling
+        all_mins = [np.percentile(video, 2) for video, _ in videos]
+        all_maxs = [np.percentile(video, 98) for video, _ in videos]
+        vmin, vmax = min(all_mins), max(all_maxs)
 
-            ax.imshow(frame, cmap="gray", vmin=vmin, vmax=vmax)
-            ax.set_title(f"Frame {i}")
-            plt.savefig(save_dir / f"frame_{i:04d}.png", dpi=150, bbox_inches="tight")
+        # Verify all videos have same number of frames
+        n_frames = len(videos[0][0])
+        if not all(len(video) == n_frames for video, _ in videos):
+            raise ValueError("All videos must have the same number of frames")
+
+        for frame_idx in range(n_frames):
+            if n_videos == 1:
+                fig, ax = plt.subplots(figsize=(8, 8))
+                axes = [[ax]]
+            else:
+                fig, axes = plt.subplots(
+                    n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows), squeeze=False
+                )
+
+            # Plot each video frame
+            for vid_idx, (video, title) in enumerate(videos):
+                row = vid_idx // n_cols
+                col = vid_idx % n_cols
+                ax = axes[row][col]
+
+                frame = video[frame_idx]
+
+                # Apply frame processing if provided
+                if frame_processor:
+                    frame = frame_processor(frame, frame_idx)
+
+                ax.imshow(frame, cmap="gray", vmin=vmin, vmax=vmax)
+                if title:
+                    ax.set_title(f"{title}\nFrame {frame_idx}")
+                else:
+                    ax.set_title(f"Frame {frame_idx}")
+                ax.axis("off")
+
+            # Hide empty subplots
+            if n_videos > 1:
+                for idx in range(n_videos, n_rows * n_cols):
+                    row = idx // n_cols
+                    col = idx % n_cols
+                    axes[row][col].set_visible(False)
+
+            plt.tight_layout()
+            plt.savefig(
+                save_dir / f"frame_{frame_idx:04d}.png", dpi=150, bbox_inches="tight"
+            )
             plt.close()
 
-        # Optionally create gif
-        try:
-            import imageio
-
-            frames = []
-            for i in range(len(video)):
-                frames.append(imageio.imread(save_dir / f"frame_{i:04d}.png"))
-            imageio.mimsave(save_dir / f"{name}.gif", frames, fps=30)
-        except ImportError:
-            print("imageio not installed - skipping gif creation")
+        # Create gif
+        frames = []
+        for i in range(n_frames):
+            frames.append(imageio.imread(save_dir / f"frame_{i:04d}.png"))
+        imageio.mimsave(save_dir / f"{name}.gif", frames, fps=30)
 
     def plot_trace_correlations(
         self,
