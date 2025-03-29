@@ -1,23 +1,22 @@
-from pathlib import Path
-
-from tests.fixtures import raw_calcium_video, preprocessed_video, stabilized_video
-from tests.visual_helper import VisualHelper
+import pytest
 
 
-def test_e2e(raw_calcium_video, preprocessed_video, stabilized_video, traces, spikes):
-    artifact_directory = Path(__file__).parent / "artifacts"
-    artifact_directory.mkdir(exist_ok=True)
+@pytest.mark.viz
+def test_video_generation(
+    visualizer, raw_calcium_video, preprocessed_video, stabilized_video
+):
+    """Test video generation with visualizations."""
 
-    visual_helper = VisualHelper()
-    visual_helper.write_movie(
-        raw_calcium_video, artifact_directory / "raw_calcium_video.mp4"
-    )
-    visual_helper.write_movie(
-        preprocessed_video, artifact_directory / "preprocessed_video.mp4"
-    )
-    visual_helper.write_movie(
-        stabilized_video, artifact_directory / "stabilized_video.mp4"
-    )
-    visual_helper.visualize_traces(
-        traces, spikes, artifact_directory / "calcium_traces.png"
-    )
+    visualizer.write_movie(raw_calcium_video, "raw_calcium_video.mp4")
+    visualizer.write_movie(preprocessed_video, "preprocessed_video.mp4")
+    visualizer.write_movie(stabilized_video, "stabilized_video.mp4")
+
+
+@pytest.mark.viz
+def test_plot_observable_fixtures(visualizer, footprints, traces, spikes):
+    """Test plotting of observable fixtures with visualizations."""
+    footprints_xr, positions, radii = footprints
+
+    # Show visualizations
+    visualizer.plot_footprints(footprints_xr, positions, radii)
+    visualizer.plot_traces(traces, spikes, indices=[0, 1, 2], name="calcium_traces")

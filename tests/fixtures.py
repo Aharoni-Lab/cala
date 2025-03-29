@@ -106,10 +106,10 @@ def footprints(params, ids, types):
     # Create xarray with proper coordinates
     footprints_xr = xr.DataArray(
         np.zeros((params.num_neurons, params.height, params.width)),
-        dims=["components", "height", "width"],
+        dims=["component", "height", "width"],
         coords={
-            "id_": ("components", ids),
-            "type_": ("components", types),
+            "id_": ("component", ids),
+            "type_": ("component", types),
         },
     )
 
@@ -134,10 +134,10 @@ def spikes(params, ids, types):
 
     return xr.DataArray(
         spikes,
-        dims=["components", "frames"],
+        dims=["component", "frame"],
         coords={
-            "id_": ("components", ids),
-            "type_": ("components", types),
+            "id_": ("component", ids),
+            "type_": ("component", types),
         },
     )
 
@@ -157,9 +157,7 @@ def traces(params, spikes, ids, types):
                 -(np.arange(params.frames - t)) / decay_times[n]
             )
 
-    return xr.DataArray(
-        traces_data, dims=["components", "frames"], coords=spikes.coords
-    )
+    return xr.DataArray(traces_data, dims=["component", "frame"], coords=spikes.coords)
 
 
 @pytest.fixture
@@ -187,8 +185,8 @@ def camera_motion(params):
 
     return xr.DataArray(
         np.stack([motion_y, motion_x], axis=1),
-        dims=["frames", "direction"],
-        coords={"frames": range(params.frames), "direction": ["y", "x"]},
+        dims=["frame", "direction"],
+        coords={"frame": range(params.frames), "direction": ["y", "x"]},
     )
 
 
@@ -210,7 +208,7 @@ def residuals(params):
     # Add artifacts
     residuals = add_artifacts(residuals, params)
 
-    return xr.DataArray(residuals, dims=["frames", "height", "width"])
+    return xr.DataArray(residuals, dims=["frame", "height", "width"])
 
 
 @pytest.fixture
@@ -225,14 +223,6 @@ def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
         video += footprints[0][n] * traces[n]
 
     video = video.reset_coords(["id_", "type_"], drop=True)
-    # Apply blur
-    # video = xr.apply_ufunc(
-    #     lambda x: gaussian_filter(x, params.blur_sigma),
-    #     video,
-    #     input_core_dims=[["height", "width"]],
-    #     output_core_dims=[["height", "width"]],
-    #     vectorize=True,
-    # )
 
     # Apply motion
     motion_video = np.zeros_like(video)

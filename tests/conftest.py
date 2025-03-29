@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 from numpy.random import RandomState
@@ -16,6 +17,8 @@ from tests.fixtures import (
     camera_motion,
     residuals,
 )
+
+from tests.viz_util import Visualizer
 
 
 @pytest.fixture(autouse=True)
@@ -37,3 +40,29 @@ def cleanup_numba_env():
         os.environ.pop("NUMBA_DISABLE_JIT", None)
     else:
         os.environ["NUMBA_DISABLE_JIT"] = original
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "viz: mark test to run with visualizations (skip during CI/CD)"
+    )
+
+
+@pytest.fixture(scope="session")
+def viz_dir():
+    """Create visualization output directory within tests folder."""
+    # Get the directory where tests are located
+    test_dir = Path(__file__).parent
+    viz_path = test_dir / "artifacts"
+    viz_path.mkdir(exist_ok=True)
+    return viz_path
+
+
+@pytest.fixture
+def visualizer(request, viz_dir):
+    """Function-scoped fixture for visualization utilities."""
+    # Skip if in CI or test isn't marked for viz
+    if os.environ.get("CI") or not request.node.get_closest_marker("viz"):
+        return None
+
+    return Visualizer(viz_dir)
