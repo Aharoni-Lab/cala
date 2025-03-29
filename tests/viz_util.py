@@ -16,6 +16,30 @@ class Visualizer:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Enhanced style configuration
+        self.style_config = {
+            "style": "whitegrid",
+            "context": "notebook",
+            "font_scale": 1.2,
+            "palette": "deep",
+        }
+        sns.set_theme(**self.style_config)
+
+        # Define color palettes for different use cases
+        self.colors = {
+            "main": sns.color_palette("husl", n_colors=10),
+            "sequential": sns.color_palette("rocket", n_colors=10),
+            "diverging": sns.color_palette("vlag", n_colors=10),
+            "categorical": sns.color_palette("Set2", n_colors=8),
+        }
+
+        # Define common plot settings
+        self.plot_defaults = {
+            "figure.figsize": (10, 6),
+            "axes.titlesize": 14,
+            "axes.labelsize": 12,
+        }
+
     def save_fig(self, name: str, subdir: Optional[str] = None) -> None:
         """Save current figure to output directory."""
         save_dir = self.output_dir
@@ -410,6 +434,150 @@ class Visualizer:
 
         # Adjust layout to prevent label cutoff
         plt.tight_layout()
+
+        # Save figure
+        self.save_fig(name, subdir)
+
+    def plot_trace_pair_analysis(
+        self,
+        traces: xr.DataArray,
+        comp1_idx: int,
+        comp2_idx: int,
+        name: str = "trace_pair_analysis",
+        subdir: Optional[str] = None,
+    ) -> None:
+        """
+        Create detailed analysis of two component traces using JointGrid.
+
+        Parameters
+        ----------
+        traces : xr.DataArray
+            DataArray with dims (component, frame) containing component traces
+        comp1_idx, comp2_idx : int
+            Indices of components to compare
+        """
+        # Extract the two traces
+        trace1 = traces[comp1_idx]
+        trace2 = traces[comp2_idx]
+
+        # Create JointGrid
+        g = sns.JointGrid(data=None, x=trace1, y=trace2)
+
+        # Add scatter plot with hexbin
+        g.plot_joint(
+            sns.lineplot, alpha=0.6, color=self.colors["main"][0], markers=True
+        )
+
+        # Add marginal distributions
+        g.plot_marginals(sns.histplot, kde=True)
+
+        # Add correlation coefficient
+        corr = np.corrcoef(trace1, trace2)[0, 1]
+        g.figure.suptitle(f"Correlation: {corr:.3f}", y=1.02)
+
+        # Get component IDs if available, otherwise use indices
+        comp1_label = (
+            f"Component {traces.coords['id_'].values[comp1_idx]}"
+            if "id_" in traces.coords
+            else f"Component {comp1_idx}"
+        )
+        comp2_label = (
+            f"Component {traces.coords['id_'].values[comp2_idx]}"
+            if "id_" in traces.coords
+            else f"Component {comp2_idx}"
+        )
+
+        g.ax_joint.set_xlabel(f"{comp1_label} Intensity")
+        g.ax_joint.set_ylabel(f"{comp2_label} Intensity")
+
+        # Save figure
+        self.save_fig(name, subdir)
+
+    def plot_trace_stats(
+        self,
+        traces: xr.DataArray,
+        indices: Optional[List[int]] = None,
+        name: str = "trace_stats",
+        subdir: Optional[str] = None,
+    ) -> None:
+        """
+        Enhanced trace visualization with statistical features.
+        """
+        if indices is None:
+            indices = list(range(min(5, len(traces))))
+
+        # Create figure with subplots
+        fig = plt.figure(figsize=(15, 4 * len(indices)))
+        gs = fig.add_gridspec(len(indices), 2, width_ratios=[3, 1])
+
+        for i, idx in enumerate(indices):
+            # Time series plot
+            ax_time = fig.add_subplot(gs[i, 0])
+            sns.lineplot(
+                data=traces[idx],
+                ax=ax_time,
+                color=self.colors["main"][i % len(self.colors["main"])],
+                label=f"Component {idx}",
+            )
+
+            # Distribution plot
+            ax_dist = fig.add_subplot(gs[i, 1])
+            sns.histplot(
+                data=traces[idx],
+                ax=ax_dist,
+                kde=True,
+                color=self.colors["main"][i % len(self.colors["main"])],
+            )
+
+            # Add statistical annotations
+            stats_text = (
+                f"μ = {traces[idx].mean():.2f}\n"
+                f"σ = {traces[idx].std():.2f}\n"
+                f"max = {traces[idx].max():.2f}"
+            )
+            ax_dist.text(
+                0.95,
+                0.95,
+                stats_text,
+                transform=ax_dist.transAxes,
+                verticalalignment="top",
+                horizontalalignment="right",
+                bbox=dict(facecolor="white", alpha=0.8),
+            )
+
+            sns.despine(ax=ax_time)
+            sns.despine(ax=ax_dist)
+
+        plt.tight_layout()
+        self.save_fig(name, subdir)
+
+    def plot_component_clustering(
+        self,
+        traces: xr.DataArray,
+        name: str = "component_clustering",
+        subdir: Optional[str] = None,
+    ) -> None:
+        """
+        Create clustering visualization of components based on trace similarity.
+        """
+        # Calculate correlation matrix
+        corr_matrix = np.corrcoef(traces)
+
+        # Create clustermap
+        g = sns.clustermap(
+            corr_matrix,
+            cmap=self.colors["diverging"],
+            center=0,
+            figsize=(12, 12),
+            dendrogram_ratio=0.1,
+            cbar_pos=(0.02, 0.8, 0.03, 0.2),
+            cbar_kws={"label": "Correlation"},
+            annot=len(traces) < 10,
+            fmt=".2f",
+        )
+
+        # Add title
+        g.fig.suptitle("Component Clustering by Trace Similarity", y=1.02)
 
         # Save figure
         self.save_fig(name, subdir)
