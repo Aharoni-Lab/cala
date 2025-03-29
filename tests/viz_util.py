@@ -189,7 +189,7 @@ class Visualizer:
                 pixel_stats[idx],
                 cmap="rocket",  # seaborn's improved heat colormap
                 center=0,
-                cbar_kws={"label": "Correlation"},
+                cbar_kws={"label": "Inner Product"},
                 ax=ax,
                 vmin=vmin,
                 vmax=vmax,
