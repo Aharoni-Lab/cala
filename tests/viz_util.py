@@ -25,7 +25,7 @@ class Visualizer:
 
     def plot_footprints(
         self,
-        footprints_xr,
+        footprints,
         positions: np.ndarray | None = None,
         radii: np.ndarray | None = None,
         name: str = "footprints",
@@ -37,7 +37,7 @@ class Visualizer:
         fig, ax = plt.subplots(figsize=(10, 10))
 
         # Plot composite image
-        composite = footprints_xr.sum(dim="component")
+        composite = footprints.sum(dim="component")
         im = ax.imshow(composite, cmap="viridis")
 
         if positions is not None and radii is not None:
@@ -49,7 +49,7 @@ class Visualizer:
                 ax.add_patch(circle)
 
         plt.colorbar(im)
-        ax.set_title(title or f"Spatial Footprints (n={len(footprints_xr)})")
+        ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
         self.save_fig(name, subdir)
 
     def plot_traces(
