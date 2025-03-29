@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Callable, List
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import xarray as xr
 from skimage.measure import find_contours
 
@@ -316,3 +317,90 @@ class Visualizer:
             imageio.mimsave(save_dir / f"{name}.gif", frames, fps=30)
         except ImportError:
             print("imageio not installed - skipping gif creation")
+
+    def plot_trace_correlations(
+        self,
+        traces: xr.DataArray,
+        name: str = "trace_correlations",
+        subdir: Optional[str] = None,
+    ) -> None:
+        """
+        Create pairplot of trace correlations between components.
+
+        Parameters
+        ----------
+        traces : xr.DataArray
+            DataArray with dims (component, frame) containing component traces
+        """
+        # Convert to pandas DataFrame for seaborn
+        df = traces.to_pandas().T  # Transpose to get components as columns
+
+        # Use component IDs as column names if available
+        if "id_" in traces.coords:
+            df.columns = traces.coords["id_"].values
+
+        # Create pairplot
+        g = sns.pairplot(
+            df,
+            diag_kind="kde",  # Kernel density plots on diagonal
+            plot_kws={"alpha": 0.6},
+        )
+
+        # Add title
+        g.fig.suptitle("Component Trace Correlations", y=1.02)
+
+        # Save figure
+        self.save_fig(name, subdir)
+
+    def plot_component_stats(
+        self,
+        component_stats: xr.DataArray,
+        name: str = "component_stats",
+        subdir: Optional[str] = None,
+        cmap: str = "RdBu_r",
+    ) -> None:
+        """
+        Create heatmap of component correlation statistics.
+
+        Parameters
+        ----------
+        component_stats : xr.DataArray
+            DataArray with dims (component, component') containing correlation matrix
+        cmap : str
+            Colormap to use for heatmap
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Get component IDs and types for labels
+        comp_ids = component_stats.coords["id_"].values
+        comp_types = component_stats.coords["type_"].values
+        labels = [f"{id_}\n({type_})" for id_, type_ in zip(comp_ids, comp_types)]
+
+        # Create heatmap
+        sns.heatmap(
+            component_stats.values,
+            ax=ax,
+            cmap=cmap,
+            center=0,  # Center colormap at 0 for correlation matrix
+            # vmin=-1,
+            # vmax=1,
+            square=True,  # Make cells square
+            xticklabels=labels,
+            yticklabels=labels,
+            annot=True,  # Show correlation values
+            fmt=".2f",  # Format for correlation values
+            cbar_kws={"label": "Correlation"},
+        )
+
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45, ha="right")
+        plt.yticks(rotation=0)
+
+        # Add title
+        plt.title("Component Statistics Matrix")
+
+        # Adjust layout to prevent label cutoff
+        plt.tight_layout()
+
+        # Save figure
+        self.save_fig(name, subdir)
