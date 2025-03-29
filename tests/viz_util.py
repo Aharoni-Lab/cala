@@ -150,7 +150,7 @@ class Visualizer:
             # Plot correlation map for this component
             im = ax.imshow(
                 pixel_stats[idx],
-                cmap="RdBu_r",  # Red-Blue diverging colormap
+                cmap="hot",  # hot colormap
                 vmin=vmin,
                 vmax=vmax,
             )

@@ -75,27 +75,31 @@ class TestPixelStatsInitializer:
             stabilized_video.sizes["width"],
         )
 
-    def test_computation_correctness(self, initializer, traces, stabilized_video):
+    @pytest.mark.viz
+    def test_sanity_check(self, initializer, visualizer):
         """Test the correctness of the pixel statistics computation."""
-        # the test is probably wrong :/ needs to be rewritten.
-        # # Prepare data
-        # traces = sample_data["traces"]
-        # frames = sample_data["frames"]
-        #
-        # # Run computation
-        # initializer.learn_one(traces, frames)
-        # result = initializer.transform_one()
-        #
-        # # Manual computation for verification
-        # Y = frames.values.reshape(-1, frames.shape[0])
-        # C = traces.values
-        # expected_W = (Y @ C.T / frames.shape[0]).reshape(
-        #     frames.shape[1], frames.shape[2], traces.shape[0]
-        # )
-        # expected_W = np.transpose(expected_W, (2, 0, 1))
+        video = xr.DataArray(np.zeros((2, 2, 3)), dims=("height", "width", "frame"))
+        video[0, 0, :] = [1, 2, 3]
+        video[1, 1, :] = [3, 2, 1]
+        video[0, 1, :] = [1, 2, 1]
 
-        # Compare results
-        # assert np.allclose(result.values, expected_W)
+        traces = xr.DataArray(
+            np.zeros((2, 3)),
+            dims=("component", "frame"),
+            coords={
+                "id_": ("component", ["comp1", "comp2"]),
+                "type_": ("component", ["neuron", "neuron"]),
+            },
+        )
+        traces[0, :] = [1, 2, 3]
+        traces[1, :] = [3, 2, 1]
+
+        # Run computation
+        initializer.learn_one(traces, video)
+        result = initializer.transform_one()
+
+        visualizer.plot_traces(traces, subdir="init/pixel_stats/sanity_check")
+        visualizer.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
 
     def test_coordinate_preservation(self, initializer, traces, stabilized_video):
         """Test that coordinates are properly preserved through the transformation."""
