@@ -134,6 +134,12 @@ class TestTraceUpdater:
         )
         new_traces = updater.transform_one()
 
+        visualizer.plot_comparison(
+            sample_footprints @ new_traces,
+            sample_footprints @ sample_traces.isel(frame=-1),
+            subdir="iter/trace",
+        )
+
         assert np.allclose(
             new_traces, sample_traces.isel(frame=-1), atol=1e-3 * p.n_components
         )

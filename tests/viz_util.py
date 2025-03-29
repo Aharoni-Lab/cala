@@ -717,3 +717,50 @@ class Visualizer:
 
         plt.tight_layout()
         self.save_fig(name, subdir)
+
+    def plot_comparison(
+        self,
+        image1: np.ndarray,
+        image2: np.ndarray,
+        name: str = "comparison",
+        subdir: Optional[str] = None,
+        titles: Tuple[str, str] = ("Label", "Prediction"),
+    ) -> None:
+        """
+        Plot two images side by side with their difference.
+
+        Parameters
+        ----------
+        image1, image2 : np.ndarray
+            Images to compare
+        name : str
+            Name for the saved figure
+        subdir : Optional[str]
+            Subdirectory for saving the figure
+        titles : Tuple[str, str]
+            Titles for the two input images
+        """
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+
+        # Plot first image
+        im1 = ax1.imshow(image1)
+        ax1.set_title(titles[0])
+        plt.colorbar(im1, ax=ax1)
+
+        # Plot second image
+        im2 = ax2.imshow(image2)
+        ax2.set_title(titles[1])
+        plt.colorbar(im2, ax=ax2)
+
+        # Plot difference
+        diff = image1 - image2
+        im3 = ax3.imshow(diff, cmap="RdBu_r")
+        ax3.set_title("Difference")
+        plt.colorbar(im3, ax=ax3)
+
+        # Turn off axes for cleaner look
+        for ax in (ax1, ax2, ax3):
+            ax.axis("off")
+
+        plt.tight_layout()
+        self.save_fig(name, subdir)
