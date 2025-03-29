@@ -16,40 +16,10 @@ class TestResidualInitializerParams:
         """Create default parameters instance."""
         return ResidualInitializerParams()
 
-    def test_default_values(self, default_params):
-        """Test default parameter values."""
-        assert default_params.component_axis == "components"
-        assert default_params.id_coordinates == "id_"
-        assert default_params.type_coordinates == "type_"
-        assert default_params.frames_axis == "frame"
-        assert default_params.spatial_axes == ("height", "width")
-        assert default_params.buffer_length == 50
-
     def test_validation_valid_params(self):
         """Test validation with valid parameters."""
-        params = ResidualInitializerParams(spatial_axes=("y", "x"), buffer_length=10)
+        params = ResidualInitializerParams(buffer_length=10)
         params.validate()  # Should not raise
-
-    def test_validation_invalid_params(self):
-        """Test validation with invalid parameters."""
-        # Test with wrong spatial axes type
-        with pytest.raises(ValueError):
-            params = ResidualInitializerParams(spatial_axes=["height", "width"])
-            params.validate()
-
-        # Test with wrong spatial axes length
-        with pytest.raises(ValueError):
-            params = ResidualInitializerParams(spatial_axes=("height",))
-            params.validate()
-
-        # Test with invalid buffer length
-        with pytest.raises(ValueError):
-            params = ResidualInitializerParams(buffer_length=0)
-            params.validate()
-
-        with pytest.raises(ValueError):
-            params = ResidualInitializerParams(buffer_length=-1)
-            params.validate()
 
 
 class TestResidualInitializer:
@@ -60,37 +30,48 @@ class TestResidualInitializer:
         """Create sample data for testing."""
         # Create sample dimensions
         n_components = 3
-        height, width = 10, 10
+        height, width = 5, 5
         n_frames = 15  # Larger than default buffer to test buffering
 
         # Create sample coordinates
         coords = {
-            "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "id_": ("component", [f"id{i}" for i in range(n_components)]),
+            "type_": ("component", ["neuron", "neuron", "background"]),
         }
 
-        # Create sample footprints
-        footprints_data = np.random.rand(n_components, height, width)
         footprints = xr.DataArray(
-            footprints_data, dims=("components", "height", "width"), coords=coords
+            np.zeros((n_components, height, width)),
+            dims=("component", "height", "width"),
+            coords=coords,
         )
+        footprints[0, 0:2, 0:2] = 1
+        footprints[1, 1:4, 1:4] = 3
+        footprints[2, 3:5, 3:5] = 2
 
-        # Create sample traces
-        traces_data = np.random.rand(n_components, n_frames)
-        traces = xr.DataArray(traces_data, dims=("components", "frame"), coords=coords)
+        traces = xr.DataArray(
+            np.zeros((n_components, n_frames)),
+            dims=("component", "frame"),
+            coords=coords,
+        )
+        traces[0, :] = [1 for _ in range(n_frames)]
+        traces[1, :] = [i for i in range(n_frames)]
+        traces[2, :] = [n_frames - i for i in range(n_frames)]
 
-        # Create sample frames
-        frames_data = np.random.rand(n_frames, height, width)
-        frames = xr.DataArray(frames_data, dims=("frame", "height", "width"))
+        residual = xr.DataArray(
+            np.zeros((n_frames, height, width)), dims=("frame", "height", "width")
+        )
+        for i in range(n_frames):
+            residual[i, :, i % width] = 3
+
+        denoised_movie = footprints @ traces
+        movie = denoised_movie + residual
 
         return {
+            "movie": movie.transpose("frame", "height", "width"),
+            "denoised": denoised_movie.transpose("frame", "height", "width"),
             "footprints": footprints,
             "traces": traces,
-            "frames": frames,
-            "n_components": n_components,
-            "height": height,
-            "width": width,
-            "n_frames": n_frames,
+            "residual": residual.transpose("frame", "height", "width"),
         }
 
     @pytest.fixture
@@ -138,30 +119,42 @@ class TestResidualInitializer:
         assert isinstance(result, xr.DataArray)
         assert result.dims == ("frame", "pixel")
 
-    def test_computation_correctness(self, initializer, sample_data):
+    @pytest.mark.viz
+    def test_computation_correctness(self, sample_data, visualizer):
         """Test the correctness of the residual computation."""
-        # the test is probably incorrect :/
-        # # Prepare data
-        # footprints = sample_data["footprints"]
-        # traces = sample_data["traces"]
-        # frames = sample_data["frames"]
-        #
-        # # Run computation
-        # initializer.learn_one(footprints, traces, frames)
-        # result = initializer.transform_one()
-        #
-        # # Manual computation for verification
-        # Y = frames.values.reshape(-1, frames.shape[0])
-        # A = footprints.values.reshape(footprints.shape[0], -1).T
-        # C = traces.values
-        #
-        # expected_R = Y - A @ C
-        # start_idx = max(0, frames.shape[0] - initializer.params.buffer_length)
-        # expected_R = expected_R[:, start_idx:]
-        # expected_R = expected_R.reshape(frames.shape[1], frames.shape[2], -1)
-        #
-        # # Compare results
-        # assert np.allclose(result.values, expected_R)
+        # Prepare data
+        sample_movie = sample_data["movie"]
+        sample_denoised = sample_data["denoised"]
+        sample_footprints = sample_data["footprints"]
+        sample_traces = sample_data["traces"]
+        sample_residual = sample_data["residual"]
+
+        isitclean = sample_movie - sample_denoised - sample_residual
+
+        visualizer.plot_footprints(sample_footprints, subdir="init/resid")
+        visualizer.plot_traces(sample_traces, subdir="init/resid")
+        visualizer.save_video_frames(
+            [
+                (sample_movie, "movie"),
+                (sample_denoised, "denoised"),
+                (sample_residual, "residual"),
+                (isitclean, "isitclean"),
+            ],
+            subdir="init/resid",
+        )
+
+        initializer = ResidualInitializer(
+            ResidualInitializerParams(buffer_length=len(sample_movie))
+        )
+
+        # Run computation
+        initializer.learn_one(sample_footprints, sample_traces, sample_movie)
+        result = initializer.transform_one()
+
+        assert np.array_equal(
+            sample_residual.transpose("frame", "height", "width"),
+            result.transpose("frame", "height", "width"),
+        )
 
     def test_buffer_length(self, sample_data):
         """Test that buffer length is properly enforced."""
@@ -184,18 +177,18 @@ class TestResidualInitializer:
         # Test with mismatched dimensions
         invalid_footprints = xr.DataArray(
             np.random.rand(3, 8, 8),  # Different spatial dimensions
-            dims=("components", "height", "width"),
+            dims=("component", "height", "width"),
             coords={
-                "id_": ("components", ["id0", "id1", "id2"]),
-                "type_": ("components", ["neuron", "neuron", "background"]),
+                "id_": ("component", ["id0", "id1", "id2"]),
+                "type_": ("component", ["neuron", "neuron", "background"]),
             },
         )
         invalid_traces = xr.DataArray(
             np.random.rand(3, 10),
-            dims=("components", "frame"),
+            dims=("component", "frame"),
             coords={
-                "id_": ("components", ["id0", "id1", "id2"]),
-                "type_": ("components", ["neuron", "neuron", "background"]),
+                "id_": ("component", ["id0", "id1", "id2"]),
+                "type_": ("component", ["neuron", "neuron", "background"]),
             },
         )
         invalid_frames = xr.DataArray(

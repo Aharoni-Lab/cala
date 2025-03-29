@@ -19,4 +19,7 @@ def test_plot_observable_fixtures(visualizer, footprints, traces, spikes):
 
     # Show visualizations
     visualizer.plot_footprints(footprints_xr, positions, radii)
-    visualizer.plot_traces(traces, spikes, indices=[0, 1, 2], name="calcium_traces")
+    visualizer.plot_traces(traces, spikes, indices=[0, 1, 2])
+    visualizer.plot_trace_stats(traces, indices=[0, 1, 2])
+    visualizer.plot_trace_pair_analysis(traces, comp1_idx=0, comp2_idx=1)
+    visualizer.plot_component_clustering(traces)
