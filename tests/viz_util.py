@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Callable, List
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage.measure import find_contours
 
 
 class Visualizer:
@@ -40,13 +41,39 @@ class Visualizer:
         composite = footprints.sum(dim="component")
         im = ax.imshow(composite, cmap="viridis")
 
+        # Draw circles if positions and radii provided
         if positions is not None and radii is not None:
-            # Plot circles for all neurons
             for i, (pos, r) in enumerate(zip(positions, radii)):
                 color = "y" if highlight_indices and i in highlight_indices else "r"
                 alpha = 0.8 if highlight_indices and i in highlight_indices else 0.5
                 circle = plt.Circle(pos[::-1], r, fill=False, color=color, alpha=alpha)
                 ax.add_patch(circle)
+
+        # Draw contours and labels for each component
+        for i, component in enumerate(footprints):
+            # Find contours at level 0 (boundary between zero and positive values)
+            contours = find_contours(component, 0)
+
+            # Draw each contour
+            color = "y" if highlight_indices and i in highlight_indices else "w"
+            for contour in contours:
+                ax.plot(contour[:, 1], contour[:, 0], color=color, linewidth=1)
+
+            # Add component number at centroid of largest contour
+            if contours:
+                # Use largest contour for label placement
+                largest_contour = max(contours, key=len)
+                center_y = largest_contour[:, 0].mean()
+                center_x = largest_contour[:, 1].mean()
+                ax.text(
+                    center_x,
+                    center_y,
+                    str(i),
+                    color="w",
+                    ha="center",
+                    va="center",
+                    bbox=dict(facecolor="black", alpha=0.5, pad=1),
+                )
 
         plt.colorbar(im)
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
