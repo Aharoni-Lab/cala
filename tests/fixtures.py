@@ -62,7 +62,7 @@ def ids(params):
 
 @pytest.fixture
 def types(params):
-    return ["background"] + ["neuron"] * (params.num_neurons - 1)
+    return ["neuron"] * params.num_neurons
 
 
 @pytest.fixture
