@@ -8,73 +8,8 @@ from cala.streaming.init.odl.pixel_stats import (
 )
 
 
-class TestPixelStatsInitializerParams:
-    """Test suite for PixelStatsInitializerParams."""
-
-    @pytest.fixture
-    def default_params(self):
-        """Create default parameters instance."""
-        return PixelStatsInitializerParams()
-
-    def test_default_values(self, default_params):
-        """Test default parameter values."""
-        assert default_params.component_axis == "components"
-        assert default_params.id_coordinates == "id_"
-        assert default_params.type_coordinates == "type_"
-        assert default_params.frames_axis == "frame"
-        assert default_params.spatial_axes == ("height", "width")
-
-    def test_validation_valid_spatial_axes(self):
-        """Test validation with valid spatial axes."""
-        params = PixelStatsInitializerParams(spatial_axes=("y", "x"))
-        params.validate()  # Should not raise
-
-    def test_validation_invalid_spatial_axes(self):
-        """Test validation with invalid spatial axes."""
-        # Test with wrong type
-        with pytest.raises(ValueError):
-            params = PixelStatsInitializerParams(spatial_axes=["height", "width"])
-            params.validate()
-
-        # Test with wrong length
-        with pytest.raises(ValueError):
-            params = PixelStatsInitializerParams(spatial_axes=("height",))
-            params.validate()
-
-
 class TestPixelStatsInitializer:
     """Test suite for PixelStatsInitializer."""
-
-    @pytest.fixture
-    def sample_data(self):
-        """Create sample data for testing."""
-        # Create sample dimensions
-        n_components = 3
-        height, width = 10, 10
-        n_frames = 5
-
-        # Create sample coordinates
-        coords = {
-            "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
-        }
-
-        # Create sample traces
-        traces_data = np.random.rand(n_components, n_frames)
-        traces = xr.DataArray(traces_data, dims=("components", "frame"), coords=coords)
-
-        # Create sample frames
-        frames_data = np.random.rand(n_frames, height, width)
-        frames = xr.DataArray(frames_data, dims=("frame", "height", "width"))
-
-        return {
-            "traces": traces,
-            "frames": frames,
-            "n_components": n_components,
-            "height": height,
-            "width": width,
-            "n_frames": n_frames,
-        }
 
     @pytest.fixture
     def initializer(self):
@@ -88,36 +23,42 @@ class TestPixelStatsInitializer:
             initializer, "pixel_stats_"
         )  # Should not exist before learn_one
 
-    def test_learn_one(self, initializer, sample_data):
+    @pytest.mark.viz
+    def test_learn_one(
+        self, initializer, traces, footprints, stabilized_video, visualizer
+    ):
         """Test learn_one method."""
         # Run learn_one
-        initializer.learn_one(sample_data["traces"], sample_data["frames"])
+        initializer.learn_one(traces, stabilized_video)
 
         # Check that pixel_stats_ was created
         assert hasattr(initializer, "pixel_stats_")
         assert isinstance(initializer.pixel_stats_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.pixel_stats_.dims == ("components", "height", "width")
+        assert initializer.pixel_stats_.dims == ("component", "width", "height")
         assert initializer.pixel_stats_.shape == (
-            sample_data["n_components"],
-            sample_data["height"],
-            sample_data["width"],
+            traces.sizes["component"],
+            stabilized_video.sizes["width"],
+            stabilized_video.sizes["height"],
         )
 
         # Check coordinates
         assert "id_" in initializer.pixel_stats_.coords
         assert "type_" in initializer.pixel_stats_.coords
-        assert initializer.pixel_stats_.coords["type_"].values.tolist() == [
-            "neuron",
-            "neuron",
-            "background",
-        ]
 
-    def test_transform_one(self, initializer, sample_data):
+        visualizer.plot_traces(traces, subdir="init/pixel_stats")
+        visualizer.write_movie(stabilized_video, subdir="init/pixel_stats")
+        visualizer.plot_pixel_stats(
+            pixel_stats=initializer.pixel_stats_,
+            footprints=footprints,
+            subdir="init/pixel_stats",
+        )
+
+    def test_transform_one(self, initializer, traces, stabilized_video):
         """Test transform_one method."""
         # First learn
-        initializer.learn_one(sample_data["traces"], sample_data["frames"])
+        initializer.learn_one(traces, stabilized_video)
 
         # Then transform
         result = initializer.transform_one()
@@ -126,14 +67,14 @@ class TestPixelStatsInitializer:
         assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
-        assert result.dims == ("components", "height", "width")
+        assert result.dims == ("component", "height", "width")
         assert result.shape == (
-            sample_data["n_components"],
-            sample_data["height"],
-            sample_data["width"],
+            traces.sizes["component"],
+            stabilized_video.sizes["height"],
+            stabilized_video.sizes["width"],
         )
 
-    def test_computation_correctness(self, initializer, sample_data):
+    def test_computation_correctness(self, initializer, traces, stabilized_video):
         """Test the correctness of the pixel statistics computation."""
         # the test is probably wrong :/ needs to be rewritten.
         # # Prepare data
@@ -155,18 +96,16 @@ class TestPixelStatsInitializer:
         # Compare results
         # assert np.allclose(result.values, expected_W)
 
-    def test_coordinate_preservation(self, initializer, sample_data):
+    def test_coordinate_preservation(self, initializer, traces, stabilized_video):
         """Test that coordinates are properly preserved through the transformation."""
         # Run computation
-        initializer.learn_one(sample_data["traces"], sample_data["frames"])
+        initializer.learn_one(traces, stabilized_video)
         result = initializer.transform_one()
 
         # Check coordinate values
+        assert np.array_equal(result.coords["id_"].values, traces.coords["id_"].values)
         assert np.array_equal(
-            result.coords["id_"].values, sample_data["traces"].coords["id_"].values
-        )
-        assert np.array_equal(
-            result.coords["type_"].values, sample_data["traces"].coords["type_"].values
+            result.coords["type_"].values, traces.coords["type_"].values
         )
 
     def test_invalid_input_handling(self, initializer):

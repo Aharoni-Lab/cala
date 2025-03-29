@@ -5,6 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.measure import find_contours
+import xarray as xr
 
 
 class Visualizer:
@@ -79,6 +80,80 @@ class Visualizer:
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
         self.save_fig(name, subdir)
 
+    def plot_pixel_stats(
+        self,
+        pixel_stats: xr.DataArray,
+        footprints: xr.DataArray,
+        name: str = "pixel_stats",
+        subdir: Optional[str] = None,
+        n_cols: int = 4,
+    ) -> None:
+        """
+        Plot correlation maps between components and pixels.
+
+        Parameters
+        ----------
+        pixel_stats : xr.DataArray
+            DataArray with dims (components, height, width) showing correlation
+            between each component's trace and each pixel's intensity
+        footprints : xr.DataArray
+            DataArray with dims (components, height, width) showing the spatial
+            footprints of each component
+        name : str
+            Name for the saved figure
+        subdir : Optional[str]
+            Subdirectory within viz_outputs to save the figure
+        n_cols : int
+            Number of columns in the subplot grid
+        """
+        n_components = len(pixel_stats)
+        n_rows = (n_components + n_cols - 1) // n_cols  # Ceiling division
+
+        fig, axes = plt.subplots(
+            n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows), squeeze=False
+        )
+
+        # Find global min/max for consistent colormap scaling
+        vmin, vmax = pixel_stats.min(), pixel_stats.max()
+
+        for idx in range(n_components):
+            row, col = idx // n_cols, idx % n_cols
+            ax = axes[row, col]
+
+            # Plot correlation map for this component
+            im = ax.imshow(
+                pixel_stats[idx],
+                cmap="RdBu_r",  # Red-Blue diverging colormap
+                vmin=vmin,
+                vmax=vmax,
+            )
+
+            # Add component ID and type as title
+            comp_id = pixel_stats.coords["id_"].values[idx]
+            comp_type = pixel_stats.coords["type_"].values[idx]
+            ax.set_title(f"{comp_id}\n({comp_type})")
+
+            # Add colorbar
+            plt.colorbar(im, ax=ax)
+
+            # Remove ticks for cleaner look
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+        # Hide empty subplots
+        for idx in range(n_components, n_rows * n_cols):
+            row, col = idx // n_cols, idx % n_cols
+            axes[row, col].set_visible(False)
+
+        # Add overall title
+        fig.suptitle("Component-Pixel Correlation Maps", fontsize=16, y=1.02)
+
+        # Adjust layout to prevent overlap
+        plt.tight_layout()
+
+        # Save figure
+        self.save_fig(name, subdir)
+
     def plot_traces(
         self,
         traces,
@@ -131,12 +206,16 @@ class Visualizer:
         plt.tight_layout()
         self.save_fig(name, subdir)
 
-    def write_movie(self, video, filepath: str | Path):
+    def write_movie(self, video, subdir: str | Path | None = None, name: str = "movie"):
         """Test visualization of stabilized calcium video to verify motion stabilization."""
+        save_dir = self.output_dir
+        if subdir:
+            save_dir = save_dir / subdir
+            save_dir.mkdir(exist_ok=True)
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(
-            self.output_dir / filepath,
+            save_dir / f"{name}.mp4",
             fourcc,
             24.0,
             (video.sizes["width"], video.sizes["height"]),
