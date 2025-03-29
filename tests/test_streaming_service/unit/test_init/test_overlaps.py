@@ -9,44 +9,11 @@ from cala.streaming.init.odl.overlaps import (
 )
 
 
-class TestOverlapsInitializerParams:
-    """Test suite for OverlapGroupsInitializerParams."""
-
-    @pytest.fixture
-    def default_params(self):
-        """Create default parameters instance."""
-        return OverlapsInitializerParams()
-
-    def test_default_values(self, default_params):
-        """Test default parameter values."""
-        assert default_params.component_axis == "components"
-        assert default_params.id_coordinates == "id_"
-        assert default_params.type_coordinates == "type_"
-        assert default_params.spatial_axes == ("height", "width")
-
-    def test_validation_valid_spatial_axes(self):
-        """Test validation with valid spatial axes."""
-        params = OverlapsInitializerParams(spatial_axes=("y", "x"))
-        params.validate()  # Should not raise
-
-    def test_validation_invalid_spatial_axes(self):
-        """Test validation with invalid spatial axes."""
-        # Test with wrong type
-        with pytest.raises(ValueError):
-            params = OverlapsInitializerParams(spatial_axes=["height", "width"])
-            params.validate()
-
-        # Test with wrong length
-        with pytest.raises(ValueError):
-            params = OverlapsInitializerParams(spatial_axes=("height",))
-            params.validate()
-
-
 class TestOverlapsInitializer:
     """Test suite for OverlapsInitializer."""
 
     @pytest.fixture
-    def sample_footprints(self):
+    def sample_footprints(self, visualizer):
         """Create sample footprints for testing.
 
         Creates a set of footprints with known overlap patterns:
@@ -68,12 +35,12 @@ class TestOverlapsInitializer:
         footprints_data[4, 1:4, 7:9] = 1  # Component 4 (overlaps with 3)
 
         coords = {
-            "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron"] * 3 + ["background"] * 2),
+            "id_": ("component", [f"id{i}" for i in range(n_components)]),
+            "type_": ("component", ["neuron"] * 3 + ["background"] * 2),
         }
 
         return xr.DataArray(
-            footprints_data, dims=("components", "height", "width"), coords=coords
+            footprints_data, dims=("component", "height", "width"), coords=coords
         )
 
     @pytest.fixture
@@ -95,7 +62,7 @@ class TestOverlapsInitializer:
         assert isinstance(initializer.overlaps_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.overlaps_.dims == ("components", "components'")
+        assert initializer.overlaps_.dims == ("component", "component'")
         assert initializer.overlaps_.shape == (5, 5)
 
         # Check coordinates
@@ -110,22 +77,28 @@ class TestOverlapsInitializer:
         # Check result type
         assert isinstance(result.data, sparse.COO)
 
-    def test_overlap_detection_correctness(self, initializer, sample_footprints):
+    @pytest.mark.viz
+    def test_overlap_detection_correctness(
+        self, initializer, sample_footprints, visualizer
+    ):
         """Test the correctness of overlap detection."""
+        visualizer.plot_footprints(sample_footprints, subdir="init/overlap")
+
         initializer.learn_one(sample_footprints)
         result = initializer.transform_one()
 
+        result.values = result.data.todense()
+        visualizer.plot_overlap(result, sample_footprints, subdir="init/overlap")
         # Convert to dense for testing
-        overlap_matrix = result.data.todense()
 
         # Test expected overlap patterns
-        assert overlap_matrix[0, 1] == 1  # Components 0 and 1 overlap
-        assert overlap_matrix[1, 0] == 1  # Symmetric
-        assert np.sum(overlap_matrix[2]) == 1  # Component 2 only overlaps with itself
-        assert overlap_matrix[1, 4] == 1  # Components 3 and 4 overlap
-        assert overlap_matrix[4, 1] == 1  # Components 3 and 4 overlap
-        assert overlap_matrix[3, 4] == 1  # Components 3 and 4 overlap
-        assert overlap_matrix[4, 3] == 1  # Symmetric
+        assert result[0, 1] == 1  # Components 0 and 1 overlap
+        assert result[1, 0] == 1  # Symmetric
+        assert np.sum(result[2]) == 1  # Component 2 only overlaps with itself
+        assert result[1, 4] == 1  # Components 3 and 4 overlap
+        assert result[4, 1] == 1  # Components 3 and 4 overlap
+        assert result[3, 4] == 1  # Components 3 and 4 overlap
+        assert result[4, 3] == 1  # Symmetric
 
     def test_coordinate_preservation(self, initializer, sample_footprints):
         """Test that coordinates are properly preserved."""

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray as xr
+from scipy.sparse.csgraph import connected_components
 from skimage.measure import find_contours
 
 
@@ -577,7 +578,86 @@ class Visualizer:
         )
 
         # Add title
-        g.fig.suptitle("Component Clustering by Trace Similarity", y=1.02)
+        g.figure.suptitle("Component Clustering by Trace Similarity", y=1.02)
 
         # Save figure
+        self.save_fig(name, subdir)
+
+    def plot_overlap(
+        self,
+        overlap_matrix: np.ndarray,
+        footprints: xr.DataArray,
+        name: str = "component_overlap",
+        subdir: Optional[str] = None,
+    ) -> None:
+        """
+        Plot footprints with overlapping components highlighted by group.
+
+        Parameters
+        ----------
+        overlap_matrix : np.ndarray
+            Square binary matrix where (i,j) = 1 if components i and j overlap
+        footprints : xr.DataArray
+            DataArray with dims (component, height, width) showing spatial footprints
+        name : str
+            Name for the output file
+        subdir : Optional[str]
+            Subdirectory for saving the figure
+        """
+        # Find connected components (groups of overlapping neurons)
+        n_groups, labels = connected_components(overlap_matrix, directed=False)
+
+        # Create figure
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7))
+
+        # Plot 1: Overlap matrix with group boundaries
+        sns.heatmap(
+            overlap_matrix,
+            ax=ax1,
+            cmap="crest",
+            cbar_kws={"label": "Overlap"},
+            square=True,
+            xticklabels=True,
+            yticklabels=True,
+        )
+
+        ax1.set_title("Overlap Matrix")
+
+        # Plot 2: Spatial footprints with overlapping groups colored
+        composite = footprints.max(dim="component")
+        ax2.grid(False)
+        im = ax2.imshow(composite, cmap="flare")
+        plt.colorbar(im, ax=ax2, label="Component Intensity")
+
+        # Plot contours for each group
+        for group_idx in range(n_groups):
+            group_mask = labels == group_idx
+            if sum(group_mask) > 1:  # Only mark groups with multiple components
+                color = self.colors["categorical"][
+                    group_idx % len(self.colors["categorical"])
+                ]
+                group_indices = np.where(group_mask)[0]
+
+                # Plot contours for all components in this group
+                for comp_idx in group_indices:
+                    self._plot_component_contours(
+                        ax2,
+                        footprints[comp_idx].values,
+                        color=color,
+                        label=str(comp_idx),
+                    )
+
+        # Plot contours for non-overlapping components in white
+        for comp_idx in range(len(footprints)):
+            if sum(overlap_matrix[comp_idx]) <= 1:  # Only self-overlap
+                self._plot_component_contours(
+                    ax2, footprints[comp_idx].values, color="w", label=str(comp_idx)
+                )
+
+        ax2.set_title("Spatial Footprints with Overlap Groups")
+
+        # Add overall title
+        fig.suptitle("Component Overlap Analysis", y=1.02, fontsize=14)
+
+        plt.tight_layout()
         self.save_fig(name, subdir)
