@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type, Optional, get_origin, Annotated
+from typing import Type, Optional, get_origin, Annotated, get_args
 
 import xarray as xr
 
@@ -52,24 +52,37 @@ class Distributor:
         # Create and set the store
         setattr(self, store_name, target_store_type(result))
 
-    def update(self, result: xr.DataArray, type_: Type) -> None:
-        """Update an appropriate Observable containers with a result DataArray.
+    def update(
+        self,
+        result: xr.DataArray | tuple[xr.DataArray, ...],
+        type_: Type | tuple[Type, ...],
+    ) -> None:
+        """Update appropriate Observable containers with result DataArray(s).
 
         This method automatically determines the correct storage location based on the
-        type of the input DataArray.
+        type of the input DataArray(s).
 
         Args:
-            result: A single xr.DataArray to be stored. Must correspond to a valid Observable type.
-            type_: type of the result. If an observable, should be an Annotated type that links to Store class.
+            result: A single xr.DataArray or tuple of DataArrays to be stored. Must correspond to valid Observable types.
+            type_: Type or tuple of types of the result(s). If an observable, should be an Annotated type that links to Store class.
         """
-        target_store_type = self._get_store_type(type_)
-        if target_store_type is None:
-            return
+        # Convert single inputs to tuples for uniform handling
+        results, types = (
+            ((result,), (type_,))
+            if not isinstance(result, tuple)
+            else (result, get_args(type_))
+        )
 
-        store_name = target_store_type.__name__.lower()
+        if len(results) != len(types):
+            raise ValueError("Number of results must match number of types")
 
-        # Update the store
-        getattr(self, store_name).update(result)
+        for r, t in zip(results, types):
+            target_store_type = self._get_store_type(t)
+            if target_store_type is None:
+                continue
+
+            store_name = target_store_type.__name__.lower()
+            getattr(self, store_name).update(r)
 
     @staticmethod
     def _get_store_type(type_: Type) -> type | None:

@@ -7,28 +7,18 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats
 
 
 @dataclass
-class PixelStatsUpdaterParams(Parameters):
+class PixelStatsUpdaterParams(Parameters, Axis):
     """Parameters for sufficient statistics updates.
 
     This class defines the configuration parameters needed for updating
     pixel-wise and component-wise sufficient statistics matrices.
     """
-
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    frames_axis: str = "frame"
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
-
-    pixel_axis: str = "pixel"
 
     def validate(self):
         """Validate parameter configurations.
@@ -92,8 +82,8 @@ class PixelStatsUpdater(SupervisedTransformer):
         new_scale = 1 / frame_idx
 
         # Flatten spatial dimensions of frame
-        y_t = frame.array.stack({self.params.pixel_axis: self.params.spatial_axes})
-        W = pixel_stats.stack({self.params.pixel_axis: self.params.spatial_axes})
+        y_t = frame.array.stack({"pixels": self.params.spatial_axes})
+        W = pixel_stats.stack({"pixels": self.params.spatial_axes})
         # New frame traces
         c_t = traces.isel({self.params.frames_axis: -1})
 
@@ -105,7 +95,7 @@ class PixelStatsUpdater(SupervisedTransformer):
         W_update = prev_scale * W + new_scale * new_corr
 
         # Create updated xarray DataArrays with same coordinates/dimensions
-        self.pixel_stats_ = W_update.unstack(self.params.pixel_axis)
+        self.pixel_stats_ = W_update.unstack("pixels")
 
         self.is_fitted_ = True
         return self

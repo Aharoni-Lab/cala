@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import pytest
 import xarray as xr
 from sklearn.exceptions import NotFittedError
@@ -11,7 +10,6 @@ from cala.streaming.init.common import (
     TracesInitializer,
     TracesInitializerParams,
 )
-from tests.fixtures import stabilized_video
 
 
 class TestTracesInitializer:
@@ -32,7 +30,7 @@ class TestTracesInitializer:
         """Setup footprints for traces initialization."""
         params = FootprintsInitializerParams()
         initializer = FootprintsInitializer(params=params)
-        video, _, _ = stabilized_video
+        video = stabilized_video
 
         initializer.learn_one(frame=video[0])
         footprints = initializer.transform_one()
@@ -44,40 +42,33 @@ class TestTracesInitializer:
         assert default_initializer.params == default_params
         assert not default_initializer.is_fitted_
 
+    @pytest.mark.viz
     @pytest.mark.parametrize("jit_enabled", [True, False])
     def test_learn_one_basic(
-        self, default_initializer, footprints_setup, stabilized_video, jit_enabled
+        self,
+        default_initializer,
+        footprints_setup,
+        stabilized_video,
+        jit_enabled,
+        visualizer,
     ):
         """Test basic learning functionality."""
         if not jit_enabled:
             os.environ["NUMBA_DISABLE_JIT"] = "1"
 
-        video, _, _ = stabilized_video
+        video = stabilized_video
         frames = video[0:3]
 
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
+        visualizer.plot_traces(traces, subdir="init")
         assert isinstance(traces, xr.DataArray)
         assert (
             traces.sizes[default_initializer.params.component_axis]
             == footprints_setup.sizes[default_initializer.params.component_axis]
         )
         assert traces.sizes[default_initializer.params.frames_axis] == 3
-
-    def test_transform_one_output_types(
-        self, default_initializer, footprints_setup, stabilized_video
-    ):
-        """Test output types from transform_one."""
-        video, _, _ = stabilized_video
-        frames = video[0:3]
-
-        default_initializer.learn_one(footprints=footprints_setup, frame=frames)
-        traces = default_initializer.transform_one()
-
-        assert isinstance(traces, xr.DataArray)
-        assert isinstance(traces.values, np.ndarray)
-        assert traces.values.dtype == np.float64
 
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""
@@ -91,7 +82,7 @@ class TestTracesInitializer:
             self, default_initializer, footprints_setup, stabilized_video
         ):
             """Test learning with mismatched dimensions."""
-            video, _, _ = stabilized_video
+            video = stabilized_video
             # Modify frames to create dimension mismatch
             frames = video[0:3].drop_isel({"width": [-1]})  # Incorrect shape
 

@@ -1,6 +1,7 @@
 from typing import cast
 
 import cv2
+import matplotlib.pyplot as plt
 import pytest
 
 from cala.streaming.composer import StreamingConfig, Runner, Frame
@@ -17,6 +18,8 @@ from cala.streaming.iterate import (
     PixelStatsUpdater,
     FootprintsUpdater,
 )
+from cala.streaming.iterate.detect import Detector
+from cala.streaming.iterate.overlaps import OverlapsUpdater
 from cala.streaming.preprocess import (
     Downsampler,
     Denoiser,
@@ -70,7 +73,7 @@ def preprocess_config() -> StreamingConfig:
 
 def test_preprocess_execution(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
         frame = runner.preprocess(frame)
@@ -93,7 +96,7 @@ def initialization_config() -> StreamingConfig:
                 },
                 "traces": {
                     "transformer": TracesInitializer,
-                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "params": {},
                     "n_frames": 3,
                     "requires": ["footprints"],
                 },
@@ -127,7 +130,7 @@ def initialization_config() -> StreamingConfig:
 
 def test_initialize_execution(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
-    video, _, _ = stabilized_video
+    video = stabilized_video
 
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
@@ -186,7 +189,7 @@ def streaming_config() -> StreamingConfig:
                 },
                 "traces": {
                     "transformer": TracesInitializer,
-                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "params": {},
                     "n_frames": 3,
                     "requires": ["footprints"],
                 },
@@ -219,20 +222,35 @@ def streaming_config() -> StreamingConfig:
                     "transformer": TracesUpdater,
                     "params": {"tolerance": 1e-3},
                 },
+                "detect": {
+                    "transformer": Detector,
+                    "params": {
+                        "num_nmf_residual_frames": 10,
+                        "gaussian_radius": 4.0,
+                        "spatial_threshold": 0.8,
+                        "temporal_threshold": 0.8,
+                    },
+                    "requires": ["traces"],
+                },
                 "pixel_stats": {
                     "transformer": PixelStatsUpdater,
                     "params": {},
-                    "requires": ["traces"],
+                    "requires": ["detect"],
                 },
                 "component_stats": {
                     "transformer": ComponentStatsUpdater,
                     "params": {},
-                    "requires": ["traces"],
+                    "requires": ["detect"],
                 },
                 "footprints": {
                     "transformer": FootprintsUpdater,
                     "params": {"boundary_expansion_pixels": 1},
                     "requires": ["pixel_stats", "component_stats"],
+                },
+                "overlaps": {
+                    "transformer": OverlapsUpdater,
+                    "params": {},
+                    "requires": ["footprints"],
                 },
             },
         },
@@ -240,16 +258,14 @@ def streaming_config() -> StreamingConfig:
 
 
 def test_streaming_execution(streaming_config, raw_calcium_video):
-    # import matplotlib.pyplot as plt
 
     runner = Runner(streaming_config)
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
-        # plt.imsave(f"preprocess_{idx}.png", frame)
         frame = runner.preprocess(frame)
-        # plt.imsave(f"postprocess_{idx}.png", frame)
+        plt.imsave(f"frame{idx}.png", frame.array)
 
         if not runner.is_initialized:
             runner.initialize(frame)

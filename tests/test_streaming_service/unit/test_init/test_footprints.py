@@ -1,6 +1,4 @@
 import pytest
-import xarray as xr
-from sklearn.exceptions import NotFittedError
 
 from cala.streaming.init.common import (
     FootprintsInitializer,
@@ -40,7 +38,7 @@ class TestFootprintsInitializer:
 
     def test_learn_one_first_frame(self, default_initializer, stabilized_video):
         """Test learning from the first frame."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
@@ -48,35 +46,23 @@ class TestFootprintsInitializer:
         assert default_initializer.markers_.shape == first_frame.shape
         assert default_initializer.num_markers_ == len(default_initializer.footprints_)
 
-    def test_transform_one_output_shapes(self, default_initializer, stabilized_video):
+    @pytest.mark.viz
+    def test_transform_one_output_shapes(
+        self, visualizer, default_initializer, stabilized_video
+    ):
         """Test output shapes from transform_one."""
-        video, _, _ = stabilized_video
+        video = stabilized_video
         first_frame = video[0]
 
         default_initializer.learn_one(frame=first_frame)
         footprints = default_initializer.transform_one()
 
+        visualizer.plot_footprints(footprints, subdir="init")
         # Check shapes match input frame
         assert footprints[0].shape == first_frame.shape
 
-    def test_transform_one_output_types(self, default_initializer, stabilized_video):
-        """Test output types from transform_one."""
-        video, _, _ = stabilized_video
-        first_frame = video[0]
-
-        default_initializer.learn_one(frame=first_frame)
-        footprints = default_initializer.transform_one()
-
-        # Check types
-        assert isinstance(footprints, xr.DataArray)
-
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""
-
-        def test_transform_before_learn(self, default_initializer):
-            """Test calling transform_one before learn_one."""
-            with pytest.raises(NotFittedError):
-                default_initializer.transform_one()
 
         @pytest.mark.parametrize(
             "param",

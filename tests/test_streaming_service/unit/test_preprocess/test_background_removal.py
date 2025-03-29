@@ -50,7 +50,7 @@ class TestBackgroundEraser:
 
     def test_uniform_background_removal(self, eraser_uniform, raw_calcium_video):
         """Test background removal using uniform method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -70,7 +70,7 @@ class TestBackgroundEraser:
 
     def test_tophat_background_removal(self, eraser_tophat, raw_calcium_video):
         """Test background removal using tophat method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -91,7 +91,7 @@ class TestBackgroundEraser:
 
     def test_streaming_consistency(self, eraser_uniform, raw_calcium_video):
         """Test consistency of streaming background removal"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frames = [video[i] for i in range(5)]
 
         # Process frames sequentially
@@ -116,7 +116,7 @@ class TestBackgroundEraser:
 
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test background removal with different kernel sizes"""
-        video, _, metadata = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         kernel_start = 100

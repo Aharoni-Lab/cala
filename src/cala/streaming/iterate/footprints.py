@@ -8,24 +8,18 @@ from scipy.ndimage import binary_dilation
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters
+from cala.streaming.core import Parameters, Axis
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import ComponentStats, PixelStats
 
 
 @dataclass
-class FootprintsUpdaterParams(Parameters):
+class FootprintsUpdaterParams(Parameters, Axis):
     """Parameters for spatial footprint updates.
 
     This class defines the configuration parameters needed for updating
     spatial footprints of components, including axis names and iteration limits.
     """
-
-    component_axis: str = "components"
-    """Name of the dimension representing individual components."""
-
-    spatial_axes: tuple = ("height", "width")
-    """Names of the dimensions representing spatial coordinates (height, width)."""
 
     boundary_expansion_pixels: int | None = None
     """Number of pixels to explore the boundary of the footprint outside of the current footprint."""

@@ -59,7 +59,7 @@ class TestStreamingDenoiser:
 
     def test_gaussian_denoising(self, denoiser_gaussian, raw_calcium_video):
         """Test denoising using Gaussian method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -79,7 +79,7 @@ class TestStreamingDenoiser:
 
     def test_median_denoising(self, denoiser_median, raw_calcium_video):
         """Test denoising using median method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -99,7 +99,7 @@ class TestStreamingDenoiser:
 
     def test_bilateral_denoising(self, denoiser_bilateral, raw_calcium_video):
         """Test denoising using bilateral method"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         # Process frame
@@ -119,7 +119,7 @@ class TestStreamingDenoiser:
 
     def test_streaming_consistency(self, denoiser_gaussian, raw_calcium_video):
         """Test consistency of streaming denoising"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frames = [video[i] for i in range(5)]
 
         # Process frames sequentially
@@ -142,7 +142,7 @@ class TestStreamingDenoiser:
 
     def test_different_kernel_sizes(self, default_params, raw_calcium_video):
         """Test denoising with different kernel sizes"""
-        video, _, _ = raw_calcium_video
+        video = raw_calcium_video
         frame = video[0]
 
         kernel_sizes = [(3, 3), (5, 5), (7, 7)]
