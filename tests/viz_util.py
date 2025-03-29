@@ -154,11 +154,15 @@ class Visualizer:
             ax = axes[row, col]
 
             # Plot correlation map for this component
-            im = ax.imshow(
+            sns.heatmap(
                 pixel_stats[idx],
-                cmap="hot",  # hot colormap
+                cmap="rocket",  # seaborn's improved heat colormap
+                center=0,
+                cbar_kws={"label": "Correlation"},
+                ax=ax,
                 vmin=vmin,
                 vmax=vmax,
+                annot=n_components < 10,
             )
 
             if footprints is not None:
@@ -174,9 +178,6 @@ class Visualizer:
             comp_id = pixel_stats.coords["id_"].values[idx]
             comp_type = pixel_stats.coords["type_"].values[idx]
             ax.set_title(f"{comp_id}\n({comp_type})")
-
-            # Add colorbar
-            plt.colorbar(im, ax=ax)
 
             # Remove ticks for cleaner look
             ax.set_xticks([])
