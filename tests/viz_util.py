@@ -84,12 +84,18 @@ class Visualizer:
 
         # Plot composite image
         composite = footprints.sum(dim="component")
-        im = ax.imshow(composite, cmap="viridis")
+        sns.heatmap(
+            composite, cmap="viridis", cbar_kws={"label": "Component Intensity"}
+        )
 
         # Draw circles if positions and radii provided
         if positions is not None and radii is not None:
             for i, (pos, r) in enumerate(zip(positions, radii)):
-                color = "y" if highlight_indices and i in highlight_indices else "r"
+                color = (
+                    self.colors["categorical"][1]
+                    if highlight_indices and i in highlight_indices
+                    else self.colors["categorical"][0]
+                )
                 alpha = 0.8 if highlight_indices and i in highlight_indices else 0.5
                 circle = plt.Circle(pos[::-1], r, fill=False, color=color, alpha=alpha)
                 ax.add_patch(circle)
@@ -101,7 +107,6 @@ class Visualizer:
                 ax, footprint.values, color=color, label=str(idx)
             )
 
-        plt.colorbar(im)
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
         self.save_fig(name, subdir)
 
