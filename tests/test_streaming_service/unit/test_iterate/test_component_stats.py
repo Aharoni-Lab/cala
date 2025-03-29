@@ -123,10 +123,13 @@ class TestCompStatsUpdater:
         self,
         visualizer,
         updater,
+        sample_footprints,
         sample_traces,
         prev_comp_stats,
         sample_denoised,
+        initializer,
     ):
+        visualizer.plot_footprints(sample_footprints, subdir="iter/comp_stats")
         visualizer.plot_traces(sample_traces, subdir="iter/comp_stats")
         visualizer.plot_trace_correlations(sample_traces, subdir="iter/comp_stats")
         visualizer.save_video_frames(sample_denoised, subdir="iter/comp_stats")
@@ -141,4 +144,13 @@ class TestCompStatsUpdater:
         new_comp_stats = updater.transform_one()
         visualizer.plot_component_stats(
             new_comp_stats, subdir="iter/comp_stats", name="new_cs"
+        )
+
+        late_init_cs = initializer.learn_one(
+            sample_traces,
+            frame=sample_denoised,
+        ).transform_one()
+
+        visualizer.plot_component_stats(
+            late_init_cs, subdir="iter/comp_stats", name="late_cs"
         )

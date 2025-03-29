@@ -205,10 +205,16 @@ class TestPixelStatsInitializer:
         )
         visualizer.plot_traces(sample_traces, subdir="init/pixel_stats/sanity_check_2")
         visualizer.plot_pixel_stats(
-            result, subdir="init/pixel_stats/sanity_check_2", name="result"
+            result,
+            sample_footprints,
+            subdir="init/pixel_stats/sanity_check_2",
+            name="result",
         )
         visualizer.plot_pixel_stats(
-            label, subdir="init/pixel_stats/sanity_check_2", name="label"
+            label,
+            sample_footprints,
+            subdir="init/pixel_stats/sanity_check_2",
+            name="label",
         )
 
         assert np.allclose(result, label, atol=1e-3)
