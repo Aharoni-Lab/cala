@@ -140,6 +140,9 @@ class Visualizer:
         # Find global min/max for consistent colormap scaling
         vmin, vmax = pixel_stats.min(), pixel_stats.max()
 
+        if footprints is not None:
+            footprints = footprints.transpose(*pixel_stats.dims)
+
         for idx in range(n_components):
             row, col = idx // n_cols, idx % n_cols
             ax = axes[row, col]
@@ -157,7 +160,7 @@ class Visualizer:
                 self._plot_component_contours(
                     ax,
                     footprints[idx].values,
-                    color="k",  # Black contours for contrast
+                    color="y",  # Yellow contours for contrast
                     label=None,  # Skip labels as we have titles
                 )
 
