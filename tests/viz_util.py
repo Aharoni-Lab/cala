@@ -221,10 +221,12 @@ class Visualizer:
         if len(indices) == 1:
             axes = [axes]
 
+        sns.set_style("ticks")
+
         for i, idx in enumerate(indices):
             ax = axes[i]
             # Plot main trace
-            ax.plot(traces[idx], label="Calcium trace")
+            sns.lineplot(data=traces[idx], ax=ax, label="Calcium trace")
 
             # Plot spikes if provided
             if spikes is not None:
@@ -245,6 +247,7 @@ class Visualizer:
 
             ax.set_title(f"Neuron {idx}")
             ax.legend()
+            sns.despine(ax=ax)
 
         plt.tight_layout()
         self.save_fig(name, subdir)
