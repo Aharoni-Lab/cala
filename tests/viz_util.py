@@ -4,8 +4,8 @@ from typing import Optional, Tuple, Callable, List
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage.measure import find_contours
 import xarray as xr
+from skimage.measure import find_contours
 
 
 class Visualizer:
@@ -24,6 +24,49 @@ class Visualizer:
 
         plt.savefig(save_dir / f"{name}.png", dpi=300, bbox_inches="tight")
         plt.close()
+
+    def _plot_component_contours(
+        self,
+        ax: plt.Axes,
+        component: np.ndarray,
+        color: str = "w",
+        label: Optional[str] = None,
+    ) -> None:
+        """
+        Helper method to plot contours of a component.
+
+        Parameters
+        ----------
+        ax : plt.Axes
+            Axes to plot on
+        component : np.ndarray
+            2D array of component footprint
+        color : str
+            Color for contour and label
+        label : Optional[str]
+            Label to add at component center (e.g., component number)
+        """
+        # Find contours at level 0 (boundary between zero and positive values)
+        contours = find_contours(component, 0)
+
+        # Draw each contour
+        for contour in contours:
+            ax.plot(contour[:, 1], contour[:, 0], color=color, linewidth=1)
+
+        # Add label at centroid of largest contour if requested
+        if label and contours:
+            largest_contour = max(contours, key=len)
+            center_y = largest_contour[:, 0].mean()
+            center_x = largest_contour[:, 1].mean()
+            ax.text(
+                center_x,
+                center_y,
+                label,
+                color=color,
+                ha="center",
+                va="center",
+                bbox=dict(facecolor="black", alpha=0.5, pad=1),
+            )
 
     def plot_footprints(
         self,
@@ -51,30 +94,11 @@ class Visualizer:
                 ax.add_patch(circle)
 
         # Draw contours and labels for each component
-        for i, component in enumerate(footprints):
-            # Find contours at level 0 (boundary between zero and positive values)
-            contours = find_contours(component, 0)
-
-            # Draw each contour
-            color = "y" if highlight_indices and i in highlight_indices else "w"
-            for contour in contours:
-                ax.plot(contour[:, 1], contour[:, 0], color=color, linewidth=1)
-
-            # Add component number at centroid of largest contour
-            if contours:
-                # Use largest contour for label placement
-                largest_contour = max(contours, key=len)
-                center_y = largest_contour[:, 0].mean()
-                center_x = largest_contour[:, 1].mean()
-                ax.text(
-                    center_x,
-                    center_y,
-                    str(i),
-                    color="w",
-                    ha="center",
-                    va="center",
-                    bbox=dict(facecolor="black", alpha=0.5, pad=1),
-                )
+        for idx, footprint in enumerate(footprints):
+            color = "y" if highlight_indices and idx in highlight_indices else "w"
+            self._plot_component_contours(
+                ax, footprint.values, color=color, label=str(idx)
+            )
 
         plt.colorbar(im)
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
@@ -83,7 +107,7 @@ class Visualizer:
     def plot_pixel_stats(
         self,
         pixel_stats: xr.DataArray,
-        footprints: xr.DataArray,
+        footprints: xr.DataArray = None,
         name: str = "pixel_stats",
         subdir: Optional[str] = None,
         n_cols: int = 4,
@@ -127,6 +151,15 @@ class Visualizer:
                 vmin=vmin,
                 vmax=vmax,
             )
+
+            if footprints is not None:
+                # Add contour of the component's footprint
+                self._plot_component_contours(
+                    ax,
+                    footprints[idx].values,
+                    color="k",  # Black contours for contrast
+                    label=None,  # Skip labels as we have titles
+                )
 
             # Add component ID and type as title
             comp_id = pixel_stats.coords["id_"].values[idx]

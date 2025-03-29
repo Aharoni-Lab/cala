@@ -28,6 +28,7 @@ class TestPixelStatsInitializer:
         self, initializer, traces, footprints, stabilized_video, visualizer
     ):
         """Test learn_one method."""
+        footprints, _, _ = footprints
         # Run learn_one
         initializer.learn_one(traces, stabilized_video)
 
