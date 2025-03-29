@@ -32,6 +32,7 @@ river = "^0.22.0"
 numba = "^0.61.0"
 sparse = "^0.15.5"
 graphlib = "^0.9.5"
+seaborn = "^0.13.2"
 
 
 [tool.poetry.group.dev.dependencies]
