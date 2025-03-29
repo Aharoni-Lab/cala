@@ -52,7 +52,7 @@ class Visualizer:
         save_dir = self.output_dir
         if subdir:
             save_dir = save_dir / subdir
-            save_dir.mkdir(exist_ok=True)
+            save_dir.mkdir(parents=True, exist_ok=True)
 
         plt.savefig(save_dir / f"{name}.png", dpi=300, bbox_inches="tight")
         plt.close()

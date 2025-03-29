@@ -13,7 +13,7 @@ class TestOverlapsInitializer:
     """Test suite for OverlapsInitializer."""
 
     @pytest.fixture
-    def sample_footprints(self, visualizer):
+    def sample_footprints(self):
         """Create sample footprints for testing.
 
         Creates a set of footprints with known overlap patterns:
