@@ -49,23 +49,23 @@ class CalciumVideoParams:
     glow_sigma: float = 0.5  # relative spread of glow (as fraction of width)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def params():
     """Return default parameters for video generation."""
     return CalciumVideoParams()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def ids(params):
     return [f"comp_{i}" for i in range(params.num_neurons)]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def types(params):
     return ["neuron"] * params.num_neurons
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def footprints(params, ids, types):
     """Generate spatial footprints for neurons."""
     footprints_data = []
@@ -124,7 +124,7 @@ def footprints(params, ids, types):
     return footprints_xr, positions, radii
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def spikes(params, ids, types):
     """Generate spike times for neurons."""
     firing_rates = np.random.uniform(*params.firing_rate_range, params.num_neurons)
@@ -142,7 +142,7 @@ def spikes(params, ids, types):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def traces(params, spikes, ids, types):
     """Generate calcium traces from spikes."""
     decay_times = np.random.uniform(*params.decay_time_range, params.num_neurons)
@@ -160,7 +160,7 @@ def traces(params, spikes, ids, types):
     return xr.DataArray(traces_data, dims=["component", "frame"], coords=spikes.coords)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def camera_motion(params):
     """Generate camera motion vectors."""
     # High frequency component for shake
@@ -190,7 +190,7 @@ def camera_motion(params):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def residuals(params):
     """Generate noise and artifact patterns."""
     # Base noise
@@ -211,7 +211,7 @@ def residuals(params):
     return xr.DataArray(residuals, dims=["frame", "height", "width"])
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
     """Combine all components into final video."""
 
@@ -244,7 +244,7 @@ def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
     return xr.DataArray(motion_video, dims=video.dims, coords=video.coords)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def preprocessed_video(raw_calcium_video, params, footprints, traces, camera_motion):
     """Calcium imaging video with artifacts removed except photobleaching."""
     video = raw_calcium_video
@@ -310,7 +310,7 @@ def preprocessed_video(raw_calcium_video, params, footprints, traces, camera_mot
     return clean_xr
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def stabilized_video(preprocessed_video, camera_motion, params: CalciumVideoParams):
     """Motion-corrected calcium imaging video."""
     video = preprocessed_video
