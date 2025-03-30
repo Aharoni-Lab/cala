@@ -147,7 +147,6 @@ class TestFootprintUpdater:
     @pytest.mark.viz
     def test_perfect_condition(
         self,
-        updater,
         visualizer,
         sample_footprints,
         sample_traces,
