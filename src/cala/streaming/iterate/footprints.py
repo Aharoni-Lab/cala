@@ -27,6 +27,8 @@ class FootprintsUpdaterParams(Parameters, Axis):
     max_iterations: int = 100
     """Maximum number of iterations for shape update convergence."""
 
+    tolerance: float = 1e-7
+
     def validate(self):
         """Validate parameter configurations.
 
@@ -136,8 +138,12 @@ class FootprintsUpdater(SupervisedTransformer):
 
             # Apply update equation with masking
             update = numerator / M_diag
-            A = xr.where(mask, A + update, A)
-            A = xr.where(A > 0, A, 0)
+            A_new = xr.where(mask, A + update, A)
+            A_new = xr.where(A_new > 0, A_new, 0)
+            if abs((A - A_new).sum() / np.prod(A.shape)) < self.params.tolerance:
+                break
+            else:
+                A = A_new
 
         self.footprints_ = A
         self.is_fitted_ = True
