@@ -7,9 +7,9 @@ def test_video_generation(
 ):
     """Test video generation with visualizations."""
 
-    visualizer.write_movie(raw_calcium_video, "raw_calcium_video.mp4")
-    visualizer.write_movie(preprocessed_video, "preprocessed_video.mp4")
-    visualizer.write_movie(stabilized_video, "stabilized_video.mp4")
+    visualizer.write_movie(raw_calcium_video, "raw_calcium_video")
+    visualizer.write_movie(preprocessed_video, "preprocessed_video")
+    visualizer.write_movie(stabilized_video, "stabilized_video")
 
 
 @pytest.mark.viz

@@ -6,16 +6,24 @@ from numpy.random import RandomState
 
 from tests.fixtures import (
     params,
-    raw_calcium_video,
-    preprocessed_video,
-    stabilized_video,
     ids,
     types,
+    radii,
+    positions,
     footprints,
     spikes,
     traces,
     camera_motion,
-    residuals,
+    motion_operator,
+    scope_noise,
+    noise,
+    glow,
+    hot_pixels,
+    dead_pixels,
+    photobleaching,
+    raw_calcium_video,
+    preprocessed_video,
+    stabilized_video,
 )
 
 from tests.viz_util import Visualizer

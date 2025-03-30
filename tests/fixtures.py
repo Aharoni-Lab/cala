@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from scipy.ndimage import gaussian_filter
+from scipy.stats.qmc import PoissonDisk
 
 
 @dataclass
@@ -26,7 +27,6 @@ class CalciumVideoParams:
     num_neurons: int = 50
     neuron_size_range: Tuple[int, int] = (40, 60)  # min/max radius in pixels
     neuron_shape_irregularity: float = 1.8  # 0=perfect circles, higher = more irregular
-    margin: int = 50  # border margin for neuron placement
 
     # Calcium dynamics
     decay_time_range: Tuple[float, float] = (10, 20)  # frames
@@ -66,45 +66,45 @@ def types(params):
 
 
 @pytest.fixture(scope="session")
-def footprints(params, ids, types):
+def radii(params):
+    return np.random.uniform(*params.neuron_size_range, params.num_neurons)
+
+
+@pytest.fixture(scope="session")
+def positions(params, radii):
+    max_radius = np.max(radii)
+
+    # Calculate the available space after accounting for margins
+    available_height = params.height - 2 * max_radius
+    available_width = params.width - 2 * max_radius
+
+    # Create sampler for the available space
+    sampler = PoissonDisk(
+        d=2, radius=max_radius / (2 * max(available_height, available_width))
+    )
+
+    # Sample points and scale them to our available dimensions
+    points = sampler.random(params.num_neurons)
+    positions = np.zeros_like(points).astype(int)
+    positions[:, 0] = np.round(points[:, 0] * available_height + max_radius).astype(int)
+    positions[:, 1] = np.round(points[:, 1] * available_width + max_radius).astype(int)
+
+    return positions
+
+
+@pytest.fixture(scope="session")
+def footprints(params, ids, types, radii, positions):
     """Generate spatial footprints for neurons."""
-    footprints_data = []
-    positions = []
-    radii = np.random.uniform(*params.neuron_size_range, params.num_neurons)
-
-    # Generate random positions
-    for _ in range(params.num_neurons):
-        while True:
-            # Ensure position + radius stays within frame bounds
-            pos = np.random.randint(
-                params.margin
-                + int(radii[len(positions)]),  # Min position must include radius
-                np.array([params.height, params.width])
-                - params.margin
-                - int(radii[len(positions)]),  # Max position must include radius
-                size=2,
-            )
-            # Check if position is far enough from existing neurons
-            if not positions or all(
-                np.linalg.norm(pos - p) > r1 + r2
-                for p, r1, r2 in zip(
-                    positions, radii[: len(positions)], [radii[len(positions)]]
-                )
-            ):
-                positions.append(pos)
-                break
-
-    positions = np.array(positions)
-
+    cell_shapes = []
     # Generate spatial profiles
     for n in range(params.num_neurons):
         profile = create_irregular_neuron(
             int(radii[n]), params.neuron_shape_irregularity
         )
-        footprints_data.append(profile)
+        cell_shapes.append(profile)
 
     # Create xarray with proper coordinates
-    footprints_xr = xr.DataArray(
+    footprints = xr.DataArray(
         np.zeros((params.num_neurons, params.height, params.width)),
         dims=["component", "height", "width"],
         coords={
@@ -114,14 +114,15 @@ def footprints(params, ids, types):
     )
 
     # Place profiles in the full frame
-    for n in range(params.num_neurons):
-        y_pos, x_pos = positions[n]
-        radius = int(radii[n])
+    for idx, (radius, shape, (y_pos, x_pos)) in enumerate(
+        zip(radii, cell_shapes, positions)
+    ):
+        radius = int(radius)
         y_slice = slice(y_pos - radius, y_pos + radius + 1)
         x_slice = slice(x_pos - radius, x_pos + radius + 1)
-        footprints_xr[n, y_slice, x_slice] = footprints_data[n]
+        footprints[idx, y_slice, x_slice] = shape
 
-    return footprints_xr, positions, radii
+    return footprints
 
 
 @pytest.fixture(scope="session")
@@ -191,155 +192,107 @@ def camera_motion(params):
 
 
 @pytest.fixture(scope="session")
-def residuals(params):
-    """Generate noise and artifact patterns."""
-    # Base noise
-    residuals = np.random.normal(
-        params.baseline,
-        params.noise_level,
-        (params.frames, params.height, params.width),
+def motion_operator(camera_motion):
+    """Generate motion operator from camera motion."""
+    return np.array(
+        [
+            [[1, 0, -motion_x], [0, 1, -motion_y]]
+            for motion_y, motion_x in camera_motion.values
+        ],
+        dtype=np.float32,
     )
-
-    # Add baseline drift
-    tau = np.linspace(0, 4 * np.pi, params.frames)
-    drift = params.drift_magnitude * np.sin(tau)
-    residuals += drift[:, np.newaxis, np.newaxis]
-
-    # Add artifacts
-    residuals = add_artifacts(residuals, params)
-
-    return xr.DataArray(residuals, dims=["frame", "height", "width"])
 
 
 @pytest.fixture(scope="session")
-def raw_calcium_video(params, footprints, traces, camera_motion, residuals):
+def scope_noise(params, glow, hot_pixels, dead_pixels, noise):
+    """Generate noise and artifact patterns."""
+    # Base
+    residuals = xr.DataArray(
+        np.zeros((params.frames, params.height, params.width)),
+        dims=["frame", "height", "width"],
+    )
+
+    # Add artifacts
+    residuals += glow
+    residuals += hot_pixels
+    residuals += dead_pixels
+    residuals += noise
+
+    return residuals
+
+
+@pytest.fixture(scope="session")
+def raw_calcium_video(
+    params, footprints, traces, motion_operator, scope_noise, photobleaching
+):
     """Combine all components into final video."""
 
     # Start with residuals
-    video = residuals.copy()
+    video = scope_noise.copy()
 
     # Add neurons with calcium activity
-    for n in range(params.num_neurons):
-        video += footprints[0][n] * traces[n]
+    video += (footprints @ traces).transpose("frame", "height", "width")
 
-    video = video.reset_coords(["id_", "type_"], drop=True)
+    # Add photobleaching
+    video *= photobleaching
 
     # Apply motion
-    motion_video = np.zeros_like(video)
-    for f in range(params.frames):
-        transform_matrix = np.array(
-            [[1, 0, -camera_motion[f, 1].item()], [0, 1, -camera_motion[f, 0].item()]],
-            dtype=np.float32,
-        )
-
-        motion_video[f] = cv2.warpAffine(
-            video[f].values,
-            transform_matrix,
-            (params.width, params.height),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0.0,),
-        )
-
-    return xr.DataArray(motion_video, dims=video.dims, coords=video.coords)
-
-
-@pytest.fixture(scope="session")
-def preprocessed_video(raw_calcium_video, params, footprints, traces, camera_motion):
-    """Calcium imaging video with artifacts removed except photobleaching."""
-    video = raw_calcium_video
-    frames, height, width = video.shape
-
-    clean = np.zeros(
-        (params.frames, params.height, params.width),
+    # Apply transformations frame by frame (can't fully vectorize due to cv2.warpAffine)
+    motion_video = np.stack(
+        [
+            cv2.warpAffine(
+                frame.values,
+                transform_matrix,
+                (params.width, params.height),
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0.0,),
+            )
+            for frame, transform_matrix in zip(video, motion_operator)
+        ]
     )
 
-    # Unpack footprints
-    footprints_xr, positions, radii = footprints
-
-    # Add neurons to video without motion
-    for f in range(frames):
-        for n in range(params.num_neurons):
-            y_pos, x_pos = positions[n]
-            radius = int(radii[n])
-
-            y_slice = slice(y_pos - radius, y_pos + radius + 1)
-            x_slice = slice(x_pos - radius, x_pos + radius + 1)
-
-            if (
-                0 <= y_pos - radius
-                and y_pos + radius + 1 <= params.height
-                and 0 <= x_pos - radius
-                and x_pos + radius + 1 <= params.width
-            ):
-                clean[f, y_slice, x_slice] += (
-                    traces[n, f] * footprints_xr[n, y_slice, x_slice]
-                )
-
-    # Apply Gaussian blur
-    for f in range(frames):
-        clean[f] = gaussian_filter(clean[f], sigma=params.blur_sigma)
-
-    # Apply motion using subpixel interpolation
-    motion_video = np.zeros_like(clean)
-    for f in range(frames):
-        # Create transformation matrix for translation
-        transform_matrix = np.array(
-            [[1, 0, camera_motion[f, 1].item()], [0, 1, camera_motion[f, 0].item()]],
-            dtype=np.float32,
-        )
-
-        # Apply translation using warpAffine with bilinear interpolation
-        frame = clean[f].astype(np.float32)
-        motion_video[f] = cv2.warpAffine(
-            frame,
-            transform_matrix,
-            (params.width, params.height),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0.0,),
-        )
-
-    # Keep photobleaching artifact
-    if params.photobleaching_decay > 0:
-        decay = np.exp(-np.arange(frames) * params.photobleaching_decay / frames)
-        motion_video *= decay[:, np.newaxis, np.newaxis]
-
-    clean_xr = xr.DataArray(motion_video, dims=video.dims, coords=video.coords)
-
-    return clean_xr
+    return xr.DataArray(motion_video, dims=video.dims)
 
 
 @pytest.fixture(scope="session")
-def stabilized_video(preprocessed_video, camera_motion, params: CalciumVideoParams):
+def preprocessed_video(params, footprints, traces, motion_operator, photobleaching):
+    """Calcium imaging video with artifacts removed except photobleaching."""
+    # Add neurons with calcium activity
+    video = (footprints @ traces).transpose("frame", "height", "width")
+
+    # Add photobleaching
+    video *= photobleaching
+
+    # Apply motion
+    # Apply transformations frame by frame (can't fully vectorize due to cv2.warpAffine)
+    movie = np.stack(
+        [
+            cv2.warpAffine(
+                frame.values,
+                transform_matrix,
+                (params.width, params.height),
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0.0,),
+            )
+            for frame, transform_matrix in zip(video, motion_operator)
+        ]
+    )
+
+    return xr.DataArray(movie, dims=video.dims, coords=video.coords)
+
+
+@pytest.fixture(scope="session")
+def stabilized_video(footprints, traces, photobleaching):
     """Motion-corrected calcium imaging video."""
-    video = preprocessed_video
 
-    # Remove the artificial motion using subpixel interpolation
-    stabilized = np.zeros_like(video)
+    stabilized = (footprints @ traces).transpose("frame", "height", "width")
 
-    for f in range(params.frames):
-        # Create transformation matrix for reverse translation
-        transform_matrix = np.array(
-            [[1, 0, -camera_motion[f, 1].item()], [0, 1, -camera_motion[f, 0].item()]],
-            dtype=np.float32,
-        )
+    # add photobleaching
+    stabilized *= photobleaching
 
-        # Apply reverse translation using warpAffine with bilinear interpolation
-        frame = video[f].astype(np.float32)
-        stabilized[f] = cv2.warpAffine(
-            frame.values,
-            transform_matrix,
-            (params.width, params.height),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(0.0,),
-        )
-
-    # Convert to xarray with same coordinates
-    stabilized_xr = xr.DataArray(stabilized, dims=video.dims, coords=video.coords)
-
-    return stabilized_xr
+    return stabilized
 
 
 def create_irregular_neuron(radius: int, irregularity: float) -> np.ndarray:
@@ -376,11 +329,12 @@ def create_irregular_neuron(radius: int, irregularity: float) -> np.ndarray:
     return intensity
 
 
-def add_artifacts(video: np.ndarray, params: CalciumVideoParams) -> np.ndarray:
-    """Add realistic microscopy artifacts to the video."""
-    frames, height, width = video.shape
+@pytest.fixture(scope="session")
+def glow(params):
+    """Generate moving glow artifact."""
+    frames, height, width = params.frames, params.height, params.width
+    video = np.zeros((frames, height, width))
 
-    # Add broad glow artifact
     y, x = np.ogrid[0:height, 0:width]
     glow_center_y = height // 2 + np.sin(np.linspace(0, 2 * np.pi, frames)) * (
         height // 4
@@ -390,31 +344,67 @@ def add_artifacts(video: np.ndarray, params: CalciumVideoParams) -> np.ndarray:
     )
 
     for f in range(frames):
-        # Create broad gaussian glow
         dist_sq = (y - glow_center_y[f]) ** 2 + (x - glow_center_x[f]) ** 2
         glow = params.glow_intensity * np.exp(
             -dist_sq / (2 * (width * params.glow_sigma) ** 2)
         )
-        # Add slight temporal variation to glow intensity
+        # Add temporal variation
         glow *= 1 + 0.2 * np.sin(2 * np.pi * f / (frames / 2))
         video[f] += glow
 
-    # Photobleaching
-    if params.photobleaching_decay > 0:
-        decay = np.exp(-np.arange(frames) * params.photobleaching_decay / frames)
-        video *= decay[:, np.newaxis, np.newaxis]
+    return xr.DataArray(video, dims=["frame", "height", "width"])
 
-    # Dead pixels (always black)
-    num_dead = int(height * width * params.dead_pixel_fraction)
-    dead_y = np.random.randint(0, height, num_dead)
-    dead_x = np.random.randint(0, width, num_dead)
+
+@pytest.fixture(scope="session")
+def photobleaching(params):
+    """Generate photobleaching decay."""
+    if params.photobleaching_decay > 0:
+        decay = np.exp(
+            -np.arange(params.frames) * params.photobleaching_decay / params.frames
+        )
+        return decay[:, np.newaxis, np.newaxis]
+    return np.ones((params.frames, 1, 1))
+
+
+@pytest.fixture(scope="session")
+def dead_pixels(params):
+    """Generate dead (black) pixels mask."""
+    video = np.ones((params.frames, params.height, params.width))
+
+    num_dead = int(params.height * params.width * params.dead_pixel_fraction)
+    dead_y = np.random.randint(0, params.height, num_dead)
+    dead_x = np.random.randint(0, params.width, num_dead)
     video[:, dead_y, dead_x] = 0
 
-    # Hot pixels (always bright)
-    num_hot = int(height * width * params.hot_pixel_fraction)
-    hot_y = np.random.randint(0, height, num_hot)
-    hot_x = np.random.randint(0, width, num_hot)
+    return xr.DataArray(video, dims=["frame", "height", "width"])
+
+
+@pytest.fixture(scope="session")
+def hot_pixels(params):
+    """Generate hot (bright) pixels."""
+    video = np.zeros((params.frames, params.height, params.width))
+
+    num_hot = int(params.height * params.width * params.hot_pixel_fraction)
+    hot_y = np.random.randint(0, params.height, num_hot)
+    hot_x = np.random.randint(0, params.width, num_hot)
     hot_values = params.hot_pixel_intensity * (1 + 0.2 * np.random.randn(num_hot))
     video[:, hot_y, hot_x] = hot_values[np.newaxis, :]
 
-    return video
+    return xr.DataArray(video, dims=["frame", "height", "width"])
+
+
+@pytest.fixture(scope="session")
+def noise(params):
+    """Generate random noise with baseline."""
+    noise = np.random.normal(
+        params.baseline,
+        params.noise_level,
+        (params.frames, params.height, params.width),
+    )
+
+    # Add baseline drift
+    tau = np.linspace(0, 4 * np.pi, params.frames)
+    drift = params.drift_magnitude * np.sin(tau)
+    noise += drift[:, np.newaxis, np.newaxis]
+
+    return xr.DataArray(noise, dims=["frame", "height", "width"])
