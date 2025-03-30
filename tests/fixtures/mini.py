@@ -20,7 +20,7 @@ def p():
 
 
 @pytest.fixture
-def baby_coords(p):
+def mini_coords(p):
     # Create sample coordinates
     return {
         "id_": ("component", [f"id{i}" for i in range(p.n_components)]),
@@ -29,12 +29,12 @@ def baby_coords(p):
 
 
 @pytest.fixture
-def baby_footprints(p, baby_coords):
+def mini_footprints(p, mini_coords):
     """Create sample data for testing."""
     footprints = xr.DataArray(
         np.zeros((p.n_components, p.height, p.width)),
         dims=("component", "height", "width"),
-        coords=baby_coords,
+        coords=mini_coords,
     )
     footprints[0, 0:2, 0:2] = 1
     footprints[1, 1:4, 1:4] = 3
@@ -44,11 +44,11 @@ def baby_footprints(p, baby_coords):
 
 
 @pytest.fixture
-def baby_traces(p, baby_coords):
+def mini_traces(p, mini_coords):
     traces = xr.DataArray(
         np.zeros((p.n_components, p.n_frames)),
         dims=("component", "frame"),
-        coords=baby_coords,
+        coords=mini_coords,
     )
     traces[0, :] = [1 for _ in range(p.n_frames)]
     traces[1, :] = [i for i in range(p.n_frames)]
@@ -58,7 +58,7 @@ def baby_traces(p, baby_coords):
 
 
 @pytest.fixture
-def baby_residuals(p):
+def mini_residuals(p):
     residual = xr.DataArray(
         np.zeros((p.n_frames, p.height, p.width)), dims=("frame", "height", "width")
     )
@@ -69,10 +69,10 @@ def baby_residuals(p):
 
 
 @pytest.fixture
-def baby_denoised(baby_footprints, baby_traces):
-    return baby_footprints @ baby_traces
+def mini_denoised(mini_footprints, mini_traces):
+    return mini_footprints @ mini_traces
 
 
 @pytest.fixture
-def baby_movie(baby_denoised, baby_residuals):
-    return baby_denoised + baby_residuals
+def mini_movie(mini_denoised, mini_residuals):
+    return mini_denoised + mini_residuals

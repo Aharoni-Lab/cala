@@ -11,7 +11,6 @@ from cala.streaming.preprocess.background_removal import (
     BackgroundEraser,
     BackgroundEraserParams,
 )
-from tests.fixtures import raw_calcium_video
 
 
 class TestBackgroundEraser:

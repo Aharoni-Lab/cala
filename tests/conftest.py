@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from numpy.random import RandomState
 
-from tests.fixtures import (
+from tests.fixtures.simulation import (
     params,
     ids,
     types,
@@ -24,6 +24,15 @@ from tests.fixtures import (
     raw_calcium_video,
     preprocessed_video,
     stabilized_video,
+)
+
+from tests.fixtures.mini import (
+    mini_coords,
+    mini_footprints,
+    mini_traces,
+    mini_residuals,
+    mini_denoised,
+    mini_movie,
 )
 
 from tests.viz_util import Visualizer
