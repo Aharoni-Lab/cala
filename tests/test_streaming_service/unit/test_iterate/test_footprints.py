@@ -263,3 +263,33 @@ class TestFootprintUpdater:
             subdir="iter/footprints/oversized",
             name="oversized",
         )
+
+    @pytest.mark.viz
+    def test_redundant_footprint(self, visualizer, sample_footprints, sample_denoised):
+        redundant_footprints = sample_footprints.copy()
+        rolled = xr.DataArray(
+            np.roll(sample_footprints[-1], -1), dims=("height", "width")
+        )
+        rolled = rolled.expand_dims("component").assign_coords(
+            {"id_": ("component", ["id5"]), "type_": ("component", ["neuron"])}
+        )
+        redundant_footprints = xr.concat(
+            [redundant_footprints, rolled],
+            dim="component",
+        )
+
+        traces, pixel_stats, component_stats = self.get_stats(
+            redundant_footprints, sample_denoised
+        )
+
+        self.visualize_iteration(
+            visualizer,
+            redundant_footprints,
+            traces,
+            pixel_stats,
+            component_stats,
+            sample_footprints,
+            sample_denoised,
+            subdir="iter/footprints/redundant",
+            name="redundant",
+        )
