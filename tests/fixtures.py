@@ -19,8 +19,8 @@ class CalciumVideoParams:
     width: int = 512
 
     # Noise and background
-    noise_level: float = 0.05
-    baseline: float = 0.2
+    noise_level: float = 0.5
+    baseline: float = 0.1
     drift_magnitude: float = 0.1
 
     # Neuron properties
@@ -144,7 +144,7 @@ def spikes(params, ids, types):
 
 
 @pytest.fixture(scope="session")
-def traces(params, spikes, ids, types):
+def traces(params, spikes):
     """Generate calcium traces from spikes."""
     decay_times = np.random.uniform(*params.decay_time_range, params.num_neurons)
     amplitudes = np.random.uniform(*params.amplitude_range, params.num_neurons)
@@ -343,14 +343,21 @@ def glow(params):
         width // 4
     )
 
-    for f in range(frames):
-        dist_sq = (y - glow_center_y[f]) ** 2 + (x - glow_center_x[f]) ** 2
-        glow = params.glow_intensity * np.exp(
-            -dist_sq / (2 * (width * params.glow_sigma) ** 2)
-        )
-        # Add temporal variation
-        glow *= 1 + 0.2 * np.sin(2 * np.pi * f / (frames / 2))
-        video[f] += glow
+    # Reshape centers to broadcast with coordinate grids
+    glow_center_y = glow_center_y.reshape(-1, 1, 1)
+    glow_center_x = glow_center_x.reshape(-1, 1, 1)
+
+    # Calculate distances for all frames at once
+    dist_sq = (y - glow_center_y) ** 2 + (x - glow_center_x) ** 2
+
+    # Calculate glow
+    glow = params.glow_intensity * np.exp(
+        -dist_sq / (2 * (width * params.glow_sigma) ** 2)
+    )
+
+    # Add temporal variation (vectorized)
+    temporal_mod = 1 + 0.2 * np.sin(2 * np.pi * np.arange(frames) / (frames / 2))
+    glow *= temporal_mod.reshape(-1, 1, 1)
 
     return xr.DataArray(video, dims=["frame", "height", "width"])
 
