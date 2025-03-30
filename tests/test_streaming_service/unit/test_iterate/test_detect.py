@@ -182,11 +182,11 @@ def test_local_nmf(detector, stabilized_video):
     assert set(reconstruction.dims) == set(neighborhood.dims)
 
 
-def test_validate_component(detector, footprints, traces, residuals):
+def test_validate_component(detector, footprints, traces, scope_noise):
     """Test component validation"""
     footprints, _, _ = footprints
     # residual has one cell to detect
-    detector.residuals_ = residuals + footprints[-1]
+    detector.residuals_ = scope_noise + footprints[-1]
 
     # Create a good component (that one cell to detect)
     a_good = footprints[-1]
@@ -206,7 +206,7 @@ def test_validate_component(detector, footprints, traces, residuals):
 
 
 def test_update_pixel_stats(
-    detector, stabilized_video, footprints, traces, pixel_stats, residuals
+    detector, stabilized_video, footprints, traces, pixel_stats, scope_noise
 ):
     """Test pixel statistics update"""
 
@@ -224,7 +224,7 @@ def test_update_pixel_stats(
     )
 
     updated_stats = detector._update_pixel_stats(
-        frame, footprints, traces, residuals[-5:], pixel_stats, new_traces
+        frame, footprints, traces, scope_noise[-5:], pixel_stats, new_traces
     )
 
     # Check shape

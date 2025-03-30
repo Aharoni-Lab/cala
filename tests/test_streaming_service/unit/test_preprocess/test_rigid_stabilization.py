@@ -72,12 +72,11 @@ class TestMotionStabilizer:
         )
 
     def test_rigid_translator_preserves_neuron_traces(
-        self, default_stabilizer, preprocessed_video, stabilized_video, footprints
+        self, default_stabilizer, preprocessed_video, stabilized_video, positions, radii
     ):
         """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
         video = preprocessed_video
         ground_truth_stabilized = stabilized_video
-        _, positions, radii = footprints
 
         corrected_video = []
         for frame in video:
@@ -105,8 +104,8 @@ class TestMotionStabilizer:
                     max(x_pos - radius, 0), min(x_pos + radius + 1, vid.sizes["width"])
                 )
                 trace = []
-                for f in range(vid.sizes["frames"]):
-                    region = vid.isel(frames=f)[y_slice, x_slice]
+                for f in range(vid.sizes["frame"]):
+                    region = vid.isel(frame=f)[y_slice, x_slice]
                     if not np.any(np.isnan(region)):
                         if len(region) == 0:
                             print("wtf is happening")

@@ -6,73 +6,84 @@ import xarray as xr
 
 
 @dataclass
-class SanityParams:
-    n_components: int = 3
-    height: int = 5
-    width: int = 5
-    n_frames: int = 15
+class MiniParams:
+    n_components: int = 5
+    height: int = 10
+    width: int = 10
+    n_frames: int = 5
 
 
-@pytest.fixture
-def p():
+@pytest.fixture(scope="session")
+def mini_params():
     """Return default parameters for video generation."""
-    return SanityParams()
+    return MiniParams()
 
 
-@pytest.fixture
-def mini_coords(p):
+@pytest.fixture(scope="session")
+def mini_coords(mini_params):
     # Create sample coordinates
     return {
-        "id_": ("component", [f"id{i}" for i in range(p.n_components)]),
-        "type_": ("component", ["background"] + ["neuron"] * (p.n_components - 1)),
+        "id_": ("component", [f"id{i}" for i in range(mini_params.n_components)]),
+        "type_": (
+            "component",
+            ["background"] + ["neuron"] * (mini_params.n_components - 1),
+        ),
     }
 
 
-@pytest.fixture
-def mini_footprints(p, mini_coords):
+@pytest.fixture(scope="session")
+def mini_footprints(mini_params, mini_coords):
     """Create sample data for testing."""
     footprints = xr.DataArray(
-        np.zeros((p.n_components, p.height, p.width)),
+        np.zeros((mini_params.n_components, mini_params.height, mini_params.width)),
         dims=("component", "height", "width"),
         coords=mini_coords,
     )
-    footprints[0, 0:2, 0:2] = 1
-    footprints[1, 1:4, 1:4] = 3
-    footprints[2, 3:5, 3:5] = 2
+    # Set up specific overlap patterns
+    footprints[0, 0:5, 0:5] = 1  # Component 0
+    footprints[1, 3:8, 3:8] = 1  # Component 1 (overlaps with 0)
+    footprints[2, 8:10, 8:10] = 1  # Component 2 (isolated)
+    footprints[3, 0:3, 8:10] = 1  # Component 3
+    footprints[4, 1:4, 7:9] = 1  # Component 4 (overlaps with 3)
 
     return footprints
 
 
-@pytest.fixture
-def mini_traces(p, mini_coords):
+@pytest.fixture(scope="session")
+def mini_traces(mini_params, mini_coords):
     traces = xr.DataArray(
-        np.zeros((p.n_components, p.n_frames)),
+        np.zeros((mini_params.n_components, mini_params.n_frames)),
         dims=("component", "frame"),
         coords=mini_coords,
     )
-    traces[0, :] = [1 for _ in range(p.n_frames)]
-    traces[1, :] = [i for i in range(p.n_frames)]
-    traces[2, :] = [p.n_frames - i for i in range(p.n_frames)]
+    traces[0, :] = [1 for _ in range(mini_params.n_frames)]
+    traces[1, :] = [i for i in range(mini_params.n_frames)]
+    traces[2, :] = [mini_params.n_frames - 1 - i for i in range(mini_params.n_frames)]
+    traces[3, :] = [
+        abs((mini_params.n_frames - 1) / 2 - i) for i in range(mini_params.n_frames)
+    ]
+    traces[4, :] = np.random.rand(mini_params.n_frames)
 
     return traces
 
 
-@pytest.fixture
-def mini_residuals(p):
+@pytest.fixture(scope="session")
+def mini_residuals(mini_params):
     residual = xr.DataArray(
-        np.zeros((p.n_frames, p.height, p.width)), dims=("frame", "height", "width")
+        np.zeros((mini_params.n_frames, mini_params.height, mini_params.width)),
+        dims=("frame", "height", "width"),
     )
-    for i in range(p.n_frames):
-        residual[i, :, i % p.width] = 3
+    for i in range(mini_params.n_frames):
+        residual[i, :, i % mini_params.width] = 3
 
     return residual
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mini_denoised(mini_footprints, mini_traces):
-    return mini_footprints @ mini_traces
+    return (mini_footprints @ mini_traces).transpose("frame", "height", "width")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mini_movie(mini_denoised, mini_residuals):
-    return mini_denoised + mini_residuals
+    return (mini_denoised + mini_residuals).transpose("frame", "height", "width")

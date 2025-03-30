@@ -6,7 +6,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 @dataclass
 class GlowRemover(BaseEstimator, TransformerMixin):
-    iter_axis: str = "frames"
+    iter_axis: str = "frame"
     base_brightness_: float = None
 
     def fit(self, X, y=None):

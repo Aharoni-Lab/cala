@@ -6,7 +6,7 @@ from cala.batch.preprocess.denoise import Denoiser
 
 @pytest.mark.parametrize("method", ["gaussian", "median", "bilateral"])
 def test_denoiser_methods(raw_calcium_video, method):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     if method == "median":
         kwargs = {"ksize": 3}
@@ -32,7 +32,7 @@ def test_denoiser_methods(raw_calcium_video, method):
 
 
 def test_invalid_method(raw_calcium_video):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     with pytest.raises(ValueError, match="denoise method 'invalid' not understood"):
         denoiser = Denoiser(method="invalid")

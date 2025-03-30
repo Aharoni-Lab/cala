@@ -27,6 +27,7 @@ from tests.fixtures.simulation import (
 )
 
 from tests.fixtures.mini import (
+    mini_params,
     mini_coords,
     mini_footprints,
     mini_traces,

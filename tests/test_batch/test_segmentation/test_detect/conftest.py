@@ -17,7 +17,7 @@ def visualize_detection(
     fig, ax = plt.subplots(figsize=(10, 10))
 
     if frame_idx is None:
-        frame = video.max(dim="frames")
+        frame = video.max(dim="frame")
     else:
         frame = video.isel(frames=frame_idx)
 
@@ -38,8 +38,8 @@ def visualize_detection(
     # Plot ground truth if provided
     if ground_truth is not None:
         ax.scatter(
-            ground_truth["width"],
-            ground_truth["height"],
+            ground_truth[0],
+            ground_truth[1],
             color="g",
             marker="o",
             s=150,

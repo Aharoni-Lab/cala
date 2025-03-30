@@ -6,7 +6,7 @@ from cala.batch.preprocess.glow_removal import GlowRemover
 
 def test_glow_remover_fit_transform(raw_calcium_video, params):
     """Test GlowRemover's fit and transform functionality using synthetic data."""
-    video, _, metadata = raw_calcium_video
+    video = raw_calcium_video
 
     remover = GlowRemover()
     remover.fit(video)
