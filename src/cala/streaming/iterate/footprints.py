@@ -68,7 +68,7 @@ class FootprintsUpdater(SupervisedTransformer):
         footprints: Footprints,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
-        frame: Frame,
+        frame: Frame = None,
     ) -> Self:
         """Update spatial footprints using sufficient statistics.
 
@@ -91,11 +91,15 @@ class FootprintsUpdater(SupervisedTransformer):
         """
         A = footprints
         M = component_stats
+        side_length = min(
+            footprints.sizes[self.params.spatial_axes[0]],
+            footprints.sizes[self.params.spatial_axes[1]],
+        )
 
         for _ in range(self.params.max_iterations):
             # Create mask for non-zero pixels per component
             mask = A > 0
-            if self.params.boundary_expansion_pixels:
+            if self.params.boundary_expansion_pixels and _ < side_length:
                 mask = xr.apply_ufunc(
                     lambda x: binary_dilation(
                         x, iterations=self.params.boundary_expansion_pixels
