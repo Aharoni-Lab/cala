@@ -8,6 +8,8 @@ import xarray as xr
 from scipy.ndimage import gaussian_filter
 from scipy.stats.qmc import PoissonDisk
 
+from cala.streaming.core import Component
+
 
 @dataclass
 class CalciumVideoParams:
@@ -62,7 +64,7 @@ def ids(params):
 
 @pytest.fixture(scope="session")
 def types(params):
-    return ["neuron"] * params.num_neurons
+    return [Component.NEURON] * params.num_neurons
 
 
 @pytest.fixture(scope="session")

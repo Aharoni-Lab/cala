@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 from scipy.ndimage import binary_erosion, binary_dilation
 
+from cala.streaming.core import Component
 from cala.streaming.init.common.traces import TracesInitializer, TracesInitializerParams
 from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
@@ -214,7 +215,7 @@ class TestFootprintUpdater:
             np.roll(mini_footprints[-1], -1), dims=("height", "width")
         )
         rolled = rolled.expand_dims("component").assign_coords(
-            {"id_": ("component", ["id5"]), "type_": ("component", ["neuron"])}
+            {"id_": ("component", ["id5"]), "type_": ("component", [Component.NEURON])}
         )
         redundant_footprints = xr.concat(
             [redundant_footprints, rolled],

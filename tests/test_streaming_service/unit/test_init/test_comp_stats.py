@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
@@ -22,7 +23,10 @@ class TestComponentStatsInitializer:
         # Create sample coordinates
         coords = {
             "id_": ("component", [f"id{i}" for i in range(n_components)]),
-            "type_": ("component", ["neuron", "neuron", "background"]),
+            "type_": (
+                "component",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
 
         # Create sample traces with known correlation pattern
@@ -78,9 +82,9 @@ class TestComponentStatsInitializer:
         assert "id_" in initializer.component_stats_.coords
         assert "type_" in initializer.component_stats_.coords
         assert initializer.component_stats_.coords["type_"].values.tolist() == [
-            "neuron",
-            "neuron",
-            "background",
+            Component.NEURON,
+            Component.NEURON,
+            Component.BACKGROUND,
         ]
 
     def test_transform_one(self, initializer, sample_data):

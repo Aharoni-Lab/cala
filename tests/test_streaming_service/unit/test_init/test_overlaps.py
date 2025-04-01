@@ -57,7 +57,7 @@ class TestOverlapsInitializer:
         result = initializer.transform_one()
 
         result.values = result.data.todense()
-        visualizer.plot_overlap(result, mini_footprints, subdir="init/overlap")
+        visualizer.plot_overlaps(result, mini_footprints, subdir="init/overlap")
         # Convert to dense for testing
 
         # Test expected overlap patterns

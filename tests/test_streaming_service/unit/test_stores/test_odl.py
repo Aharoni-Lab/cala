@@ -3,7 +3,7 @@ import pytest
 import sparse
 import xarray as xr
 
-from cala.streaming.core import ObservableStore
+from cala.streaming.core import ObservableStore, Component
 from cala.streaming.stores.odl import (
     PixelStatStore,
     ComponentStatStore,
@@ -23,7 +23,10 @@ class TestPixelStats:
         data = np.random.rand(n_pixels, n_components)
         coords = {
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "type_": (
+                "components",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
         return PixelStatStore(
             xr.DataArray(data, dims=("pixels", "components"), coords=coords)
@@ -41,9 +44,9 @@ class TestPixelStats:
         assert sample_pixel_stats.warehouse.shape[1] == 3  # number of components
         assert len(sample_pixel_stats.warehouse.coords["id_"]) == 3
         assert sample_pixel_stats.warehouse.coords["type_"].values.tolist() == [
-            "neuron",
-            "neuron",
-            "background",
+            Component.NEURON,
+            Component.NEURON,
+            Component.BACKGROUND,
         ]
 
 
@@ -61,7 +64,10 @@ class TestComponentStats:
 
         coords = {
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "type_": (
+                "components",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
         return ComponentStatStore(
             xr.DataArray(data, dims=("components", "components"), coords=coords)
@@ -110,7 +116,10 @@ class TestOverlapGroups:
 
         coords_dict = {
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron"] * 3 + ["background"] * 2),
+            "type_": (
+                "components",
+                [Component.NEURON] * 3 + [Component.BACKGROUND] * 2,
+            ),
         }
 
         return OverlapStore(

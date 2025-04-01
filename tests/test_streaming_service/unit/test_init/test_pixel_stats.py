@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
@@ -87,7 +88,7 @@ class TestPixelStatsInitializer:
             dims=("component", "frame"),
             coords={
                 "id_": ("component", ["comp1", "comp2"]),
-                "type_": ("component", ["neuron", "neuron"]),
+                "type_": ("component", [Component.NEURON, Component.NEURON]),
             },
         )
         traces[0, :] = [1, 2, 3]
@@ -159,7 +160,10 @@ class TestPixelStatsInitializer:
             dims=("components", "frame"),
             coords={
                 "id_": ("components", ["id0", "id1", "id2"]),
-                "type_": ("components", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "components",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_frames = xr.DataArray(

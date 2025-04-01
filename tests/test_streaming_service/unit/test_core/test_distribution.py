@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import (
@@ -27,7 +28,10 @@ class TestDistributor:
 
         coords = {
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "type_": (
+                "components",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
 
         # Create sample footprints

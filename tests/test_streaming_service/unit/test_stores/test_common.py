@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import ObservableStore
+from cala.streaming.core import ObservableStore, Component
 from cala.streaming.stores.common import FootprintStore, TraceStore
 
 
@@ -15,7 +15,10 @@ class TestFootprints:
         data = np.random.rand(3, 10, 10)  # 3 components, 10x10 spatial dimensions
         coords = {
             "id_": ("components", ["id0", "id1", "id2"]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "type_": (
+                "components",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
         return FootprintStore(
             xr.DataArray(data, dims=("components", "height", "width"), coords=coords)
@@ -39,7 +42,10 @@ class TestTraces:
         data = np.random.rand(3, 100)  # 3 components, 100 timepoints
         coords = {
             "id_": ("components", ["id0", "id1", "id2"]),
-            "type_": ("components", ["neuron", "neuron", "background"]),
+            "type_": (
+                "components",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
         return TraceStore(
             xr.DataArray(data, dims=("components", "frames"), coords=coords)

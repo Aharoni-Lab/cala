@@ -43,7 +43,7 @@ class TestTraceUpdater:
         visualizer.plot_footprints(mini_footprints, subdir="iter/trace")
         visualizer.plot_traces(mini_traces, subdir="iter/trace")
         visualizer.save_video_frames(mini_denoised, subdir="iter/trace")
-        visualizer.plot_overlap(
+        visualizer.plot_overlaps(
             mini_overlap, footprints=mini_footprints, subdir="iter/trace"
         )
         updater.learn_one(

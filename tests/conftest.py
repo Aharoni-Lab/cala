@@ -32,6 +32,9 @@ from tests.fixtures.mini import (
     mini_footprints,
     mini_traces,
     mini_residuals,
+    mini_pixel_stats,
+    mini_component_stats,
+    mini_overlaps,
     mini_denoised,
     mini_movie,
 )

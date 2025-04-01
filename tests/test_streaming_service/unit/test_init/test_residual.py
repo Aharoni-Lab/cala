@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.init.odl.residual_buffer import (
     ResidualInitializer,
     ResidualInitializerParams,
@@ -36,7 +37,10 @@ class TestResidualInitializer:
         # Create sample coordinates
         coords = {
             "id_": ("component", [f"id{i}" for i in range(n_components)]),
-            "type_": ("component", ["neuron", "neuron", "background"]),
+            "type_": (
+                "component",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
 
         footprints = xr.DataArray(
@@ -181,7 +185,10 @@ class TestResidualInitializer:
             dims=("component", "height", "width"),
             coords={
                 "id_": ("component", ["id0", "id1", "id2"]),
-                "type_": ("component", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "component",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_traces = xr.DataArray(
@@ -189,7 +196,10 @@ class TestResidualInitializer:
             dims=("component", "frame"),
             coords={
                 "id_": ("component", ["id0", "id1", "id2"]),
-                "type_": ("component", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "component",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_frames = xr.DataArray(
