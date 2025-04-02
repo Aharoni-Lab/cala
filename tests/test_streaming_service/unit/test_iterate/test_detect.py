@@ -46,7 +46,7 @@ class TestDetector:
 
     @pytest.fixture(scope="class")
     def updater(self):
-        return Detector(DetectorParams(num_nmf_residual_frames=5, gaussian_radius=1))
+        return Detector(DetectorParams(num_nmf_residual_frames=5, gaussian_std=1))
 
     @pytest.fixture(scope="class")
     def overlapper(self):

@@ -7,7 +7,9 @@ import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 from scipy.ndimage import gaussian_filter
+from skimage.restoration import estimate_sigma
 from sklearn.decomposition import NMF
+from sklearn.feature_extraction.image import PatchExtractor
 
 from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters, Component, Axis
@@ -27,7 +29,7 @@ class DetectorParams(Parameters, Axis):
     num_nmf_residual_frames: int
     """The number of past frames to use for NMF."""
 
-    gaussian_radius: float = 2.0
+    gaussian_std: float = 1.0
     """Radius (τ) of Gaussian kernel for spatial filtering."""
 
     spatial_threshold: float = 0.8
@@ -43,7 +45,7 @@ class DetectorParams(Parameters, Axis):
             ValueError: If gaussian_radius is not positive or if thresholds
                 are not in range (0,1].
         """
-        if self.gaussian_radius <= 0:
+        if self.gaussian_std <= 0:
             raise ValueError("gaussian_radius must be positive")
         if not (0 < self.spatial_threshold <= 1):
             raise ValueError("spatial_threshold must be between 0 and 1")
@@ -77,6 +79,12 @@ class Detector(SupervisedTransformer):
     params: DetectorParams
     """Configuration parameters for the detection process."""
 
+    sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
+
+    frame_: Frame = None
+
+    noise_level_: float = field(init=False)
+
     cell_radius_: int = field(init=False)
 
     new_footprints_: Footprints = field(default_factory=list)
@@ -90,8 +98,6 @@ class Detector(SupervisedTransformer):
 
     residuals_: Residuals = None
     """Updated residual buffer R_buf."""
-
-    frame_: Frame = None
 
     is_fitted_: bool = False
     """Indicator whether the transformer has been fitted."""
@@ -131,14 +137,22 @@ class Detector(SupervisedTransformer):
         self.cell_radius_ = self._estimate_cell_radius(footprints)
 
         # Update and process residuals
-        self._update_residual_buffer(
+        self.residuals_ = self._update_residual_buffer(
             frame=frame.array, footprints=footprints, traces=traces, residuals=residuals
         )
+
+        self.noise_level_ = self._estimate_gaussian_noise(residuals, frame.array.shape)
 
         valid = True
         while valid:
             # Compute deviation from median
             V = self._process_residuals()
+            if (
+                V.max() - V.min()
+            ) / 2 <= self.noise_level_:  # if fluctuation is noise level
+                valid = False
+                continue
+
             # Compute energy (variance)
             E = (V**2).sum(dim=self.params.frames_axis)
 
@@ -258,13 +272,18 @@ class Detector(SupervisedTransformer):
         ]
         return np.sqrt(avg_footprint) / np.pi
 
+    def _estimate_gaussian_noise(self, residuals, frame_shape):
+        self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
+        patches = self.sampler.transform(residuals)
+        return estimate_sigma(patches)
+
     def _update_residual_buffer(
         self,
         frame: xr.DataArray,
         footprints: Footprints,
         traces: Traces,
         residuals: Residuals,
-    ) -> None:
+    ) -> Residuals:
         """Update residual buffer with new frame."""
         prediction = footprints @ traces.isel({self.params.frames_axis: [-1]})
         new_residual = frame - prediction
@@ -275,10 +294,11 @@ class Detector(SupervisedTransformer):
             )
         else:
             residual_slice = residuals
-        self.residuals_ = xr.concat(
+        residuals = xr.concat(
             [residual_slice, new_residual],
             dim=self.params.frames_axis,
         )
+        return residuals
 
     def _process_residuals(self) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
@@ -288,7 +308,7 @@ class Detector(SupervisedTransformer):
 
         # Apply spatial filter -- why are we doing this??
         V = xr.apply_ufunc(
-            lambda x: gaussian_filter(x, self.params.gaussian_radius),
+            lambda x: gaussian_filter(x, self.params.gaussian_std),
             R_centered,
             input_core_dims=[[*self.params.spatial_axes]],
             output_core_dims=[[*self.params.spatial_axes]],

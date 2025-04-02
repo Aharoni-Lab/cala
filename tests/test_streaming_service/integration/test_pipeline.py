@@ -222,6 +222,16 @@ def streaming_config() -> StreamingConfig:
                     "transformer": TracesUpdater,
                     "params": {"tolerance": 1e-3},
                 },
+                "pixel_stats": {
+                    "transformer": PixelStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
+                "component_stats": {
+                    "transformer": ComponentStatsUpdater,
+                    "params": {},
+                    "requires": ["traces"],
+                },
                 "detect": {
                     "transformer": Detector,
                     "params": {
@@ -230,22 +240,12 @@ def streaming_config() -> StreamingConfig:
                         "spatial_threshold": 0.8,
                         "temporal_threshold": 0.8,
                     },
-                    "requires": ["traces"],
-                },
-                "pixel_stats": {
-                    "transformer": PixelStatsUpdater,
-                    "params": {},
-                    "requires": ["detect"],
-                },
-                "component_stats": {
-                    "transformer": ComponentStatsUpdater,
-                    "params": {},
-                    "requires": ["detect"],
+                    "requires": ["pixel_stats", "component_stats"],
                 },
                 "footprints": {
                     "transformer": FootprintsUpdater,
                     "params": {"boundary_expansion_pixels": 1},
-                    "requires": ["pixel_stats", "component_stats"],
+                    "requires": ["detect"],
                 },
                 "overlaps": {
                     "transformer": OverlapsUpdater,
