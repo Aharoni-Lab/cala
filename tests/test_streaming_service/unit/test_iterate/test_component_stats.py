@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from cala.streaming.composer import Frame
@@ -56,7 +57,7 @@ class TestCompStatsUpdater:
             prev_comp_stats, subdir="iter/comp_stats", name="prev_cs"
         )
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised)),
+            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
             traces=mini_traces,
             component_stats=prev_comp_stats,
         )
@@ -73,3 +74,5 @@ class TestCompStatsUpdater:
         visualizer.plot_component_stats(
             late_init_cs, subdir="iter/comp_stats", name="late_cs"
         )
+
+        assert np.allclose(late_init_cs, new_comp_stats)

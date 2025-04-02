@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from cala.streaming.composer import Frame
@@ -54,19 +55,22 @@ class TestPixelStatsUpdater:
         visualizer.plot_trace_correlations(mini_traces, subdir="iter/pixel_stats")
         visualizer.save_video_frames(mini_denoised, subdir="iter/pixel_stats")
         visualizer.plot_pixel_stats(
-            prev_pixel_stats,
+            prev_pixel_stats.transpose(*mini_footprints.dims),
             mini_footprints,
             subdir="iter/pixel_stats",
             name="prev_ps",
         )
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised)),
+            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
             traces=mini_traces,
             pixel_stats=prev_pixel_stats,
         )
         new_pixel_stats = updater.transform_one()
         visualizer.plot_pixel_stats(
-            new_pixel_stats, mini_footprints, subdir="iter/pixel_stats", name="new_ps"
+            new_pixel_stats.transpose(*mini_footprints.dims),
+            mini_footprints,
+            subdir="iter/pixel_stats",
+            name="new_ps",
         )
 
         late_init_ps = initializer.learn_one(
@@ -75,5 +79,13 @@ class TestPixelStatsUpdater:
         ).transform_one()
 
         visualizer.plot_pixel_stats(
-            late_init_ps, mini_footprints, subdir="iter/pixel_stats", name="late_ps"
+            late_init_ps.transpose(*mini_footprints.dims),
+            mini_footprints,
+            subdir="iter/pixel_stats",
+            name="late_ps",
+        )
+
+        assert np.allclose(
+            new_pixel_stats.transpose(*mini_footprints.dims),
+            late_init_ps.transpose(*mini_footprints.dims),
         )

@@ -34,7 +34,7 @@ class ComponentStatsInitializer(SupervisedTransformer):
     using their activity traces. The correlation is computed as a normalized
     outer product of the temporal components.
 
-    The computation follows the equation:  M = C * C.T / t'
+    The computation follows the equation:  M = C @ C.T / t'
     where:
     - C is the temporal components matrix (components × time)
     - t' is the current timestep
