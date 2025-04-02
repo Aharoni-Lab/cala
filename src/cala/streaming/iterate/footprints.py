@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Self
 
+import cv2
 import numpy as np
 import xarray as xr
 from river.base import SupervisedTransformer
-from scipy.ndimage import binary_dilation
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
@@ -26,6 +26,8 @@ class FootprintsUpdaterParams(Parameters, Axis):
 
     max_iterations: int = 100
     """Maximum number of iterations for shape update convergence."""
+
+    tolerance: float = 1e-7
 
     def validate(self):
         """Validate parameter configurations.
@@ -68,7 +70,7 @@ class FootprintsUpdater(SupervisedTransformer):
         footprints: Footprints,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
-        frame: Frame,
+        frame: Frame = None,
     ) -> Self:
         """Update spatial footprints using sufficient statistics.
 
@@ -91,16 +93,28 @@ class FootprintsUpdater(SupervisedTransformer):
         """
         A = footprints
         M = component_stats
+        side_length = min(
+            footprints.sizes[self.params.spatial_axes[0]],
+            footprints.sizes[self.params.spatial_axes[1]],
+        )
+        if self.params.boundary_expansion_pixels:
+            kernel = cv2.getStructuringElement(
+                cv2.MORPH_CROSS,
+                (
+                    self.params.boundary_expansion_pixels * 2 + 1,
+                    self.params.boundary_expansion_pixels * 2 + 1,
+                ),
+            )  # faster than np.ones
 
         for _ in range(self.params.max_iterations):
             # Create mask for non-zero pixels per component
             mask = A > 0
-            if self.params.boundary_expansion_pixels:
+            if self.params.boundary_expansion_pixels and _ < side_length:
                 mask = xr.apply_ufunc(
-                    lambda x: binary_dilation(
-                        x, iterations=self.params.boundary_expansion_pixels
+                    lambda x: cv2.morphologyEx(
+                        x, cv2.MORPH_DILATE, kernel, iterations=1
                     ),
-                    mask,
+                    mask.astype(np.uint8),
                     input_core_dims=[[*self.params.spatial_axes]],
                     output_core_dims=[[*self.params.spatial_axes]],
                     vectorize=True,
@@ -124,8 +138,12 @@ class FootprintsUpdater(SupervisedTransformer):
 
             # Apply update equation with masking
             update = numerator / M_diag
-            A = xr.where(mask, A + update, A)
-            A = xr.where(A > 0, A, 0)
+            A_new = xr.where(mask, A + update, A)
+            A_new = xr.where(A_new > 0, A_new, 0)
+            if abs((A - A_new).sum() / np.prod(A.shape)) < self.params.tolerance:
+                break
+            else:
+                A = A_new
 
         self.footprints_ = A
         self.is_fitted_ = True

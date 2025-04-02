@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.init.odl.residual_buffer import (
     ResidualInitializer,
     ResidualInitializerParams,
@@ -36,7 +37,10 @@ class TestResidualInitializer:
         # Create sample coordinates
         coords = {
             "id_": ("component", [f"id{i}" for i in range(n_components)]),
-            "type_": ("component", ["neuron", "neuron", "background"]),
+            "type_": (
+                "component",
+                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+            ),
         }
 
         footprints = xr.DataArray(
@@ -91,7 +95,7 @@ class TestResidualInitializer:
         """Test learn_one method."""
         # Run learn_one
         initializer.learn_one(
-            sample_data["footprints"], sample_data["traces"], sample_data["frames"]
+            sample_data["footprints"], sample_data["traces"], sample_data["movie"]
         )
 
         # Check that residual_ was created
@@ -99,17 +103,18 @@ class TestResidualInitializer:
         assert isinstance(initializer.residual_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.residual_.dims == ("frame", "pixel")
+        assert initializer.residual_.dims == ("frame", "width", "height")
         assert initializer.residual_.shape == (
-            min(initializer.params.buffer_length, sample_data["n_frames"]),
-            sample_data["height"] * sample_data["width"],
+            min(initializer.params.buffer_length, sample_data["movie"].sizes["frame"]),
+            sample_data["movie"].sizes["width"],
+            sample_data["movie"].sizes["height"],
         )
 
     def test_transform_one(self, initializer, sample_data):
         """Test transform_one method."""
         # First learn
         initializer.learn_one(
-            sample_data["footprints"], sample_data["traces"], sample_data["frames"]
+            sample_data["footprints"], sample_data["traces"], sample_data["movie"]
         )
 
         # Then transform
@@ -117,7 +122,7 @@ class TestResidualInitializer:
 
         # Check result type
         assert isinstance(result, xr.DataArray)
-        assert result.dims == ("frame", "pixel")
+        assert result.dims == ("frame", "width", "height")
 
     @pytest.mark.viz
     def test_computation_correctness(self, sample_data, visualizer):
@@ -165,7 +170,7 @@ class TestResidualInitializer:
 
         # Run computation
         small_buffer_initializer.learn_one(
-            sample_data["footprints"], sample_data["traces"], sample_data["frames"]
+            sample_data["footprints"], sample_data["traces"], sample_data["movie"]
         )
         result = small_buffer_initializer.transform_one()
 
@@ -180,7 +185,10 @@ class TestResidualInitializer:
             dims=("component", "height", "width"),
             coords={
                 "id_": ("component", ["id0", "id1", "id2"]),
-                "type_": ("component", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "component",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_traces = xr.DataArray(
@@ -188,7 +196,10 @@ class TestResidualInitializer:
             dims=("component", "frame"),
             coords={
                 "id_": ("component", ["id0", "id1", "id2"]),
-                "type_": ("component", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "component",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_frames = xr.DataArray(

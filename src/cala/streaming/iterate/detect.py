@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Self
 from uuid import uuid4
 
+import numpy as np
 import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
@@ -76,6 +77,8 @@ class Detector(SupervisedTransformer):
     params: DetectorParams
     """Configuration parameters for the detection process."""
 
+    cell_radius_: int = field(init=False)
+
     new_footprints_: Footprints = field(default_factory=list)
     """New spatial footprints [A, b]."""
 
@@ -125,15 +128,18 @@ class Detector(SupervisedTransformer):
         """
 
         self.frame_ = frame
+        self.cell_radius_ = self._estimate_cell_radius(footprints)
+
         # Update and process residuals
         self._update_residual_buffer(
             frame=frame.array, footprints=footprints, traces=traces, residuals=residuals
         )
-        V = self._process_residuals()
 
         valid = True
         while valid:
-            # Compute energy
+            # Compute deviation from median
+            V = self._process_residuals()
+            # Compute energy (variance)
             E = (V**2).sum(dim=self.params.frames_axis)
 
             # Find and analyze neighborhood of maximum variance
@@ -152,7 +158,7 @@ class Detector(SupervisedTransformer):
             # Update residuals and energy
             new_component = a_new * c_new
             self.residuals_ = self.residuals_ - new_component
-            V = V - (a_new**2) * (c_new**2).sum()
+            # V = V - (a_new**2) * (c_new**2).sum()
 
             self.new_footprints_.append(a_new)
             self.new_traces_.append(c_new)
@@ -243,6 +249,15 @@ class Detector(SupervisedTransformer):
             overlaps_,
         )
 
+    def _estimate_cell_radius(self, footprints: Footprints) -> int:
+        neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
+            {self.params.type_coordinates: Component.NEURON}
+        )
+        avg_footprint = (neuron_footprints != 0).sum() / neuron_footprints.sizes[
+            self.params.component_axis
+        ]
+        return np.sqrt(avg_footprint) / np.pi
+
     def _update_residual_buffer(
         self,
         frame: xr.DataArray,
@@ -251,29 +266,27 @@ class Detector(SupervisedTransformer):
         residuals: Residuals,
     ) -> None:
         """Update residual buffer with new frame."""
-        prediction = (footprints * traces.isel({self.params.frames_axis: -1})).sum(
-            dim=self.params.component_axis
-        )
+        prediction = footprints @ traces.isel({self.params.frames_axis: [-1]})
         new_residual = frame - prediction
         if len(residuals) >= self.params.num_nmf_residual_frames:
-            residual_slice = residuals.isel({self.params.frames_axis: slice(1, None)})
+            n_frames_discard = len(residuals) - self.params.num_nmf_residual_frames + 1
+            residual_slice = residuals.isel(
+                {self.params.frames_axis: slice(n_frames_discard, None)}
+            )
         else:
             residual_slice = residuals
         self.residuals_ = xr.concat(
-            [
-                residual_slice,
-                new_residual.expand_dims(self.params.frames_axis),
-            ],
+            [residual_slice, new_residual],
             dim=self.params.frames_axis,
         )
 
     def _process_residuals(self) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
-        # Center residuals
+        # Center residuals: why median and not mean?
         R_med = self.residuals_.median(dim=self.params.frames_axis)
         R_centered = self.residuals_ - R_med
 
-        # Apply spatial filter
+        # Apply spatial filter -- why are we doing this??
         V = xr.apply_ufunc(
             lambda x: gaussian_filter(x, self.params.gaussian_radius),
             R_centered,
@@ -291,32 +304,20 @@ class Detector(SupervisedTransformer):
         """Find neighborhood around point of maximum variance."""
         # Find maximum point
         max_coords = E.argmax(dim=self.params.spatial_axes)
-        ix = max_coords[self.params.spatial_axes[0]].values.tolist()
-        iy = max_coords[self.params.spatial_axes[1]].values.tolist()
 
         # Define neighborhood
-        radius = int(self.params.gaussian_radius)
-        y_slice = slice(
-            max(0, iy - radius),
-            min(E.sizes[self.params.spatial_axes[1]], iy + radius + 1),
-        )
-        x_slice = slice(
-            max(0, ix - radius),
-            min(E.sizes[self.params.spatial_axes[0]], ix + radius + 1),
-        )
+        radius = int(np.round(self.cell_radius_))
+        window = {
+            ax: slice(
+                max(0, pos.values - radius),
+                min(E.sizes[ax], pos.values + radius + 1),
+            )
+            for ax, pos in max_coords.items()
+        }
 
         # ok embed the actual coordinates onto the array
-        neighborhood = self.residuals_.isel(
-            {self.params.spatial_axes[1]: y_slice, self.params.spatial_axes[0]: x_slice}
-        ).assign_coords(
-            {
-                self.params.spatial_axes[0]: E.coords[self.params.spatial_axes[0]][
-                    x_slice
-                ],
-                self.params.spatial_axes[1]: E.coords[self.params.spatial_axes[1]][
-                    y_slice
-                ],
-            }
+        neighborhood = self.residuals_.isel(window).assign_coords(
+            {ax: E.coords[ax][pos] for ax, pos in window.items()}
         )
 
         return neighborhood
@@ -373,9 +374,6 @@ class Detector(SupervisedTransformer):
             )
         )
 
-        # # Normalize spatial component
-        # a_new = a_new / a_new.sum()
-
         return a_new, c_new
 
     def _validate_component(
@@ -386,63 +384,61 @@ class Detector(SupervisedTransformer):
         footprints: Footprints,
     ) -> bool:
         """Validate new component against spatial and temporal criteria."""
-        nonzero_y, nonzero_x = a_new.values.nonzero()
-        if len(nonzero_y) == 0:
+        nonzero_ax_to_idx = {
+            ax: sorted([int(x) for x in set(idx)])
+            for ax, idx in zip(a_new.dims, a_new.values.nonzero())
+        }
+
+        if len(list(nonzero_ax_to_idx.values())[0]) == 0:
             return False
 
-        # it should look like something from a residual
-        r = xr.corr(
-            a_new.isel(
-                {
-                    self.params.spatial_axes[0]: sorted(list(set(nonzero_y))),
-                    self.params.spatial_axes[1]: sorted(list(set(nonzero_x))),
-                }
-            ),
-            self.residuals_.mean(dim=self.params.frames_axis).isel(
-                {
-                    self.params.spatial_axes[0]: sorted(list(set(nonzero_y))),
-                    self.params.spatial_axes[1]: sorted(list(set(nonzero_x))),
-                }
-            ),
+        # it should look like something from a residual. paper does not specify this,
+        # but i think we should only get correlation from the new footprint perimeter,
+        # since otherwise the correlation will get drowned out by the mismatch
+        # from where the detected cell is NOT present.
+        mean_residual = self.residuals_.mean(dim=self.params.frames_axis)
+
+        a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
+        res_norm = mean_residual.isel(nonzero_ax_to_idx) / mean_residual.sum()
+        r_spatial = (
+            xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
         )
-        if r <= self.params.spatial_threshold:
+
+        if r_spatial <= self.params.spatial_threshold:
             return False
 
         # Check for duplicates by computing spatial overlap with existing footprints
-        overlaps = xr.dot(a_new, footprints, dims=self.params.spatial_axes)
-        overlapping_components = (overlaps > 0).assign_coords(
-            {
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.id_coordinates].values,
-                )
-            }
-        )
+        overlaps = (a_new @ footprints) > 0
+
         overlapping_components = (
-            overlapping_components.where(overlapping_components == True, drop=True)
+            overlaps.where(overlaps == True, drop=True)
             .coords[self.params.id_coordinates]
             .values
         )
 
         if overlapping_components.any():
-            # For components with spatial overlap, check temporal correlation
-            temporal_corr = xr.corr(
-                c_new,
-                traces.isel(
+            relevant_traces = (
+                traces.set_xindex(self.params.id_coordinates)
+                .sel(
+                    {
+                        self.params.id_coordinates: overlapping_components,
+                    }
+                )
+                .isel(
                     {
                         self.params.frames_axis: slice(
                             -self.residuals_.sizes[self.params.frames_axis], None
                         )
                     }
                 )
-                .set_xindex(self.params.id_coordinates)
-                .sel(
-                    {
-                        self.params.id_coordinates: overlapping_components,
-                    }
-                ),
+            )
+            # For components with spatial overlap, check temporal correlation
+            temporal_corr = xr.corr(
+                c_new,
+                relevant_traces,
                 dim=self.params.frames_axis,
             )
+
             if (temporal_corr > self.params.temporal_threshold).any():
                 return False
 
@@ -491,11 +487,11 @@ class Detector(SupervisedTransformer):
         )
 
         # traces has to be the same number of frames as residuals
-        y_buf = (footprints @ traces + residuals).stack(pixels=self.params.spatial_axes)
+        y_buf = footprints @ traces + residuals
 
         # Compute outer product of frame and new traces
         # (1/t)Y_buf c_new^T
-        new_stats = scale * (y_buf @ new_traces).unstack("pixels")
+        new_stats = scale * (y_buf @ new_traces)
 
         # Concatenate with existing pixel stats along component axis
         return xr.concat([pixel_stats, new_stats], dim=self.params.component_axis)
@@ -533,8 +529,7 @@ class Detector(SupervisedTransformer):
         # Get current frame index (1-based)
         t = frame_idx + 1
 
-        # Scale existing statistics: (t-1)/t * M_t
-        M_scaled = component_stats * ((t - 1) / t)
+        M = component_stats
 
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
@@ -571,9 +566,7 @@ class Detector(SupervisedTransformer):
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]
-        top_block = xr.concat(
-            [M_scaled, top_right_corr], dim=self.params.component_axis
-        )
+        top_block = xr.concat([M, top_right_corr], dim=self.params.component_axis)
 
         # Bottom block: [cross_corr.T, auto_corr]
         bottom_block = xr.concat(

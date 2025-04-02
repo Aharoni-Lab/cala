@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Self
 
-import numpy as np
-import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
@@ -82,20 +80,17 @@ class PixelStatsUpdater(SupervisedTransformer):
         new_scale = 1 / frame_idx
 
         # Flatten spatial dimensions of frame
-        y_t = frame.array.stack({"pixels": self.params.spatial_axes})
-        W = pixel_stats.stack({"pixels": self.params.spatial_axes})
+        y_t = frame.array  # .stack({"pixels": self.params.spatial_axes})
+        W = pixel_stats  # .stack({"pixels": self.params.spatial_axes})
         # New frame traces
         c_t = traces.isel({self.params.frames_axis: -1})
 
         # Update pixel-component statistics W_t
         # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
-        new_corr = xr.DataArray(
-            np.outer(y_t, c_t), dims=y_t.dims + c_t.dims, coords=c_t.coords
-        )
-        W_update = prev_scale * W + new_scale * new_corr
+        W_update = prev_scale * W + new_scale * y_t @ c_t
 
         # Create updated xarray DataArrays with same coordinates/dimensions
-        self.pixel_stats_ = W_update.unstack("pixels")
+        self.pixel_stats_ = W_update  # .unstack("pixels")
 
         self.is_fitted_ = True
         return self

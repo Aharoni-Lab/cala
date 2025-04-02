@@ -8,12 +8,12 @@ from tests.conftest import stabilized_video
 from tests.test_batch.test_segmentation.test_detect.conftest import visualize_detection
 
 
-def test_max_projection_basic(stabilized_video):
+def test_max_projection_basic(stabilized_video, params):
     """Test basic functionality of MaxProjection detector."""
-    video, ground_truth, metadata = stabilized_video
+    video = stabilized_video
 
     # Create detector with default parameters
-    detector = MaxProjection(core_axes=["height", "width"], iter_axis="frames")
+    detector = MaxProjection(core_axes=["height", "width"], iter_axis="frame")
 
     # Detect seeds
     seeds = detector.fit_transform(video)
@@ -23,8 +23,8 @@ def test_max_projection_basic(stabilized_video):
     assert all(
         col in seeds.columns for col in ["height", "width"]
     ), "Missing coordinate columns"
-    assert len(seeds) >= 0.5 * len(ground_truth), "Too few seeds detected"
-    assert len(seeds) <= 1.2 * len(ground_truth), "Too many seeds detected"
+    assert len(seeds) >= 0.5 * params.num_neurons, "Too few seeds detected"
+    assert len(seeds) <= 1.2 * params.num_neurons, "Too many seeds detected"
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def size_variation_params(params):
 
 def test_detection_with_different_cell_sizes(stabilized_video, size_variation_params):
     """Test detection with varying cell sizes."""
-    video, ground_truth, _ = stabilized_video
+    video = stabilized_video
 
     # Test with different local_max_radius values
     radii = [5, 10, 15]
@@ -54,7 +54,7 @@ def test_detection_with_different_cell_sizes(stabilized_video, size_variation_pa
 
     for radius in radii:
         detector = MaxProjection(
-            core_axes=["height", "width"], iter_axis="frames", local_max_radius=radius
+            core_axes=["height", "width"], iter_axis="frame", local_max_radius=radius
         )
         seeds = detector.fit_transform(video)
         results.append(len(seeds))
@@ -67,11 +67,11 @@ def test_detection_with_different_cell_sizes(stabilized_video, size_variation_pa
 @pytest.mark.parametrize("intensity_threshold", [1, 2, 3])
 def test_intensity_threshold_effect(stabilized_video, intensity_threshold):
     """Test effect of intensity threshold on detection."""
-    video, ground_truth, _ = stabilized_video
+    video = stabilized_video
 
     detector = MaxProjection(
         core_axes=["height", "width"],
-        iter_axis="frames",
+        iter_axis="frame",
         intensity_threshold=intensity_threshold,
     )
 
@@ -81,7 +81,7 @@ def test_intensity_threshold_effect(stabilized_video, intensity_threshold):
     if intensity_threshold > 1:
         prev_detector = MaxProjection(
             core_axes=["height", "width"],
-            iter_axis="frames",
+            iter_axis="frame",
             intensity_threshold=intensity_threshold - 1,
         )
         prev_seeds = prev_detector.fit_transform(video)
@@ -90,13 +90,13 @@ def test_intensity_threshold_effect(stabilized_video, intensity_threshold):
         ), "Higher threshold should detect fewer seeds"
 
 
-def test_visualization(stabilized_video):
+def test_visualization(stabilized_video, positions):
     """Test visualization of detection results."""
-    video, ground_truth, _ = stabilized_video
+    video = stabilized_video
 
     detector = MaxProjection(
         core_axes=["height", "width"],
-        iter_axis="frames",
+        iter_axis="frame",
         local_max_radius=8,
         intensity_threshold=1,
     )
@@ -107,7 +107,7 @@ def test_visualization(stabilized_video):
     fig = visualize_detection(
         video=video,
         seeds=seeds,
-        ground_truth=ground_truth,
+        ground_truth=positions,
         title="MaxProjection Detection Results",
     )
 

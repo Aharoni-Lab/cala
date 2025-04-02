@@ -639,7 +639,7 @@ class Visualizer:
         # Save figure
         self.save_fig(name, subdir)
 
-    def plot_overlap(
+    def plot_overlaps(
         self,
         overlap_matrix: np.ndarray,
         footprints: xr.DataArray,

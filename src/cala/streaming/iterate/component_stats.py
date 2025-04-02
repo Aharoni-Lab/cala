@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Self
 
-import numpy as np
-import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
@@ -86,8 +84,8 @@ class ComponentStatsUpdater(SupervisedTransformer):
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
-        new_corr = xr.DataArray(
-            np.outer(c_t, c_t), dims=(c_t.dims[0], f"{c_t.dims[0]}'"), coords=c_t.coords
+        new_corr = c_t @ c_t.rename(
+            {self.params.component_axis: f"{self.params.component_axis}'"}
         )
         M_update = prev_scale * component_stats + new_scale * new_corr
 

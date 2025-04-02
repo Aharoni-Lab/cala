@@ -67,7 +67,7 @@ class PixelStatsInitializer(SupervisedTransformer):
         t_prime = frame.sizes[self.params.frames_axis]
 
         # Reshape frames to pixels x time
-        Y = frame.stack({"pixels": self.params.spatial_axes})
+        Y = frame  # .stack({"pixels": self.params.spatial_axes})
 
         # Get temporal components C
         C = traces  # components x time
@@ -76,7 +76,7 @@ class PixelStatsInitializer(SupervisedTransformer):
         W = Y @ C.T / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.pixel_stats_ = W.unstack("pixels")
+        self.pixel_stats_ = W  # .unstack("pixels")
 
         return self
 

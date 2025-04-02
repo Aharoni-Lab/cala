@@ -9,7 +9,6 @@ from cala.streaming.preprocess import (
     Denoiser,
     DenoiserParams,
 )
-from tests.fixtures import raw_calcium_video
 
 
 class TestStreamingDenoiser:

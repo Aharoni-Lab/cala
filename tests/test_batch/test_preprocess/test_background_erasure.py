@@ -5,7 +5,7 @@ from cala.batch.preprocess.background_erasure import BackgroundEraser
 
 
 def test_background_erasure_uniform(raw_calcium_video):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     # Test uniform method
     eraser = BackgroundEraser(
@@ -24,7 +24,7 @@ def test_background_erasure_uniform(raw_calcium_video):
 
 
 def test_background_erasure_tophat(raw_calcium_video):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     # Test tophat method
     eraser = BackgroundEraser(
@@ -43,7 +43,7 @@ def test_background_erasure_tophat(raw_calcium_video):
 
 
 def test_invalid_method(raw_calcium_video):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     with pytest.raises(ValueError):
         eraser = BackgroundEraser(method="invalid")

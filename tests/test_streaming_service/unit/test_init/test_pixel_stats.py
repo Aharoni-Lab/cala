@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.streaming.core import Component
 from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
@@ -25,12 +26,11 @@ class TestPixelStatsInitializer:
 
     @pytest.mark.viz
     def test_learn_one(
-        self, initializer, traces, footprints, stabilized_video, visualizer
+        self, initializer, mini_traces, mini_footprints, mini_denoised, visualizer
     ):
         """Test learn_one method."""
-        footprints, _, _ = footprints
         # Run learn_one
-        initializer.learn_one(traces, stabilized_video)
+        initializer.learn_one(mini_traces, mini_denoised)
 
         # Check that pixel_stats_ was created
         assert hasattr(initializer, "pixel_stats_")
@@ -39,20 +39,20 @@ class TestPixelStatsInitializer:
         # Check dimensions
         assert initializer.pixel_stats_.dims == ("component", "width", "height")
         assert initializer.pixel_stats_.shape == (
-            traces.sizes["component"],
-            stabilized_video.sizes["width"],
-            stabilized_video.sizes["height"],
+            mini_traces.sizes["component"],
+            mini_denoised.sizes["width"],
+            mini_denoised.sizes["height"],
         )
 
         # Check coordinates
         assert "id_" in initializer.pixel_stats_.coords
         assert "type_" in initializer.pixel_stats_.coords
 
-        visualizer.plot_traces(traces, subdir="init/pixel_stats")
-        visualizer.write_movie(stabilized_video, subdir="init/pixel_stats")
+        visualizer.plot_traces(mini_traces, subdir="init/pixel_stats")
+        visualizer.write_movie(mini_denoised, subdir="init/pixel_stats")
         visualizer.plot_pixel_stats(
             pixel_stats=initializer.pixel_stats_,
-            footprints=footprints,
+            footprints=mini_footprints,
             subdir="init/pixel_stats",
         )
 
@@ -68,7 +68,7 @@ class TestPixelStatsInitializer:
         assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
-        assert result.dims == ("component", "height", "width")
+        assert result.dims == ("component", "width", "height")
         assert result.shape == (
             traces.sizes["component"],
             stabilized_video.sizes["height"],
@@ -88,7 +88,7 @@ class TestPixelStatsInitializer:
             dims=("component", "frame"),
             coords={
                 "id_": ("component", ["comp1", "comp2"]),
-                "type_": ("component", ["neuron", "neuron"]),
+                "type_": ("component", [Component.NEURON, Component.NEURON]),
             },
         )
         traces[0, :] = [1, 2, 3]
@@ -106,6 +106,39 @@ class TestPixelStatsInitializer:
         visualizer.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
 
         assert np.array_equal(result, label)
+
+    @pytest.mark.viz
+    def test_sanity_check_2(
+        self, mini_denoised, mini_traces, mini_footprints, initializer, visualizer
+    ):
+        """Test the correctness of the pixel statistics computation."""
+
+        # Run computation
+        initializer.learn_one(mini_traces, mini_denoised)
+        result = initializer.transform_one().transpose("component", "width", "height")
+
+        label = (mini_denoised @ mini_traces).transpose(
+            "component", "width", "height"
+        ) / mini_denoised.sizes["frame"]
+
+        visualizer.plot_footprints(
+            mini_footprints, subdir="init/pixel_stats/sanity_check_2"
+        )
+        visualizer.plot_traces(mini_traces, subdir="init/pixel_stats/sanity_check_2")
+        visualizer.plot_pixel_stats(
+            result,
+            mini_footprints,
+            subdir="init/pixel_stats/sanity_check_2",
+            name="result",
+        )
+        visualizer.plot_pixel_stats(
+            label,
+            mini_footprints,
+            subdir="init/pixel_stats/sanity_check_2",
+            name="label",
+        )
+
+        assert np.allclose(result, label, atol=1e-3)
 
     def test_coordinate_preservation(self, initializer, traces, stabilized_video):
         """Test that coordinates are properly preserved through the transformation."""
@@ -127,7 +160,10 @@ class TestPixelStatsInitializer:
             dims=("components", "frame"),
             coords={
                 "id_": ("components", ["id0", "id1", "id2"]),
-                "type_": ("components", ["neuron", "neuron", "background"]),
+                "type_": (
+                    "components",
+                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                ),
             },
         )
         invalid_frames = xr.DataArray(

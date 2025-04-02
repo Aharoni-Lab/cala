@@ -4,7 +4,6 @@ from cala.streaming.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
 )
-from tests.fixtures import stabilized_video
 
 
 class TestFootprintsInitializer:

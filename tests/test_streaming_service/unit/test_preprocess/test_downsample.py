@@ -7,7 +7,6 @@ from cala.streaming.preprocess import (
     Downsampler,
     DownsamplerParams,
 )
-from tests.fixtures import raw_calcium_video
 
 
 class TestStreamingDownsampler:

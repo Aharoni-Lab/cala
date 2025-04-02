@@ -19,7 +19,6 @@ from cala.streaming.preprocess import (
     GlowRemover,
 )
 from cala.streaming.stores.common import Footprints, Traces
-from tests.conftest import stabilized_video
 
 
 @dataclass
@@ -222,7 +221,7 @@ def initialization_config() -> StreamingConfig:
                 },
                 "traces": {
                     "transformer": TracesInitializer,
-                    "params": {"component_axis": "components", "frames_axis": "frame"},
+                    "params": {},
                     "n_frames": 3,
                     "requires": ["footprints"],
                 },

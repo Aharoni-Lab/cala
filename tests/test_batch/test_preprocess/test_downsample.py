@@ -13,10 +13,10 @@ from cala.batch.preprocess.downsample import Downsampler
     ],
 )
 def test_downsampler_methods(method, strides, raw_calcium_video):
-    video, _, _ = raw_calcium_video
+    video = raw_calcium_video
 
     downsampler = Downsampler(
-        method=method, dimensions=["frames", "height", "width"], strides=strides
+        method=method, dimensions=["frame", "height", "width"], strides=strides
     )
     result = downsampler.transform(video)
 
