@@ -10,9 +10,21 @@ from cala.streaming.init.odl.overlaps import (
     OverlapsInitializerParams,
 )
 from cala.streaming.init.odl.pixel_stats import PixelStatsInitializerParams
+from cala.streaming.iterate.component_stats import (
+    ComponentStatsUpdaterParams,
+    ComponentStatsUpdater,
+)
 from cala.streaming.iterate.detect import (
     Detector,
     DetectorParams,
+)
+from cala.streaming.iterate.footprints import (
+    FootprintsUpdater,
+    FootprintsUpdaterParams,
+)
+from cala.streaming.iterate.pixel_stats import (
+    PixelStatsUpdater,
+    PixelStatsUpdaterParams,
 )
 
 
@@ -67,6 +79,7 @@ class TestDetector:
         visualizer.plot_trace_correlations(
             mini_traces, subdir="iter/detect/traces_corr", name="label"
         )
+        # TODO: these two labels should be 4 minis and the 5th added according to the paper algo
         visualizer.plot_pixel_stats(
             mini_pixel_stats, subdir="iter/detect/pixel_stats", name="label"
         )
@@ -134,11 +147,20 @@ class TestDetector:
         trace_len = new_traces_.sizes["frame"]
 
         new_full_fps = xr.concat([foot_missing, new_footprints_], dim="component")
+
+        fill_dims = dict(new_traces_.sizes)
+        fill_dims["frame"] = trace_missing.sizes["frame"] - new_traces_.sizes["frame"]
+
         new_full_trs = xr.concat(
             [
                 trace_missing,
                 xr.concat(
-                    [xr.DataArray([[0, 0]], dims=new_traces_.dims), new_traces_],
+                    [
+                        xr.DataArray(
+                            np.zeros(list(fill_dims.values())), dims=fill_dims.keys()
+                        ),
+                        new_traces_,
+                    ],
                     dim="frame",
                 ),
             ],
@@ -154,6 +176,7 @@ class TestDetector:
         visualizer.plot_trace_correlations(
             new_full_trs, subdir="iter/detect/traces_corr", name="recovered"
         )
+        # TODO: Make sure the below two can recover the new footprint
         visualizer.plot_pixel_stats(
             pixel_stats_, subdir="iter/detect/pixel_stats", name="recovered"
         )
@@ -194,3 +217,121 @@ class TestDetector:
             new_traces_ * new_fp_l2,
             (mini_traces[-1] * label_l2).isel(frame=slice(-trace_len, None)),
         )
+        assert residuals_.max() < 1e-3
+
+    @pytest.fixture
+    def ps_updater(self):
+        return PixelStatsUpdater(PixelStatsUpdaterParams())
+
+    @pytest.fixture
+    def cs_updater(self):
+        return ComponentStatsUpdater(ComponentStatsUpdaterParams())
+
+    @pytest.fixture
+    def fp_updater(self):
+        return FootprintsUpdater(FootprintsUpdaterParams(boundary_expansion_pixels=1))
+
+    @pytest.mark.viz
+    def test_new_suff_stats(
+        self,
+        visualizer,
+        updater,
+        ps_updater,
+        cs_updater,
+        fp_updater,
+        mini_footprints,
+        mini_traces,
+        mini_denoised,
+        mini_pixel_stats,
+        mini_component_stats,
+        mini_overlaps,
+    ):
+        foot_missing = mini_footprints.isel(component=slice(None, -1))
+        trace_missing = mini_traces.isel(
+            component=slice(None, -1)
+        )  # we've just updated the traces, so all frames
+        residual_missing = (mini_denoised - foot_missing @ trace_missing).isel(
+            frame=slice(None, -1)  # residual not yet (gets updated during detect)
+        )
+        pixel_missing = mini_pixel_stats.isel(component=slice(None, -1))
+        comp_missing = mini_component_stats.isel(
+            {"component": slice(None, -1), "component'": slice(None, -1)}
+        )
+        overlap_missing = mini_overlaps.isel(
+            {"component": slice(None, -1), "component'": slice(None, -1)}
+        )
+        incoming_frame = Frame(mini_denoised[-1], len(mini_denoised))
+
+        updater.learn_one(
+            frame=incoming_frame,
+            footprints=foot_missing,  # footprints with a component missing
+            traces=trace_missing,
+            # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
+            residuals=residual_missing,  # residual (same as traces)
+            overlaps=overlap_missing,  # overlaps won't change
+        )
+
+        (
+            new_footprints_,
+            new_traces_,
+            residuals_,
+            pixel_stats_,
+            component_stats_,
+            overlaps_,
+        ) = updater.transform_one(
+            footprints=foot_missing,
+            traces=trace_missing,
+            pixel_stats=pixel_missing,
+            component_stats=comp_missing,
+            overlaps=overlap_missing,
+        )
+
+        new_full_fps = xr.concat([foot_missing, new_footprints_], dim="component")
+
+        fill_dims = dict(new_traces_.sizes)
+        fill_dims["frame"] = trace_missing.sizes["frame"] - new_traces_.sizes["frame"]
+
+        new_full_trs = xr.concat(
+            [
+                trace_missing,
+                xr.concat(
+                    [
+                        xr.DataArray(
+                            np.zeros(list(fill_dims.values())), dims=fill_dims.keys()
+                        ),
+                        new_traces_,
+                    ],
+                    dim="frame",
+                ),
+            ],
+            dim="component",
+        )
+
+        ps_updater.learn_one(
+            frame=incoming_frame, traces=new_full_trs, pixel_stats=pixel_stats_
+        )
+        pixel_stats_ = ps_updater.transform_one()
+
+        cs_updater.learn_one(
+            frame=incoming_frame, traces=new_full_trs, component_stats=component_stats_
+        )
+        component_stats_ = cs_updater.transform_one()
+
+        fp_updater.learn_one(
+            footprints=new_full_fps,
+            pixel_stats=pixel_stats_,
+            component_stats=component_stats_,
+            frame=incoming_frame,  # same iteration
+        )
+
+        updated_footprints = fp_updater.transform_one()
+
+        # for idx, fp in enumerate(new_full_fps.transpose(*new_full_fps.dims)):
+        #     plt.imsave(f"det_fp{idx}.png", fp)
+
+        visualizer.plot_footprints(
+            updated_footprints.transpose(*new_full_fps.dims),
+            subdir="iter/detect/post_update",
+        )
+
+        assert True
