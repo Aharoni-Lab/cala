@@ -46,7 +46,7 @@ class TestDetector:
 
     @pytest.fixture(scope="class")
     def updater(self):
-        return Detector(DetectorParams(num_nmf_residual_frames=3, gaussian_radius=1))
+        return Detector(DetectorParams(num_nmf_residual_frames=5, gaussian_radius=1))
 
     @pytest.fixture(scope="class")
     def overlapper(self):
@@ -119,7 +119,7 @@ class TestDetector:
         )
 
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised)),
+            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
             footprints=foot_missing,  # footprints with a component missing
             traces=trace_missing,
             # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
@@ -236,6 +236,8 @@ class TestDetector:
         self,
         visualizer,
         updater,
+        ps_initializer,
+        cs_initializer,
         ps_updater,
         cs_updater,
         fp_updater,
@@ -246,29 +248,46 @@ class TestDetector:
         mini_component_stats,
         mini_overlaps,
     ):
+        # 1. ps and cs were initialized before this incoming frame
         foot_missing = mini_footprints.isel(component=slice(None, -1))
-        trace_missing = mini_traces.isel(
-            component=slice(None, -1)
-        )  # we've just updated the traces, so all frames
-        residual_missing = (mini_denoised - foot_missing @ trace_missing).isel(
-            frame=slice(None, -1)  # residual not yet (gets updated during detect)
-        )
-        pixel_missing = mini_pixel_stats.isel(component=slice(None, -1))
-        comp_missing = mini_component_stats.isel(
-            {"component": slice(None, -1), "component'": slice(None, -1)}
-        )
         overlap_missing = mini_overlaps.isel(
             {"component": slice(None, -1), "component'": slice(None, -1)}
         )
-        incoming_frame = Frame(mini_denoised[-1], len(mini_denoised))
+        trace_missing = mini_traces.isel(component=slice(None, -1)).isel(
+            frame=slice(None, -1)
+        )  # before updating trace, so the last one hasn't come in yet
+        pixel_missing = ps_initializer.learn_one(
+            traces=trace_missing, frame=mini_denoised[:-1]
+        ).transform_one()
+        comp_missing = cs_initializer.learn_one(
+            traces=trace_missing, frame=mini_denoised[:-1]
+        ).transform_one()
+        residual_missing = mini_denoised[:-1] - foot_missing @ trace_missing
 
+        # 2. the new frame comes in
+        incoming_frame = Frame(mini_denoised[-1], len(mini_denoised) - 1)
+
+        # 3. traces were updated
+        trace_updated = mini_traces.isel(
+            component=slice(None, -1)
+        )  # we've just updated the traces, so all frames
+
+        pixel_stats_updated = ps_updater.learn_one(
+            frame=incoming_frame, traces=trace_updated, pixel_stats=pixel_missing
+        ).transform_one()
+        component_stats_updated = cs_updater.learn_one(
+            frame=incoming_frame, traces=trace_updated, component_stats=comp_missing
+        ).transform_one()
+
+        # 4. time to detect. we're going to get a component with the LATEST frame and attach it to everything.
+        # so, everything should already be updated with the latest frame before we go in, as well!!
         updater.learn_one(
             frame=incoming_frame,
-            footprints=foot_missing,  # footprints with a component missing
-            traces=trace_missing,
+            footprints=foot_missing,  # footprints with a component missing. won't change just with a new frame.
+            traces=trace_updated,
             # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
-            residuals=residual_missing,  # residual (same as traces)
-            overlaps=overlap_missing,  # overlaps won't change
+            residuals=residual_missing,  # residual (update happens inside detect. should probably come out.)
+            overlaps=overlap_missing,  # overlaps won't change just with a new frame.
         )
 
         (
@@ -280,57 +299,30 @@ class TestDetector:
             overlaps_,
         ) = updater.transform_one(
             footprints=foot_missing,
-            traces=trace_missing,
-            pixel_stats=pixel_missing,
-            component_stats=comp_missing,
+            traces=trace_updated,
+            pixel_stats=pixel_stats_updated,
+            component_stats=component_stats_updated,
             overlaps=overlap_missing,
         )
 
         new_full_fps = xr.concat([foot_missing, new_footprints_], dim="component")
 
         fill_dims = dict(new_traces_.sizes)
-        fill_dims["frame"] = trace_missing.sizes["frame"] - new_traces_.sizes["frame"]
+        fill_dims["frame"] = trace_updated.sizes["frame"] - new_traces_.sizes["frame"]
 
-        new_full_trs = xr.concat(
-            [
-                trace_missing,
-                xr.concat(
-                    [
-                        xr.DataArray(
-                            np.zeros(list(fill_dims.values())), dims=fill_dims.keys()
-                        ),
-                        new_traces_,
-                    ],
-                    dim="frame",
-                ),
-            ],
-            dim="component",
-        )
+        # once updated, these should be 'identical' to mini_s. not sure how that will work without normalization.
+        # confirmed, it's same except the newly found traces
+        # think the order is wrong on the paper. suff-stats should be updated before detect for congruency.
 
-        ps_updater.learn_one(
-            frame=incoming_frame, traces=new_full_trs, pixel_stats=pixel_stats_
-        )
-        pixel_stats_ = ps_updater.transform_one()
-
-        cs_updater.learn_one(
-            frame=incoming_frame, traces=new_full_trs, component_stats=component_stats_
-        )
-        component_stats_ = cs_updater.transform_one()
-
-        fp_updater.learn_one(
+        footprints_updated = fp_updater.learn_one(
             footprints=new_full_fps,
             pixel_stats=pixel_stats_,
             component_stats=component_stats_,
             frame=incoming_frame,  # same iteration
-        )
-
-        updated_footprints = fp_updater.transform_one()
-
-        # for idx, fp in enumerate(new_full_fps.transpose(*new_full_fps.dims)):
-        #     plt.imsave(f"det_fp{idx}.png", fp)
+        ).transform_one()
 
         visualizer.plot_footprints(
-            updated_footprints.transpose(*new_full_fps.dims),
+            footprints_updated.transpose(*new_full_fps.dims),
             subdir="iter/detect/post_update",
         )
 

@@ -487,11 +487,11 @@ class Detector(SupervisedTransformer):
         )
 
         # traces has to be the same number of frames as residuals
-        y_buf = (footprints @ traces + residuals).stack(pixels=self.params.spatial_axes)
+        y_buf = footprints @ traces + residuals
 
         # Compute outer product of frame and new traces
         # (1/t)Y_buf c_new^T
-        new_stats = scale * (y_buf @ new_traces).unstack("pixels")
+        new_stats = scale * (y_buf @ new_traces)
 
         # Concatenate with existing pixel stats along component axis
         return xr.concat([pixel_stats, new_stats], dim=self.params.component_axis)
@@ -529,8 +529,7 @@ class Detector(SupervisedTransformer):
         # Get current frame index (1-based)
         t = frame_idx + 1
 
-        # Scale existing statistics: (t-1)/t * M_t
-        M_scaled = component_stats * ((t - 1) / t)
+        M = component_stats
 
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
@@ -567,9 +566,7 @@ class Detector(SupervisedTransformer):
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]
-        top_block = xr.concat(
-            [M_scaled, top_right_corr], dim=self.params.component_axis
-        )
+        top_block = xr.concat([M, top_right_corr], dim=self.params.component_axis)
 
         # Bottom block: [cross_corr.T, auto_corr]
         bottom_block = xr.concat(

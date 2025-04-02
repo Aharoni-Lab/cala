@@ -50,7 +50,7 @@ class TestTraceUpdater:
             footprints=mini_footprints,
             traces=mini_traces.isel(frame=slice(None, -1)),
             overlaps=mini_overlap,
-            frame=Frame(mini_denoised[-1], mini_params.n_frames),
+            frame=Frame(mini_denoised[-1], mini_params.n_frames - 1),
         )
         new_traces = updater.transform_one()
 
