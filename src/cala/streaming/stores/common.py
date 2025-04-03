@@ -1,5 +1,6 @@
 from typing import Annotated
 
+import numpy as np
 import xarray as xr
 
 from cala.streaming.core import ObservableStore, Axis
@@ -84,8 +85,9 @@ class TraceStore(ObservableStore):
 
             if n_frames_to_backfill > 0:
                 # Create zeros array with same shape as data but for missing frames
-                zeros = xr.zeros_like(data).expand_dims(
-                    Axis.frames_axis, n_frames_to_backfill
+                zeros = xr.DataArray(
+                    np.zeros((data.sizes[Axis.component_axis], n_frames_to_backfill)),
+                    dims=(Axis.component_axis, Axis.frames_axis),
                 )
                 # Combine zeros and data along frames axis
                 backfilled_data = xr.concat([zeros, data], dim=Axis.frames_axis)
