@@ -24,9 +24,6 @@ class FootprintsUpdaterParams(Parameters, Axis):
     boundary_expansion_pixels: int | None = None
     """Number of pixels to explore the boundary of the footprint outside of the current footprint."""
 
-    max_iterations: int = 100
-    """Maximum number of iterations for shape update convergence."""
-
     tolerance: float = 1e-7
 
     def validate(self):
@@ -35,8 +32,8 @@ class FootprintsUpdaterParams(Parameters, Axis):
         Raises:
             ValueError: If max_iterations is not positive.
         """
-        if self.max_iterations <= 0:
-            raise ValueError("max_iterations must be positive")
+        if self.tolerance <= 0:
+            raise ValueError("tolerance must be positive")
 
 
 @dataclass
@@ -106,10 +103,12 @@ class FootprintsUpdater(SupervisedTransformer):
                 ),
             )  # faster than np.ones
 
-        for _ in range(self.params.max_iterations):
-            # Create mask for non-zero pixels per component
+        converged = False
+        count = 0
+        while not converged:
+            count += 1
             mask = A > 0
-            if self.params.boundary_expansion_pixels and _ < side_length:
+            if self.params.boundary_expansion_pixels and count < side_length:
                 mask = xr.apply_ufunc(
                     lambda x: cv2.morphologyEx(
                         x, cv2.MORPH_DILATE, kernel, iterations=1
@@ -141,7 +140,8 @@ class FootprintsUpdater(SupervisedTransformer):
             A_new = xr.where(mask, A + update, A)
             A_new = xr.where(A_new > 0, A_new, 0)
             if abs((A - A_new).sum() / np.prod(A.shape)) < self.params.tolerance:
-                break
+                A = A_new
+                converged = True
             else:
                 A = A_new
 
