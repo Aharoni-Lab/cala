@@ -1,59 +1,206 @@
-[tool.poetry]
+[project]
 name = "cala"
-version = "0.1.0"
 description = ""
-authors = ["Raymond W. Chang <raymond.w.jang@gmail.com>"]
+authors = [{ name = "raymondwjang", email = "raymond@physics.ucla.edu" }]
+dynamic = ["version"]
+requires-python = ">=3.11"
 readme = "README.md"
+repository = "https://github.com/aharoni-lab/cala"
 packages = [
     { include = "cala", from = "src" }
 ]
+dependencies = [
+    "dask>=2024.9.0",
+    "zarr>=2.18.3",
+    "pydantic>=2.9.2",
+    "av>=13.0.0",
+    "numpydantic>=1.6.3",
+    "opencv-python>=4.10.0.84",
+    "tqdm>=4.66.5",
+    "rich>=13.9.1",
+    "pydantic-settings>=2.5.2",
+    "platformdirs>=4.3.6",
+    "scikit-learn>=1.5.2",
+    "xarray>=2024.10.0",
+    "scikit-image>=0.24.0",
+    "matplotlib>=3.9.3",
+    "river>=0.22.0",
+    "numba>=0.61.0",
+    "sparse>=0.15.5",
+    "graphlib>=0.9.5",
+    "seaborn>=0.13.2",
+    "pywavelets>=1.8.0",
+]
 include = [
-"src/cala/config/**/*.env",
-"src/cala/config/**/*.yaml"
+    "src/cala/config/**/*.env",
+    "src/cala/config/**/*.yaml"
+]
+keywords = [
+    "pipeline",
+    "pipelines",
+    "calcium-imaging",
+    "data-processing",
+    "miniscope",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-dask = "^2024.9.0"
-zarr = "^2.18.3"
-pydantic = "^2.9.2"
-av = "^13.0.0"
-numpydantic = "^1.6.3"
-opencv-python = "^4.10.0.84"
-tqdm = "^4.66.5"
-rich = "^13.9.1"
-pydantic-settings = "^2.5.2"
-platformdirs = "^4.3.6"
-scikit-learn = "^1.5.2"
-xarray = "^2024.10.0"
-scikit-image = "^0.24.0"
-matplotlib = "^3.9.3"
-river = "^0.22.0"
-numba = "^0.61.0"
-sparse = "^0.15.5"
-graphlib = "^0.9.5"
-seaborn = "^0.13.2"
-pywavelets = "^1.8.0"
+[project.urls]
+homepage = "https://cala.readthedocs.io"
+documentation = "https://cala.readthedocs.io"
+repository = "https://github.com/aharoni-lab/cala"
+changelog = "https://cala.readthedocs.io/en/latest/changelog.html"
 
-
-[tool.poetry.group.dev.dependencies]
-flake8 = "^7.1.1"
-black = "^24.10.0"
-snakeviz = "^2.2.2"
-pytest-profiling = "^1.8.1"
-pytest-timeout = "^2.3.1"
-
-
-[tool.poetry.group.tests.dependencies]
-pytest = "^8.3.3"
-tomli-w = "^1.1.0"
-pytest-cov = "^6.0.0"
-radon = "^6.0.1"
+[project.optional-dependencies]
+tests = [
+    "pytest>=8.3.3",
+    "tomli-w>=1.1.0",
+    "pytest-cov>=6.0.0",
+    "radon>=6.0.1",
+    "snakeviz>=2.2.2",
+    "pytest-profiling>=1.8.1",
+    "pytest-timeout>=2.3.1",
+]
+docs = [
+    "sphinx>=8.2.3",
+    "furo>=2024.8.6",
+    "myst-parser>=4.0.1",
+    "autodoc-pydantic>=2.2.0",
+    "sphinx-design>=0.6.1",
+    "sphinxcontrib-mermaid>=1.0.0",
+    "myst-nb>=1.2.0",
+]
+dev = [
+    "cala[tests,docs]",
+    "sphinx-autobuild>=2024.10.3",
+    "ruff>=0.11.0",
+    "black>=24.10.0",
+    "mypy>=1.15.0",
+    "isort>=6.0.1",
+    "pre-commit>=4.2.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.version]
+# versions from tags like "v0.1.2"
+fallback_version = "0.0.0"
+source = "scm"
+tag_filter = "v*"
+tag_regex = '^v(?:\D*)?(?P<version>([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|c|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$)$'
+
+[tool.pdm.scripts]
+lint.composite = [
+    "ruff check",
+    "black . --diff",
+]
+format.composite = [
+    "black .",
+    "ruff check --fix",
+]
+test = "pytest"
+docs = "sphinx-autobuild docs docs/_build/html"
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = [
+    "--cov=cala",
+    "--cov-append",
+]
+markers = []
+
+[tool.black]
+target-version = ["py311", "py312"]
+line-length = 100
+
+[tool.ruff]
+target-version = "py312"
+include = ["src/cala/**/*.py", "tests/**/*.py", "pyproject.toml"]
+exclude = ["docs"]
+line-length = 100
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # annotations
+    "ANN",
+    # no debugger
+    "T10",
+    ## ----------
+    # pydocstyle
+    # indentation
+    "D207", "D208",
+    # whitespace
+    "D210", "D211",
+    # emptiness
+    "D419",
+    # snake case function name
+    "N802",
+    # FastAPI
+    "FAST",
+    # SQLi and Autoescaping in templates
+    "S608", "S701",
+]
+ignore = [
+    # needing to annotate `self` is ridiculous
+    "ANN101",
+    #"special" methods like `__init__` don't need to be annotated
+    "ANN204",
+    # any types are semantically valid actually sometimes
+    "ANN401",
+    # explicit strict arg for zip
+    "B905",
+    # docstrings for __init__
+    "D107",
+]
+
+[tool.ruff.isort]
+known-first-party = ["cala"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = [
+    # allow unused imports - fixtures
+    "F401",
+    # allow star import of fixtures
+    "F403",
+]
+"tests/**/test_*" = [
+    # don't require annotating fixture types in test functions
+    "ANN001", "ANN201",
+    # allow unused variables, also normal in tests
+    "F841",
+    # allow unused imports, pytest is a common one
+    "F401"
+]
