@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import cast
 
 import cv2
@@ -30,7 +31,7 @@ from cala.streaming.preprocess import (
     RigidStabilizer,
 )
 
-setup_logger("logs/", name="")
+setup_logger(Path(__file__).parent / "logs", name="")
 logger = logging.getLogger(__name__)
 
 

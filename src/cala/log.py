@@ -18,11 +18,6 @@ def setup_logger(
     Returns:
         logging.Logger: Configured logger instance.
     """
-    if log_path is not None:
-        if isinstance(log_path, str):
-            log_path = Path(log_path)
-        log_path.parent.mkdir(exist_ok=True)
-
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -40,6 +35,10 @@ def setup_logger(
 
     # Add file handler if log_file is provided
     if log_path:
+        if isinstance(log_path, str):
+            log_path = Path(log_path)
+        log_path.mkdir(exist_ok=True)
+
         file_handler = logging.FileHandler(
             log_path / f'{datetime.now().strftime("%Y%m%d_%H:%M:%S")}.log'
         )
