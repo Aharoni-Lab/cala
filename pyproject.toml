@@ -91,6 +91,9 @@ dev = [
     "mypy>=1.15.0",
     "isort>=6.0.1",
     "pre-commit>=4.2.0",
+    "types-setuptools>=78.1.0.20250329",
+    "types-pyYAML>=6.0.12.20250402",
+    "types-requests>=2.32.0.20250328",
 ]
 
 [build-system]
@@ -242,7 +245,7 @@ exclude_lines = [
     "def __repr__",
     "if self.debug:",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:",
+    "if __name__ == '__main__':",
     "pass",
     "raise ImportError",
 ]
