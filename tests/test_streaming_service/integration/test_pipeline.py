@@ -76,7 +76,7 @@ def preprocess_config() -> StreamingConfig:
     )
 
 
-def test_preprocess_execution(preprocess_config, raw_calcium_video):
+def test_preprocess(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
     video = raw_calcium_video
     for idx, frame in enumerate(video):
@@ -133,7 +133,7 @@ def initialization_config() -> StreamingConfig:
     )
 
 
-def test_initialize_execution(initialization_config, stabilized_video):
+def test_initialize(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video = stabilized_video
 
@@ -145,7 +145,7 @@ def test_initialize_execution(initialization_config, stabilized_video):
 
 
 @pytest.fixture
-def streaming_config() -> StreamingConfig:
+def integration_config() -> StreamingConfig:
     return cast(
         StreamingConfig,
         {
@@ -262,43 +262,9 @@ def streaming_config() -> StreamingConfig:
     )
 
 
-def test_streaming_execution(streaming_config, raw_calcium_video):
-
-    runner = Runner(streaming_config)
-    video = raw_calcium_video
-
-    for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
-        frame = runner.preprocess(frame)
-        plt.imsave(f"frame{idx}.png", frame.array)
-
-        if not runner.is_initialized:
-            runner.initialize(frame)
-            continue
-
-        runner.iterate(frame)
-
-
-def test_pipeline(streaming_config, raw_calcium_video):
-
-    runner = Runner(streaming_config)
-    video = raw_calcium_video
-
-    for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
-        frame = runner.preprocess(frame)
-        plt.imsave(f"frame{idx}.png", frame.array)
-
-        if not runner.is_initialized:
-            runner.initialize(frame)
-            continue
-
-        runner.iterate(frame)
-
-
-def test_iteration(streaming_config, simply_denoised):
-
-    runner = Runner(streaming_config)
+@pytest.mark.timeout(30)
+def test_iteration(integration_config, simply_denoised):
+    runner = Runner(integration_config)
     video = simply_denoised
 
     for idx, frame in enumerate(video):
@@ -310,4 +276,21 @@ def test_iteration(streaming_config, simply_denoised):
             continue
 
         logger.info(f"Frame: {idx}")
+        runner.iterate(frame)
+
+
+@pytest.mark.timeout(30)
+def test_integration(integration_config, raw_calcium_video):
+    runner = Runner(integration_config)
+    video = raw_calcium_video
+
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
+        frame = runner.preprocess(frame)
+        plt.imsave(f"frame{idx}.png", frame.array)
+
+        if not runner.is_initialized:
+            runner.initialize(frame)
+            continue
+
         runner.iterate(frame)
