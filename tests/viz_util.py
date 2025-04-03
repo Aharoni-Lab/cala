@@ -20,7 +20,8 @@ class Visualizer:
                 self.output_dir = Path(output_dir)
             except ValueError as e:
                 raise ValueError(e)
-        self.output_dir = output_dir
+        else:
+            self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Enhanced style configuration
