@@ -124,10 +124,17 @@ docs = "sphinx-autobuild docs docs/_build/html"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = [
+    "-ra",
+    "-q",
     "--cov=cala",
     "--cov-append",
+    "--cov-report=term-missing",
+    "--cov-report=html"
 ]
-markers = []
+markers = [
+    "viz: marks tests that produce plots",
+    "timeout: marks tests that need a timeout failure to prevent falling into an infinite loop"
+]
 
 [tool.black]
 target-version = ["py311", "py312"]
@@ -203,4 +210,46 @@ known-first-party = ["cala"]
     "F841",
     # allow unused imports, pytest is a common one
     "F401"
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_optional = true
+
+[tool.coverage.run]
+source = ["src/cala"]
+omit = [
+    "tests/*",
+    "docs/*",
+    "**/__init__.py",
+    "**/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+]
+ignore_errors = true
+omit = [
+    "tests/*",
+    "docs/*",
+    "**/__init__.py",
+    "**/conftest.py",
 ]
