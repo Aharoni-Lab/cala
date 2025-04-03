@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Self
 from uuid import uuid4
@@ -15,6 +16,8 @@ from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters, Component, Axis
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -267,6 +270,10 @@ class Detector(SupervisedTransformer):
         neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
             {self.params.type_coordinates: Component.NEURON}
         )
+        if self.params.component_axis not in neuron_footprints.dims:
+            neuron_footprints = neuron_footprints.expand_dims(
+                self.params.component_axis
+            )
         avg_footprint = (neuron_footprints != 0).sum() / neuron_footprints.sizes[
             self.params.component_axis
         ]
@@ -368,6 +375,7 @@ class Detector(SupervisedTransformer):
 
         # Apply NMF
         model = NMF(n_components=1, init="random")
+        logger.info(f"R Sizes: {R.sizes}")
         c = model.fit_transform(R.clip(0))  # temporal component
         a = model.components_  # spatial component
 

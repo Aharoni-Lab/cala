@@ -1,9 +1,11 @@
+import logging
 from typing import cast
 
 import cv2
 import matplotlib.pyplot as plt
 import pytest
 
+from cala.log import setup_logger
 from cala.streaming.composer import StreamingConfig, Runner, Frame
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.init.odl import (
@@ -27,6 +29,9 @@ from cala.streaming.preprocess import (
     BackgroundEraser,
     RigidStabilizer,
 )
+
+setup_logger("logs/", name="")
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -274,7 +279,7 @@ def test_streaming_execution(streaming_config, raw_calcium_video):
         runner.iterate(frame)
 
 
-def test_iteration(streaming_config, raw_calcium_video):
+def test_pipeline(streaming_config, raw_calcium_video):
 
     runner = Runner(streaming_config)
     video = raw_calcium_video
@@ -291,7 +296,7 @@ def test_iteration(streaming_config, raw_calcium_video):
         runner.iterate(frame)
 
 
-def test_initialization(streaming_config, simply_denoised):
+def test_iteration(streaming_config, simply_denoised):
 
     runner = Runner(streaming_config)
     video = simply_denoised
@@ -305,3 +310,4 @@ def test_initialization(streaming_config, simply_denoised):
             continue
 
         runner.iterate(frame)
+        logger.info(f"Frame: {idx}")

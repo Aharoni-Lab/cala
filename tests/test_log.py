@@ -1,5 +1,7 @@
-import pytest
 import logging
+
+import pytest
+
 from cala.log import setup_logger
 
 
@@ -53,7 +55,7 @@ def test_logger_with_file_handler(log_file):
     """
     Test logger setup with file handler.
     """
-    logger = setup_logger(log_file=log_file)
+    logger = setup_logger(log_path=log_file)
 
     logger.info("Log message to file")
 
