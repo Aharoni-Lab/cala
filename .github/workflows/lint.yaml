@@ -17,22 +17,22 @@ jobs:
     name: ruff linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: chartboost/ruff-action@v1
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
 
   black:
     name: black formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: psf/black@stable
 
   mypy:
     name: mypy typechecking
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/mirrors-mypy@v1
 
   lock:
     name: lockfile current
