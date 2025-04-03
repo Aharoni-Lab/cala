@@ -44,7 +44,7 @@ class TestDetector:
     overlaps: Overlaps,
     """
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def updater(self):
         return Detector(DetectorParams(num_nmf_residual_frames=5, gaussian_std=1))
 
@@ -198,12 +198,13 @@ class TestDetector:
             subdir="iter/detect",
         )
 
-        mini_overlaps.values = mini_overlaps.data.todense()
+        label_overlaps = mini_overlaps.copy()
+        label_overlaps.values = label_overlaps.data.todense()
         overlap_missing.values = overlap_missing.data.todense()
         overlaps_.values = overlaps_.data.todense()
 
         visualizer.plot_overlaps(
-            mini_overlaps, mini_footprints, subdir="iter/detect/overlap", name="label"
+            label_overlaps, mini_footprints, subdir="iter/detect/overlap", name="label"
         )
         visualizer.plot_overlaps(
             overlap_missing, foot_missing, subdir="iter/detect/overlap", name="missing"

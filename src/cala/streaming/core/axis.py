@@ -4,8 +4,8 @@ class Axis:
     frames_axis: str = "frame"
     """Name of the dimension representing time points."""
 
-    spatial_axes: tuple[str, str] = ("width", "height")
-    """Names of the dimensions representing 2-d spatial coordinates Default: (width, height)."""
+    spatial_axes: tuple[str, str] = ("height", "width")
+    """Names of the dimensions representing 2-d spatial coordinates Default: (height, width)."""
 
     component_axis: str = "component"
     """Name of the dimension representing individual components."""

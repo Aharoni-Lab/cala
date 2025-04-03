@@ -1,5 +1,7 @@
-import pytest
 import logging
+
+import pytest
+
 from cala.log import setup_logger
 
 
@@ -53,15 +55,17 @@ def test_logger_with_file_handler(log_file):
     """
     Test logger setup with file handler.
     """
-    logger = setup_logger(log_file=log_file)
+    logger = setup_logger(log_path=log_file)
 
     logger.info("Log message to file")
 
-    assert log_file.exists()
+    assert log_file.is_dir()
 
     # Check if the log message is written to the file
-    with open(log_file, "r") as f:
-        logs = f.read()
+    for handler in logger.handlers:
+        if file_path := getattr(handler, "baseFilename", None):
+            with open(file_path, "r") as f:
+                logs = f.read()
 
     assert "Log message to file" in logs
     assert "INFO" in logs

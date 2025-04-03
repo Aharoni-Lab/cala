@@ -1,3 +1,4 @@
+import inspect
 import os
 from pathlib import Path
 
@@ -38,6 +39,8 @@ from tests.fixtures.mini import (
     mini_denoised,
     mini_movie,
 )
+
+from tests.fixtures.simple import simply_params, simply_traces, simply_denoised
 
 from tests.viz_util import Visualizer
 
@@ -84,6 +87,23 @@ def visualizer(request, viz_dir):
     """Function-scoped fixture for visualization utilities."""
     # Skip if in CI or test isn't marked for viz
     if os.environ.get("CI") or not request.node.get_closest_marker("viz"):
-        return None
+
+        def create_null_visualizer():
+            class NullVisualizer:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+            # Get all methods from the real Visualizer class
+            for name, method in inspect.getmembers(
+                Visualizer, predicate=inspect.isfunction
+            ):
+                # Skip magic methods
+                if not name.startswith("_"):
+                    # Create a no-op method with the same name
+                    setattr(NullVisualizer, name, lambda self, *args, **kwargs: None)
+
+            return NullVisualizer
+
+        return create_null_visualizer()(viz_dir)
 
     return Visualizer(viz_dir)

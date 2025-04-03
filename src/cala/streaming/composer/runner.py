@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
 from typing import (
@@ -15,6 +16,8 @@ from cala.streaming.composer import StreamingConfig, Frame
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -115,9 +118,11 @@ class Runner:
             frame: Input frame to process for component iterate.
         """
         execution_order = self._create_dependency_graph(self.config["iteration"])
+        logger.info(f"Footprint Count: {self._state.footprintstore.warehouse.sizes}")
 
         # Execute transformers in order
         for step in execution_order:
+            logger.info(f"Executing step: {step}")
             transformer = self._build_transformer(process="iteration", step=step)
             result = self._learn_transform(transformer=transformer, frame=frame)
 

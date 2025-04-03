@@ -10,6 +10,8 @@ import xarray as xr
 from scipy.sparse.csgraph import connected_components
 from skimage.measure import find_contours
 
+from cala.streaming.core import Axis
+
 
 class Visualizer:
     """Utility class for visualization."""
@@ -20,7 +22,8 @@ class Visualizer:
                 self.output_dir = Path(output_dir)
             except ValueError as e:
                 raise ValueError(e)
-        self.output_dir = output_dir
+        else:
+            self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Enhanced style configuration
@@ -140,6 +143,23 @@ class Visualizer:
 
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
         self.save_fig(name, subdir)
+
+    def plot_all_footprints(
+        self,
+        footprints,
+        title: Optional[str] = None,
+        subdir: Optional[str] = None,
+    ):
+        for idx, fp in enumerate(
+            footprints.transpose(Axis.component_axis, *Axis.spatial_axes)
+        ):
+            fig, ax = plt.subplots(figsize=(10, 10))
+            plt.imshow(fp)
+            ax.set_title(
+                title
+                or f"Spatial Footprints ({idx + 1} of {footprints.sizes[Axis.component_axis]})"
+            )
+            self.save_fig(f"footprint_{idx}", subdir)
 
     def plot_pixel_stats(
         self,

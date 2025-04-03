@@ -50,7 +50,9 @@ class TestFootprintUpdater:
         # Plot initial state
         visualizer.plot_footprints(footprints, subdir=subdir, name=name)
         visualizer.plot_traces(traces, subdir=subdir)
-        visualizer.plot_pixel_stats(pixel_stats, footprints, subdir=subdir)
+        visualizer.plot_pixel_stats(
+            pixel_stats.transpose(*footprints.dims), footprints, subdir=subdir
+        )
         visualizer.plot_component_stats(component_stats, subdir=subdir)
 
         # Run updater and plot results

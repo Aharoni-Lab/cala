@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Self
 from uuid import uuid4
@@ -15,6 +16,8 @@ from cala.streaming.composer import Frame
 from cala.streaming.core import Parameters, Component, Axis
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -135,6 +138,7 @@ class Detector(SupervisedTransformer):
 
         self.frame_ = frame
         self.cell_radius_ = self._estimate_cell_radius(footprints)
+        logger.info(f"Cell Radius: {float(self.cell_radius_):4f}")
 
         # Update and process residuals
         self.residuals_ = self._update_residual_buffer(
@@ -142,6 +146,7 @@ class Detector(SupervisedTransformer):
         )
 
         self.noise_level_ = self._estimate_gaussian_noise(residuals, frame.array.shape)
+        logger.info(f"Noise Level: {float(self.noise_level_):4f}")
 
         valid = True
         while valid:
@@ -162,6 +167,7 @@ class Detector(SupervisedTransformer):
                 neighborhood=neighborhood, frame=self.frame_.array
             )
 
+            logger.info(f"New C: {c_new.values}")
             # Validate new component
             if not self._validate_component(
                 a_new=a_new, c_new=c_new, traces=traces, footprints=footprints
@@ -267,10 +273,14 @@ class Detector(SupervisedTransformer):
         neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
             {self.params.type_coordinates: Component.NEURON}
         )
+        if self.params.component_axis not in neuron_footprints.dims:
+            neuron_footprints = neuron_footprints.expand_dims(
+                self.params.component_axis
+            )
         avg_footprint = (neuron_footprints != 0).sum() / neuron_footprints.sizes[
             self.params.component_axis
         ]
-        return np.sqrt(avg_footprint) / np.pi
+        return max(np.sqrt(avg_footprint) / 2, 1.0)
 
     def _estimate_gaussian_noise(self, residuals, frame_shape):
         self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
@@ -368,6 +378,8 @@ class Detector(SupervisedTransformer):
 
         # Apply NMF
         model = NMF(n_components=1, init="random")
+        logger.info(f"R Sizes: {R.sizes}")
+        # when residual is negative, the error becomes massive...
         c = model.fit_transform(R.clip(0))  # temporal component
         a = model.components_  # spatial component
 

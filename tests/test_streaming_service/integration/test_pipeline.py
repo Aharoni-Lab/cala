@@ -1,9 +1,12 @@
+import logging
+from pathlib import Path
 from typing import cast
 
 import cv2
 import matplotlib.pyplot as plt
 import pytest
 
+from cala.log import setup_logger
 from cala.streaming.composer import StreamingConfig, Runner, Frame
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.init.odl import (
@@ -27,6 +30,9 @@ from cala.streaming.preprocess import (
     BackgroundEraser,
     RigidStabilizer,
 )
+
+setup_logger(Path(__file__).parent / "logs", name="")
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -71,7 +77,7 @@ def preprocess_config() -> StreamingConfig:
     )
 
 
-def test_preprocess_execution(preprocess_config, raw_calcium_video):
+def test_preprocess(preprocess_config, raw_calcium_video):
     runner = Runner(preprocess_config)
     video = raw_calcium_video
     for idx, frame in enumerate(video):
@@ -128,7 +134,7 @@ def initialization_config() -> StreamingConfig:
     )
 
 
-def test_initialize_execution(initialization_config, stabilized_video):
+def test_initialize(initialization_config, stabilized_video):
     runner = Runner(initialization_config)
     video = stabilized_video
 
@@ -140,7 +146,7 @@ def test_initialize_execution(initialization_config, stabilized_video):
 
 
 @pytest.fixture
-def streaming_config() -> StreamingConfig:
+def integration_config() -> StreamingConfig:
     return cast(
         StreamingConfig,
         {
@@ -236,7 +242,7 @@ def streaming_config() -> StreamingConfig:
                     "transformer": Detector,
                     "params": {
                         "num_nmf_residual_frames": 10,
-                        "gaussian_radius": 4.0,
+                        "gaussian_std": 4.0,
                         "spatial_threshold": 0.8,
                         "temporal_threshold": 0.8,
                     },
@@ -257,9 +263,26 @@ def streaming_config() -> StreamingConfig:
     )
 
 
-def test_streaming_execution(streaming_config, raw_calcium_video):
+@pytest.mark.timeout(30)
+def test_iteration(integration_config, simply_denoised):
+    runner = Runner(integration_config)
+    video = simply_denoised
 
-    runner = Runner(streaming_config)
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
+        plt.imsave(f"frame{idx}.png", frame.array)
+
+        if not runner.is_initialized:
+            runner.initialize(frame)
+            continue
+
+        logger.info(f"Frame: {idx}")
+        runner.iterate(frame)
+
+
+@pytest.mark.timeout(30)
+def test_integration(integration_config, raw_calcium_video):
+    runner = Runner(integration_config)
     video = raw_calcium_video
 
     for idx, frame in enumerate(video):
