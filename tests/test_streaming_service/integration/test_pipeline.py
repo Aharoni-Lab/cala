@@ -309,5 +309,5 @@ def test_iteration(streaming_config, simply_denoised):
             runner.initialize(frame)
             continue
 
-        runner.iterate(frame)
         logger.info(f"Frame: {idx}")
+        runner.iterate(frame)
