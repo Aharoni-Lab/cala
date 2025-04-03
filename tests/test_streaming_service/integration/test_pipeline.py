@@ -236,7 +236,7 @@ def streaming_config() -> StreamingConfig:
                     "transformer": Detector,
                     "params": {
                         "num_nmf_residual_frames": 10,
-                        "gaussian_radius": 4.0,
+                        "gaussian_std": 4.0,
                         "spatial_threshold": 0.8,
                         "temporal_threshold": 0.8,
                     },
@@ -265,6 +265,39 @@ def test_streaming_execution(streaming_config, raw_calcium_video):
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
         frame = runner.preprocess(frame)
+        plt.imsave(f"frame{idx}.png", frame.array)
+
+        if not runner.is_initialized:
+            runner.initialize(frame)
+            continue
+
+        runner.iterate(frame)
+
+
+def test_iteration(streaming_config, raw_calcium_video):
+
+    runner = Runner(streaming_config)
+    video = raw_calcium_video
+
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
+        frame = runner.preprocess(frame)
+        plt.imsave(f"frame{idx}.png", frame.array)
+
+        if not runner.is_initialized:
+            runner.initialize(frame)
+            continue
+
+        runner.iterate(frame)
+
+
+def test_initialization(streaming_config, simply_denoised):
+
+    runner = Runner(streaming_config)
+    video = simply_denoised
+
+    for idx, frame in enumerate(video):
+        frame = Frame(frame, idx)
         plt.imsave(f"frame{idx}.png", frame.array)
 
         if not runner.is_initialized:
