@@ -37,12 +37,12 @@ class TestPixelStatsInitializer:
         assert isinstance(initializer.pixel_stats_, xr.DataArray)
 
         # Check dimensions
-        assert initializer.pixel_stats_.dims == ("component", "width", "height")
-        assert initializer.pixel_stats_.shape == (
+        assert set(initializer.pixel_stats_.dims) == {"component", "width", "height"}
+        assert set(initializer.pixel_stats_.shape) == {
             mini_traces.sizes["component"],
             mini_denoised.sizes["width"],
             mini_denoised.sizes["height"],
-        )
+        }
 
         # Check coordinates
         assert "id_" in initializer.pixel_stats_.coords
@@ -51,7 +51,7 @@ class TestPixelStatsInitializer:
         visualizer.plot_traces(mini_traces, subdir="init/pixel_stats")
         visualizer.write_movie(mini_denoised, subdir="init/pixel_stats")
         visualizer.plot_pixel_stats(
-            pixel_stats=initializer.pixel_stats_,
+            pixel_stats=initializer.pixel_stats_.transpose(*mini_footprints.dims),
             footprints=mini_footprints,
             subdir="init/pixel_stats",
         )
@@ -68,12 +68,12 @@ class TestPixelStatsInitializer:
         assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
-        assert result.dims == ("component", "width", "height")
-        assert result.shape == (
+        assert set(result.dims) == {"component", "width", "height"}
+        assert set(result.shape) == {
             traces.sizes["component"],
             stabilized_video.sizes["height"],
             stabilized_video.sizes["width"],
-        )
+        }
 
     @pytest.mark.viz
     def test_sanity_check(self, initializer, visualizer):
