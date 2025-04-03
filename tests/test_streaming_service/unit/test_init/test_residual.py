@@ -103,11 +103,12 @@ class TestResidualInitializer:
         assert isinstance(initializer.residual_, xr.DataArray)
 
         # Check dimensions
-        assert set(initializer.residual_.dims) == {"frame", "width", "height"}
-        assert set(initializer.residual_.shape) == {
-            min(initializer.params.buffer_length, sample_data["movie"].sizes["frame"]),
-            sample_data["movie"].sizes["width"],
-            sample_data["movie"].sizes["height"],
+        assert initializer.residual_.sizes == {
+            "frame": min(
+                initializer.params.buffer_length, sample_data["movie"].sizes["frame"]
+            ),
+            "width": sample_data["movie"].sizes["width"],
+            "height": sample_data["movie"].sizes["height"],
         }
 
     def test_transform_one(self, initializer, sample_data):

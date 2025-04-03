@@ -37,11 +37,10 @@ class TestPixelStatsInitializer:
         assert isinstance(initializer.pixel_stats_, xr.DataArray)
 
         # Check dimensions
-        assert set(initializer.pixel_stats_.dims) == {"component", "width", "height"}
-        assert set(initializer.pixel_stats_.shape) == {
-            mini_traces.sizes["component"],
-            mini_denoised.sizes["width"],
-            mini_denoised.sizes["height"],
+        assert initializer.pixel_stats_.sizes == {
+            "component": mini_traces.sizes["component"],
+            "width": mini_denoised.sizes["width"],
+            "height": mini_denoised.sizes["height"],
         }
 
         # Check coordinates
@@ -68,11 +67,10 @@ class TestPixelStatsInitializer:
         assert isinstance(result, xr.DataArray)
 
         # Check dimensions order
-        assert set(result.dims) == {"component", "width", "height"}
-        assert set(result.shape) == {
-            traces.sizes["component"],
-            stabilized_video.sizes["height"],
-            stabilized_video.sizes["width"],
+        assert result.sizes == {
+            "component": traces.sizes["component"],
+            "width": stabilized_video.sizes["width"],
+            "height": stabilized_video.sizes["height"],
         }
 
     @pytest.mark.viz
