@@ -40,6 +40,8 @@ from tests.fixtures.mini import (
     mini_movie,
 )
 
+from tests.fixtures.simple import simply_params, simply_traces, simply_denoised
+
 from tests.viz_util import Visualizer
 
 
