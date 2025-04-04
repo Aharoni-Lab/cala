@@ -29,4 +29,3 @@ Due to performance / efficiency issues, we have different implementations from w
   to build useless cells from trace amounts of residual
 
 * TODO: traces and sufficient stats should be updated after footprints are updated.
-
