@@ -1,4 +1,4 @@
-# Cala: Calcium Imaging Analysis Pipeline for Long-term Recordings
+# Cala
 
 [![PyPI - Version](https://img.shields.io/pypi/v/cala)](https://pypi.org/project/cala/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cala)
@@ -7,20 +7,11 @@
 
 ## Features
 
-A calcium imaging pipeline focused on long-term massive recordings that is based on a [**Sklearn
-**](https://scikit-learn.org/stable/) / [**River**](https://riverml.xyz/latest/) pipeline architecture.
-
-Streamlined integration into an endless list of 3rd party apps that support Scikit-learn, including but not limited to
-hyperparameter optimization tools (i.e. Optuna), ML pipeline management tools (i.e. MLFlow), etc.
-
-Streaming side incorporates real-time visualizations and parameter updates.
-
-Future implementation will include interactive UI and a modular orchestration architecture that supports piecewise
-progress, optimized orchestration, and automatic data, artifact, and pipeline versioning.
+A calcium imaging pipeline focused on long-term massive recordings.
 
 ## Requirements
 
-Tests currently cover Python versions 3.11 and 3.12.
+Tests currently cover Python versions 3.11, 3.12 and 3.13.
 
 ## Installation
 
@@ -31,52 +22,6 @@ pip install cala==0.1.0
 ```
 
 ## Usage
-
-### Batch
-
-```python
-from sklearn.pipeline import make_pipeline
-
-from cala.batch.preprocess import Downsampler, Denoiser, GlowRemover, BackgroundEraser
-from cala.batch.video_stabilization import RigidTranslator
-
-
-def main():
-    io = DataIO(video_paths=["video_1", "video_2"])
-    io.save_raw_video("path_to_interim", "data_name")
-
-    core_axes = ["height", "width"]
-    iter_axis = "frames"
-    video_dimensions = tuple(core_axes + [iter_axis])
-
-    downsampler = Downsampler(dimensions=video_dimensions, strides=(1, 1, 2))
-    denoiser = Denoiser(method="median", core_axes=core_axes, kwargs={"ksize": 7})
-    glow_remover = GlowRemover(iter_axis=iter_axis)
-
-    preprocessor = make_pipeline(downsampler, denoiser, glow_remover, background_eraser)
-
-    rigid_translator = RigidTranslator(core_axes=core_axes, iter_axis=iter_axis)
-
-    motion_corrector = make_pipeline(rigid_translator)
-
-    data = io.load_data(stage="init")
-
-    # Option 1:
-    preprocessed_data = preprocessor.fit_transform(data)
-    motion_corrected_data = motion_corrector.fit_transform(preprocessed_data)
-    demixed_data = demixer.fit_transform(motion_corrected_data)
-    deconvolved_data = deconvolver.fit_transform(demixed_data)
-
-    # Option 2:
-    cala_pipeline = make_pipeline(preprocessor, motion_corrector, demixer, deconvolver)
-    deconvolved_data = cala_pipeline.fit_transform(data)
-
-
-if __name__ == "__main__":
-    main()
-```
-
-### Stream
 
 Due to various reasons, the streaming side is structured in a graph-&-state based manner rather than a linear pipeline.
 This accompanies a config file that maps how the transformations are related to each other, and a short python code that
@@ -95,24 +40,7 @@ actually runs the configured plan. The design schematic can be viewed here: (*
             "strides": [2, 2],
         },
     },
-    "denoise": {
-        "transformer": Denoiser,
-        "params": {
-            "method": "gaussian",
-            "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
-        },
-        "requires": ["downsample"],
-    },
-    "glow_removal": {
-        "transformer": GlowRemover,
-        "params": {"learning_rate": 0.1},
-        "requires": ["denoise"],
-    },
-    "motion_stabilization": {
-        "transformer": RigidStabilizer,
-        "params": {"drift_speed": 1, "anchor_frame_index": 0},
-        "requires": ["glow_removal"],
-    },
+    ...
 },
 "initialization": {
     "footprints": {
@@ -130,57 +58,23 @@ actually runs the configured plan. The design schematic can be viewed here: (*
         "n_frames": 3,
         "requires": ["footprints"],
     },
-    "pixel_stats": {
-        "transformer": PixelStatsInitializer,
-        "params": {},
-        "n_frames": 3,
-        "requires": ["traces"],
-    },
-    "component_stats": {
-        "transformer": ComponentStatsInitializer,
-        "params": {},
-        "n_frames": 3,
-        "requires": ["traces"],
-    },
-    "residual": {
-        "transformer": ResidualInitializer,
-        "params": {"buffer_length": 3},
-        "n_frames": 3,
-        "requires": ["footprints", "traces"],
-    },
-    "overlap_groups": {
-        "transformer": OverlapsInitializer,
-        "params": {},
-        "requires": ["footprints"],
-    },
+    ...
 },
 "iteration": {
     "traces": {
         "transformer": TracesUpdater,
         "params": {"tolerance": 1e-3},
     },
-    "pixel_stats": {
-        "transformer": PixelStatsUpdater,
-        "params": {},
-        "requires": ["traces"],
-    },
-    "component_stats": {
-        "transformer": ComponentStatsUpdater,
-        "params": {},
-        "requires": ["traces"],
-    },
     ...
 },
 ```
 
-the actual python main.py looks like the following (will be eventually implemented as a cli `run` command:
+the actual python main.py looks like the following (will be eventually implemented as a cli `run` command):
 
 ```python
 runner = Runner(streaming_config)
-video, _, _ = raw_calcium_video
 
-for idx, frame in enumerate(video):
-    frame = Frame(frame, idx)
+for idx, frame in enumerate(stream):
     frame = runner.preprocess(frame)
 
     if not runner.is_initialized:
@@ -188,6 +82,8 @@ for idx, frame in enumerate(video):
         continue
 
     runner.iterate(frame)
+
+dump(runner._state)
 ```
 
 ## Roadmap
