@@ -35,7 +35,7 @@ class Runner:
     """Current state of the pipeline containing computed results."""
     execution_order: list[str] | None = None
     """Ordered list of initialization steps."""
-    status: list[bool] | None = None
+    _init_statuses: list[bool] | None = None
     """Completion status for each initialization step."""
     is_initialized: bool = False
     """Whether the pipeline initialization is complete."""
@@ -81,12 +81,12 @@ class Runner:
         """
         self._buffer.add_frame(frame.array)
 
-        if not self.execution_order or not self.status:
+        if not self.execution_order or not self._init_statuses:
             self.execution_order = self._create_dependency_graph(self.config["initialization"])
-            self.status = [False] * len(self.execution_order)
+            self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
-            if self.status[idx]:
+            if self._init_statuses[idx]:
                 continue
 
             n_frames = self.config["initialization"][step].get("n_frames", 1)
@@ -98,12 +98,12 @@ class Runner:
                 transformer=transformer, frame=self._buffer.get_latest(n_frames)
             )
             if result is not None:
-                self.status[idx] = True
+                self._init_statuses[idx] = True
 
             result_type = get_type_hints(transformer.transform_one, include_extras=True)["return"]
             self._state.init(result, result_type)
 
-        if all(self.status):
+        if all(self._init_statuses):
             self.is_initialized = True
 
     def iterate(self, frame: Frame) -> None:
@@ -139,7 +139,7 @@ class Runner:
         """
         config = self.config[process][step]
         params = config.get("params", {})
-        transformer = config["transformer"]
+        transformer = config["transformer"].get_class()
 
         param_class = next(
             (
