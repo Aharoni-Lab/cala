@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from cala.streaming.composer.pipe_config import (
+from cala.config.pipe import (
     InitializationStep,
     IterationStep,
     PreprocessStep,

@@ -11,24 +11,31 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
+from cala.config.pipe import StreamingConfig
+
 _dirs = PlatformDirs("cala", "cala")
 
 
 class Config(BaseSettings):
-    user_dir: Path = Field(
+    user_dir: str = Field(
         _dirs.user_config_dir,
         description="Directory containing cala config_examples files",
     )
-    config_file: Path = Field(
-        Path("cala_config.yaml"),
+    config_file: str = Field(
+        "cala_config.yaml",
         description="Location of global cala config_examples file. "
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
+
     video_directory: Path = Path(_dirs.user_data_dir) / "videos"
     video_files: list[Path] = Field(default_factory=list)
-    data_directory: Path = Path(_dirs.user_data_dir)
-    data_name: str | None = "cala"
+
+    output_directory: Path = Path(_dirs.user_data_dir)
+    output_name: str | None = "cala"
+
+    pipeline_config: StreamingConfig | None = None
+    pipeline_config_file: Path | None = None
 
     @property
     def video_paths(self) -> list[Path]:
@@ -118,6 +125,22 @@ class Config(BaseSettings):
                 f"The following video files do not exist in {self.video_directory}: {', '.join(missing_files)}"
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def load_pipeline_config(self) -> "Config":
+        if self.pipeline_config_file is not None:
+            if not self.pipeline_config_file.is_absolute():
+                self.pipeline_config_file = self.user_dir / self.pipeline_config_file
+
+            if self.pipeline_config_file.exists():
+                # Load and validate pipeline config
+                with open(self.pipeline_config_file) as f:
+                    import yaml
+
+                    pipeline_data = yaml.safe_load(f)
+                    # This will validate against the StreamingConfig TypedDict
+                    self.pipeline_config = pipeline_data
         return self
 
 
