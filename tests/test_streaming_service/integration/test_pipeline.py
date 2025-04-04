@@ -1,33 +1,34 @@
 import logging
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import cv2
 import matplotlib.pyplot as plt
 import pytest
+import xarray as xr
 
 from cala.log import setup_logger
-from cala.streaming.composer import StreamingConfig, Runner, Frame
+from cala.streaming.composer import Frame, Runner, StreamingConfig
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.init.odl import (
-    PixelStatsInitializer,
     ComponentStatsInitializer,
-    ResidualInitializer,
     OverlapsInitializer,
+    PixelStatsInitializer,
+    ResidualInitializer,
 )
 from cala.streaming.iterate import (
-    TracesUpdater,
     ComponentStatsUpdater,
-    PixelStatsUpdater,
     FootprintsUpdater,
+    PixelStatsUpdater,
+    TracesUpdater,
 )
 from cala.streaming.iterate.detect import Detector
 from cala.streaming.iterate.overlaps import OverlapsUpdater
 from cala.streaming.preprocess import (
-    Downsampler,
-    Denoiser,
-    GlowRemover,
     BackgroundEraser,
+    Denoiser,
+    Downsampler,
+    GlowRemover,
     RigidStabilizer,
 )
 
@@ -77,12 +78,12 @@ def preprocess_config() -> StreamingConfig:
     )
 
 
-def test_preprocess(preprocess_config, raw_calcium_video):
+def test_preprocess(preprocess_config: Any, raw_calcium_video: xr.DataArray) -> None:
     runner = Runner(preprocess_config)
     video = raw_calcium_video
     for idx, frame in enumerate(video):
         frame = Frame(frame, idx)
-        frame = runner.preprocess(frame)
+        runner.preprocess(frame)
 
 
 @pytest.fixture
@@ -134,7 +135,7 @@ def initialization_config() -> StreamingConfig:
     )
 
 
-def test_initialize(initialization_config, stabilized_video):
+def test_initialize(initialization_config: Any, stabilized_video: xr.DataArray) -> None:
     runner = Runner(initialization_config)
     video = stabilized_video
 
@@ -264,7 +265,7 @@ def integration_config() -> StreamingConfig:
 
 
 @pytest.mark.timeout(30)
-def test_iteration(integration_config, simply_denoised):
+def test_iteration(integration_config: Any, simply_denoised: xr.DataArray) -> None:
     runner = Runner(integration_config)
     video = simply_denoised
 
@@ -281,7 +282,7 @@ def test_iteration(integration_config, simply_denoised):
 
 
 @pytest.mark.timeout(30)
-def test_integration(integration_config, raw_calcium_video):
+def test_integration(integration_config: Any, raw_calcium_video: xr.DataArray) -> None:
     runner = Runner(integration_config)
     video = raw_calcium_video
 

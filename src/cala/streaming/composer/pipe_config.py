@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypedDict, Any, Sequence, NotRequired
+from typing import Any, NotRequired, TypedDict
 
 import xarray as xr
 

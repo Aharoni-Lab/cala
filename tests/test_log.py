@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import pytest
 
@@ -6,7 +7,7 @@ from cala.log import setup_logger
 
 
 @pytest.fixture
-def log_file(tmp_path):
+def log_file(tmp_path: Path):
     """
     Pytest fixture to create a temporary log file.
     """
@@ -51,7 +52,7 @@ def test_logger_with_all_levels(caplog, level, level_name):
     assert record.levelname == level_name
 
 
-def test_logger_with_file_handler(log_file):
+def test_logger_with_file_handler(log_file: Path) -> None:
     """
     Test logger setup with file handler.
     """
@@ -64,7 +65,7 @@ def test_logger_with_file_handler(log_file):
     # Check if the log message is written to the file
     for handler in logger.handlers:
         if file_path := getattr(handler, "baseFilename", None):
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 logs = f.read()
 
     assert "Log message to file" in logs

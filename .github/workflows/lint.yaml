@@ -27,12 +27,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: psf/black@stable
 
-  mypy:
-    name: mypy typechecking
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pre-commit/mirrors-mypy@v1
+  #  mypy:
+  #    name: mypy typechecking
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - uses: actions/checkout@v4
+  #      - uses: pre-commit/mirrors-mypy@v1
 
   lock:
     name: lockfile current

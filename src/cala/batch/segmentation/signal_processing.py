@@ -1,14 +1,11 @@
 # adj_corr filt_fft local_extreme med_baseline
-from typing import Union
 
 import numpy as np
 import scipy.ndimage as ndi
 from scipy.ndimage import median_filter
 
 
-def local_extreme(
-    image: np.ndarray, selem: np.ndarray, diff_threshold: Union[int, float]
-) -> np.ndarray:
+def local_extreme(image: np.ndarray, selem: np.ndarray, diff_threshold: int | float) -> np.ndarray:
     """
     Find local maxima in an image.
 

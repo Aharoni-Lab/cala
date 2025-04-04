@@ -1,19 +1,20 @@
-from typing import Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from cala.streaming.composer.pipe_config import (
-    PreprocessStep,
     InitializationStep,
     IterationStep,
+    PreprocessStep,
     StreamingConfig,
 )
 
 
 class MockTransformer:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         self.params = kwargs
 
 
-def test_preprocess_step_valid():
+def test_preprocess_step_valid() -> None:
     # Test basic configuration
     step: PreprocessStep = {
         "transformer": MockTransformer,
@@ -32,7 +33,7 @@ def test_preprocess_step_valid():
     assert step_with_requires["requires"] == ["dep1", "dep2"]
 
 
-def test_initialization_step_valid():
+def test_initialization_step_valid() -> None:
     # Test basic configuration
     step: InitializationStep = {
         "transformer": MockTransformer,
@@ -51,7 +52,7 @@ def test_initialization_step_valid():
     assert step_with_requires["requires"] == ["dep1", "dep2"]
 
 
-def test_extraction_step_valid():
+def test_extraction_step_valid() -> None:
     # Test basic configuration
     step: IterationStep = {
         "transformer": MockTransformer,
@@ -70,7 +71,7 @@ def test_extraction_step_valid():
     assert step_with_requires["requires"] == ["dep1", "dep2"]
 
 
-def test_streaming_config_valid():
+def test_streaming_config_valid() -> None:
     # Test minimal configuration
     config: StreamingConfig = {
         "preprocess": {},
@@ -110,7 +111,7 @@ def test_streaming_config_valid():
     assert "step3" in full_config["iteration"]
 
 
-def test_streaming_config_dependencies():
+def test_streaming_config_dependencies() -> None:
     # Test configuration with dependencies between steps
     config: StreamingConfig = {
         "preprocess": {},
@@ -139,5 +140,5 @@ def test_streaming_config_dependencies():
 
     assert "requires" in neuron_detection
     assert "requires" in trace_extraction
-    assert "motion_correction" in neuron_detection["requires"]  # type: ignore
-    assert "neuron_detection" in trace_extraction["requires"]  # type: ignore
+    assert "motion_correction" in neuron_detection["requires"]
+    assert "neuron_detection" in trace_extraction["requires"]
