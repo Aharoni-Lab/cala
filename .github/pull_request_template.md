@@ -5,24 +5,16 @@ Provide a clear and concise description of the changes introduced by this PR.
 Explain the purpose and any relevant context.
 -->
 
-## 📌 Related Issue
-
-<!--
-Mention the issue number this PR addresses.
-For example: 
-Closes #123
--->
-
 ## 🔍 Type of Change
 
 <!--
 Please delete options that are not relevant.
 -->
-🛠️ **Bug Fix:** Non-breaking change which fixes an issue  
-✨ **New Feature:** Introducing new functionality  
-🧪 **Improvement:** Enhancements or optimizations to existing code  
-📚 **Documentation:** Updates or additions to documentation  
-🧹 **Refactor:** Code changes that neither fix a bug nor add a feature  
+🛠️ **Bug Fix:** Non-breaking change which fixes an issue
+✨ **New Feature:** Introducing new functionality
+🧪 **Improvement:** Enhancements or optimizations to existing code
+📚 **Documentation:** Updates or additions to documentation
+🧹 **Refactor:** Code changes that neither fix a bug nor add a feature
 🗑️ **Chore:** Maintenance tasks, such as dependency updates
 
 ## 🚀 Implementation Details

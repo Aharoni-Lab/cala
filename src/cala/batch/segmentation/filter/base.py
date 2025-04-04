@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Self, ClassVar
+from typing import Any, ClassVar, Self
 
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -56,16 +56,16 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
     sklearn.base.BaseEstimator : Parent class providing get/set parameters interface
     """
 
-    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    core_axes: list[str] = field(default_factory=lambda: ["width", "height"])
     """The axes in which filters will be applied against."""
     iter_axis: str = "frames"
     """The axis in which the filtering will be parallelized against."""
     spatial_axis: str = "spatial"
     """The multiplexed axis that encompasses the entire visual space of the movie."""
     new_data_in_transform: bool = True
-    """Set this to True when transform() will be called on a different dataset than what 
-    was used in fit(). This ensures fit_transform_shared_preprocessing() runs again during 
-    transform() to recompute preprocessing attributes for the new data. Set to False if 
+    """Set this to True when transform() will be called on a different dataset than what
+    was used in fit(). This ensures fit_transform_shared_preprocessing() runs again during
+    transform() to recompute preprocessing attributes for the new data. Set to False if
     transforming the same dataset that was used in fit()."""
     _stateless: ClassVar[bool] = field(default=False, init=False)
     """True if the filter is stateless."""
@@ -123,7 +123,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
             )
 
     @abstractmethod
-    def fit_kernel(self, X: DataArray, seeds: DataFrame):
+    def fit_kernel(self, X: DataArray, seeds: DataFrame) -> Any:
         """Core fitting logic to be implemented by each filter subclass.
 
         This abstract method defines the interface for the fitting step of a filter.
@@ -172,7 +172,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         pass
 
     @abstractmethod
-    def transform_kernel(self, X: DataArray, seeds: DataFrame):
+    def transform_kernel(self, X: DataArray, seeds: DataFrame) -> Any:
         """Core transformation logic to be implemented by each filter subclass.
 
         This abstract method defines the interface for the transformation step
@@ -284,7 +284,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         self._is_fitted = True
         return self
 
-    def transform(self, X: DataArray, y: DataFrame):
+    def transform(self, X: DataArray, y: DataFrame) -> Any:
         """Apply the fitted filter to new data.
 
         This method handles the common transformation pipeline for all filters:
@@ -355,7 +355,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
 
         return self.transform_kernel(X=X, seeds=y)
 
-    def fit_transform(self, X: DataArray, y: DataFrame = None, **fit_params: dict):
+    def fit_transform(self, X: DataArray, y: DataFrame = None, **fit_params: dict) -> Any:
         """Fit the filter to the data and apply transformation in one step.
 
         This is a convenience method that chains fit() and transform() together.
@@ -383,7 +383,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         return self.fit(X, y, **fit_params).transform(X, y)
 
     @abstractmethod
-    def fit_transform_shared_preprocessing(self, X: DataArray, seeds: DataFrame):
+    def fit_transform_shared_preprocessing(self, X: DataArray, seeds: DataFrame) -> Any:
         """Perform shared preprocessing steps for both fit and transform operations.
 
         This method is called during both fit() and transform() to handle any preprocessing
@@ -405,7 +405,7 @@ class BaseFilter(BaseEstimator, TransformerMixin, ABC):
         """
         pass
 
-    def __sklearn_is_fitted__(self):
+    def __sklearn_is_fitted__(self) -> bool:
         """
         Check fitted status and return a Boolean value.
         """

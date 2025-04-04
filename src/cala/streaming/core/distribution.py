@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type, Optional, get_origin, Annotated, get_args
+from typing import Annotated, Any, get_args, get_origin
 
 import xarray as xr
 
@@ -16,7 +16,7 @@ class Distributor:
 
     _: int = 0
 
-    def get(self, type_: Type) -> Optional[ObservableStore]:
+    def get(self, type_: type) -> ObservableStore | None:
         """Retrieve a specific Observable instance based on its type.
 
         Args:
@@ -27,12 +27,13 @@ class Distributor:
         """
         store_type = self._get_store_type(type_)
         if store_type is None:
-            return
+            return None
         for attr_name, attr_type in self.__annotations__.items():
             if attr_type == store_type:
                 return getattr(self, attr_name).warehouse
+        return None
 
-    def init(self, result: xr.DataArray, type_: Type) -> None:
+    def init(self, result: xr.DataArray, type_: type) -> None:
         """Store a DataArray results in their appropriate Observable containers.
 
         This method automatically determines the correct storage location based on the
@@ -55,7 +56,7 @@ class Distributor:
     def update(
         self,
         result: xr.DataArray | tuple[xr.DataArray, ...],
-        type_: Type | tuple[Type, ...],
+        type_: type | tuple[type, ...],
     ) -> None:
         """Update appropriate Observable containers with result DataArray(s).
 
@@ -68,9 +69,7 @@ class Distributor:
         """
         # Convert single inputs to tuples for uniform handling
         results, types = (
-            ((result,), (type_,))
-            if not isinstance(result, tuple)
-            else (result, get_args(type_))
+            ((result,), (type_,)) if not isinstance(result, tuple) else (result, get_args(type_))
         )
 
         if len(results) != len(types):
@@ -85,7 +84,7 @@ class Distributor:
             getattr(self, store_name).update(r)
 
     @staticmethod
-    def _get_store_type(type_: Type) -> type | None:
-        if get_origin(type_) is Annotated:
-            if issubclass(type_.__metadata__[0], ObservableStore):
-                return type_.__metadata__[0]
+    def _get_store_type(type_: type[Annotated[Any, Any]]) -> type | None:
+        if get_origin(type_) is Annotated and issubclass(type_.__metadata__[0], ObservableStore):
+            return type(type_.__metadata__[0])
+        return None

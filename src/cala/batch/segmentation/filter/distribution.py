@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, ClassVar
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -30,15 +30,15 @@ class DistributionFilter(BaseFilter):
     num_peaks: int = 2
     """Number of peaks to detect in the fluorescence distribution."""
     _stateless: ClassVar[bool] = True
-    """Indicates the filter is stateless and does not require fitting. Always True for this filter."""
+    """Indicates the filter is stateless and does not require fitting. True for this filter."""
 
-    def fit_kernel(self, X, seeds):
+    def fit_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
         pass
 
-    def fit_transform_shared_preprocessing(self, X, seeds):
+    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
         pass
 
-    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
+    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
         """Transform the seeds by filtering based on distribution analysis.
 
         Parameters
@@ -67,9 +67,8 @@ class DistributionFilter(BaseFilter):
         normal distribution.
         """
         # Dynamically create a dictionary of DataArrays for each core axis
-        seed_das: Dict[str, xr.DataArray] = {
-            axis: xr.DataArray(seeds[axis].values, dims="seeds")
-            for axis in self.core_axes
+        seed_das: dict[str, xr.DataArray] = {
+            axis: xr.DataArray(seeds[axis].values, dims="seeds") for axis in self.core_axes
         }
 
         # Select the relevant subset from X using dynamic vectorized selection
@@ -94,7 +93,7 @@ class DistributionFilter(BaseFilter):
         return seeds
 
     @staticmethod
-    def min_ic_components(arr: np.ndarray, max_components=5):
+    def min_ic_components(arr: np.ndarray, max_components: int = 5) -> int:
         """
         Find the optimal number of Gaussian components using AIC criterion.
 
@@ -129,4 +128,6 @@ class DistributionFilter(BaseFilter):
                 lowest_aic = aic
                 best_model = gmm
 
-        return best_model.n_components
+        if best_model is None:
+            return 1  # Default to 1 component if no model was fit
+        return int(best_model.n_components)

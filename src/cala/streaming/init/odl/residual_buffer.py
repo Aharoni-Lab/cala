@@ -4,8 +4,8 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Axis
-from cala.streaming.stores.common import Traces, Footprints
+from cala.streaming.core import Axis, Parameters
+from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals
 
 
@@ -21,7 +21,7 @@ class ResidualInitializerParams(Parameters, Axis):
     buffer_length: int = 50
     """Number of recent frames to maintain in the residual buffer (l_b)."""
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         Raises:
@@ -58,9 +58,7 @@ class ResidualInitializer(SupervisedTransformer):
     residual_: xr.DataArray = field(init=False)
     """Computed residual buffer containing recent unexplained signals."""
 
-    def learn_one(
-        self, footprints: Footprints, traces: Traces, frame: xr.DataArray
-    ) -> Self:
+    def learn_one(self, footprints: Footprints, traces: Traces, frame: xr.DataArray) -> Self:
         """Compute residual signals from frames, components, and their activities.
 
         This method implements the residual computation by subtracting the
@@ -102,7 +100,7 @@ class ResidualInitializer(SupervisedTransformer):
 
         return self
 
-    def transform_one(self, _=None) -> Residuals:
+    def transform_one(self, _: None = None) -> Residuals:
         """Return the computed residual buffer.
 
         This method wraps the residual buffer in a Residual object

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 import pandas as pd
 import xarray as xr
@@ -31,7 +30,7 @@ class MaxProjection(BaseDetector):
     # Intensity threshold for peak detection.
     intensity_threshold: float = 1.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate initialization parameters."""
         super().__post_init__()
         if self.local_max_radius <= 0:
@@ -39,7 +38,7 @@ class MaxProjection(BaseDetector):
         if self.intensity_threshold <= 0:
             raise ValueError("intensity_threshold must be positive")
 
-    def fit_kernel(self, X: xr.DataArray) -> List[xr.DataArray]:
+    def fit_kernel(self, X: xr.DataArray) -> list[xr.DataArray]:
         """
         Compute max projections for each window.
         """

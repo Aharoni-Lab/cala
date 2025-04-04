@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Literal
+from typing import Literal, Self
 
 import cv2
 import numpy as np
@@ -10,13 +10,13 @@ from sklearn.base import BaseEstimator, TransformerMixin
 @dataclass
 class Denoiser(BaseEstimator, TransformerMixin):
     # core_axes: The axes the filter convolves on. Defaults to ["height", "width"]
-    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    core_axes: list[str] = field(default_factory=lambda: ["width", "height"])
     # method: One of "gaussian", "median", "bilateral". Defaults to "median".
     method: Literal["gaussian", "median", "bilateral"] = "gaussian"
     # kwargs: keyword args corresponding to the denoise method
     kwargs: dict = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         methods = {
             "gaussian": cv2.GaussianBlur,
             "median": cv2.medianBlur,
@@ -29,10 +29,10 @@ class Denoiser(BaseEstimator, TransformerMixin):
             )
         self.func = methods[self.method]
 
-    def fit(self, X, y=None):
+    def fit(self, X: xr.DataArray, y: None = None) -> Self:
         return self
 
-    def transform(self, X: xr.DataArray, y=None) -> xr.DataArray:
+    def transform(self, X: xr.DataArray, y: None = None) -> xr.DataArray:
         res = xr.apply_ufunc(
             self.func,
             X.astype(np.float32),

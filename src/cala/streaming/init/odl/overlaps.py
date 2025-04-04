@@ -5,7 +5,7 @@ import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
 
@@ -18,7 +18,7 @@ class OverlapsInitializerParams(Parameters, Axis):
     groups of components that share spatial overlap in their footprints.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations."""
         pass
 
@@ -40,9 +40,7 @@ class OverlapsInitializer(SupervisedTransformer):
     overlaps_: xr.DataArray = field(init=False)
     """Computed sparse matrix indicating component group memberships."""
 
-    def learn_one(
-        self, footprints: Footprints, frame: xr.DataArray | None = None
-    ) -> Self:
+    def learn_one(self, footprints: Footprints, frame: xr.DataArray | None = None) -> Self:
         """Determine overlaps from spatial footprints.
 
         This method links components based on spatial overlap.
@@ -58,9 +56,7 @@ class OverlapsInitializer(SupervisedTransformer):
         # Use matrix multiplication with broadcasting to compute overlaps
         data = (
             footprints.dot(
-                footprints.rename(
-                    {self.params.component_axis: f"{self.params.component_axis}'"}
-                )
+                footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             )
             > 0
         ).astype(int)
@@ -71,7 +67,7 @@ class OverlapsInitializer(SupervisedTransformer):
 
         return self
 
-    def transform_one(self, _=None) -> Overlaps:
+    def transform_one(self, _: None = None) -> Overlaps:
         """Return the computed overlaps.
 
         This method wraps the overlaps matrix in an OverlapGroups object

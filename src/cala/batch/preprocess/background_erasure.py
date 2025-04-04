@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Literal, List
+from typing import Literal, Self
 
 import cv2
 import numpy as np
@@ -16,13 +16,13 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
     # - 'uniform': Background is estimated by convolving each frame with a uniform/mean kernel
     # and then subtracting it from the frame.
     # - 'tophat': Applies a morphological tophat operation to each frame using a disk-shaped kernel.
-    core_axes: List[str] = field(default_factory=lambda: ["height", "width"])
+    core_axes: list[str] = field(default_factory=lambda: ["height", "width"])
     # method (str): The method used to remove the background.
     method: Literal["uniform", "tophat"] = "uniform"
     # kernel_size (int): Size of the kernel used for background removal.
     kernel_size: int = 3
 
-    def fit(self, X, y=None):
+    def fit(self, X: xr.DataArray, y: None = None) -> Self:
         """Fits the transformer to the data.
 
         This transformer does not learn from the data, so this method simply returns self.
@@ -36,7 +36,7 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
         """
         return self
 
-    def transform(self, X: xr.DataArray, y=None) -> xr.DataArray:
+    def transform(self, X: xr.DataArray, y: None = None) -> xr.DataArray:
         """Removes background from a video.
 
         This function removes background frame by frame. Two methods are available:
@@ -73,9 +73,7 @@ class BackgroundEraser(BaseEstimator, TransformerMixin):
             output_dtypes=[X.dtype],
         )
         res = res.astype(X.dtype)
-        res.name = (
-            f"{X.name}_subtracted" if X.name != "None" else "background_subtracted"
-        )
+        res.name = f"{X.name}_subtracted" if X.name != "None" else "background_subtracted"
         return res
 
     def apply_filter_per_frame(self, frame: np.ndarray) -> np.ndarray:

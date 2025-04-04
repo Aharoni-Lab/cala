@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 import pytest
@@ -14,12 +15,14 @@ class SimplyParams:
 
 
 @pytest.fixture(scope="session")
-def simply_params():
+def simply_params() -> SimplyParams:
     return SimplyParams()
 
 
 @pytest.fixture(scope="session")
-def simply_traces(simply_params, mini_coords):
+def simply_traces(
+    simply_params: SimplyParams, mini_coords: dict[str, tuple[str, str | Enum]]
+) -> xr.DataArray:
     traces = xr.DataArray(
         np.zeros((simply_params.n_components, simply_params.n_frames)),
         dims=("component", "frame"),
@@ -27,9 +30,7 @@ def simply_traces(simply_params, mini_coords):
     )
     traces[0, :] = [1 for _ in range(simply_params.n_frames)]
     traces[1, :] = [i for i in range(simply_params.n_frames)]
-    traces[2, :] = [
-        simply_params.n_frames - 1 - i for i in range(simply_params.n_frames)
-    ]
+    traces[2, :] = [simply_params.n_frames - 1 - i for i in range(simply_params.n_frames)]
     traces[3, :] = [
         abs((simply_params.n_frames - 1) / 2 - i) for i in range(simply_params.n_frames)
     ]
@@ -39,5 +40,5 @@ def simply_traces(simply_params, mini_coords):
 
 
 @pytest.fixture(scope="session")
-def simply_denoised(mini_footprints, simply_traces):
+def simply_denoised(mini_footprints: xr.DataArray, simply_traces: xr.DataArray) -> xr.DataArray:
     return (mini_footprints @ simply_traces).transpose("frame", "height", "width")

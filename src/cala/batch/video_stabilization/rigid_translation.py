@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any
 
 import cv2
 import numpy as np
+import xarray as xr
 from skimage.registration import phase_cross_correlation
 
 from .base import BaseMotionCorrector
@@ -10,16 +11,14 @@ from .base import BaseMotionCorrector
 
 @dataclass
 class RigidTranslator(BaseMotionCorrector):
-    anchor_frame_index: Optional[int] = None
+    anchor_frame_index: int | None = None
 
-    def _fit_kernel(self, current_frame: np.ndarray, **kernel_kwargs) -> np.ndarray:
+    def _fit_kernel(self, current_frame: xr.DataArray, **kernel_kwargs: Any) -> Any:
         if self.anchor_frame_ is None:
             raise ValueError("Base frame has not been established.")
 
         shift, error, diffphase = phase_cross_correlation(
-            self.anchor_frame_.astype(np.float32),
-            current_frame.astype(np.float32),
-            **kernel_kwargs
+            self.anchor_frame_.astype(np.float32), current_frame.astype(np.float32)
         )
         if self.max_shift is not None:
             # Cap shift values at max amplitude of 10

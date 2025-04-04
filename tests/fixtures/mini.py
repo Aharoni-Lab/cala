@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 import pytest
@@ -17,26 +18,27 @@ class MiniParams:
 
 
 @pytest.fixture(scope="session")
-def mini_params():
+def mini_params() -> MiniParams:
     """Return default parameters for video generation."""
     return MiniParams()
 
 
 @pytest.fixture(scope="session")
-def mini_coords(mini_params):
+def mini_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str | Enum]]]:
     # Create sample coordinates
     return {
         "id_": ("component", [f"id{i}" for i in range(mini_params.n_components)]),
         "type_": (
             "component",
-            [Component.BACKGROUND]
-            + [Component.NEURON] * (mini_params.n_components - 1),
+            [Component.BACKGROUND] + [Component.NEURON] * (mini_params.n_components - 1),
         ),
     }
 
 
 @pytest.fixture(scope="session")
-def mini_footprints(mini_params, mini_coords):
+def mini_footprints(
+    mini_params: MiniParams, mini_coords: dict[str, tuple[str, str | Enum]]
+) -> xr.DataArray:
     """Create sample data for testing."""
     footprints = xr.DataArray(
         np.zeros((mini_params.n_components, mini_params.height, mini_params.width)),
@@ -54,7 +56,9 @@ def mini_footprints(mini_params, mini_coords):
 
 
 @pytest.fixture(scope="session")
-def mini_traces(mini_params, mini_coords):
+def mini_traces(
+    mini_params: MiniParams, mini_coords: dict[str, tuple[str, str | Enum]]
+) -> xr.DataArray:
     traces = xr.DataArray(
         np.zeros((mini_params.n_components, mini_params.n_frames)),
         dims=("component", "frame"),
@@ -63,16 +67,14 @@ def mini_traces(mini_params, mini_coords):
     traces[0, :] = [1 for _ in range(mini_params.n_frames)]
     traces[1, :] = [i for i in range(mini_params.n_frames)]
     traces[2, :] = [mini_params.n_frames - 1 - i for i in range(mini_params.n_frames)]
-    traces[3, :] = [
-        abs((mini_params.n_frames - 1) / 2 - i) for i in range(mini_params.n_frames)
-    ]
+    traces[3, :] = [abs((mini_params.n_frames - 1) / 2 - i) for i in range(mini_params.n_frames)]
     traces[4, :] = np.random.rand(mini_params.n_frames)
 
     return traces
 
 
 @pytest.fixture(scope="session")
-def mini_residuals(mini_params):
+def mini_residuals(mini_params: MiniParams) -> xr.DataArray:
     residual = xr.DataArray(
         np.zeros((mini_params.n_frames, mini_params.height, mini_params.width)),
         dims=("frame", "height", "width"),
@@ -84,7 +86,9 @@ def mini_residuals(mini_params):
 
 
 @pytest.fixture(scope="session")
-def mini_pixel_stats(mini_params, mini_denoised, mini_traces):
+def mini_pixel_stats(
+    mini_params: MiniParams, mini_denoised: xr.DataArray, mini_traces: xr.DataArray
+) -> xr.DataArray:
     # Get current timestep
     t_prime = mini_params.n_frames
 
@@ -102,23 +106,23 @@ def mini_pixel_stats(mini_params, mini_denoised, mini_traces):
 
 
 @pytest.fixture(scope="session")
-def mini_component_stats(mini_params, mini_traces):
+def mini_component_stats(mini_params: MiniParams, mini_traces: xr.DataArray) -> xr.DataArray:
     t_prime = mini_params.n_frames
 
     # Get temporal components C
     C = mini_traces  # components x time
 
     # Compute M = C * C.T / t'
-    M = C @ C.rename({"component": f"component'"}) / t_prime
+    M = C @ C.rename({"component": "component'"}) / t_prime
 
     return M.assign_coords(C.coords)
 
 
 @pytest.fixture(scope="session")
-def mini_overlaps(mini_footprints):
-    data = (
-        mini_footprints.dot(mini_footprints.rename({"component": "component'"})) > 0
-    ).astype(int)
+def mini_overlaps(mini_footprints: xr.DataArray) -> xr.DataArray:
+    data = (mini_footprints.dot(mini_footprints.rename({"component": "component'"})) > 0).astype(
+        int
+    )
 
     data.values = sparse.COO(data.values)
     return data.assign_coords(
@@ -136,10 +140,10 @@ def mini_overlaps(mini_footprints):
 
 
 @pytest.fixture(scope="session")
-def mini_denoised(mini_footprints, mini_traces):
+def mini_denoised(mini_footprints: xr.DataArray, mini_traces: xr.DataArray) -> xr.DataArray:
     return (mini_footprints @ mini_traces).transpose("frame", "height", "width")
 
 
 @pytest.fixture(scope="session")
-def mini_movie(mini_denoised, mini_residuals):
+def mini_movie(mini_denoised: xr.DataArray, mini_residuals: xr.DataArray) -> xr.DataArray:
     return (mini_denoised + mini_residuals).transpose("frame", "height", "width")

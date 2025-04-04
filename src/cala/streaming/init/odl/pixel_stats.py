@@ -4,7 +4,7 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats
 
@@ -17,7 +17,7 @@ class PixelStatsInitializerParams(Parameters, Axis):
     across pixels and components, including axis names and spatial specifications.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations."""
         pass
 
@@ -80,7 +80,7 @@ class PixelStatsInitializer(SupervisedTransformer):
 
         return self
 
-    def transform_one(self, _=None) -> PixelStats:
+    def transform_one(self, _: None = None) -> PixelStats:
         """Transform the computed statistics into the expected format.
 
         This method reshapes the pixel statistics to match the expected

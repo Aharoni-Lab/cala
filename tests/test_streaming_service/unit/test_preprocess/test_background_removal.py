@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Any
 
 import cv2
 import numpy as np
@@ -15,29 +16,29 @@ from cala.streaming.preprocess.background_removal import (
 
 class TestBackgroundEraser:
     @pytest.fixture
-    def default_params(self):
+    def default_params(self) -> BackgroundEraserParams:
         """Create default parameters for testing"""
         params = BackgroundEraserParams(method="uniform", kernel_size=3)
         return params
 
     @pytest.fixture
-    def eraser_uniform(self, default_params):
+    def eraser_uniform(self, default_params: BackgroundEraserParams) -> BackgroundEraser:
         """Create BackgroundEraser instance with uniform method"""
         return BackgroundEraser(default_params)
 
     @pytest.fixture
-    def eraser_tophat(self, default_params):
+    def eraser_tophat(self, default_params: BackgroundEraserParams) -> BackgroundEraser:
         """Create BackgroundEraser instance with tophat method"""
         params = dataclasses.replace(default_params, method="tophat")
         return BackgroundEraser(params)
 
-    def test_initialization(self, default_params):
+    def test_initialization(self, default_params: BackgroundEraserParams) -> None:
         """Test proper initialization of BackgroundEraser"""
         eraser = BackgroundEraser(default_params)
         assert eraser.params.method == default_params.method
         assert eraser.params.kernel_size == default_params.kernel_size
 
-    def test_parameter_validation(self):
+    def test_parameter_validation(self) -> None:
         """Test parameter validation"""
         # Test invalid method
         with pytest.raises(ValueError, match="method must be one of"):
@@ -47,7 +48,9 @@ class TestBackgroundEraser:
         with pytest.raises(ValueError, match="kernel_size must be greater than zero"):
             BackgroundEraser(BackgroundEraserParams(kernel_size=0))
 
-    def test_uniform_background_removal(self, eraser_uniform, raw_calcium_video):
+    def test_uniform_background_removal(
+        self, eraser_uniform: BackgroundEraser, raw_calcium_video: xr.DataArray
+    ) -> None:
         """Test background removal using uniform method"""
         video = raw_calcium_video
         frame = video[0]
@@ -67,7 +70,9 @@ class TestBackgroundEraser:
 
         np.testing.assert_array_almost_equal(result, expected)
 
-    def test_tophat_background_removal(self, eraser_tophat, raw_calcium_video):
+    def test_tophat_background_removal(
+        self, eraser_tophat: BackgroundEraser, raw_calcium_video: xr.DataArray
+    ) -> None:
         """Test background removal using tophat method"""
         video = raw_calcium_video
         frame = video[0]
@@ -88,7 +93,9 @@ class TestBackgroundEraser:
 
         np.testing.assert_array_almost_equal(result, expected)
 
-    def test_streaming_consistency(self, eraser_uniform, raw_calcium_video):
+    def test_streaming_consistency(
+        self, eraser_uniform: BackgroundEraser, raw_calcium_video: xr.DataArray
+    ) -> None:
         """Test consistency of streaming background removal"""
         video = raw_calcium_video
         frames = [video[i] for i in range(5)]
@@ -102,9 +109,7 @@ class TestBackgroundEraser:
         # Process frames in batch
         batch_results = []
         for frame in frames:
-            background = uniform_filter(
-                frame.values, size=eraser_uniform.params.kernel_size
-            )
+            background = uniform_filter(frame.values, size=eraser_uniform.params.kernel_size)
             result = frame.values - background
             result[result < 0] = 0
             batch_results.append(result)
@@ -113,7 +118,9 @@ class TestBackgroundEraser:
         for streaming, batch in zip(streaming_results, batch_results):
             np.testing.assert_array_almost_equal(streaming, batch)
 
-    def test_different_kernel_sizes(self, default_params, raw_calcium_video):
+    def test_different_kernel_sizes(
+        self, default_params: Any, raw_calcium_video: xr.DataArray
+    ) -> None:
         """Test background removal with different kernel sizes"""
         video = raw_calcium_video
         frame = video[0]
@@ -145,7 +152,7 @@ class TestBackgroundEraser:
                 # )
                 assert np.mean(result.values) > np.mean(prev_result.values)
 
-    def test_edge_cases(self, default_params):
+    def test_edge_cases(self, default_params: Any) -> None:
         """Test handling of edge cases"""
         # Test constant frame
         constant_frame = xr.DataArray(np.ones((50, 50)))

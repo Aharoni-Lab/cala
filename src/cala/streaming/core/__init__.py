@@ -1,5 +1,5 @@
 from .axis import Axis
-from .components import Component, ComponentTypes
+from .components import Component
 from .parameters import Parameters
 from .stores import ObservableStore
 
@@ -8,5 +8,4 @@ __all__ = [
     "Axis",
     "ObservableStore",
     "Component",
-    "ComponentTypes",
 ]

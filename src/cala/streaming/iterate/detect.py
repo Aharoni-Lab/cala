@@ -13,9 +13,9 @@ from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Component, Axis
+from cala.streaming.core import Axis, Component, Parameters
 from cala.streaming.stores.common import Footprints, Traces
-from cala.streaming.stores.odl import Residuals, PixelStats, ComponentStats, Overlaps
+from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class DetectorParams(Parameters, Axis):
     temporal_threshold: float = 0.8
     """Threshold for correlation in time (r_t)."""
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         Raises:
@@ -88,7 +88,7 @@ class Detector(SupervisedTransformer):
 
     noise_level_: float = field(init=False)
 
-    cell_radius_: int = field(init=False)
+    cell_radius_: float = field(init=False)
 
     new_footprints_: Footprints = field(default_factory=list)
     """New spatial footprints [A, b]."""
@@ -138,7 +138,7 @@ class Detector(SupervisedTransformer):
 
         self.frame_ = frame
         self.cell_radius_ = self._estimate_cell_radius(footprints)
-        logger.info(f"Cell Radius: {float(self.cell_radius_):4f}")
+        logger.info(f"Cell Radius: {self.cell_radius_:4f}")
 
         # Update and process residuals
         self.residuals_ = self._update_residual_buffer(
@@ -146,15 +146,13 @@ class Detector(SupervisedTransformer):
         )
 
         self.noise_level_ = self._estimate_gaussian_noise(residuals, frame.array.shape)
-        logger.info(f"Noise Level: {float(self.noise_level_):4f}")
+        logger.info(f"Noise Level: {self.noise_level_:4f}")
 
         valid = True
         while valid:
             # Compute deviation from median
             V = self._process_residuals()
-            if (
-                V.max() - V.min()
-            ) / 2 <= self.noise_level_:  # if fluctuation is noise level
+            if (V.max() - V.min()) / 2 <= self.noise_level_:  # if fluctuation is noise level
                 valid = False
                 continue
 
@@ -163,9 +161,7 @@ class Detector(SupervisedTransformer):
 
             # Find and analyze neighborhood of maximum variance
             neighborhood = self._get_max_variance_neighborhood(E)
-            a_new, c_new = self._local_nmf(
-                neighborhood=neighborhood, frame=self.frame_.array
-            )
+            a_new, c_new = self._local_nmf(neighborhood=neighborhood, frame=self.frame_.array)
 
             logger.info(f"New C: {c_new.values}")
             # Validate new component
@@ -269,23 +265,21 @@ class Detector(SupervisedTransformer):
             overlaps_,
         )
 
-    def _estimate_cell_radius(self, footprints: Footprints) -> int:
+    def _estimate_cell_radius(self, footprints: Footprints) -> float:
         neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
             {self.params.type_coordinates: Component.NEURON}
         )
         if self.params.component_axis not in neuron_footprints.dims:
-            neuron_footprints = neuron_footprints.expand_dims(
-                self.params.component_axis
-            )
+            neuron_footprints = neuron_footprints.expand_dims(self.params.component_axis)
         avg_footprint = (neuron_footprints != 0).sum() / neuron_footprints.sizes[
             self.params.component_axis
         ]
-        return max(np.sqrt(avg_footprint) / 2, 1.0)
+        return max(float(np.sqrt(avg_footprint)) / 2, 1.0)
 
-    def _estimate_gaussian_noise(self, residuals, frame_shape):
+    def _estimate_gaussian_noise(self, residuals: Residuals, frame_shape: tuple[int, ...]) -> float:
         self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
         patches = self.sampler.transform(residuals)
-        return estimate_sigma(patches)
+        return float(estimate_sigma(patches))
 
     def _update_residual_buffer(
         self,
@@ -396,14 +390,10 @@ class Detector(SupervisedTransformer):
         a_new = xr.zeros_like(frame)
 
         # Place the NMF result in the correct location
-        a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = (
-            xr.DataArray(
-                a.squeeze().reshape(
-                    tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)
-                ),
-                dims=self.params.spatial_axes,
-                coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
-            )
+        a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = xr.DataArray(
+            a.squeeze().reshape(tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)),
+            dims=self.params.spatial_axes,
+            coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
         )
 
         return a_new, c_new
@@ -432,9 +422,7 @@ class Detector(SupervisedTransformer):
 
         a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
         res_norm = mean_residual.isel(nonzero_ax_to_idx) / mean_residual.sum()
-        r_spatial = (
-            xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
-        )
+        r_spatial = xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
 
         if r_spatial <= self.params.spatial_threshold:
             return False
@@ -443,9 +431,7 @@ class Detector(SupervisedTransformer):
         overlaps = (a_new @ footprints) > 0
 
         overlapping_components = (
-            overlaps.where(overlaps == True, drop=True)
-            .coords[self.params.id_coordinates]
-            .values
+            overlaps.where(overlaps, drop=True).coords[self.params.id_coordinates].values
         )
 
         if overlapping_components.any():
@@ -507,9 +493,7 @@ class Detector(SupervisedTransformer):
         frame_idx = frame.index + 1
         scale = 1 / frame_idx
 
-        footprints = xr.concat(
-            [og_footprints, new_footprints], dim=self.params.component_axis
-        )
+        footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_axis)
         traces = xr.concat(
             [
                 og_traces.isel({self.params.frames_axis: slice(-len(residuals), None)}),
@@ -568,15 +552,9 @@ class Detector(SupervisedTransformer):
         # C_buf probably has to be the same number of frames as c_new
         bottom_left_corr = (
             traces.sel(
-                {
-                    self.params.frames_axis: slice(
-                        -new_traces.sizes[self.params.frames_axis], None
-                    )
-                }
+                {self.params.frames_axis: slice(-new_traces.sizes[self.params.frames_axis], None)}
             )
-            @ new_traces.rename(
-                {self.params.component_axis: f"{self.params.component_axis}'"}
-            )
+            @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             / t
         ).assign_coords(traces.coords)
 
@@ -590,9 +568,7 @@ class Detector(SupervisedTransformer):
         # ||c_new||^2
         auto_corr = (
             new_traces
-            @ new_traces.rename(
-                {self.params.component_axis: f"{self.params.component_axis}'"}
-            )
+            @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             / t
         ).assign_coords(new_traces.coords)
 
@@ -601,13 +577,9 @@ class Detector(SupervisedTransformer):
         top_block = xr.concat([M, top_right_corr], dim=self.params.component_axis)
 
         # Bottom block: [cross_corr.T, auto_corr]
-        bottom_block = xr.concat(
-            [bottom_left_corr, auto_corr], dim=self.params.component_axis
-        )
+        bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=self.params.component_axis)
         # Combine blocks
-        return xr.concat(
-            [top_block, bottom_block], dim=f"{self.params.component_axis}'"
-        )
+        return xr.concat([top_block, bottom_block], dim=f"{self.params.component_axis}'")
 
     def _update_overlaps(
         self,
@@ -634,9 +606,7 @@ class Detector(SupervisedTransformer):
 
         # Compute spatial overlaps between new and existing components
         old_new_overlap = footprints.dot(
-            new_footprints.rename(
-                {self.params.component_axis: f"{self.params.component_axis}'"}
-            )
+            new_footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
         )
         bottom_left_overlap = (
             (old_new_overlap != 0)
@@ -665,13 +635,9 @@ class Detector(SupervisedTransformer):
 
         # Compute overlaps between new components themselves
         new_new_overlaps = new_footprints.dot(
-            new_footprints.rename(
-                {self.params.component_axis: f"{self.params.component_axis}'"}
-            )
+            new_footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
         )
-        new_new_overlaps = (
-            (new_new_overlaps != 0).astype(int).assign_coords(new_footprints.coords)
-        )
+        new_new_overlaps = (new_new_overlaps != 0).astype(int).assign_coords(new_footprints.coords)
 
         new_new_overlaps.values = sparse.COO(new_new_overlaps.values)
 
@@ -680,9 +646,7 @@ class Detector(SupervisedTransformer):
         # [new_overlaps        new_new_overlaps   ]
 
         # First concatenate horizontally: [existing_overlaps, old_new_overlaps]
-        top_block = xr.concat(
-            [overlaps, top_right_overlap], dim=self.params.component_axis
-        )
+        top_block = xr.concat([overlaps, top_right_overlap], dim=self.params.component_axis)
 
         # Then concatenate vertically with [new_overlaps, new_new_overlaps]
         bottom_block = xr.concat(

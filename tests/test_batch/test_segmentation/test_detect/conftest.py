@@ -9,17 +9,14 @@ import xarray as xr
 def visualize_detection(
     video: xr.DataArray,
     seeds: pd.DataFrame,
-    ground_truth: Optional[pd.DataFrame] = None,
-    frame_idx: Optional[int] = None,
+    ground_truth: pd.DataFrame | None = None,
+    frame_idx: int | None = None,
     title: str = "Detected Seeds",
 ) -> plt.Figure:
     """Visualize detected seeds overlaid on the video."""
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    if frame_idx is None:
-        frame = video.max(dim="frame")
-    else:
-        frame = video.isel(frames=frame_idx)
+    frame = video.max(dim="frame") if frame_idx is None else video.isel(frames=frame_idx)
 
     vmin, vmax = np.percentile(frame, [1, 99])
     ax.imshow(frame, cmap="gray", vmin=vmin, vmax=vmax)

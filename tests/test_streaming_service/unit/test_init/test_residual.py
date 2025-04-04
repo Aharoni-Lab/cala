@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -7,17 +9,18 @@ from cala.streaming.init.odl.residual_buffer import (
     ResidualInitializer,
     ResidualInitializerParams,
 )
+from cala.viz_util import Visualizer
 
 
 class TestResidualInitializerParams:
     """Test suite for ResidualInitializerParams."""
 
     @pytest.fixture
-    def default_params(self):
+    def default_params(self) -> ResidualInitializerParams:
         """Create default parameters instance."""
         return ResidualInitializerParams()
 
-    def test_validation_valid_params(self):
+    def test_validation_valid_params(self) -> None:
         """Test validation with valid parameters."""
         params = ResidualInitializerParams(buffer_length=10)
         params.validate()  # Should not raise
@@ -27,7 +30,7 @@ class TestResidualInitializer:
     """Test suite for ResidualInitializer."""
 
     @pytest.fixture
-    def sample_data(self):
+    def sample_data(self) -> dict[str, Any]:
         """Create sample data for testing."""
         # Create sample dimensions
         n_components = 3
@@ -79,19 +82,17 @@ class TestResidualInitializer:
         }
 
     @pytest.fixture
-    def initializer(self):
+    def initializer(self) -> ResidualInitializer:
         """Create ResidualInitializer instance with small buffer for testing."""
         params = ResidualInitializerParams(buffer_length=5)
         return ResidualInitializer(params)
 
-    def test_initialization(self, initializer):
+    def test_initialization(self, initializer: ResidualInitializer) -> None:
         """Test proper initialization."""
         assert isinstance(initializer.params, ResidualInitializerParams)
-        assert not hasattr(
-            initializer, "residual_"
-        )  # Should not exist before learn_one
+        assert not hasattr(initializer, "residual_")  # Should not exist before learn_one
 
-    def test_learn_one(self, initializer, sample_data):
+    def test_learn_one(self, initializer: ResidualInitializer, sample_data: dict[str, Any]) -> None:
         """Test learn_one method."""
         # Run learn_one
         initializer.learn_one(
@@ -104,14 +105,14 @@ class TestResidualInitializer:
 
         # Check dimensions
         assert initializer.residual_.sizes == {
-            "frame": min(
-                initializer.params.buffer_length, sample_data["movie"].sizes["frame"]
-            ),
+            "frame": min(initializer.params.buffer_length, sample_data["movie"].sizes["frame"]),
             "width": sample_data["movie"].sizes["width"],
             "height": sample_data["movie"].sizes["height"],
         }
 
-    def test_transform_one(self, initializer, sample_data):
+    def test_transform_one(
+        self, initializer: ResidualInitializer, sample_data: dict[str, Any]
+    ) -> None:
         """Test transform_one method."""
         # First learn
         initializer.learn_one(
@@ -126,7 +127,9 @@ class TestResidualInitializer:
         assert set(result.dims) == {"frame", "width", "height"}
 
     @pytest.mark.viz
-    def test_computation_correctness(self, sample_data, visualizer):
+    def test_computation_correctness(
+        self, sample_data: dict[str, Any], visualizer: Visualizer
+    ) -> None:
         """Test the correctness of the residual computation."""
         # Prepare data
         sample_movie = sample_data["movie"]
@@ -162,12 +165,10 @@ class TestResidualInitializer:
             result.transpose("frame", "height", "width"),
         )
 
-    def test_buffer_length(self, sample_data):
+    def test_buffer_length(self, sample_data: dict[str, Any]) -> None:
         """Test that buffer length is properly enforced."""
         # Create initializer with small buffer
-        small_buffer_initializer = ResidualInitializer(
-            ResidualInitializerParams(buffer_length=3)
-        )
+        small_buffer_initializer = ResidualInitializer(ResidualInitializerParams(buffer_length=3))
 
         # Run computation
         small_buffer_initializer.learn_one(
@@ -178,7 +179,7 @@ class TestResidualInitializer:
         # Check buffer length
         assert result.sizes["frame"] == 3
 
-    def test_invalid_input_handling(self, initializer):
+    def test_invalid_input_handling(self, initializer: ResidualInitializer) -> None:
         """Test handling of invalid inputs."""
         # Test with mismatched dimensions
         invalid_footprints = xr.DataArray(
@@ -208,5 +209,5 @@ class TestResidualInitializer:
             dims=("frame", "height", "width"),
         )
 
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises(ValueError):  # Should raise some kind of error
             initializer.learn_one(invalid_footprints, invalid_traces, invalid_frames)

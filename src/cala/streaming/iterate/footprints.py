@@ -8,7 +8,7 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import ComponentStats, PixelStats
 
@@ -26,7 +26,7 @@ class FootprintsUpdaterParams(Parameters, Axis):
 
     tolerance: float = 1e-7
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         Raises:
@@ -110,9 +110,7 @@ class FootprintsUpdater(SupervisedTransformer):
             mask = A > 0
             if self.params.boundary_expansion_pixels and count < side_length:
                 mask = xr.apply_ufunc(
-                    lambda x: cv2.morphologyEx(
-                        x, cv2.MORPH_DILATE, kernel, iterations=1
-                    ),
+                    lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
                     mask.astype(np.uint8),
                     input_core_dims=[[*self.params.spatial_axes]],
                     output_core_dims=[[*self.params.spatial_axes]],
@@ -121,9 +119,7 @@ class FootprintsUpdater(SupervisedTransformer):
                 )
             # Compute AM product using xarray operations
             # Reshape M to align dimensions for broadcasting
-            AM = (A @ M).rename(
-                {f"{self.params.component_axis}'": f"{self.params.component_axis}"}
-            )
+            AM = (A @ M).rename({f"{self.params.component_axis}'": f"{self.params.component_axis}"})
             numerator = pixel_stats - AM
 
             # Compute update using vectorized operations
@@ -149,7 +145,7 @@ class FootprintsUpdater(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Footprints:
+    def transform_one(self, _: None = None) -> Footprints:
         """Return the updated spatial footprints.
 
         This method returns the updated footprints after the shape optimization

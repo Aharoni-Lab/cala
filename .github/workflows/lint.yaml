@@ -1,0 +1,50 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+
+permissions:
+  contents: read
+
+jobs:
+  black:
+    name: black formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: psf/black@stable
+
+  ruff:
+    name: ruff linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+
+  #  mypy:
+  #    name: mypy typechecking
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - uses: actions/checkout@v4
+  #      - uses: pre-commit/mirrors-mypy@v1
+
+  lock:
+    name: lockfile current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+      - name: install pdm
+        run: python -m pip install pdm
+      - name: check lockfile
+        run: pdm lock --check

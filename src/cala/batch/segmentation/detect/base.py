@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ class BaseDetector(BaseEstimator, TransformerMixin, ABC):
     """
 
     # Names of the spatial dimensions in the data (e.g., ["height", "width"])
-    core_axes: List[str]
+    core_axes: list[str]
     # Name of the iteration dimension (e.g., "frames" for time series)
     iter_axis: str
     # Either "rolling" or "random". Controls whether to use rolling window
@@ -33,11 +33,11 @@ class BaseDetector(BaseEstimator, TransformerMixin, ABC):
     # Number of chunks to sample randomly. Only used if method is "random".
     num_chunks: int = 100
     # Indices for each window
-    window_indices_: List[slice] = field(default_factory=list, init=False)
+    window_indices_: list[slice] = field(default_factory=list, init=False)
     # Projections for each window
-    window_projections_: List[xr.DataArray] = field(default_factory=list, init=False)
+    window_projections_: list[xr.DataArray] = field(default_factory=list, init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate initialization parameters."""
         if self.method not in ["rolling", "random"]:
             raise ValueError("method must be either 'rolling' or 'random'")
@@ -55,26 +55,21 @@ class BaseDetector(BaseEstimator, TransformerMixin, ABC):
         if not isinstance(self.iter_axis, str):
             raise ValueError("iter_axis must be a string")
 
-    def _get_window_indices(self, num_frames: int) -> List:
+    def _get_window_indices(self, num_frames: int) -> list:
         """Get indices for each window based on the method."""
         if self.method == "rolling":
-            num_steps = max(
-                int(np.ceil((num_frames - self.chunk_size) / self.step_size)) + 1, 1
-            )
+            num_steps = max(int(np.ceil((num_frames - self.chunk_size) / self.step_size)) + 1, 1)
             start_indices = (np.arange(num_steps) * self.step_size).astype(int)
             return [
-                slice(start, min(start + self.chunk_size, num_frames))
-                for start in start_indices
+                slice(start, min(start + self.chunk_size, num_frames)) for start in start_indices
             ]
         else:  # random
             return [
-                np.random.choice(
-                    num_frames, size=min(self.chunk_size, num_frames), replace=False
-                )
+                np.random.choice(num_frames, size=min(self.chunk_size, num_frames), replace=False)
                 for _ in range(self.num_chunks)
             ]
 
-    def fit(self, X: xr.DataArray, y=None) -> "BaseDetector":
+    def fit(self, X: xr.DataArray, y: Any = None) -> "BaseDetector":
         """
         Compute max projections for each window.
 
@@ -98,7 +93,7 @@ class BaseDetector(BaseEstimator, TransformerMixin, ABC):
         return self
 
     @abstractmethod
-    def fit_kernel(self, X: xr.DataArray) -> List[xr.DataArray]:
+    def fit_kernel(self, X: xr.DataArray) -> list[xr.DataArray]:
         pass
 
     def transform(self, X: xr.DataArray) -> pd.DataFrame:
@@ -141,7 +136,7 @@ class BaseDetector(BaseEstimator, TransformerMixin, ABC):
         """
         pass
 
-    def fit_transform(self, X: xr.DataArray, y=None) -> pd.DataFrame:
+    def fit_transform(self, X: xr.DataArray, y: Any = None) -> pd.DataFrame:
         """
         Fit the detector and detect cells in one operation.
 

@@ -22,10 +22,10 @@ class VideoStreamProcessor:
         for frame in video_stream:
             # Convert frame to features (e.g., brightness, color histograms)
             features = self.extract_features(frame)
-            
+
             # Make prediction and update model
             pred = model.predict_one(features)
-            
+
             # Check for drift in brightness
             avg_brightness = np.mean(features['brightness'])
             if drift_detector.update(avg_brightness):
@@ -174,7 +174,7 @@ class CompleteVideoStreamProcessor:
         self.temporal_processor = TemporalVideoProcessor()
         self.online_learner = OnlineVideoLearning()
         self.efficient_processor = EfficientVideoProcessor()
-        
+
     def process_video_stream(self, video_stream):
         for frame, timestamp in video_stream:
             # Process frame through all components
@@ -183,7 +183,7 @@ class CompleteVideoStreamProcessor:
             temporal_features = self.temporal_processor.process_frame(frame, timestamp)
             predictions = self.online_learner.process_stream(frame)
             efficient_stats = self.efficient_processor.process_stream(frame)
-            
+
             # Combine results for downstream processing
             results = {
                 'drift_detected': drift_info,

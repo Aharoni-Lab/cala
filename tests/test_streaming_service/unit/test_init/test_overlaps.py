@@ -7,22 +7,25 @@ from cala.streaming.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
+from cala.viz_util import Visualizer
 
 
 class TestOverlapsInitializer:
     """Test suite for OverlapsInitializer."""
 
     @pytest.fixture
-    def initializer(self):
+    def initializer(self) -> OverlapsInitializer:
         """Create OverlapsInitializer instance."""
         return OverlapsInitializer(OverlapsInitializerParams())
 
-    def test_initialization(self, initializer):
+    def test_initialization(self, initializer: OverlapsInitializer) -> None:
         """Test proper initialization."""
         assert isinstance(initializer.params, OverlapsInitializerParams)
         assert not hasattr(initializer, "overlaps_")
 
-    def test_learn_one(self, initializer, mini_footprints):
+    def test_learn_one(
+        self, initializer: OverlapsInitializer, mini_footprints: xr.DataArray
+    ) -> None:
         """Test learn_one method."""
         initializer.learn_one(mini_footprints)
 
@@ -38,7 +41,9 @@ class TestOverlapsInitializer:
         assert "id_" in initializer.overlaps_.coords
         assert "type_" in initializer.overlaps_.coords
 
-    def test_transform_one(self, initializer, mini_footprints):
+    def test_transform_one(
+        self, initializer: OverlapsInitializer, mini_footprints: xr.DataArray
+    ) -> None:
         """Test transform_one method."""
         initializer.learn_one(mini_footprints)
         result = initializer.transform_one()
@@ -48,8 +53,11 @@ class TestOverlapsInitializer:
 
     @pytest.mark.viz
     def test_overlap_detection_correctness(
-        self, initializer, mini_footprints, visualizer
-    ):
+        self,
+        initializer: OverlapsInitializer,
+        mini_footprints: xr.DataArray,
+        visualizer: Visualizer,
+    ) -> None:
         """Test the correctness of overlap detection."""
         visualizer.plot_footprints(mini_footprints, subdir="init/overlap")
 
@@ -69,19 +77,19 @@ class TestOverlapsInitializer:
         assert result[3, 4] == 1  # Components 3 and 4 overlap
         assert result[4, 3] == 1  # Symmetric
 
-    def test_coordinate_preservation(self, initializer, mini_footprints):
+    def test_coordinate_preservation(
+        self, initializer: OverlapsInitializer, mini_footprints: xr.DataArray
+    ) -> None:
         """Test that coordinates are properly preserved."""
         initializer.learn_one(mini_footprints)
         result = initializer.transform_one()
 
-        assert np.array_equal(
-            result.coords["id_"].values, mini_footprints.coords["id_"].values
-        )
-        assert np.array_equal(
-            result.coords["type_"].values, mini_footprints.coords["type_"].values
-        )
+        assert np.array_equal(result.coords["id_"].values, mini_footprints.coords["id_"].values)
+        assert np.array_equal(result.coords["type_"].values, mini_footprints.coords["type_"].values)
 
-    def test_symmetry(self, initializer, mini_footprints):
+    def test_symmetry(
+        self, initializer: OverlapsInitializer, mini_footprints: xr.DataArray
+    ) -> None:
         """Test that the overlap matrix is symmetric."""
         initializer.learn_one(mini_footprints)
         result = initializer.transform_one()
@@ -89,7 +97,9 @@ class TestOverlapsInitializer:
         dense_matrix = result.data.todense()
         assert np.allclose(dense_matrix, dense_matrix.T)
 
-    def test_diagonal(self, initializer, mini_footprints):
+    def test_diagonal(
+        self, initializer: OverlapsInitializer, mini_footprints: xr.DataArray
+    ) -> None:
         """Test that diagonal elements are properly set."""
         initializer.learn_one(mini_footprints)
         result = initializer.transform_one()

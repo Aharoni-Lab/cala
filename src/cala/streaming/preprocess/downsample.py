@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Literal, Self, Dict
+from typing import Literal, Self
 
 import numpy as np
 import xarray as xr
@@ -14,9 +14,9 @@ class DownsamplerParams(Parameters):
 
     method: Literal["mean", "subset"] = "mean"
     """The downsampling method to use ('mean' or 'subset')."""
-    dimensions: List[str] = field(default_factory=lambda: ["width", "height"])
+    dimensions: list[str] = field(default_factory=lambda: ["width", "height"])
     """The dimensions along which to downsample."""
-    strides: List[int] = field(default_factory=lambda: [1, 1])
+    strides: list[int] = field(default_factory=lambda: [1, 1])
     """The strides or pool sizes for each dimension."""
     kwargs: dict = field(default_factory=dict)
     """keyword arguments for each downsampling method"""
@@ -81,7 +81,7 @@ class Downsampler(base.Transformer):
         elif self.params.method == "subset":
             return self.subset_downsample(frame)
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get information about the current state.
 
         Returns
@@ -107,8 +107,7 @@ class Downsampler(base.Transformer):
             xr.DataArray: The downsampled DataArray.
         """
         coarsen_dims = {
-            dim: stride
-            for dim, stride in zip(self.params.dimensions, self.params.strides)
+            dim: stride for dim, stride in zip(self.params.dimensions, self.params.strides)
         }
         return array.coarsen(coarsen_dims, boundary="trim").mean(**self.params.kwargs)
 

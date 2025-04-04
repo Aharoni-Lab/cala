@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -43,11 +42,11 @@ class GLContrastFilter(BaseFilter):
     _stateless = True
     """Whether the filter is stateless. Always True for this filter."""
 
-    def fit_kernel(self, X: DataArray, seeds: DataFrame):
+    def fit_kernel(self, X: DataArray, seeds: DataFrame) -> None:
         """Empty implementation for stateless filter."""
         pass
 
-    def transform_kernel(self, X: DataArray, seeds: DataFrame):
+    def transform_kernel(self, X: DataArray, seeds: DataFrame) -> DataFrame:
         """Transform seeds by filtering based on global-to-local contrast ratio.
 
         Parameters
@@ -74,9 +73,8 @@ class GLContrastFilter(BaseFilter):
         4. Thresholds the ratio to identify valid seeds
         """
         # Dynamically create a dictionary of DataArrays for each core axis
-        seed_das: Dict[str, xr.DataArray] = {
-            axis: xr.DataArray(seeds[axis].values, dims="seeds")
-            for axis in self.core_axes
+        seed_das: dict[str, xr.DataArray] = {
+            axis: xr.DataArray(seeds[axis].values, dims="seeds") for axis in self.core_axes
         }
 
         # Select the relevant subset from X using vectorized selection
@@ -99,7 +97,7 @@ class GLContrastFilter(BaseFilter):
 
         return seeds
 
-    def fit_transform_shared_preprocessing(self, X: DataArray, seeds: DataFrame):
+    def fit_transform_shared_preprocessing(self, X: DataArray, seeds: DataFrame) -> None:
         """Empty implementation for stateless filter."""
         pass
 
@@ -138,15 +136,11 @@ class GLContrastFilter(BaseFilter):
         global_rms = np.sqrt(np.mean(signal**2))
 
         # Local RMS: approximate by rolling standard deviation
-        local_rms = (
-            pd.Series(signal).rolling(self.window_size, center=True).std().to_numpy()
-        )
+        local_rms = pd.Series(signal).rolling(self.window_size, center=True).std().to_numpy()
 
         # Handle edge effects from incomplete windows
         nan_mask = np.isnan(local_rms)
-        local_rms[nan_mask] = (
-            np.nanmean(local_rms[~nan_mask]) if not all(nan_mask) else 1e-8
-        )
+        local_rms[nan_mask] = np.nanmean(local_rms[~nan_mask]) if not all(nan_mask) else 1e-8
 
         # Compute ratio: global_RMS / local_RMS
         # High ratio => local region is relatively smooth compared to global variation
@@ -154,4 +148,4 @@ class GLContrastFilter(BaseFilter):
             global_rms, local_rms, out=np.zeros_like(local_rms), where=(local_rms != 0)
         )
 
-        return np.mean(ratio)
+        return float(np.mean(ratio))

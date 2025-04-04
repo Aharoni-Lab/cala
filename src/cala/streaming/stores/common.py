@@ -3,7 +3,7 @@ from typing import Annotated
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core import ObservableStore, Axis
+from cala.streaming.core import Axis, ObservableStore
 
 
 class FootprintStore(ObservableStore):
@@ -14,9 +14,9 @@ class FootprintStore(ObservableStore):
     intensity weights of a component.
     """
 
-    def update(self, data: xr.DataArray):
+    def update(self, data: xr.DataArray) -> None:
         if len(data) == 0:
-            return
+            return None
 
         existing_ids = set(data.coords[Axis.id_coordinates].values) & set(
             self.warehouse.coords[Axis.id_coordinates].values
@@ -36,6 +36,7 @@ class FootprintStore(ObservableStore):
                 [self.warehouse, data],
                 dim=Axis.component_axis,
             )
+        return None
 
 
 Footprints = Annotated[xr.DataArray, FootprintStore]
