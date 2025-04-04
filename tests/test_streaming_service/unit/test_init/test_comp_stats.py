@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -7,13 +9,14 @@ from cala.streaming.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
+from cala.viz_util import Visualizer
 
 
 class TestComponentStatsInitializer:
     """Test suite for ComponentStatsInitializer."""
 
     @pytest.fixture
-    def sample_data(self):
+    def sample_data(self) -> dict[str, Any]:
         """Create sample data for testing."""
         # Create sample dimensions
         n_components = 3
@@ -51,18 +54,18 @@ class TestComponentStatsInitializer:
         }
 
     @pytest.fixture
-    def initializer(self):
+    def initializer(self) -> ComponentStatsInitializer:
         """Create ComponentStatsInitializer instance."""
         return ComponentStatsInitializer(ComponentStatsInitializerParams())
 
-    def test_initialization(self, initializer):
+    def test_initialization(self, initializer: ComponentStatsInitializer) -> None:
         """Test proper initialization."""
         assert isinstance(initializer.params, ComponentStatsInitializerParams)
-        assert not hasattr(
-            initializer, "component_stats_"
-        )  # Should not exist before learn_one
+        assert not hasattr(initializer, "component_stats_")  # Should not exist before learn_one
 
-    def test_learn_one(self, initializer, sample_data):
+    def test_learn_one(
+        self, initializer: ComponentStatsInitializer, sample_data: dict[str, Any]
+    ) -> None:
         """Test learn_one method."""
         # Run learn_one
         initializer.learn_one(sample_data["traces"], sample_data["frames"])
@@ -87,7 +90,9 @@ class TestComponentStatsInitializer:
             Component.BACKGROUND,
         ]
 
-    def test_transform_one(self, initializer, sample_data):
+    def test_transform_one(
+        self, initializer: ComponentStatsInitializer, sample_data: dict[str, Any]
+    ) -> None:
         """Test transform_one method."""
         # First learn
         initializer.learn_one(sample_data["traces"], sample_data["frames"])
@@ -106,7 +111,12 @@ class TestComponentStatsInitializer:
         )
 
     @pytest.mark.viz
-    def test_computation_correctness(self, initializer, sample_data, visualizer):
+    def test_computation_correctness(
+        self,
+        initializer: ComponentStatsInitializer,
+        sample_data: dict[str, Any],
+        visualizer: Visualizer,
+    ) -> None:
         """Test the correctness of the component correlation computation."""
         # Prepare data
         traces = sample_data["traces"]
@@ -137,7 +147,9 @@ class TestComponentStatsInitializer:
                 result, name="component_correlation_matrix", subdir="init/comp_stats"
             )
 
-    def test_matrix_properties(self, initializer, sample_data):
+    def test_matrix_properties(
+        self, initializer: ComponentStatsInitializer, sample_data: dict[str, Any]
+    ) -> None:
         """Test mathematical properties of the correlation matrix."""
         # Run computation
         initializer.learn_one(sample_data["traces"], sample_data["frames"])
@@ -149,7 +161,9 @@ class TestComponentStatsInitializer:
         # Test diagonal elements
         assert np.allclose(np.diag(result.values), 0.5)
 
-    def test_coordinate_preservation(self, initializer, sample_data):
+    def test_coordinate_preservation(
+        self, initializer: ComponentStatsInitializer, sample_data: dict[str, Any]
+    ) -> None:
         """Test that coordinates are properly preserved through the transformation."""
         # Run computation
         initializer.learn_one(sample_data["traces"], sample_data["frames"])

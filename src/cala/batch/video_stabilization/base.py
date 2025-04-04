@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Self
 
 import numpy as np
 import xarray as xr
@@ -13,18 +13,18 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
     Abstract base class for parallel motion stabilizer.
     """
 
-    core_axes: List[str] = field(default_factory=lambda: ["width", "height"])
+    core_axes: list[str] = field(default_factory=lambda: ["width", "height"])
     iter_axis: str = "frames"
-    anchor_frame_index: Optional[int] = None
-    max_shift: Optional[int] = None
+    anchor_frame_index: int | None = None
+    max_shift: int | None = None
     anchor_frame_: xr.DataArray = field(init=False)
     motion_: xr.DataArray = field(init=False)
 
     def _fit_kernel(
         self,
-        anchor_frame: xr.DataArray,
         current_frame: xr.DataArray,
-    ):
+        **kernel_kwargs: Any,
+    ) -> Any:
         """
         Define the fit ufunc to apply. Can be implemented by subclasses.
         """
@@ -37,7 +37,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
         """
         pass
 
-    def fit(self, X: xr.DataArray, y=None, **fit_kwargs):
+    def fit(self, X: xr.DataArray, y: Any = None, **fit_kwargs: Any) -> Self:
         """
         Fit method. For transformers that don't need fitting, simply return self.
         Subclasses can override this if fitting is required.
@@ -47,9 +47,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
                 "Calculating optimal anchor frame has not been implemented yet. anchor_frame_index is required."
             )
         elif not hasattr(self, "anchor_frame_"):
-            self.anchor_frame_ = self.anchor_by_index(
-                X, anchor_index=self.anchor_frame_index
-            )
+            self.anchor_frame_ = self.anchor_by_index(X, anchor_index=self.anchor_frame_index)
         self.motion_ = xr.apply_ufunc(
             self._fit_kernel,
             X,
@@ -83,9 +81,7 @@ class BaseMotionCorrector(BaseEstimator, TransformerMixin, ABC):
             output_dtypes=[X.dtype],
         )
 
-    def anchor_by_index(
-        self, video: xr.DataArray, anchor_index: int = 0
-    ) -> xr.DataArray:
+    def anchor_by_index(self, video: xr.DataArray, anchor_index: int = 0) -> xr.DataArray:
         """
         Select an anchor frame from the video frames.
 

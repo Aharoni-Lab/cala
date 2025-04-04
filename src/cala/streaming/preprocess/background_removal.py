@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Literal
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -17,7 +17,7 @@ class BackgroundEraserParams(Parameters):
 
     method: Literal["uniform", "tophat"] = "uniform"
     """Method to use for background removal.
-    
+
     Options:
         - "uniform": Use uniform filtering to estimate background
         - "tophat": Use morphological tophat operation to estimate background
@@ -43,7 +43,7 @@ class BackgroundEraser(base.Transformer):
 
     params: BackgroundEraserParams = field(default_factory=BackgroundEraserParams)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize the background eraser with given parameters."""
 
         # Pre-compute kernel for tophat method
@@ -88,15 +88,13 @@ class BackgroundEraser(base.Transformer):
             result = frame.values - background
         else:  # tophat
             # Apply morphological tophat operation
-            result = cv2.morphologyEx(
-                frame.values, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8)
-            )
+            result = cv2.morphologyEx(frame.values, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8))
 
         result[result < 0] = 0
 
         return xr.DataArray(result, dims=frame.dims, coords=frame.coords)
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get information about the current state.
 
         Returns

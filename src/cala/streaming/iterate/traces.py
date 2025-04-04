@@ -8,7 +8,7 @@ from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
@@ -24,7 +24,7 @@ class TracesUpdaterParams(Parameters, Axis):
     tolerance: float = 1e-3
     """Convergence tolerance level (ε) for the iterative update process."""
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         Raises:
@@ -95,15 +95,11 @@ class TracesUpdater(SupervisedTransformer):
         y = frame.array.stack({"pixels": self.params.spatial_axes})
         c = traces.isel({self.params.frames_axis: -1})
 
-        _, labels = connected_components(
-            csgraph=overlaps.data, directed=False, return_labels=True
-        )
+        _, labels = connected_components(csgraph=overlaps.data, directed=False, return_labels=True)
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
         # Run the update algorithm
-        updated_traces = self.update_traces(
-            A, y, c.copy(), clusters, self.params.tolerance
-        )
+        updated_traces = self.update_traces(A, y, c.copy(), clusters, self.params.tolerance)
 
         # store result with proper coordinates
         self.traces_ = updated_traces
@@ -111,7 +107,7 @@ class TracesUpdater(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Traces:
+    def transform_one(self, _: None = None) -> Traces:
         """Transform the updated traces into the expected format.
 
         This method wraps the updated temporal traces in a Traces object
@@ -138,7 +134,7 @@ class TracesUpdater(SupervisedTransformer):
         c: xr.DataArray,
         clusters: list[np.ndarray],
         eps: float,
-    ):
+    ) -> xr.DataArray:
         """Implementation of the temporal traces update algorithm.
 
         This function implements the core update logic of Algorithm 4 (UpdateTraces).
@@ -183,8 +179,7 @@ class TracesUpdater(SupervisedTransformer):
                 ).rename({f"{self.params.component_axis}'": self.params.component_axis})
 
                 c.loc[{self.params.component_axis: cluster}] = np.maximum(
-                    c.isel({self.params.component_axis: cluster})
-                    + numerator / V_diag[cluster],
+                    c.isel({self.params.component_axis: cluster}) + numerator / V_diag[cluster],
                     0,
                 )
 

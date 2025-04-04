@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Self
+from typing import Self
 
 import cv2
 import numpy as np
@@ -67,8 +67,7 @@ class RigidStabilizer(base.Transformer):
 
         if (
             shift_magnitude - adjacent_shift_magnitude
-            > (self._learn_count - self._anchor_last_applied_on)
-            * self.params.drift_speed
+            > (self._learn_count - self._anchor_last_applied_on) * self.params.drift_speed
         ):
             shift = adjacent_shift
 
@@ -102,7 +101,7 @@ class RigidStabilizer(base.Transformer):
 
         return xr.DataArray(transformed_frame, dims=frame.dims, coords=frame.coords)
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get information about the current state.
 
         Returns

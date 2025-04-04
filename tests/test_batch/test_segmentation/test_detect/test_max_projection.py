@@ -1,14 +1,16 @@
 from pathlib import Path
+from typing import Any
 
+import pandas as pd
 import pytest
+import xarray as xr
 from matplotlib.figure import Figure
 
 from cala.batch.segmentation.detect import MaxProjection
-from tests.conftest import stabilized_video
 from tests.test_batch.test_segmentation.test_detect.conftest import visualize_detection
 
 
-def test_max_projection_basic(stabilized_video, params):
+def test_max_projection_basic(stabilized_video: xr.DataArray, params: Any) -> None:
     """Test basic functionality of MaxProjection detector."""
     video = stabilized_video
 
@@ -20,15 +22,13 @@ def test_max_projection_basic(stabilized_video, params):
 
     # Basic checks
     assert len(seeds) > 0, "No seeds detected"
-    assert all(
-        col in seeds.columns for col in ["height", "width"]
-    ), "Missing coordinate columns"
+    assert all(col in seeds.columns for col in ["height", "width"]), "Missing coordinate columns"
     assert len(seeds) >= 0.5 * params.num_neurons, "Too few seeds detected"
     assert len(seeds) <= 1.2 * params.num_neurons, "Too many seeds detected"
 
 
 @pytest.fixture
-def artifact_params(params):
+def artifact_params(params: Any) -> Any:
     """Parameters for testing with strong artifacts."""
     params.photobleaching_decay = 0.8  # Strong photobleaching
     params.dead_pixel_fraction = 0.01  # More dead pixels
@@ -37,14 +37,16 @@ def artifact_params(params):
 
 
 @pytest.fixture
-def size_variation_params(params):
+def size_variation_params(params: Any) -> Any:
     """Parameters for testing with varying cell sizes."""
     params.neuron_size_range = (5, 20)  # Wider range
     params.neuron_shape_irregularity = 0.4  # More irregular
     return params
 
 
-def test_detection_with_different_cell_sizes(stabilized_video, size_variation_params):
+def test_detection_with_different_cell_sizes(
+    stabilized_video: xr.DataArray, size_variation_params: Any
+) -> None:
     """Test detection with varying cell sizes."""
     video = stabilized_video
 
@@ -65,7 +67,9 @@ def test_detection_with_different_cell_sizes(stabilized_video, size_variation_pa
 
 
 @pytest.mark.parametrize("intensity_threshold", [1, 2, 3])
-def test_intensity_threshold_effect(stabilized_video, intensity_threshold):
+def test_intensity_threshold_effect(
+    stabilized_video: xr.DataArray, intensity_threshold: int
+) -> None:
     """Test effect of intensity threshold on detection."""
     video = stabilized_video
 
@@ -85,12 +89,10 @@ def test_intensity_threshold_effect(stabilized_video, intensity_threshold):
             intensity_threshold=intensity_threshold - 1,
         )
         prev_seeds = prev_detector.fit_transform(video)
-        assert len(seeds) <= len(
-            prev_seeds
-        ), "Higher threshold should detect fewer seeds"
+        assert len(seeds) <= len(prev_seeds), "Higher threshold should detect fewer seeds"
 
 
-def test_visualization(stabilized_video, positions):
+def test_visualization(stabilized_video: xr.DataArray, positions: pd.DataFrame) -> None:
     """Test visualization of detection results."""
     video = stabilized_video
 

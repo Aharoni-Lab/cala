@@ -8,15 +8,15 @@ import pytest
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.composer import StreamingConfig, Runner, Frame
-from cala.streaming.core import Parameters, Component
+from cala.streaming.composer import Frame, Runner, StreamingConfig
+from cala.streaming.core import Component, Parameters
 from cala.streaming.init.common import FootprintsInitializer, TracesInitializer
 from cala.streaming.preprocess import (
-    RigidStabilizer,
     BackgroundEraser,
     Denoiser,
     Downsampler,
     GlowRemover,
+    RigidStabilizer,
 )
 from cala.streaming.stores.common import Footprints, Traces
 
@@ -36,16 +36,14 @@ class MockMotionCorrectionParams(Parameters):
 # Mock transformers for testing
 @dataclass
 class MockMotionCorrection(Transformer):
-    params: MockMotionCorrectionParams = field(
-        default_factory=MockMotionCorrectionParams
-    )
+    params: MockMotionCorrectionParams = field(default_factory=MockMotionCorrectionParams)
     frame_: xr.DataArray = field(init=False)
 
     def learn_one(self, frame: xr.DataArray) -> None:
         self.frame_ = frame
         return None
 
-    def transform_one(self, _=None) -> xr.DataArray:
+    def transform_one(self, _: None = None) -> xr.DataArray:
         # Simulate motion correction by returning the same frame
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
@@ -73,7 +71,7 @@ class MockNeuronDetection(Transformer):
         self.frame_ = frame
         return None
 
-    def transform_one(self, _=None) -> Footprints:
+    def transform_one(self, _: None = None) -> Footprints:
         # Create mock neuron footprints
         if self.frame_ is None:
             raise ValueError("No frame has been learned yet")
@@ -84,8 +82,7 @@ class MockNeuronDetection(Transformer):
             coords={
                 "type_": (
                     ["components"],
-                    [Component.NEURON] * (self.params.num_components - 1)
-                    + [Component.BACKGROUND],
+                    [Component.NEURON] * (self.params.num_components - 1) + [Component.BACKGROUND],
                 ),
                 "id_": (
                     ["components"],
@@ -230,12 +227,14 @@ def initialization_config() -> StreamingConfig:
     )
 
 
-def test_runner_initialization(basic_config):
+def test_runner_initialization(basic_config: StreamingConfig) -> None:
     runner = Runner(basic_config)
     assert runner.config == basic_config
 
 
-def test_runner_dependency_resolution(basic_config, stabilized_video):
+def test_runner_dependency_resolution(
+    basic_config: StreamingConfig, stabilized_video: xr.DataArray
+) -> None:
     runner = Runner(basic_config)
     video = stabilized_video
     for idx, frame in enumerate(video):
@@ -262,7 +261,7 @@ def test_runner_dependency_resolution(basic_config, stabilized_video):
     )
 
 
-def test_cyclic_dependency_detection(stabilized_video):
+def test_cyclic_dependency_detection(stabilized_video: xr.DataArray) -> None:
     cyclic_config: StreamingConfig = cast(
         StreamingConfig,
         {
@@ -289,7 +288,7 @@ def test_cyclic_dependency_detection(stabilized_video):
                 runner.initialize(frame)
 
 
-def test_state_updates(basic_config, stabilized_video):
+def test_state_updates(basic_config: StreamingConfig, stabilized_video: xr.DataArray) -> None:
     runner = Runner(basic_config)
     video = stabilized_video
     for idx, frame in enumerate(video):
@@ -302,12 +301,14 @@ def test_state_updates(basic_config, stabilized_video):
     assert runner._state.tracestore.warehouse.sizes != 0
 
 
-def test_preprocess_initialization(preprocess_config):
+def test_preprocess_initialization(preprocess_config: StreamingConfig) -> None:
     runner = Runner(preprocess_config)
     assert runner.config == preprocess_config
 
 
-def test_preprocess_execution(preprocess_config, stabilized_video):
+def test_preprocess_execution(
+    preprocess_config: StreamingConfig, stabilized_video: xr.DataArray
+) -> None:
     runner = Runner(preprocess_config)
     video = stabilized_video
     idx, frame = next(iter(enumerate(video)))
@@ -325,7 +326,7 @@ def test_preprocess_execution(preprocess_config, stabilized_video):
     assert processed_frame.array.shape[1] == original_shape[1] // 2
 
 
-def test_preprocess_dependency_resolution(preprocess_config):
+def test_preprocess_dependency_resolution(preprocess_config: StreamingConfig) -> None:
     runner = Runner(preprocess_config)
     execution_order = runner._create_dependency_graph(preprocess_config["preprocess"])
 
@@ -340,12 +341,14 @@ def test_preprocess_dependency_resolution(preprocess_config):
     assert list(execution_order) == expected_order
 
 
-def test_initializer_initialization(initialization_config):
+def test_initializer_initialization(initialization_config: StreamingConfig) -> None:
     runner = Runner(initialization_config)
     assert runner.config == initialization_config
 
 
-def test_initialize_execution(initialization_config, stabilized_video):
+def test_initialize_execution(
+    initialization_config: StreamingConfig, stabilized_video: xr.DataArray
+) -> None:
     runner = Runner(initialization_config)
     video = stabilized_video
 

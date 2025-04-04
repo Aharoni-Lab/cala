@@ -5,7 +5,7 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats
 
@@ -18,7 +18,7 @@ class PixelStatsUpdaterParams(Parameters, Axis):
     pixel-wise and component-wise sufficient statistics matrices.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         This implementation has no parameters to validate, but the method
@@ -95,7 +95,7 @@ class PixelStatsUpdater(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> PixelStats:
+    def transform_one(self, _: None = None) -> PixelStats:
         """Return the updated sufficient statistics matrices.
 
         This method returns both updated statistics matrices after the

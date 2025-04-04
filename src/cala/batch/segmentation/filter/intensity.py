@@ -45,7 +45,7 @@ class IntensityFilter(BaseFilter):
     intensity_threshold_: float = field(init=False)
     """Computed intensity threshold for valid seeds."""
 
-    def fit_kernel(self, X: xr.DataArray, seeds=None):
+    def fit_kernel(self, X: xr.DataArray, seeds: pd.DataFrame | None = None) -> "IntensityFilter":
         """Learn the intensity threshold from the maximum brightness projection.
 
         Parameters
@@ -83,7 +83,7 @@ class IntensityFilter(BaseFilter):
 
         return self
 
-    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
+    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
         """Transform seeds by filtering based on maximum intensity.
 
         Parameters
@@ -117,7 +117,9 @@ class IntensityFilter(BaseFilter):
 
         return filtered_seeds
 
-    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds=None):
+    def fit_transform_shared_preprocessing(
+        self, X: xr.DataArray, seeds: pd.DataFrame | None = None
+    ) -> None:
         """Compute maximum intensity projection across time.
 
         Parameters

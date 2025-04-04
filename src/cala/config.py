@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional, Type, Tuple, Dict, Any
+from typing import Any
 
 from platformdirs import PlatformDirs
 from pydantic import Field, TypeAdapter, field_validator, model_validator
@@ -26,15 +26,13 @@ class Config(BaseSettings):
         "interpreted as a relative to ``user_dir``",
     )
     video_directory: Path = Path(_dirs.user_data_dir) / "videos"
-    video_files: Optional[List[Path]] = Field(default_factory=list)
+    video_files: list[Path] = Field(default_factory=list)
     data_directory: Path = Path(_dirs.user_data_dir)
-    data_name: Optional[str] = "cala"
+    data_name: str | None = "cala"
 
     @property
-    def video_paths(self) -> List[Path]:
-        return [
-            self.video_directory.joinpath(video_file) for video_file in self.video_files
-        ]
+    def video_paths(self) -> list[Path]:
+        return [self.video_directory.joinpath(video_file) for video_file in self.video_files]
 
     model_config = SettingsConfigDict(
         env_prefix="cala_",
@@ -49,12 +47,12 @@ class Config(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         """
         Read config_examples settings from, in order of priority from high to low, where
         high priorities override lower priorities:
@@ -100,7 +98,7 @@ class Config(BaseSettings):
 
     @field_validator("video_files", mode="before")
     @classmethod
-    def split_video_files(cls, v):
+    def split_video_files(cls, v: Any) -> Any:
         if isinstance(v, str):
             # Split the string by commas and strip any whitespace
             items = [item.strip() for item in v.split(",") if item.strip()]
@@ -126,8 +124,8 @@ class Config(BaseSettings):
 class _GlobalYamlConfigSource(YamlConfigSettingsSource):
     """Yaml config_examples source that gets the location of the global settings file from the prior sources"""
 
-    def __init__(self, *args, **kwargs):
-        self._global_config = None
+    def __init__(self, *args: Any, **kwargs: Any):
+        self._global_config: Any = None
         super().__init__(*args, **kwargs)
 
     @property
@@ -144,7 +142,7 @@ class _GlobalYamlConfigSource(YamlConfigSettingsSource):
         return config_file
 
     @property
-    def global_config(self) -> Dict[str, Any]:
+    def global_config(self) -> Any:
         """
         Contents of the global config_examples file
         """
@@ -155,9 +153,9 @@ class _GlobalYamlConfigSource(YamlConfigSettingsSource):
                 self._global_config = {}
         return self._global_config
 
-    def __call__(self) -> Dict[str, Any]:
-        return (
-            TypeAdapter(Dict[str, Any]).dump_python(self.global_config)
+    def __call__(self) -> dict[str, Any]:
+        return dict(
+            TypeAdapter(dict[str, Any]).dump_python(self.global_config)
             if self.nested_model_default_partial_update
             else self.global_config
         )

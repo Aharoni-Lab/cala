@@ -10,9 +10,9 @@ class ObservableStore:
     _warehouse: xr.DataArray
 
     @property
-    def warehouse(self):
+    def warehouse(self) -> xr.DataArray:
         return self._warehouse
 
     @warehouse.setter
-    def warehouse(self, value):
+    def warehouse(self, value: xr.DataArray) -> None:
         self._warehouse = value

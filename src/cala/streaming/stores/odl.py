@@ -89,20 +89,16 @@ class OverlapStore(ObservableStore):
 
     @property
     def labels(self) -> np.ndarray:
-        _, labels = connected_components(
-            csgraph=self.warehouse, directed=False, return_labels=True
-        )
+        _, labels = connected_components(csgraph=self.warehouse, directed=False, return_labels=True)
         return labels
 
     @property
-    def _ids(self):
+    def _ids(self) -> np.ndarray:
         return self.warehouse.coords["id_"].values
 
     @property
     def groups(self) -> list[list[UUID]]:
-        return [
-            list(self._ids[self.labels == label]) for label in np.unique(self.labels)
-        ]
+        return [list(self._ids[self.labels == label]) for label in np.unique(self.labels)]
 
     def update(self, data: DataArray) -> None:
         self.warehouse = data

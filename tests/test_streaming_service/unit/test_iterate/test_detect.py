@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from cala.streaming.composer import Frame
-from cala.streaming.init.odl import PixelStatsInitializer, ComponentStatsInitializer
+from cala.streaming.init.odl import ComponentStatsInitializer, PixelStatsInitializer
 from cala.streaming.init.odl.component_stats import ComponentStatsInitializerParams
 from cala.streaming.init.odl.overlaps import (
     OverlapsInitializer,
@@ -11,8 +11,8 @@ from cala.streaming.init.odl.overlaps import (
 )
 from cala.streaming.init.odl.pixel_stats import PixelStatsInitializerParams
 from cala.streaming.iterate.component_stats import (
-    ComponentStatsUpdaterParams,
     ComponentStatsUpdater,
+    ComponentStatsUpdaterParams,
 )
 from cala.streaming.iterate.detect import (
     Detector,
@@ -26,6 +26,7 @@ from cala.streaming.iterate.pixel_stats import (
     PixelStatsUpdater,
     PixelStatsUpdaterParams,
 )
+from cala.viz_util import Visualizer
 
 
 class TestDetector:
@@ -45,36 +46,34 @@ class TestDetector:
     """
 
     @pytest.fixture
-    def updater(self):
+    def updater(self) -> Detector:
         return Detector(DetectorParams(num_nmf_residual_frames=5, gaussian_std=1))
 
     @pytest.fixture(scope="class")
-    def overlapper(self):
+    def overlapper(self) -> OverlapsInitializer:
         return OverlapsInitializer(OverlapsInitializerParams())
 
     @pytest.fixture(scope="class")
-    def ps_initializer(self):
+    def ps_initializer(self) -> PixelStatsInitializer:
         return PixelStatsInitializer(PixelStatsInitializerParams())
 
     @pytest.fixture(scope="class")
-    def cs_initializer(self):
+    def cs_initializer(self) -> ComponentStatsInitializer:
         return ComponentStatsInitializer(ComponentStatsInitializerParams())
 
     @pytest.mark.viz
     def test_missing_footprint(
         self,
-        visualizer,
-        updater,
-        mini_footprints,
-        mini_traces,
-        mini_denoised,
-        mini_pixel_stats,
-        mini_component_stats,
-        mini_overlaps,
-    ):
-        visualizer.plot_footprints(
-            mini_footprints, subdir="iter/detect/footprints", name="label"
-        )
+        visualizer: Visualizer,
+        updater: Detector,
+        mini_footprints: xr.DataArray,
+        mini_traces: xr.DataArray,
+        mini_denoised: xr.DataArray,
+        mini_pixel_stats: xr.DataArray,
+        mini_component_stats: xr.DataArray,
+        mini_overlaps: xr.DataArray,
+    ) -> None:
+        visualizer.plot_footprints(mini_footprints, subdir="iter/detect/footprints", name="label")
         visualizer.plot_traces(mini_traces, subdir="iter/detect/traces", name="label")
         visualizer.plot_trace_correlations(
             mini_traces, subdir="iter/detect/traces_corr", name="label"
@@ -102,18 +101,12 @@ class TestDetector:
             {"component": slice(None, -1), "component'": slice(None, -1)}
         )
 
-        visualizer.plot_footprints(
-            foot_missing, subdir="iter/detect/footprints", name="missing"
-        )
-        visualizer.plot_traces(
-            trace_missing, subdir="iter/detect/traces", name="missing"
-        )
+        visualizer.plot_footprints(foot_missing, subdir="iter/detect/footprints", name="missing")
+        visualizer.plot_traces(trace_missing, subdir="iter/detect/traces", name="missing")
         visualizer.plot_trace_correlations(
             trace_missing, subdir="iter/detect/traces_corr", name="missing"
         )
-        visualizer.plot_pixel_stats(
-            pixel_missing, subdir="iter/detect/pixel_stats", name="missing"
-        )
+        visualizer.plot_pixel_stats(pixel_missing, subdir="iter/detect/pixel_stats", name="missing")
         visualizer.plot_component_stats(
             comp_missing, subdir="iter/detect/comp_stats", name="missing"
         )
@@ -156,9 +149,7 @@ class TestDetector:
                 trace_missing,
                 xr.concat(
                     [
-                        xr.DataArray(
-                            np.zeros(list(fill_dims.values())), dims=fill_dims.keys()
-                        ),
+                        xr.DataArray(np.zeros(list(fill_dims.values())), dims=fill_dims.keys()),
                         new_traces_,
                     ],
                     dim="frame",
@@ -167,12 +158,8 @@ class TestDetector:
             dim="component",
         )
 
-        visualizer.plot_footprints(
-            new_full_fps, subdir="iter/detect/footprints", name="recovered"
-        )
-        visualizer.plot_traces(
-            new_full_trs, subdir="iter/detect/traces", name="recovered"
-        )
+        visualizer.plot_footprints(new_full_fps, subdir="iter/detect/footprints", name="recovered")
+        visualizer.plot_traces(new_full_trs, subdir="iter/detect/traces", name="recovered")
         visualizer.plot_trace_correlations(
             new_full_trs, subdir="iter/detect/traces_corr", name="recovered"
         )
@@ -221,34 +208,32 @@ class TestDetector:
         assert residuals_.max() < 1e-3
 
     @pytest.fixture
-    def ps_updater(self):
+    def ps_updater(self) -> PixelStatsUpdater:
         return PixelStatsUpdater(PixelStatsUpdaterParams())
 
     @pytest.fixture
-    def cs_updater(self):
+    def cs_updater(self) -> ComponentStatsUpdater:
         return ComponentStatsUpdater(ComponentStatsUpdaterParams())
 
     @pytest.fixture
-    def fp_updater(self):
+    def fp_updater(self) -> FootprintsUpdater:
         return FootprintsUpdater(FootprintsUpdaterParams(boundary_expansion_pixels=1))
 
     @pytest.mark.viz
     def test_new_suff_stats(
         self,
-        visualizer,
-        updater,
-        ps_initializer,
-        cs_initializer,
-        ps_updater,
-        cs_updater,
-        fp_updater,
-        mini_footprints,
-        mini_traces,
-        mini_denoised,
-        mini_pixel_stats,
-        mini_component_stats,
-        mini_overlaps,
-    ):
+        visualizer: Visualizer,
+        updater: Detector,
+        ps_initializer: PixelStatsUpdater,
+        cs_initializer: ComponentStatsUpdater,
+        ps_updater: PixelStatsInitializer,
+        cs_updater: ComponentStatsInitializer,
+        fp_updater: FootprintsUpdater,
+        mini_footprints: xr.DataArray,
+        mini_traces: xr.DataArray,
+        mini_denoised: xr.DataArray,
+        mini_overlaps: xr.DataArray,
+    ) -> None:
         # 1. ps and cs were initialized before this incoming frame
         foot_missing = mini_footprints.isel(component=slice(None, -1))
         overlap_missing = mini_overlaps.isel(

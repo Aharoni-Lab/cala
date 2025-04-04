@@ -4,7 +4,7 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
@@ -17,7 +17,7 @@ class ComponentStatsInitializerParams(Parameters, Axis):
     across components, including axis names and coordinate specifications.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         Raises:
@@ -70,18 +70,14 @@ class ComponentStatsInitializer(SupervisedTransformer):
         C = traces  # components x time
 
         # Compute M = C * C.T / t'
-        M = (
-            C
-            @ C.rename({self.params.component_axis: f"{self.params.component_axis}'"})
-            / t_prime
-        )
+        M = C @ C.rename({self.params.component_axis: f"{self.params.component_axis}'"}) / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
         self.component_stats_ = M.assign_coords(C.coords)
 
         return self
 
-    def transform_one(self, _=None) -> ComponentStats:
+    def transform_one(self, _: None = None) -> ComponentStats:
         """Return the computed component statistics.
 
         This method wraps the computed correlation matrix in a ComponentStats

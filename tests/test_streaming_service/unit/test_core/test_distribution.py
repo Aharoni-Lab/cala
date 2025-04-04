@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -14,12 +16,12 @@ class TestDistributor:
     """Test suite for the Distributor class."""
 
     @pytest.fixture
-    def sample_distributor(self):
+    def sample_distributor(self) -> Distributor:
         """Create a sample distributor with default parameters."""
         return Distributor()
 
     @pytest.fixture
-    def sample_data(self):
+    def sample_data(self) -> dict[str, Any]:
         """Create sample data arrays for testing."""
         # Create sample coordinates
         n_components = 3
@@ -68,7 +70,9 @@ class TestDistributor:
             "residual": residual,
         }
 
-    def test_init_single(self, sample_distributor, sample_data):
+    def test_init_single(
+        self, sample_distributor: Distributor, sample_data: dict[str, Any]
+    ) -> None:
         """Test collecting single DataArray results."""
         # Test collecting each type of Observable
         sample_distributor.init(sample_data["footprints"], Footprints)
@@ -77,13 +81,13 @@ class TestDistributor:
         )
 
         sample_distributor.init(sample_data["traces"], Traces)
-        assert np.array_equal(
-            sample_distributor.tracestore.warehouse, sample_data["traces"]
-        )
+        assert np.array_equal(sample_distributor.tracestore.warehouse, sample_data["traces"])
 
         sample_distributor.init(sample_data["pixel_stats"], PixelStats)
         assert np.array_equal(
             sample_distributor.pixelstatstore.warehouse, sample_data["pixel_stats"]
         )
 
-    def test_init_multiple(self, sample_distributor, sample_data): ...
+    def test_init_multiple(
+        self, sample_distributor: Distributor, sample_data: dict[str, Any]
+    ) -> None: ...

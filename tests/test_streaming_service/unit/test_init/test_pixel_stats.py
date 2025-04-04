@@ -7,27 +7,31 @@ from cala.streaming.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
+from cala.viz_util import Visualizer
 
 
 class TestPixelStatsInitializer:
     """Test suite for PixelStatsInitializer."""
 
     @pytest.fixture
-    def initializer(self):
+    def initializer(self) -> PixelStatsInitializer:
         """Create PixelStatsInitializer instance."""
         return PixelStatsInitializer(PixelStatsInitializerParams())
 
-    def test_initialization(self, initializer):
+    def test_initialization(self, initializer: PixelStatsInitializer) -> None:
         """Test proper initialization."""
         assert isinstance(initializer.params, PixelStatsInitializerParams)
-        assert not hasattr(
-            initializer, "pixel_stats_"
-        )  # Should not exist before learn_one
+        assert not hasattr(initializer, "pixel_stats_")  # Should not exist before learn_one
 
     @pytest.mark.viz
     def test_learn_one(
-        self, initializer, mini_traces, mini_footprints, mini_denoised, visualizer
-    ):
+        self,
+        initializer: PixelStatsInitializer,
+        mini_traces: xr.DataArray,
+        mini_footprints: xr.DataArray,
+        mini_denoised: xr.DataArray,
+        visualizer: Visualizer,
+    ) -> None:
         """Test learn_one method."""
         # Run learn_one
         initializer.learn_one(mini_traces, mini_denoised)
@@ -55,7 +59,12 @@ class TestPixelStatsInitializer:
             subdir="init/pixel_stats",
         )
 
-    def test_transform_one(self, initializer, traces, stabilized_video):
+    def test_transform_one(
+        self,
+        initializer: PixelStatsInitializer,
+        traces: xr.DataArray,
+        stabilized_video: xr.DataArray,
+    ) -> None:
         """Test transform_one method."""
         # First learn
         initializer.learn_one(traces, stabilized_video)
@@ -74,7 +83,7 @@ class TestPixelStatsInitializer:
         }
 
     @pytest.mark.viz
-    def test_sanity_check(self, initializer, visualizer):
+    def test_sanity_check(self, initializer: PixelStatsInitializer, visualizer: Visualizer) -> None:
         """Test the correctness of the pixel statistics computation."""
         video = xr.DataArray(np.zeros((2, 2, 3)), dims=("height", "width", "frame"))
         video[0, 0, :] = [1, 2, 3]
@@ -96,9 +105,7 @@ class TestPixelStatsInitializer:
         initializer.learn_one(traces, video)
         result = initializer.transform_one().transpose("component", "width", "height")
 
-        label = (video @ traces).transpose(
-            "component", "width", "height"
-        ) / video.sizes["frame"]
+        label = (video @ traces).transpose("component", "width", "height") / video.sizes["frame"]
 
         visualizer.plot_traces(traces, subdir="init/pixel_stats/sanity_check")
         visualizer.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
@@ -107,8 +114,13 @@ class TestPixelStatsInitializer:
 
     @pytest.mark.viz
     def test_sanity_check_2(
-        self, mini_denoised, mini_traces, mini_footprints, initializer, visualizer
-    ):
+        self,
+        mini_denoised: xr.DataArray,
+        mini_traces: xr.DataArray,
+        mini_footprints: xr.DataArray,
+        initializer: PixelStatsInitializer,
+        visualizer: Visualizer,
+    ) -> None:
         """Test the correctness of the pixel statistics computation."""
 
         # Run computation
@@ -119,9 +131,7 @@ class TestPixelStatsInitializer:
             "component", "width", "height"
         ) / mini_denoised.sizes["frame"]
 
-        visualizer.plot_footprints(
-            mini_footprints, subdir="init/pixel_stats/sanity_check_2"
-        )
+        visualizer.plot_footprints(mini_footprints, subdir="init/pixel_stats/sanity_check_2")
         visualizer.plot_traces(mini_traces, subdir="init/pixel_stats/sanity_check_2")
         visualizer.plot_pixel_stats(
             result,
@@ -138,7 +148,12 @@ class TestPixelStatsInitializer:
 
         assert np.allclose(result, label, atol=1e-3)
 
-    def test_coordinate_preservation(self, initializer, traces, stabilized_video):
+    def test_coordinate_preservation(
+        self,
+        initializer: PixelStatsInitializer,
+        traces: xr.DataArray,
+        stabilized_video: xr.DataArray,
+    ) -> None:
         """Test that coordinates are properly preserved through the transformation."""
         # Run computation
         initializer.learn_one(traces, stabilized_video)
@@ -146,11 +161,9 @@ class TestPixelStatsInitializer:
 
         # Check coordinate values
         assert np.array_equal(result.coords["id_"].values, traces.coords["id_"].values)
-        assert np.array_equal(
-            result.coords["type_"].values, traces.coords["type_"].values
-        )
+        assert np.array_equal(result.coords["type_"].values, traces.coords["type_"].values)
 
-    def test_invalid_input_handling(self, initializer):
+    def test_invalid_input_handling(self, initializer: PixelStatsInitializer) -> None:
         """Test handling of invalid inputs."""
         # Test with mismatched dimensions
         invalid_traces = xr.DataArray(
@@ -169,5 +182,5 @@ class TestPixelStatsInitializer:
             dims=("frame", "height", "width"),
         )
 
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises(ValueError):  # Should raise some kind of error
             initializer.learn_one(invalid_traces, invalid_frames)

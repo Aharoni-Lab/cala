@@ -7,7 +7,7 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 
 
@@ -15,7 +15,7 @@ from cala.streaming.stores.common import Footprints, Traces
 class TracesInitializerParams(Parameters, Axis):
     """Parameters for traces initialization"""
 
-    def validate(self):
+    def validate(self) -> None:
         pass
 
 
@@ -70,7 +70,7 @@ class TracesInitializer(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Traces:
+    def transform_one(self, _: None = None) -> Traces:
         """Return initialization result."""
         if not self.is_fitted_:
             raise NotFittedError
@@ -81,7 +81,7 @@ class TracesInitializer(SupervisedTransformer):
 @jit(nopython=True, cache=True, parallel=True)
 def solve_all_component_traces(
     footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
-):
+) -> np.ndarray:
     """Solve temporal traces for all components in parallel
 
     Args:
@@ -106,7 +106,7 @@ def solve_all_component_traces(
 
 
 @jit(nopython=True, cache=True, fastmath=True)
-def fast_nnls_vector(A, B):
+def fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """Specialized NNLS for single-variable case across multiple frames
     A: footprint values (n_pixels,)
     B: frame data matrix (n_frames, n_pixels)

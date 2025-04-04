@@ -6,7 +6,7 @@ from rich.logging import RichHandler
 
 
 def setup_logger(
-    log_path: Path | str | None = None, level=logging.INFO, name: str = "cala"
+    log_path: Path | str | None = None, level: int = logging.INFO, name: str = "cala"
 ) -> logging.Logger:
     """
     Sets up the logging configuration for the application.
@@ -25,9 +25,7 @@ def setup_logger(
     rich_handler.setLevel(level)
 
     # Create formatter and add it to handlers
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     rich_handler.setFormatter(formatter)
 
     # Add handlers to the logger
@@ -40,7 +38,7 @@ def setup_logger(
         log_path.mkdir(exist_ok=True)
 
         file_handler = logging.FileHandler(
-            log_path / f'{datetime.now().strftime("%Y%m%d_%H:%M:%S")}.log'
+            log_path / f"{datetime.now().strftime('%Y%m%d_%H:%M:%S')}.log"
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)

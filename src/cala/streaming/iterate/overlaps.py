@@ -6,7 +6,7 @@ from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
 from cala.streaming.composer import Frame
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
 
@@ -19,7 +19,7 @@ class OverlapsUpdaterParams(Parameters, Axis):
     component-wise statistics matrices.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Validate parameter configurations.
 
         This implementation has no parameters to validate, but the method
@@ -67,9 +67,7 @@ class OverlapsUpdater(SupervisedTransformer):
         # Use matrix multiplication with broadcasting to compute overlaps
         data = (
             footprints.dot(
-                footprints.rename(
-                    {self.params.component_axis: f"{self.params.component_axis}'"}
-                )
+                footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             )
             > 0
         ).astype(int)
@@ -92,7 +90,7 @@ class OverlapsUpdater(SupervisedTransformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Overlaps:
+    def transform_one(self, _: None = None) -> Overlaps:
         """Return the updated sufficient statistics matrices.
 
         This method returns both updated statistics matrices after the

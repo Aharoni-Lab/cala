@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Dict, ClassVar, Self, Callable
+from typing import ClassVar, Self
 
 import cv2
 import numpy as np
@@ -39,13 +40,13 @@ class Denoiser(base.Transformer):
 
     params: DenoiserParams = field(default_factory=DenoiserParams)
 
-    METHODS: ClassVar[Dict[str, Callable]] = {
+    METHODS: ClassVar[dict[str, Callable]] = {
         "gaussian": cv2.GaussianBlur,
         "median": cv2.medianBlur,
         "bilateral": cv2.bilateralFilter,
     }
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize the denoiser with given parameters."""
         self.func = self.METHODS[self.params.method]
 
@@ -83,7 +84,7 @@ class Denoiser(base.Transformer):
 
         return xr.DataArray(denoised, dims=frame.dims, coords=frame.coords)
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get information about the current state.
 
         Returns

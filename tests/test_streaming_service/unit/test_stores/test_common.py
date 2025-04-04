@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import ObservableStore, Component
+from cala.streaming.core import Component, ObservableStore
 from cala.streaming.stores.common import FootprintStore, TraceStore
 
 
@@ -10,7 +10,7 @@ class TestFootprints:
     """Test suite for the Footprints class."""
 
     @pytest.fixture
-    def sample_footprints(self):
+    def sample_footprints(self) -> FootprintStore:
         """Create sample footprint data."""
         data = np.random.rand(3, 10, 10)  # 3 components, 10x10 spatial dimensions
         coords = {
@@ -24,7 +24,7 @@ class TestFootprints:
             xr.DataArray(data, dims=("components", "height", "width"), coords=coords)
         )
 
-    def test_initialization(self, sample_footprints):
+    def test_initialization(self, sample_footprints: FootprintStore) -> None:
         """Test proper initialization of Footprints."""
         assert isinstance(sample_footprints, ObservableStore)
         assert isinstance(sample_footprints, FootprintStore)
@@ -37,7 +37,7 @@ class TestTraces:
     """Test suite for the Traces class."""
 
     @pytest.fixture
-    def sample_traces(self):
+    def sample_traces(self) -> TraceStore:
         """Create sample temporal traces data."""
         data = np.random.rand(3, 100)  # 3 components, 100 timepoints
         coords = {
@@ -47,11 +47,9 @@ class TestTraces:
                 [Component.NEURON, Component.NEURON, Component.BACKGROUND],
             ),
         }
-        return TraceStore(
-            xr.DataArray(data, dims=("components", "frames"), coords=coords)
-        )
+        return TraceStore(xr.DataArray(data, dims=("components", "frames"), coords=coords))
 
-    def test_initialization(self, sample_traces):
+    def test_initialization(self, sample_traces: TraceStore) -> None:
         """Test proper initialization of Traces."""
         assert isinstance(sample_traces, ObservableStore)
         assert isinstance(sample_traces, TraceStore)

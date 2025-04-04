@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Literal, ClassVar
+from typing import ClassVar, Literal
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 from sklearn.mixture import GaussianMixture
 
-from .base import BaseFilter
 from ..signal_processing import median_clipper
+from .base import BaseFilter
 
 
 @dataclass
@@ -32,7 +32,7 @@ class PNRFilter(BaseFilter):
 
     cutoff_frequency_ratio: float = 0.06
     """Cutoff frequency ratio for high-pass filtering, must be between 0 and 0.5 (Nyquist frequency)."""
-    pnr_threshold: Optional[float] = 1.0
+    pnr_threshold: float | None = 1.0
     """Threshold for deciding valid seeds based on PNR."""
     auto_pnr_threshold: bool = False
     """Whether to automatically determine the PNR threshold using GMM clustering. If True, pnr_threshold is ignored."""
@@ -40,7 +40,7 @@ class PNRFilter(BaseFilter):
     """Lower quantile threshold for PNR calculation."""
     quantile_ceil: float = 95.0
     """Upper quantile threshold for PNR calculation."""
-    filter_window_size: Optional[int] = None
+    filter_window_size: int | None = None
     """Window size for median filtering. If None, no filtering is applied."""
     pnr_: xr.DataArray = field(init=False)
     """Computed peak-to-noise ratios for the input data."""
@@ -51,26 +51,24 @@ class PNRFilter(BaseFilter):
     _stateless: ClassVar[bool] = True
     """Whether the filter is stateless. Always True for this filter."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not 0 < self.cutoff_frequency_ratio <= 0.5:
-            raise ValueError(
-                "cutoff_frequency must be between 0 and 0.5 (Nyquist frequency)."
-            )
+            raise ValueError("cutoff_frequency must be between 0 and 0.5 (Nyquist frequency).")
 
         if self.quantile_floor >= self.quantile_ceil:
             raise ValueError("quantile_floor must be smaller than quantile_ceil")
 
     @property
-    def quantiles(self):
+    def quantiles(self) -> tuple[float, float]:
         return self.quantile_floor, self.quantile_ceil
 
-    def fit_kernel(self, X, seeds) -> None:
+    def fit_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
         pass
 
-    def fit_transform_shared_preprocessing(self, X, seeds):
+    def fit_transform_shared_preprocessing(self, X: xr.DataArray, seeds: pd.DataFrame) -> None:
         pass
 
-    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame):
+    def transform_kernel(self, X: xr.DataArray, seeds: pd.DataFrame) -> pd.DataFrame:
         """
         Transform seeds by filtering based on peak-to-noise ratio analysis.
 
@@ -104,9 +102,8 @@ class PNRFilter(BaseFilter):
         signal peaks to noise levels, with higher ratios indicating stronger signals.
         """
         # Dynamically create a dictionary of DataArrays for each core axis
-        seed_das: Dict[str, xr.DataArray] = {
-            axis: xr.DataArray(seeds[axis].values, dims="seeds")
-            for axis in self.core_axes
+        seed_das: dict[str, xr.DataArray] = {
+            axis: xr.DataArray(seeds[axis].values, dims="seeds") for axis in self.core_axes
         }
 
         # Select the relevant subset from X using vectorized selection
@@ -151,7 +148,7 @@ class PNRFilter(BaseFilter):
 
         return seeds
 
-    def _find_highest_pnr_cluster_gmm(self, pnr):
+    def _find_highest_pnr_cluster_gmm(self, pnr: np.ndarray) -> np.ndarray:
         """Find seeds with high peak-to-noise ratio using Gaussian Mixture Model clustering.
 
         This method fits a 2-component Gaussian Mixture Model to the distribution of peak-to-noise
@@ -230,9 +227,7 @@ class PNRFilter(BaseFilter):
         """
 
         # Compute peak-to-peak (ptp) before filtering
-        peak_to_peak = np.percentile(arr, quantiles[1]) - np.percentile(
-            arr, quantiles[0]
-        )
+        peak_to_peak = np.percentile(arr, quantiles[1]) - np.percentile(arr, quantiles[0])
 
         # Apply FFT-based filter
         _T = len(arr)
@@ -256,4 +251,4 @@ class PNRFilter(BaseFilter):
         )
 
         # Calculate and return the Peak-to-Noise Ratio
-        return peak_to_peak / peak_to_peak_noise if peak_to_peak_noise != 0 else np.inf
+        return float(peak_to_peak / peak_to_peak_noise if peak_to_peak_noise != 0 else np.inf)

@@ -1,5 +1,8 @@
+from typing import Any
+
 import numpy as np
 import pytest
+import xarray as xr
 
 from cala.streaming.composer import Frame
 from cala.streaming.init.odl.overlaps import (
@@ -7,6 +10,7 @@ from cala.streaming.init.odl.overlaps import (
     OverlapsInitializerParams,
 )
 from cala.streaming.iterate.traces import TracesUpdater, TracesUpdaterParams
+from cala.viz_util import Visualizer
 
 
 class TestTraceUpdater:
@@ -18,11 +22,11 @@ class TestTraceUpdater:
     """
 
     @pytest.fixture(scope="class")
-    def updater(self):
+    def updater(self) -> TracesUpdater:
         return TracesUpdater(TracesUpdaterParams(tolerance=1e-3))
 
     @pytest.fixture
-    def mini_overlap(self, mini_footprints):
+    def mini_overlap(self, mini_footprints: xr.DataArray) -> xr.DataArray:
         overlapper = OverlapsInitializer(OverlapsInitializerParams())
 
         overlap = overlapper.learn_one(mini_footprints).transform_one()
@@ -32,20 +36,18 @@ class TestTraceUpdater:
     @pytest.mark.viz
     def test_sanity_check(
         self,
-        mini_params,
-        updater,
-        mini_footprints,
-        mini_traces,
-        mini_overlap,
-        mini_denoised,
-        visualizer,
-    ):
+        mini_params: Any,
+        updater: TracesUpdater,
+        mini_footprints: xr.DataArray,
+        mini_traces: xr.DataArray,
+        mini_overlap: xr.DataArray,
+        mini_denoised: xr.DataArray,
+        visualizer: Visualizer,
+    ) -> None:
         visualizer.plot_footprints(mini_footprints, subdir="iter/trace")
         visualizer.plot_traces(mini_traces, subdir="iter/trace")
         visualizer.save_video_frames(mini_denoised, subdir="iter/trace")
-        visualizer.plot_overlaps(
-            mini_overlap, footprints=mini_footprints, subdir="iter/trace"
-        )
+        visualizer.plot_overlaps(mini_overlap, footprints=mini_footprints, subdir="iter/trace")
         updater.learn_one(
             footprints=mini_footprints,
             traces=mini_traces.isel(frame=slice(None, -1)),

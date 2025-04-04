@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Self, Tuple, List
+from typing import Self
 from uuid import uuid4
 
 import cv2
@@ -9,7 +9,7 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters, Component, Axis
+from cala.streaming.core import Axis, Component, Parameters
 from cala.streaming.stores.common import Footprints
 
 
@@ -35,7 +35,7 @@ class FootprintsInitializerParams(Parameters, Axis):
             ]
         ):
             raise ValueError(
-                f"Parameters threshold_factor, kernel_size, and distance_mask_size must have positive values."
+                "Parameters threshold_factor, kernel_size, and distance_mask_size must have positive values."
             )
 
 
@@ -70,8 +70,7 @@ class FootprintsInitializer(Transformer):
                 ),
                 self.params.type_coordinates: (
                     self.params.component_axis,
-                    [Component.BACKGROUND] * len(background)
-                    + [Component.NEURON] * len(neurons),
+                    [Component.BACKGROUND] * len(background) + [Component.NEURON] * len(neurons),
                 ),
             },
         )
@@ -79,7 +78,7 @@ class FootprintsInitializer(Transformer):
         self.is_fitted_ = True
         return self
 
-    def transform_one(self, _=None) -> Footprints:
+    def transform_one(self, _: None = None) -> Footprints:
         """Return initialization result."""
         if not self.is_fitted_:
             raise NotFittedError
@@ -91,9 +90,7 @@ class FootprintsInitializer(Transformer):
         # Convert frame to uint8 before thresholding
         frame_norm = (frame - frame.min()) * (255.0 / (frame.max() - frame.min()))
         frame_uint8 = frame_norm.astype(np.uint8)
-        _, binary = cv2.threshold(
-            frame_uint8.values, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        _, binary = cv2.threshold(frame_uint8.values, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Sure background area (by dilating the foreground)
         kernel = np.ones((self.params.kernel_size, self.params.kernel_size), np.uint8)
@@ -128,7 +125,7 @@ class FootprintsInitializer(Transformer):
 
     def _extract_components(
         self, markers: np.ndarray, frame: xr.DataArray
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    ) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """Extract background and neurons from markers."""
         background = [(markers == 1) * frame.values]
         neurons = []
