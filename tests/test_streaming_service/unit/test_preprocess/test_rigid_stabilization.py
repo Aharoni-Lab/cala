@@ -131,6 +131,6 @@ class TestMotionStabilizer:
                 trace_correlations.append(correlation)
 
         # The traces should be highly correlated with ground truth
-        assert np.median(trace_correlations) > 0.95, (
-            "Calcium traces differ significantly from ground truth stabilization"
-        )
+        assert (
+            np.median(trace_correlations) > 0.95
+        ), "Calcium traces differ significantly from ground truth stabilization"

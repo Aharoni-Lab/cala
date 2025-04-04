@@ -144,9 +144,15 @@ line-length = 100
 
 [tool.ruff]
 target-version = "py312"
+line-length = 100
 include = ["src/cala/**/*.py", "tests/**/*.py", "pyproject.toml"]
 exclude = ["docs"]
-line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [tool.ruff.lint]
 fixable = ["ALL"]
