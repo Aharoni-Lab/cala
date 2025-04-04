@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Tuple, Callable, List, Union
 
 import cv2
 import imageio
@@ -21,7 +21,7 @@ class Visualizer:
             try:
                 self.output_dir = Path(output_dir)
             except ValueError as e:
-                raise ValueError(e)
+                raise ValueError from e
         else:
             self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ class Visualizer:
             "axes.labelsize": 12,
         }
 
-    def save_fig(self, name: str, subdir: Optional[str] = None) -> None:
+    def save_fig(self, name: str, subdir: str | None = None) -> None:
         """Save current figure to output directory."""
         save_dir = self.output_dir
         if subdir:
@@ -65,7 +65,7 @@ class Visualizer:
         ax: plt.Axes,
         component: np.ndarray,
         color: str = "w",
-        label: Optional[str] = None,
+        label: str | None = None,
     ) -> None:
         """
         Helper method to plot contours of a component.
@@ -105,22 +105,20 @@ class Visualizer:
 
     def plot_footprints(
         self,
-        footprints,
+        footprints: np.ndarray | xr.DataArray,
         positions: np.ndarray | None = None,
         radii: np.ndarray | None = None,
         name: str = "footprints",
-        title: Optional[str] = None,
-        subdir: Optional[str] = None,
-        highlight_indices: Optional[List[int]] = None,
+        title: str | None = None,
+        subdir: str | None = None,
+        highlight_indices: list[int] | None = None,
     ) -> None:
         """Plot spatial footprints with flexible highlighting options."""
         fig, ax = plt.subplots(figsize=(10, 10))
 
         # Plot composite image
         composite = footprints.sum(dim="component")
-        sns.heatmap(
-            composite, cmap="viridis", cbar_kws={"label": "Component Intensity"}
-        )
+        sns.heatmap(composite, cmap="viridis", cbar_kws={"label": "Component Intensity"})
 
         # Draw circles if positions and radii provided
         if positions is not None and radii is not None:
@@ -137,22 +135,18 @@ class Visualizer:
         # Draw contours and labels for each component
         for idx, footprint in enumerate(footprints):
             color = "y" if highlight_indices and idx in highlight_indices else "w"
-            self._plot_component_contours(
-                ax, footprint.values, color=color, label=str(idx)
-            )
+            self._plot_component_contours(ax, footprint.values, color=color, label=str(idx))
 
         ax.set_title(title or f"Spatial Footprints (n={len(footprints)})")
         self.save_fig(name, subdir)
 
     def plot_all_footprints(
         self,
-        footprints,
-        title: Optional[str] = None,
-        subdir: Optional[str] = None,
-    ):
-        for idx, fp in enumerate(
-            footprints.transpose(Axis.component_axis, *Axis.spatial_axes)
-        ):
+        footprints: np.ndarray | xr.DataArray,
+        title: str | None = None,
+        subdir: str | None = None,
+    ) -> None:
+        for idx, fp in enumerate(footprints.transpose(Axis.component_axis, *Axis.spatial_axes)):
             fig, ax = plt.subplots(figsize=(10, 10))
             plt.imshow(fp)
             ax.set_title(
@@ -166,7 +160,7 @@ class Visualizer:
         pixel_stats: xr.DataArray,
         footprints: xr.DataArray = None,
         name: str = "pixel_stats",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
         n_cols: int = 4,
     ) -> None:
         """
@@ -190,9 +184,7 @@ class Visualizer:
         n_components = len(pixel_stats)
         n_rows = (n_components + n_cols - 1) // n_cols  # Ceiling division
 
-        fig, axes = plt.subplots(
-            n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows), squeeze=False
-        )
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows), squeeze=False)
 
         # Find global min/max for consistent colormap scaling
         vmin, vmax = pixel_stats.min(), pixel_stats.max()
@@ -250,12 +242,12 @@ class Visualizer:
 
     def plot_traces(
         self,
-        traces,
-        spikes=None,
-        indices: Optional[List[int]] = None,
+        traces: np.ndarray | xr.DataArray,
+        spikes: np.ndarray | xr.DataArray | None = None,
+        indices: list[int] | None = None,
         name: str = "traces",
-        subdir: Optional[str] = None,
-        additional_signals: Optional[List[Tuple[np.ndarray, dict]]] = None,
+        subdir: str | None = None,
+        additional_signals: list[tuple[np.ndarray, dict]] | None = None,
     ) -> None:
         """
         Plot calcium traces with optional spikes and additional signals.
@@ -303,7 +295,9 @@ class Visualizer:
         plt.tight_layout()
         self.save_fig(name, subdir)
 
-    def write_movie(self, video, subdir: str | Path | None = None, name: str = "movie"):
+    def write_movie(
+        self, video: xr.DataArray, subdir: str | Path | None = None, name: str = "movie"
+    ) -> None:
         """Test visualization of stabilized calcium video to verify motion stabilization."""
         save_dir = self.output_dir
         if subdir:
@@ -333,11 +327,11 @@ class Visualizer:
 
     def save_video_frames(
         self,
-        videos: Union[xr.DataArray, List[Tuple[xr.DataArray, str]]],
+        videos: xr.DataArray | list[tuple[xr.DataArray, str]],
         name: str = "video",
-        subdir: Optional[str] = None,
-        frame_processor: Optional[Callable] = None,
-        n_cols: Optional[int] = None,
+        subdir: str | None = None,
+        frame_processor: Callable | None = None,
+        n_cols: int | None = None,
     ) -> None:
         """
         Save video frames with optional processing function. Can handle single or multiple videos.
@@ -417,9 +411,7 @@ class Visualizer:
                     axes[row][col].set_visible(False)
 
             plt.tight_layout()
-            plt.savefig(
-                save_dir / f"frame_{frame_idx:04d}.png", dpi=150, bbox_inches="tight"
-            )
+            plt.savefig(save_dir / f"frame_{frame_idx:04d}.png", dpi=150, bbox_inches="tight")
             plt.close()
 
         # Create gif
@@ -432,7 +424,7 @@ class Visualizer:
         self,
         traces: xr.DataArray,
         name: str = "trace_correlations",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
     ) -> None:
         """
         Create pairplot of trace correlations between components.
@@ -466,7 +458,7 @@ class Visualizer:
         self,
         component_stats: xr.DataArray,
         name: str = "component_stats",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
         cmap: str = "RdBu_r",
     ) -> None:
         """
@@ -521,7 +513,7 @@ class Visualizer:
         comp1_idx: int,
         comp2_idx: int,
         name: str = "trace_pair_analysis",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
     ) -> None:
         """
         Create detailed analysis of two component traces using JointGrid.
@@ -541,9 +533,7 @@ class Visualizer:
         g = sns.JointGrid(data=None, x=trace1, y=trace2)
 
         # Add scatter plot with hexbin
-        g.plot_joint(
-            sns.lineplot, alpha=0.6, color=self.colors["main"][0], markers=True
-        )
+        g.plot_joint(sns.lineplot, alpha=0.6, color=self.colors["main"][0], markers=True)
 
         # Add marginal distributions
         g.plot_marginals(sns.histplot, kde=True)
@@ -573,9 +563,9 @@ class Visualizer:
     def plot_trace_stats(
         self,
         traces: xr.DataArray,
-        indices: Optional[List[int]] = None,
+        indices: list[int] | None = None,
         name: str = "trace_stats",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
     ) -> None:
         """
         Enhanced trace visualization with statistical features.
@@ -632,7 +622,7 @@ class Visualizer:
         self,
         traces: xr.DataArray,
         name: str = "component_clustering",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
     ) -> None:
         """
         Create clustering visualization of components based on trace similarity.
@@ -664,7 +654,7 @@ class Visualizer:
         overlap_matrix: np.ndarray,
         footprints: xr.DataArray,
         name: str = "component_overlap",
-        subdir: Optional[str] = None,
+        subdir: str | None = None,
     ) -> None:
         """
         Plot footprints with overlapping components highlighted by group.
@@ -709,9 +699,7 @@ class Visualizer:
         for group_idx in range(n_groups):
             group_mask = labels == group_idx
             if sum(group_mask) > 1:  # Only mark groups with multiple components
-                color = self.colors["categorical"][
-                    group_idx % len(self.colors["categorical"])
-                ]
+                color = self.colors["categorical"][group_idx % len(self.colors["categorical"])]
                 group_indices = np.where(group_mask)[0]
 
                 # Plot contours for all components in this group
@@ -743,8 +731,8 @@ class Visualizer:
         image1: np.ndarray,
         image2: np.ndarray,
         name: str = "comparison",
-        subdir: Optional[str] = None,
-        titles: Tuple[str, str] = ("Label", "Prediction"),
+        subdir: str | None = None,
+        titles: tuple[str, str] = ("Label", "Prediction"),
     ) -> None:
         """
         Plot two images side by side with their difference.
