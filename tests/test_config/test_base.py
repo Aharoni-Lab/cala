@@ -14,7 +14,7 @@ class TestBaseConfig:
         config_path = tmp_path / "cala_config.yaml"
         config_data = {
             "video_directory": str(tmp_path / "videos"),
-            "pipeline_config": {
+            "pipeline": {
                 "preprocess": {
                     "downsample": {
                         "transformer": "downsample",
@@ -47,34 +47,34 @@ class TestBaseConfig:
         with open(config_path, "w") as f:
             yaml.dump(config_data, f)
 
-        return config_path
+        return str(config_path)
 
     def test_config_loads_pipeline(self, sample_config_yaml):
         """Test that pipeline config loads and converts transformers to enums"""
         config = Config(config_file=sample_config_yaml)
 
         # Check pipeline config was loaded
-        assert config.pipeline_config is not None
+        assert config.pipeline is not None
 
         # Test preprocessing transformers
-        preprocess = config.pipeline_config["preprocess"]
-        assert preprocess["downsample"]["transformer"] == Preprocessor.DOWNSAMPLE
-        assert preprocess["denoise"]["transformer"] == Preprocessor.DENOISE
+        preprocess = config.pipeline.preprocess
+        assert preprocess["downsample"].transformer == Preprocessor.DOWNSAMPLE
+        assert preprocess["denoise"].transformer == Preprocessor.DENOISE
 
         # Test initialization transformers
-        init = config.pipeline_config["initialization"]
-        assert init["footprints"]["transformer"] == Initializer.FOOTPRINTS
-        assert init["footprints"]["n_frames"] == 3
+        init = config.pipeline.initialization
+        assert init["footprints"].transformer == Initializer.FOOTPRINTS
+        assert init["footprints"].n_frames == 3
 
         # Test iteration transformers
-        iter_config = config.pipeline_config["iteration"]
-        assert iter_config["traces"]["transformer"] == Iterator.TRACES
+        iter_config = config.pipeline["iteration"]
+        assert iter_config["traces"].transformer == Iterator.TRACES
 
     def test_config_validates_transformer_names(self, tmp_path):
         """Test that invalid transformer names are caught"""
         config_path = tmp_path / "invalid_config.yaml"
         invalid_config = {
-            "pipeline_config": {
+            "pipeline": {
                 "preprocess": {"invalid": {"transformer": "not_a_real_transformer", "params": {}}}
             }
         }
@@ -90,7 +90,7 @@ class TestBaseConfig:
         config = Config(config_file=sample_config_yaml)
 
         # Check that denoise requires downsample
-        preprocess = config.pipeline_config["preprocess"]
+        preprocess = config.pipeline.preprocess
         assert "requires" in preprocess["denoise"]
         assert preprocess["denoise"]["requires"] == ["downsample"]
 
@@ -98,7 +98,7 @@ class TestBaseConfig:
         """Test that params are properly validated"""
         config_path = tmp_path / "missing_params.yaml"
         invalid_config = {
-            "pipeline_config": {
+            "pipeline": {
                 "preprocess": {
                     "downsample": {
                         "transformer": "downsample"
@@ -113,11 +113,6 @@ class TestBaseConfig:
 
         with pytest.raises(ValueError):
             Config(config_file=config_path)
-
-    def test_empty_pipeline_config(self):
-        """Test that config works without pipeline config"""
-        config = Config()
-        assert config.pipeline_config is None
 
     def test_config_file_paths(self, sample_config_yaml):
         """Test that file paths are properly resolved"""

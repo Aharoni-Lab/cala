@@ -16,14 +16,12 @@ Preprocessing
 """
 
 from .background_erasure import BackgroundEraser
-from .chunk_calculation import ChunkCalculator
 from .denoise import Denoiser
 from .downsample import Downsampler
 from .glow_removal import GlowRemover
 
 __all__ = [
     "Downsampler",
-    "ChunkCalculator",
     "Denoiser",
     "GlowRemover",
     "BackgroundEraser",
