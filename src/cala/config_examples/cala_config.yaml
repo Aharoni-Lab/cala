@@ -11,27 +11,27 @@ output_name: "cala"
 pipeline_config:
   preprocess:
     downsample:
-      transformer: "downsample" # Maps to Preprocessor.DOWNSAMPLE
+      transformer: "Downsampler" # Maps to Preprocessor.DOWNSAMPLE
       params:
         method: "mean"
-        dimensions: ["width", "height"]
-        strides: [2, 2]
+        dimensions: [ "width", "height" ]
+        strides: [ 2, 2 ]
 
     denoise:
       transformer: "denoise" # Maps to Preprocessor.DENOISE
       params:
         method: "gaussian"
         kwargs:
-          ksize: [3, 3]
+          ksize: [ 3, 3 ]
           sigmaX: 1.5
-      requires: ["downsample"]
+      requires: [ "downsample" ]
 
     background:
       transformer: "background_removal" # Maps to Preprocessor.BACKGROUND_REMOVAL
       params:
         method: "uniform"
         kernel_size: 3
-      requires: ["denoise"]
+      requires: [ "denoise" ]
 
   initialization:
     footprints:
@@ -49,7 +49,7 @@ pipeline_config:
         component_axis: "components"
         frames_axis: "frame"
       n_frames: 3
-      requires: ["footprints"]
+      requires: [ "footprints" ]
 
   iteration:
     detect:
@@ -62,4 +62,4 @@ pipeline_config:
       transformer: "traces" # Maps to Iterator.TRACES
       params:
         window_size: 10
-      requires: ["detect"]
+      requires: [ "detect" ]

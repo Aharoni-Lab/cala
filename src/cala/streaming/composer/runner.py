@@ -11,9 +11,10 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.streaming.composer import Frame, StreamingConfig
+from cala.config import Frame, StreamingConfig
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
+from cala.streaming.nodes import Transformers
 from cala.streaming.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -139,7 +140,7 @@ class Runner:
         """
         config = self.config[process][step]
         params = config.get("params", {})
-        transformer = config["transformer"].get_class()
+        transformer = Transformers(config["transformer"]()).value
 
         param_class = next(
             (
