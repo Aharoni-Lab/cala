@@ -1,9 +1,10 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, NotRequired, TypedDict
+from typing import Any
 
 import xarray as xr
+from pydantic import BaseModel
 
 
 @dataclass
@@ -13,26 +14,26 @@ class Frame:
     timestamp: datetime | None = None
 
 
-class PreprocessStep(TypedDict):
+class PreprocessStep(BaseModel):
     transformer: str
     params: dict[str, Any]
-    requires: NotRequired[Sequence[str]]
+    requires: Sequence[str] = []
 
 
-class InitializationStep(TypedDict):
+class InitializationStep(BaseModel):
     transformer: str  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
-    n_frames: int  # Number of frames to use
-    requires: NotRequired[Sequence[str]]  # Optional dependencies
+    n_frames: int = 1  # Number of frames to use
+    requires: Sequence[str] = []  # Optional dependencies
 
 
-class IterationStep(TypedDict):
+class IterationStep(BaseModel):
     transformer: str  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
-    requires: NotRequired[Sequence[str]]  # Optional dependencies
+    requires: Sequence[str] = []  # Optional dependencies
 
 
-class StreamingConfig(TypedDict):
+class StreamingConfig(BaseModel):
     preprocess: dict[str, PreprocessStep]
     initialization: dict[str, InitializationStep]
     iteration: dict[str, IterationStep]

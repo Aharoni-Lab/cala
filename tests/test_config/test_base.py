@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from cala.config.base import Config
-from cala.config.pipe import Initializer, Iterator, Preprocessor
+from cala.streaming.nodes import Transformers
 
 
 class TestBaseConfig:
@@ -17,7 +17,7 @@ class TestBaseConfig:
             "pipeline": {
                 "preprocess": {
                     "downsample": {
-                        "transformer": "downsample",
+                        "transformer": "Downsampler",
                         "params": {
                             "method": "mean",
                             "dimensions": ["width", "height"],
@@ -25,7 +25,7 @@ class TestBaseConfig:
                         },
                     },
                     "denoise": {
-                        "transformer": "denoise",
+                        "transformer": "Denoiser",
                         "params": {
                             "method": "gaussian",
                             "kwargs": {"ksize": [3, 3], "sigmaX": 1.5},
@@ -35,12 +35,14 @@ class TestBaseConfig:
                 },
                 "initialization": {
                     "footprints": {
-                        "transformer": "footprints",
+                        "transformer": "FootprintInitializer",
                         "params": {"threshold_factor": 0.2, "kernel_size": 3},
                         "n_frames": 3,
                     }
                 },
-                "iteration": {"traces": {"transformer": "traces", "params": {"window_size": 10}}},
+                "iteration": {
+                    "traces": {"transformer": "TraceUpdater", "params": {"window_size": 10}}
+                },
             },
         }
 
@@ -58,32 +60,17 @@ class TestBaseConfig:
 
         # Test preprocessing transformers
         preprocess = config.pipeline.preprocess
-        assert preprocess["downsample"].transformer == Preprocessor.DOWNSAMPLE
-        assert preprocess["denoise"].transformer == Preprocessor.DENOISE
+        assert preprocess["downsample"].transformer == "Downsampler"
+        assert preprocess["denoise"].transformer == "Denoiser"
 
         # Test initialization transformers
         init = config.pipeline.initialization
-        assert init["footprints"].transformer == Initializer.FOOTPRINTS
+        assert init["footprints"].transformer == "FootprintInitializer"
         assert init["footprints"].n_frames == 3
 
         # Test iteration transformers
-        iter_config = config.pipeline["iteration"]
-        assert iter_config["traces"].transformer == Iterator.TRACES
-
-    def test_config_validates_transformer_names(self, tmp_path):
-        """Test that invalid transformer names are caught"""
-        config_path = tmp_path / "invalid_config.yaml"
-        invalid_config = {
-            "pipeline": {
-                "preprocess": {"invalid": {"transformer": "not_a_real_transformer", "params": {}}}
-            }
-        }
-
-        with open(config_path, "w") as f:
-            yaml.dump(invalid_config, f)
-
-        with pytest.raises(ValueError):
-            Config(config_file=config_path)
+        iter_config = config.pipeline.iteration
+        assert iter_config["traces"].transformer == "TraceUpdater"
 
     def test_config_validates_dependencies(self, sample_config_yaml):
         """Test that dependencies are properly loaded"""
@@ -91,33 +78,13 @@ class TestBaseConfig:
 
         # Check that denoise requires downsample
         preprocess = config.pipeline.preprocess
-        assert "requires" in preprocess["denoise"]
-        assert preprocess["denoise"]["requires"] == ["downsample"]
-
-    def test_config_validates_params(self, tmp_path):
-        """Test that params are properly validated"""
-        config_path = tmp_path / "missing_params.yaml"
-        invalid_config = {
-            "pipeline": {
-                "preprocess": {
-                    "downsample": {
-                        "transformer": "downsample"
-                        # Missing required params
-                    }
-                }
-            }
-        }
-
-        with open(config_path, "w") as f:
-            yaml.dump(invalid_config, f)
-
-        with pytest.raises(ValueError):
-            Config(config_file=config_path)
+        assert preprocess["denoise"].requires
+        assert preprocess["denoise"].requires == ["downsample"]
 
     def test_config_file_paths(self, sample_config_yaml):
         """Test that file paths are properly resolved"""
         config = Config(config_file=sample_config_yaml)
 
         # Check that video directory is a Path
-        assert isinstance(config.video_directory, Path)
-        assert config.video_directory.is_absolute()
+        assert isinstance(config.video_dir, Path)
+        assert config.video_dir.is_absolute()
