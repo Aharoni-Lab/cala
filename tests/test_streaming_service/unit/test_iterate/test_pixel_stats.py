@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from cala.streaming.composer import Frame
-from cala.streaming.init.odl.pixel_stats import (
+from cala.config import Frame
+from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
-from cala.streaming.iterate.pixel_stats import (
+from cala.streaming.nodes.iter.pixel_stats import (
     PixelStatsUpdater,
     PixelStatsUpdaterParams,
 )

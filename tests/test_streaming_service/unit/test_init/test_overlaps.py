@@ -3,7 +3,7 @@ import pytest
 import sparse
 import xarray as xr
 
-from cala.streaming.init.odl.overlaps import (
+from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )

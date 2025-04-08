@@ -4,16 +4,19 @@ import xarray as xr
 from scipy.ndimage import binary_dilation, binary_erosion
 
 from cala.streaming.core import Component
-from cala.streaming.init.common.traces import TracesInitializer, TracesInitializerParams
-from cala.streaming.init.odl.component_stats import (
+from cala.streaming.nodes.init.common import (
+    TracesInitializer,
+    TracesInitializerParams,
+)
+from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
-from cala.streaming.init.odl.pixel_stats import (
+from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
-from cala.streaming.iterate.footprints import FootprintsUpdater, FootprintsUpdaterParams
+from cala.streaming.nodes.iter.footprints import FootprintsUpdater, FootprintsUpdaterParams
 from cala.viz_util import Visualizer
 
 
