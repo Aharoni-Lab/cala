@@ -131,7 +131,7 @@ def footprints(
 def spikes(params: CalciumVideoParams, ids: list[str], types: list[Enum]) -> xr.DataArray:
     """Generate spike times for neurons."""
     firing_rates = np.random.uniform(*params.firing_rate_range, params.num_neurons)
-    spikes = np.random.random((params.num_neurons, params.frames)) < firing_rates[:, None]
+    spikes = np.random.rand(params.num_neurons, params.frames) < firing_rates[:, None]
 
     return xr.DataArray(
         spikes,
