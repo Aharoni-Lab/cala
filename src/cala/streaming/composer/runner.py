@@ -56,7 +56,7 @@ class Runner:
         Returns:
             Dictionary containing preprocessed results.
         """
-        execution_order = self._create_dependency_graph(self.config["preprocess"])
+        execution_order = self._create_dependency_graph(self.config.preprocess)
 
         pipeline = compose.Pipeline()
 
@@ -83,14 +83,14 @@ class Runner:
         self._buffer.add_frame(frame.array)
 
         if not self.execution_order or not self._init_statuses:
-            self.execution_order = self._create_dependency_graph(self.config["initialization"])
+            self.execution_order = self._create_dependency_graph(self.config.initialization)
             self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
             if self._init_statuses[idx]:
                 continue
 
-            n_frames = self.config["initialization"][step].get("n_frames", 1)
+            n_frames = getattr(self.config.initialization[step], "n_frames", 1)
             if not self._buffer.is_ready(n_frames):
                 break
 
@@ -113,7 +113,7 @@ class Runner:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config["iteration"])
+        execution_order = self._create_dependency_graph(self.config.iteration)
         logger.info(f"Footprint Count: {self._state.footprintstore.warehouse.sizes}")
 
         # Execute transformers in order
@@ -138,9 +138,9 @@ class Runner:
         Returns:
             Configured transformer instance.
         """
-        config = self.config[process][step]
-        params = config.get("params", {})
-        transformer = Node[config["transformer"]].value
+        config = getattr(self.config, process)[step]
+        params = getattr(config, "params", {})
+        transformer = Node[config.transformer].value
 
         param_class = next(
             (
