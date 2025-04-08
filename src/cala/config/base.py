@@ -23,11 +23,11 @@ _global_config_path = Path(_dirs.user_config_path) / "cala_config.yaml"
 class Config(BaseSettings, YAMLMixin):
     user_dir: Path = Field(
         _dirs.user_config_dir,
-        description="Directory containing cala config_examples files",
+        description="Base project directory containing the config file.",
     )
     config_path: Path = Field(
         "cala_config.yaml",
-        description="Location of global cala config_examples file. "
+        description="Location of global cala config file. "
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
@@ -112,9 +112,9 @@ class Config(BaseSettings, YAMLMixin):
         * in the arguments passed to the class constructor (not user configurable)
         * in environment variables like ``export CALA_LOG_DIR=~/``
         * in a ``.env`` file in the working directory
-        * in a ``cala_config.yaml`` file in the working directory
+        * in a ``config.yaml`` file in the working directory
         * in the ``tool.cala.config_examples`` table in a ``pyproject.toml`` file in the working directory
-        * in the global ``cala_config.yaml`` file in the platform-specific data directory
+        * in the global ``config.yaml`` file in the platform-specific data directory
           (use ``cala config_examples get config_file`` to find its location)
         * the default values in the :class:`.Config` model
         """
@@ -132,7 +132,7 @@ class Config(BaseSettings, YAMLMixin):
 
 def _create_default_global_config(path: Path = _global_config_path, force: bool = False) -> None:
     """
-    Create a default global `cala_config.yaml` file.
+    Create a default global `config.yaml` file.
 
     Args:
         force (bool): Override any existing global config
@@ -156,7 +156,7 @@ class _GlobalYamlConfigSource(YamlConfigSettingsSource):
     @property
     def global_config_path(self) -> Path:
         """
-        Location of the global ``cala_config.yaml`` file,
+        Location of the global ``config.yaml`` file,
         given the current state of prior config_examples sources
         """
         current_state = self.current_state

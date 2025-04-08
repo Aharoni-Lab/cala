@@ -7,48 +7,65 @@
 
 ## Features
 
-A calcium imaging pipeline focused on long-term massive recordings.
+Cala is a neural endoscope image processing tool designed for neuroscience research, with a focus on long-term massive recordings. It features a no-code approach through configuration files, making it accessible to researchers of all programming backgrounds.
 
 ## Requirements
 
-Tests currently cover Python versions 3.11, 3.12 and 3.13.
+- Python 3.11, 3.12, or 3.13
+- Dependencies are handled through [pdm](https://pdm-project.org/en/latest/)
 
 ## Installation
-
-https://pypi.org/project/cala/0.1.0/
 
 ```shell
 pip install cala==0.1.0
 ```
 
-## Usage
+## Quick Start
 
-Due to various reasons, the streaming side is structured in a graph-&-state based manner rather than a linear pipeline.
-This accompanies a config file that maps how the transformations are linked to each other, and a minimal python code
-that
-actually runs the configured plan. User has to touch zero code; everything is configurable via a yaml file.
-The design schematic can be viewed here:
-(**[link](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931)**)
+1. Prepare your video files
+2. Create a configuration file (YAML format)
+3. Run the pipeline:
 
-The `main.py` looks like the following (will be eventually replaced with a cli `run` command):
-
-```python
-config = Config().load_yaml("cala_config.yaml")
-io = IO()
-stream = io.stream(config.video_files)
-runner = Runner(config.pipeline)
-
-for idx, frame in enumerate(stream):
-    frame = runner.preprocess(frame)
-
-    if not runner.is_initialized:
-        runner.initialize(frame)
-        continue
-
-    runner.iterate(frame)
+```bash
+python main.py --visual --config cala_config.yaml
 ```
 
-More details available on [Read the Doc](https://cala.readthedocs.io/en/latest/).
+## Architecture
+
+Cala uses a graph-&-state based architecture with three key components:
+
+1. **Configuration System**
+   - Supports YAML and env-based configuration
+   - No-code pipeline setup
+   - Flexible node configuration
+
+2. **Processing Nodes**
+   - Modular transformation units
+   - Managed automatically by the runner
+   - Connected to storage through parameter types
+
+3. **Storage System**
+   - Automatically created and updated by the distributor
+   - Leverages [Zarr](https://zarr.dev/) for large-scale data storage
+
+Schematics of the architecture can be found [here](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931).
+
+## Documentation
+
+Detailed documentation is available in three main sections:
+
+1. **User Guide**: Step-by-step guide for using Cala
+   - Configuration file setup
+   - Pipeline structure
+   - Processing nodes
+   - Advanced features
+
+2. **Developer Guide**: Information for extending Cala
+   - Adding new nodes
+   - Working with stores
+   - Best practices
+
+3. **API Reference**: Available on [Read the Docs](https://cala.readthedocs.io/en/latest/)
 
 ## Roadmap
 
