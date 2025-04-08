@@ -1,21 +1,11 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
 import cv2
 import numpy as np
-import xarray as xr
 from numpy.typing import NDArray
 from PIL import Image
-
-
-@dataclass
-class Frame:
-    array: xr.DataArray
-    index: int
-    timestamp: datetime | None = None
 
 
 class VideoStream(Protocol):
