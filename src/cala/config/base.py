@@ -38,7 +38,7 @@ class Config(BaseSettings, YAMLMixin):
     output_dir: Path = Path(_dirs.user_data_dir) / "output"
     output_name: str | None = "cala"
 
-    pipeline: StreamingConfig = Field(init=False)
+    pipeline: StreamingConfig
 
     model_config: SettingsConfigDict = SettingsConfigDict(
         env_prefix="cala_",

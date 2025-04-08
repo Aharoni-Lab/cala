@@ -12,7 +12,7 @@ class TestBaseConfig:
         """Create a sample config file for testing"""
         config_path = tmp_path / "cala_config.yaml"
         config_data = {
-            "video_directory": str(tmp_path / "videos"),
+            "video_dir": str(tmp_path / "videos"),
             "pipeline": {
                 "preprocess": {
                     "downsample": {
@@ -52,7 +52,7 @@ class TestBaseConfig:
 
     def test_config_loads_pipeline(self, sample_config_yaml):
         """Test that pipeline config loads and converts transformers to enums"""
-        config = Config(config_file=sample_config_yaml)
+        config = Config.from_yaml(sample_config_yaml)
 
         # Check pipeline config was loaded
         assert config.pipeline is not None
@@ -73,7 +73,7 @@ class TestBaseConfig:
 
     def test_config_validates_dependencies(self, sample_config_yaml):
         """Test that dependencies are properly loaded"""
-        config = Config(config_file=sample_config_yaml)
+        config = Config.from_yaml(sample_config_yaml)
 
         # Check that denoise requires downsample
         preprocess = config.pipeline.preprocess
@@ -82,7 +82,7 @@ class TestBaseConfig:
 
     def test_config_file_paths(self, sample_config_yaml):
         """Test that file paths are properly resolved"""
-        config = Config(config_file=sample_config_yaml)
+        config = Config.from_yaml(sample_config_yaml)
 
         # Check that video directory is a Path
         assert isinstance(config.video_dir, Path)
