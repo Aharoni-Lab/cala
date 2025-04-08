@@ -225,3 +225,28 @@ class Runner:
         # Create and prepare the sorter
         ts = TopologicalSorter(graph)
         return list(ts.static_order())
+
+    def cleanup(self) -> None:
+        """Perform cleanup operations at the end of processing."""
+        logger.info("Starting runner cleanup...")
+
+        # store cleanup (e.g., closing Zarr files)
+        try:
+            self._state.cleanup()
+            logger.info("Distributor state cleaned up.")
+        except Exception as e:
+            logger.error(f"Error during distributor cleanup: {e}", exc_info=True)
+
+        # Clear internal buffer to release memory
+        try:
+            self._buffer.cleanup()
+            logger.info("Internal frame buffer cleared.")
+        except Exception as e:
+            logger.error(f"Error during buffer cleanup: {e}", exc_info=True)
+
+        # clear state variables
+        self.execution_order = None
+        self._init_statuses = None
+        self.is_initialized = False
+
+        logger.info("Runner cleanup finished.")

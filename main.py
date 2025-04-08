@@ -73,11 +73,6 @@ def main() -> None:
     args = parse_args()
     config_path = Path(args.config)
 
-    # Validate config file exists
-    if not config_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-    # Run the pipeline
     run_pipeline(config_path, args.visual)
 
 
