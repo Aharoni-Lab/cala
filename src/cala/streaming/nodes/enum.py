@@ -18,7 +18,7 @@ from .iter import (
 from .preprocess import BackgroundEraser, Denoiser, Downsampler, GlowRemover, RigidStabilizer
 
 
-class Transformers(Enum):
+class Node(Enum):
     Downsampler = Downsampler
     Denoiser = Denoiser
     GlowRemover = GlowRemover

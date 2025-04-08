@@ -14,7 +14,7 @@ from river import compose
 from cala.config import Frame, StreamingConfig
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
-from cala.streaming.nodes import Transformers
+from cala.streaming.nodes import Node
 from cala.streaming.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ class Runner:
         """
         config = self.config[process][step]
         params = config.get("params", {})
-        transformer = Transformers(config["transformer"]()).value
+        transformer = Node[config["transformer"]].value
 
         param_class = next(
             (
