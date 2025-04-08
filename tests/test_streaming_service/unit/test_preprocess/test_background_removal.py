@@ -8,7 +8,7 @@ import xarray as xr
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.streaming.preprocess.background_removal import (
+from cala.streaming.nodes.preprocess import (
     BackgroundEraser,
     BackgroundEraserParams,
 )

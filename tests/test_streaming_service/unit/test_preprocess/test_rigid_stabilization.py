@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.preprocess import RigidStabilizer, RigidStabilizerParams
+from cala.streaming.nodes.preprocess import RigidStabilizer, RigidStabilizerParams
 
 
 class TestMotionStabilizer:

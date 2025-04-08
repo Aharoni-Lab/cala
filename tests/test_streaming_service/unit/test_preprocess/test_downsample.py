@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.preprocess import (
+from cala.streaming.nodes.preprocess import (
     Downsampler,
     DownsamplerParams,
 )

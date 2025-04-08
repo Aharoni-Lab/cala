@@ -42,7 +42,7 @@ def test_initialize(stabilized_video: xr.DataArray) -> None:
 
 
 @pytest.mark.parametrize("video", ["raw_calcium_video", "simply_denoised"])
-# @pytest.mark.timeout(30)
+@pytest.mark.timeout(30)
 def test_integration(video: str, request) -> None:
     video = request.getfixturevalue(video)
     config = load_config("integration")
