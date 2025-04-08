@@ -12,7 +12,6 @@ from skimage.restoration import estimate_sigma
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.io import Frame
 from cala.streaming.core import Axis, Component, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
@@ -84,7 +83,7 @@ class Detector(SupervisedTransformer):
 
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
-    frame_: Frame = None
+    frame_: xr.DataArray = None
 
     noise_level_: float = field(init=False)
 
@@ -107,7 +106,7 @@ class Detector(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: Frame,
+        frame: xr.DataArray,
         footprints: Footprints,
         traces: Traces,
         residuals: Residuals,
@@ -142,10 +141,10 @@ class Detector(SupervisedTransformer):
 
         # Update and process residuals
         self.residuals_ = self._update_residual_buffer(
-            frame=frame.array, footprints=footprints, traces=traces, residuals=residuals
+            frame=frame, footprints=footprints, traces=traces, residuals=residuals
         )
 
-        self.noise_level_ = self._estimate_gaussian_noise(residuals, frame.array.shape)
+        self.noise_level_ = self._estimate_gaussian_noise(residuals, frame.shape)
         logger.info(f"Noise Level: {self.noise_level_:4f}")
 
         valid = True
@@ -161,7 +160,7 @@ class Detector(SupervisedTransformer):
 
             # Find and analyze neighborhood of maximum variance
             neighborhood = self._get_max_variance_neighborhood(E)
-            a_new, c_new = self._local_nmf(neighborhood=neighborhood, frame=self.frame_.array)
+            a_new, c_new = self._local_nmf(neighborhood=neighborhood, frame=self.frame_)
 
             logger.info(f"New C: {c_new.values}")
             # Validate new component
@@ -464,7 +463,7 @@ class Detector(SupervisedTransformer):
 
     def _update_pixel_stats(
         self,
-        frame: Frame,
+        frame: xr.DataArray,
         og_footprints: Footprints,
         new_footprints: Footprints,
         og_traces: Traces,
@@ -490,7 +489,7 @@ class Detector(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.index + 1
+        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
         scale = 1 / frame_idx
 
         footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_axis)

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import Self
 
 import sparse
+import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.io import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
@@ -30,7 +30,7 @@ class OverlapsUpdaterParams(Parameters, Axis):
 
 @dataclass
 class OverlapsUpdater(SupervisedTransformer):
-    """Updates component statistics matrices using current frame.
+    """Updates overlaps matrices using updated footprints.
 
     This transformer implements the overlaps statistics update.
     Currently it is done in a brute force manner where we take all footprints and recalculate
@@ -47,7 +47,7 @@ class OverlapsUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: Frame,
+        frame: xr.DataArray,
         footprints: Footprints,
     ) -> Self:
         """Update overlaps using current footprints.
@@ -55,7 +55,7 @@ class OverlapsUpdater(SupervisedTransformer):
         The implementation is identical to initialization, currently.
 
         Args:
-            frame (Frame): Current frame y_t.
+            frame (Frame): Current frame y_t. Unused
                 Shape: (height × width)
             footprints (Footprints): Current temporal component c_t.
                 Shape: (components)

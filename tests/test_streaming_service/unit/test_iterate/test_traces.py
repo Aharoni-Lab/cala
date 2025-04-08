@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.io import Frame
 from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
 from cala.streaming.nodes.iter.traces import TracesUpdater, TracesUpdaterParams
+from cala.streaming.util import package_frame
 from cala.viz_util import Visualizer
 
 
@@ -52,7 +52,7 @@ class TestTraceUpdater:
             footprints=mini_footprints,
             traces=mini_traces.isel(frame=slice(None, -1)),
             overlaps=mini_overlap,
-            frame=Frame(mini_denoised[-1], mini_params.n_frames - 1),
+            frame=package_frame(mini_denoised[-1].values, mini_params.n_frames - 1),
         )
         new_traces = updater.transform_one()
 

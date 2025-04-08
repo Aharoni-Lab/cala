@@ -9,8 +9,9 @@ from cala.config.pipe import (
     PreprocessStep,
     StreamingConfig,
 )
-from cala.io import Frame
 from cala.streaming.composer import Runner
+from cala.streaming.core import Axis
+from cala.streaming.util import package_frame
 
 
 @pytest.fixture
@@ -100,7 +101,7 @@ def test_cyclic_dependency_detection(stabilized_video: xr.DataArray) -> None:
     video = stabilized_video
     with pytest.raises(ValueError):
         for idx, frame in enumerate(video):
-            frame = Frame(frame, idx)
+            frame = package_frame(frame.values, idx)
             while not runner.is_initialized:
                 runner.initialize(frame)
 
@@ -116,18 +117,19 @@ def test_preprocess_execution(
     runner = Runner(preprocess_config)
     video = stabilized_video
     idx, frame = next(iter(enumerate(video)))
-    frame = Frame(frame, idx)
-    original_shape = frame.array.shape
+    frame = package_frame(frame.values, idx)
+    original_shape = frame.shape
 
     # Test preprocessing pipeline
     result = runner.preprocess(frame)
 
-    assert isinstance(result, Frame)
+    assert isinstance(result, xr.DataArray)
+    assert Axis.frame_idx_coordinates in result.coords
+    assert Axis.timestamp_coordinates in result.coords
 
     # Verify dimensions are reduced by downsampling
-    processed_frame = result
-    assert processed_frame.array.shape[0] == original_shape[0] // 2
-    assert processed_frame.array.shape[1] == original_shape[1] // 2
+    assert result.shape[0] == original_shape[0] // 2
+    assert result.shape[1] == original_shape[1] // 2
 
 
 def test_preprocess_dependency_resolution(preprocess_config: StreamingConfig) -> None:
@@ -157,7 +159,7 @@ def test_initialize_execution(
     video = stabilized_video
 
     for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
+        frame = package_frame(frame.values, idx)
         while not runner.is_initialized:
             runner.initialize(frame)
 
