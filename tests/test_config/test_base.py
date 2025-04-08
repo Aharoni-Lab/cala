@@ -4,7 +4,6 @@ import pytest
 import yaml
 
 from cala.config.base import Config
-from cala.streaming.nodes import Transformers
 
 
 class TestBaseConfig:
