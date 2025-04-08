@@ -35,7 +35,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pydantic": ("https://docs.pydantic.dev/latest/", None),
-    "dask": ("https://docs.dask.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
 }
 

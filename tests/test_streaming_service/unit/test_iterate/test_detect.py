@@ -2,27 +2,27 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.composer import Frame
-from cala.streaming.init.odl import ComponentStatsInitializer, PixelStatsInitializer
-from cala.streaming.init.odl.component_stats import ComponentStatsInitializerParams
-from cala.streaming.init.odl.overlaps import (
+from cala.config import Frame
+from cala.streaming.nodes.init.odl import ComponentStatsInitializer, PixelStatsInitializer
+from cala.streaming.nodes.init.odl.component_stats import ComponentStatsInitializerParams
+from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
-from cala.streaming.init.odl.pixel_stats import PixelStatsInitializerParams
-from cala.streaming.iterate.component_stats import (
+from cala.streaming.nodes.init.odl.pixel_stats import PixelStatsInitializerParams
+from cala.streaming.nodes.iter.component_stats import (
     ComponentStatsUpdater,
     ComponentStatsUpdaterParams,
 )
-from cala.streaming.iterate.detect import (
+from cala.streaming.nodes.iter.detect import (
     Detector,
     DetectorParams,
 )
-from cala.streaming.iterate.footprints import (
+from cala.streaming.nodes.iter.footprints import (
     FootprintsUpdater,
     FootprintsUpdaterParams,
 )
-from cala.streaming.iterate.pixel_stats import (
+from cala.streaming.nodes.iter.pixel_stats import (
     PixelStatsUpdater,
     PixelStatsUpdaterParams,
 )

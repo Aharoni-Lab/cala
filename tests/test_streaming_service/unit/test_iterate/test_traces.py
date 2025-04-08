@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.composer import Frame
-from cala.streaming.init.odl.overlaps import (
+from cala.config import Frame
+from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
-from cala.streaming.iterate.traces import TracesUpdater, TracesUpdaterParams
+from cala.streaming.nodes.iter.traces import TracesUpdater, TracesUpdaterParams
 from cala.viz_util import Visualizer
 
 

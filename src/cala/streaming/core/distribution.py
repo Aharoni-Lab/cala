@@ -86,5 +86,5 @@ class Distributor:
     @staticmethod
     def _get_store_type(type_: type[Annotated[Any, Any]]) -> type | None:
         if get_origin(type_) is Annotated and issubclass(type_.__metadata__[0], ObservableStore):
-            return type(type_.__metadata__[0])
+            return type_.__metadata__[0]
         return None

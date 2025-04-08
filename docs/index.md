@@ -20,6 +20,7 @@ from cala import *
 :maxdepth: 2
 :caption: Contents:
 
-misc/river
+misc/user_guide
+misc/dev_guide
 misc/implementation_details
 ```

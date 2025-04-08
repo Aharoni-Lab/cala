@@ -11,9 +11,10 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.streaming.composer import Frame, StreamingConfig
+from cala.config import Frame, StreamingConfig
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
+from cala.streaming.nodes import Node
 from cala.streaming.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class Runner:
     """Current state of the pipeline containing computed results."""
     execution_order: list[str] | None = None
     """Ordered list of initialization steps."""
-    status: list[bool] | None = None
+    _init_statuses: list[bool] | None = None
     """Completion status for each initialization step."""
     is_initialized: bool = False
     """Whether the pipeline initialization is complete."""
@@ -55,7 +56,7 @@ class Runner:
         Returns:
             Dictionary containing preprocessed results.
         """
-        execution_order = self._create_dependency_graph(self.config["preprocess"])
+        execution_order = self._create_dependency_graph(self.config.preprocess)
 
         pipeline = compose.Pipeline()
 
@@ -81,15 +82,15 @@ class Runner:
         """
         self._buffer.add_frame(frame.array)
 
-        if not self.execution_order or not self.status:
-            self.execution_order = self._create_dependency_graph(self.config["initialization"])
-            self.status = [False] * len(self.execution_order)
+        if not self.execution_order or not self._init_statuses:
+            self.execution_order = self._create_dependency_graph(self.config.initialization)
+            self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
-            if self.status[idx]:
+            if self._init_statuses[idx]:
                 continue
 
-            n_frames = self.config["initialization"][step].get("n_frames", 1)
+            n_frames = getattr(self.config.initialization[step], "n_frames", 1)
             if not self._buffer.is_ready(n_frames):
                 break
 
@@ -98,12 +99,12 @@ class Runner:
                 transformer=transformer, frame=self._buffer.get_latest(n_frames)
             )
             if result is not None:
-                self.status[idx] = True
+                self._init_statuses[idx] = True
 
             result_type = get_type_hints(transformer.transform_one, include_extras=True)["return"]
             self._state.init(result, result_type)
 
-        if all(self.status):
+        if all(self._init_statuses):
             self.is_initialized = True
 
     def iterate(self, frame: Frame) -> None:
@@ -112,7 +113,7 @@ class Runner:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config["iteration"])
+        execution_order = self._create_dependency_graph(self.config.iteration)
         logger.info(f"Footprint Count: {self._state.footprintstore.warehouse.sizes}")
 
         # Execute transformers in order
@@ -137,9 +138,9 @@ class Runner:
         Returns:
             Configured transformer instance.
         """
-        config = self.config[process][step]
-        params = config.get("params", {})
-        transformer = config["transformer"]
+        config = getattr(self.config, process)[step]
+        params = getattr(config, "params", {})
+        transformer = Node[config.transformer].value
 
         param_class = next(
             (

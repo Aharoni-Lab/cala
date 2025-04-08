@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.composer import Frame
-from cala.streaming.init.odl.component_stats import (
+from cala.config import Frame
+from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
-from cala.streaming.iterate.component_stats import (
+from cala.streaming.nodes.iter.component_stats import (
     ComponentStatsUpdater,
     ComponentStatsUpdaterParams,
 )

@@ -5,7 +5,7 @@ import sparse
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.composer import Frame
+from cala.config.pipe import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps

@@ -4,7 +4,7 @@ import pytest
 import xarray as xr
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.init.common import (
+from cala.streaming.nodes.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
     TracesInitializer,

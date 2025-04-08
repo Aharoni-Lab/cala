@@ -12,6 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: readthedocs/actions/preview@v1
-        if: false # re-enable when repository is public
+        if: true # set to false if repo wants to go private
         with:
           project-slug: "cala"

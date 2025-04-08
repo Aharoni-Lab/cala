@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import yaml
 from platformdirs import PlatformDirs
 from pydantic import Field, TypeAdapter, field_validator, model_validator
 from pydantic_settings import (
@@ -11,30 +12,35 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
+from cala.config.mixin import YAMLMixin
+from cala.config.pipe import StreamingConfig
+
+_default_userdir = Path().home() / ".config" / "cala"
 _dirs = PlatformDirs("cala", "cala")
+_global_config_path = Path(_dirs.user_config_path) / "cala_config.yaml"
 
 
-class Config(BaseSettings):
+class Config(BaseSettings, YAMLMixin):
     user_dir: Path = Field(
         _dirs.user_config_dir,
-        description="Directory containing cala config_examples files",
+        description="Base project directory containing the config file.",
     )
-    config_file: Path = Field(
-        Path("cala_config.yaml"),
-        description="Location of global cala config_examples file. "
+    config_path: Path = Field(
+        "cala_config.yaml",
+        description="Location of global cala config file. "
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
-    video_directory: Path = Path(_dirs.user_data_dir) / "videos"
-    video_files: list[Path] = Field(default_factory=list)
-    data_directory: Path = Path(_dirs.user_data_dir)
-    data_name: str | None = "cala"
 
-    @property
-    def video_paths(self) -> list[Path]:
-        return [self.video_directory.joinpath(video_file) for video_file in self.video_files]
+    video_dir: Path = Path(_dirs.user_data_dir) / "videos"
+    video_files: list[str] = Field(default_factory=list)
 
-    model_config = SettingsConfigDict(
+    output_dir: Path = Path(_dirs.user_data_dir) / "output"
+    output_name: str | None = "cala"
+
+    pipeline: StreamingConfig
+
+    model_config: SettingsConfigDict = SettingsConfigDict(
         env_prefix="cala_",
         env_file=".env",
         env_nested_delimiter="__",
@@ -44,8 +50,54 @@ class Config(BaseSettings):
         pyproject_toml_table_header=("tool", "cala", "config_examples"),
     )
 
+    @property
+    def video_paths(self) -> list[Path]:
+        return [self.video_dir.joinpath(video_file) for video_file in self.video_files]
+
+    @field_validator("user_dir", mode="after")
     @classmethod
-    def settings_customise_sources(
+    def dir_exists(cls, v: Path) -> Path:
+        """Ensure user_dir exists, make it otherwise"""
+        v.mkdir(exist_ok=True, parents=True)
+        assert v.exists(), f"{v} does not exist!"
+        return v
+
+    @model_validator(mode="after")
+    def paths_relative_to_basedir(self) -> "Config":
+        """
+        If path is relative, make it absolute underneath user_dir
+        """
+        paths = ("config_path", "video_dir", "output_dir")
+        for path_name in paths:
+            path = getattr(self, path_name)
+            if not path.is_absolute():
+                if path.exists():
+                    setattr(self, path_name, path.resolve())
+                else:
+                    setattr(self, path_name, self.user_dir / self.config_path)
+        return self
+
+    @model_validator(mode="after")
+    def files_exist(self) -> "Config":
+        dir_files = {"video_dir": "video_files"}
+        missing_files = [
+            file
+            for folder, file in dir_files.items()
+            if Path(file).is_relative_to(getattr(self, folder))
+        ]
+        if missing_files:
+            raise ValueError(f"The following files do not exist: {', '.join(missing_files)}")
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_pipeline(self) -> "Config":
+        """Validate pipeline config"""
+        # additional validation logic
+        return self
+
+    @classmethod
+    def settings_customize_sources(
         cls,
         settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
@@ -60,12 +112,14 @@ class Config(BaseSettings):
         * in the arguments passed to the class constructor (not user configurable)
         * in environment variables like ``export CALA_LOG_DIR=~/``
         * in a ``.env`` file in the working directory
-        * in a ``cala_config.yaml`` file in the working directory
+        * in a ``config.yaml`` file in the working directory
         * in the ``tool.cala.config_examples`` table in a ``pyproject.toml`` file in the working directory
-        * in the global ``cala_config.yaml`` file in the platform-specific data directory
+        * in the global ``config.yaml`` file in the platform-specific data directory
           (use ``cala config_examples get config_file`` to find its location)
         * the default values in the :class:`.Config` model
         """
+        _create_default_global_config()
+
         return (
             init_settings,
             env_settings,
@@ -75,50 +129,21 @@ class Config(BaseSettings):
             _GlobalYamlConfigSource(settings_cls),
         )
 
-    @field_validator("user_dir", "data_directory", mode="after")
-    @classmethod
-    def dir_exists(cls, v: Path) -> Path:
-        """Ensure user_dir exists, make it otherwise"""
-        v = Path(v)
-        v.mkdir(exist_ok=True, parents=True)
-        assert v.exists(), f"{v} does not exist!"
-        return v
 
-    @model_validator(mode="after")
-    def config_file_is_absolute(self) -> "Config":
-        """
-        If ``config_file`` is relative, make it absolute underneath user_dir
-        """
-        if not self.config_file.is_absolute():
-            if self.config_file.exists():
-                self.config_file = self.config_file.resolve()
-            else:
-                self.config_file = self.user_dir / self.config_file
-        return self
+def _create_default_global_config(path: Path = _global_config_path, force: bool = False) -> None:
+    """
+    Create a default global `config.yaml` file.
 
-    @field_validator("video_files", mode="before")
-    @classmethod
-    def split_video_files(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            # Split the string by commas and strip any whitespace
-            items = [item.strip() for item in v.split(",") if item.strip()]
-            return items
-        return v
+    Args:
+        force (bool): Override any existing global config
+    """
+    if path.exists() and not force:
+        return
 
-    @model_validator(mode="after")
-    def check_video_files_exist(self) -> "Config":
-        missing_files = []
-        for video_file in self.video_files or []:
-            full_path = self.video_directory / video_file
-            if not full_path.exists():
-                missing_files.append(str(video_file))
-
-        if missing_files:
-            raise ValueError(
-                f"The following video files do not exist in {self.video_directory}: {', '.join(missing_files)}"
-            )
-
-        return self
+    path.parent.mkdir(parents=True, exist_ok=True)
+    config = {"user_dir": str(path.parent)}
+    with open(path, "w") as f:
+        yaml.safe_dump(config, f)
 
 
 class _GlobalYamlConfigSource(YamlConfigSettingsSource):
@@ -131,7 +156,7 @@ class _GlobalYamlConfigSource(YamlConfigSettingsSource):
     @property
     def global_config_path(self) -> Path:
         """
-        Location of the global ``cala_config.yaml`` file,
+        Location of the global ``config.yaml`` file,
         given the current state of prior config_examples sources
         """
         current_state = self.current_state

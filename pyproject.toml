@@ -30,6 +30,7 @@ dependencies = [
     "graphlib>=0.9.5",
     "seaborn>=0.13.2",
     "pywavelets>=1.8.0",
+    "pyyaml>=6.0.2",
 ]
 include = [
     "src/cala/config/**/*.env",
