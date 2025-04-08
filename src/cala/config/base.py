@@ -97,7 +97,7 @@ class Config(BaseSettings, YAMLMixin):
         return self
 
     @classmethod
-    def settings_customise_sources(
+    def settings_customize_sources(
         cls,
         settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
