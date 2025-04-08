@@ -5,95 +5,98 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame, StreamingConfig
+from cala.config import Frame
+from cala.config.pipe import (
+    InitializationStep,
+    IterationStep,
+    PreprocessStep,
+    StreamingConfig,
+)
 from cala.streaming.composer import Runner
 
 
 @pytest.fixture
 def preprocess_config() -> StreamingConfig:
-    return cast(
-        StreamingConfig,
-        {
-            "preprocess": {
-                "downsample": {
-                    "transformer": "Downsampler",
-                    "params": {
-                        "method": "mean",
-                        "dimensions": ["width", "height"],
-                        "strides": [2, 2],
-                    },
+    return StreamingConfig(
+        preprocess={
+            "downsample": PreprocessStep(
+                transformer="Downsampler",
+                params={
+                    "method": "mean",
+                    "dimensions": ["width", "height"],
+                    "strides": [2, 2],
                 },
-                "denoise": {
-                    "transformer": "Denoiser",
-                    "params": {
-                        "method": "gaussian",
-                        "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
-                    },
-                    "requires": ["downsample"],
+            ),
+            "denoise": PreprocessStep(
+                transformer="Denoiser",
+                params={
+                    "method": "gaussian",
+                    "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
                 },
-                "glow_removal": {
-                    "transformer": "GlowRemover",
-                    "params": {},
-                    "requires": ["denoise"],
-                },
-                "background_removal": {
-                    "transformer": "BackgroundEraser",
-                    "params": {"method": "uniform", "kernel_size": 3},
-                    "requires": ["glow_removal"],
-                },
-                "motion_stabilization": {
-                    "transformer": "RigidStabilizer",
-                    "params": {"drift_speed": 1, "anchor_frame_index": 0},
-                    "requires": ["background_removal"],
-                },
-            }
+                requires=["downsample"],
+            ),
+            "glow_removal": PreprocessStep(
+                transformer="GlowRemover",
+                params={},
+                requires=["denoise"],
+            ),
+            "background_removal": PreprocessStep(
+                transformer="BackgroundEraser",
+                params={"method": "uniform", "kernel_size": 3},
+                requires=["glow_removal"],
+            ),
+            "motion_stabilization": PreprocessStep(
+                transformer="RigidStabilizer",
+                params={"drift_speed": 1, "anchor_frame_index": 0},
+                requires=["background_removal"],
+            ),
         },
+        initialization={},
+        iteration={},
     )
 
 
 @pytest.fixture
 def initialization_config() -> StreamingConfig:
-    return cast(
-        StreamingConfig,
-        {
-            "initialization": {
-                "footprints": {
-                    "transformer": "FootprintsInitializer",
-                    "params": {
-                        "threshold_factor": 0.2,
-                        "kernel_size": 3,
-                        "distance_metric": cv2.DIST_L2,
-                        "distance_mask_size": 5,
-                    },
+    return StreamingConfig(
+        preprocess={},
+        initialization={
+            "footprints": InitializationStep(
+                transformer="FootprintsInitializer",
+                params={
+                    "threshold_factor": 0.2,
+                    "kernel_size": 3,
+                    "distance_metric": cv2.DIST_L2,
+                    "distance_mask_size": 5,
                 },
-                "traces": {
-                    "transformer": "TracesInitializer",
-                    "params": {},
-                    "n_frames": 3,
-                    "requires": ["footprints"],
-                },
-            }
+            ),
+            "traces": InitializationStep(
+                transformer="TracesInitializer",
+                params={},
+                n_frames=3,
+                requires=["footprints"],
+            ),
         },
+        iteration={},
     )
 
 
 def test_cyclic_dependency_detection(stabilized_video: xr.DataArray) -> None:
-    cyclic_config: StreamingConfig = cast(
-        StreamingConfig,
-        {
-            "initialization": {
-                "step1": {
-                    "transformer": "FootprintsInitializer",
-                    "params": {},
-                    "requires": ["step2"],
-                },
-                "step2": {
-                    "transformer": "TracesInitializer",
-                    "params": {},
-                    "requires": ["step1"],
-                },
-            }
+    cyclic_config = StreamingConfig(
+        preprocess={},
+        initialization={
+            "step1": InitializationStep(
+                transformer="FootprintsInitializer",
+                params={},
+                requires=["step2"],
+            ),
+            "step2": InitializationStep(
+                transformer="TracesInitializer",
+                params={},
+                requires=["step1"],
+            ),
         },
+        iteration={},
     )
     runner = Runner(cyclic_config)
     video = stabilized_video
@@ -131,7 +134,7 @@ def test_preprocess_execution(
 
 def test_preprocess_dependency_resolution(preprocess_config: StreamingConfig) -> None:
     runner = Runner(preprocess_config)
-    execution_order = runner._create_dependency_graph(preprocess_config["preprocess"])
+    execution_order = runner._create_dependency_graph(preprocess_config.preprocess)
 
     # Verify correct execution order
     expected_order = [
