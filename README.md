@@ -24,55 +24,19 @@ pip install cala==0.1.0
 ## Usage
 
 Due to various reasons, the streaming side is structured in a graph-&-state based manner rather than a linear pipeline.
-This accompanies a config file that maps how the transformations are related to each other, and a short python code that
-actually runs the configured plan. The design schematic can be viewed here: (*
-*[link](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931)**)
+This accompanies a config file that maps how the transformations are linked to each other, and a minimal python code
+that
+actually runs the configured plan. User has to touch zero code; everything is configurable via a yaml file.
+The design schematic can be viewed here:
+(**[link](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931)**)
 
-#### Config
-
-```python
-"preprocess": {
-    "downsample": {
-        "transformer": Downsampler,
-        "params": {
-            "method": "mean",
-            "dimensions": ["width", "height"],
-            "strides": [2, 2],
-        },
-    },
-    ...
-},
-"initialization": {
-    "footprints": {
-        "transformer": FootprintsInitializer,
-        "params": {
-            "threshold_factor": 0.5,
-            "kernel_size": 3,
-            "distance_metric": cv2.DIST_L2,
-            "distance_mask_size": 5,
-        },
-    },
-    "traces": {
-        "transformer": TracesInitializer,
-        "params": {"component_axis": "components", "frames_axis": "frame"},
-        "n_frames": 3,
-        "requires": ["footprints"],
-    },
-    ...
-},
-"iteration": {
-    "traces": {
-        "transformer": TracesUpdater,
-        "params": {"tolerance": 1e-3},
-    },
-    ...
-},
-```
-
-the actual python main.py looks like the following (will be eventually implemented as a cli `run` command):
+The `main.py` looks like the following (will be eventually replaced with a cli `run` command):
 
 ```python
-runner = Runner(streaming_config)
+config = Config().load_yaml("cala_config.yaml")
+io = IO()
+stream = io.stream(config.video_files)
+runner = Runner(config.pipeline)
 
 for idx, frame in enumerate(stream):
     frame = runner.preprocess(frame)
@@ -82,13 +46,12 @@ for idx, frame in enumerate(stream):
         continue
 
     runner.iterate(frame)
-
-dump(runner._state)
 ```
+
+More details available on [Read the Doc](https://cala.readthedocs.io/en/latest/).
 
 ## Roadmap
 
-*EOM 03/2025:* Streaming first iteration complete\
 *EOM 04/2025:* UI first iteration complete
 
 ## Contributing
