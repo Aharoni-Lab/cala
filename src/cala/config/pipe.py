@@ -1,17 +1,7 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
-import xarray as xr
 from pydantic import BaseModel
-
-
-@dataclass
-class Frame:
-    array: xr.DataArray
-    index: int
-    timestamp: datetime | None = None
 
 
 class PreprocessStep(BaseModel):

@@ -11,7 +11,8 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config import Frame, StreamingConfig
+from cala.config import StreamingConfig
+from cala.io import Frame
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.nodes import Node

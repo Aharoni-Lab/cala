@@ -1,17 +1,15 @@
-from typing import cast
-
 import cv2
 import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame
 from cala.config.pipe import (
     InitializationStep,
     IterationStep,
     PreprocessStep,
     StreamingConfig,
 )
+from cala.io import Frame
 from cala.streaming.composer import Runner
 
 

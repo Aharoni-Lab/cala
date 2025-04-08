@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cala.config import Frame
+from cala.io import Frame
 from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame
+from cala.io import Frame
 from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,

@@ -4,7 +4,7 @@ from typing import Self
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.config.pipe import Frame
+from cala.io import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats

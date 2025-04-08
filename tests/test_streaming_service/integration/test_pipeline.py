@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import pytest
 import xarray as xr
 
-from cala.config import Frame
 from cala.config.base import Config
+from cala.io import Frame
 from cala.log import setup_logger
 from cala.streaming.composer import Runner
 

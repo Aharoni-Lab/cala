@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame
+from cala.io import Frame
 from cala.streaming.nodes.init.odl import ComponentStatsInitializer, PixelStatsInitializer
 from cala.streaming.nodes.init.odl.component_stats import ComponentStatsInitializerParams
 from cala.streaming.nodes.init.odl.overlaps import (
