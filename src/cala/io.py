@@ -50,6 +50,8 @@ class OpenCVStream:
             ret, frame = self._cap.read()
             if not ret:
                 break
+            if len(frame.shape) == 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             yield frame
 
     def close(self) -> None:
@@ -78,7 +80,10 @@ class TiffStream:
         # Validate first file to ensure it's readable and get sample shape
         try:
             with Image.open(self._files[0]) as img:
-                self._sample_shape = np.array(img).shape
+                frame = np.array(img)
+                if len(frame.shape) != 2:
+                    raise ValueError("TIFF files must be grayscale")
+                self._sample_shape = frame.shape
         except Exception as e:
             raise ValueError(f"Failed to read TIFF file: {self._files[0]}") from e
 
@@ -91,15 +96,13 @@ class TiffStream:
         for file_path in self._files:
             with Image.open(file_path) as img:
                 frame = np.array(img)
-                # Ensure consistent shape with first frame
+                if len(frame.shape) != 2:
+                    raise ValueError(f"File {file_path} is not grayscale")
                 if frame.shape != self._sample_shape:
                     raise ValueError(
                         f"Inconsistent frame shape in {file_path}: "
                         f"expected {self._sample_shape}, got {frame.shape}"
                     )
-                # Ensure 3D array for consistency with video frames
-                if len(frame.shape) == 2:
-                    frame = np.stack([frame] * 3, axis=-1)
                 yield frame
 
     def close(self) -> None:
