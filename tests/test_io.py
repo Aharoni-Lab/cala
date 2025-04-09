@@ -20,7 +20,7 @@ def sample_tiff_files(sample_tiff_dir: Path) -> list[Path]:
     return sorted(list(sample_tiff_dir.glob("*.tiff")))
 
 
-@pytest.mark.skipif(os.getenv("CI"))
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
 def test_tiff_stream_initialization(sample_tiff_files):
     """Test TiffStream initialization with sample files."""
     stream = TiffStream(sample_tiff_files)
@@ -31,7 +31,7 @@ def test_tiff_stream_initialization(sample_tiff_files):
         TiffStream([])
 
 
-@pytest.mark.skipif(os.getenv("CI"))
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
 def test_tiff_stream_frame_properties(sample_tiff_files):
     """Test frame properties without loading all frames."""
     stream = TiffStream(sample_tiff_files)
@@ -58,7 +58,7 @@ def test_tiff_stream_frame_properties(sample_tiff_files):
             assert not np.any(np.isnan(frame))
 
 
-@pytest.mark.skipif(os.getenv("CI"))
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
 def test_io_tiff_handling(sample_tiff_files):
     """Test IO class handles TIFF files correctly."""
     io = IO()
@@ -79,7 +79,7 @@ def test_io_tiff_handling(sample_tiff_files):
     assert frame_count == len(sample_tiff_files)
 
 
-@pytest.mark.skipif(os.getenv("CI"))
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
 def test_tiff_stream_cleanup(sample_tiff_files):
     """Test TiffStream cleanup."""
     stream = TiffStream(sample_tiff_files)
@@ -105,7 +105,7 @@ def test_tiff_stream_invalid_file():
         TiffStream([Path("nonexistent.tiff")])
 
 
-@pytest.mark.skipif(os.getenv("CI"))
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
 def test_tiff_stream_random_access(sample_tiff_files):
     """Test accessing random frames in the sequence."""
     # Test a few random frames without loading everything

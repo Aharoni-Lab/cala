@@ -21,8 +21,6 @@ def package_frame(frame: np.ndarray, index: int, timestamp: datetime | None = No
         frame,
         dims=Axis.spatial_axes,
         coords={
-            Axis.spatial_axes[0]: np.arange(frame.shape[0]),
-            Axis.spatial_axes[1]: np.arange(frame.shape[1]),
             Axis.frame_idx_coordinates: index,
             Axis.timestamp_coordinates: timestamp,
         },
