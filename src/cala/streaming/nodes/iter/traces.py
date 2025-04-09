@@ -7,7 +7,6 @@ from river.base import SupervisedTransformer
 from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.config.pipe import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
@@ -65,7 +64,7 @@ class TracesUpdater(SupervisedTransformer):
     def learn_one(
         self,
         footprints: Footprints,
-        frame: Frame,
+        frame: xr.DataArray,
         traces: Traces,
         overlaps: Overlaps,
     ) -> Self:
@@ -92,7 +91,7 @@ class TracesUpdater(SupervisedTransformer):
         """
         # Prepare inputs for the update algorithm
         A = footprints.stack({"pixels": self.params.spatial_axes})
-        y = frame.array.stack({"pixels": self.params.spatial_axes})
+        y = frame.stack({"pixels": self.params.spatial_axes})
         c = traces.isel({self.params.frames_axis: -1})
 
         _, labels = connected_components(csgraph=overlaps.data, directed=False, return_labels=True)

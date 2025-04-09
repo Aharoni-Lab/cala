@@ -4,6 +4,7 @@ from pathlib import Path
 from cala.config import Config
 from cala.io import IO
 from cala.streaming.composer import Runner
+from cala.streaming.util import package_frame
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,7 +42,8 @@ def run_pipeline(config_path: Path, enable_visual: bool = False) -> None:
         pass
 
     try:
-        for frame in stream:
+        for idx, frame in enumerate(stream):
+            frame = package_frame(frame, idx)
             frame = runner.preprocess(frame)
 
             if not runner.is_initialized:
@@ -71,11 +73,6 @@ def main() -> None:
     args = parse_args()
     config_path = Path(args.config)
 
-    # Validate config file exists
-    if not config_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-    # Run the pipeline
     run_pipeline(config_path, args.visual)
 
 

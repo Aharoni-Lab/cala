@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame
 from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
@@ -13,6 +12,7 @@ from cala.streaming.nodes.iter.component_stats import (
     ComponentStatsUpdater,
     ComponentStatsUpdaterParams,
 )
+from cala.streaming.util import package_frame
 from cala.viz_util import Visualizer
 
 
@@ -61,7 +61,7 @@ class TestCompStatsUpdater:
         visualizer.save_video_frames(mini_denoised, subdir="iter/comp_stats")
         visualizer.plot_component_stats(prev_comp_stats, subdir="iter/comp_stats", name="prev_cs")
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
+            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
             traces=mini_traces,
             component_stats=prev_comp_stats,
         )

@@ -11,7 +11,7 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config import Frame, StreamingConfig
+from cala.config import StreamingConfig
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.nodes import Node
@@ -47,7 +47,7 @@ class Runner:
             buffer_size=10,
         )
 
-    def preprocess(self, frame: Frame) -> Frame:
+    def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
         """Execute preprocessing steps on a single frame.
 
         Args:
@@ -65,13 +65,13 @@ class Runner:
 
             pipeline = pipeline | transformer
 
-        pipeline.learn_one(x=frame.array)
-        result = pipeline.transform_one(x=frame.array)
+        pipeline.learn_one(x=frame)
+        result = pipeline.transform_one(x=frame)
 
-        frame.array = result
+        frame = result
         return frame
 
-    def initialize(self, frame: Frame) -> None:
+    def initialize(self, frame: xr.DataArray) -> None:
         """Initialize pipeline transformers in dependency order.
 
         Executes initialization steps that may require multiple frames. Steps are executed
@@ -80,7 +80,7 @@ class Runner:
         Args:
             frame: New frame to use for initialization.
         """
-        self._buffer.add_frame(frame.array)
+        self._buffer.add_frame(frame)
 
         if not self.execution_order or not self._init_statuses:
             self.execution_order = self._create_dependency_graph(self.config.initialization)
@@ -107,7 +107,7 @@ class Runner:
         if all(self._init_statuses):
             self.is_initialized = True
 
-    def iterate(self, frame: Frame) -> None:
+    def iterate(self, frame: xr.DataArray) -> None:
         """Execute iterate steps on a single frame.
 
         Args:
@@ -159,7 +159,7 @@ class Runner:
         return transformer
 
     def _learn_transform(
-        self, transformer: Any, frame: Frame
+        self, transformer: Any, frame: xr.DataArray
     ) -> xr.DataArray | tuple[xr.DataArray, ...]:
         """Execute learn and transform steps for a transformer.
 
@@ -225,3 +225,28 @@ class Runner:
         # Create and prepare the sorter
         ts = TopologicalSorter(graph)
         return list(ts.static_order())
+
+    def cleanup(self) -> None:
+        """Perform cleanup operations at the end of processing."""
+        logger.info("Starting runner cleanup...")
+
+        # store cleanup (e.g., closing Zarr files)
+        try:
+            self._state.cleanup()
+            logger.info("Distributor state cleaned up.")
+        except Exception as e:
+            logger.error(f"Error during distributor cleanup: {e}", exc_info=True)
+
+        # Clear internal buffer to release memory
+        try:
+            self._buffer.cleanup()
+            logger.info("Internal frame buffer cleared.")
+        except Exception as e:
+            logger.error(f"Error during buffer cleanup: {e}", exc_info=True)
+
+        # clear state variables
+        self.execution_order = None
+        self._init_statuses = None
+        self.is_initialized = False
+
+        logger.info("Runner cleanup finished.")

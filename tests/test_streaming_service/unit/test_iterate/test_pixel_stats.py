@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from cala.config import Frame
 from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
@@ -10,6 +9,7 @@ from cala.streaming.nodes.iter.pixel_stats import (
     PixelStatsUpdater,
     PixelStatsUpdaterParams,
 )
+from cala.streaming.util import package_frame
 
 
 class TestPixelStatsUpdater:
@@ -61,7 +61,7 @@ class TestPixelStatsUpdater:
             name="prev_ps",
         )
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
+            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
             traces=mini_traces,
             pixel_stats=prev_pixel_stats,
         )

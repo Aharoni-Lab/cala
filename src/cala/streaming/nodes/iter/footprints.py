@@ -7,7 +7,6 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.config.pipe import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import ComponentStats, PixelStats
@@ -67,7 +66,7 @@ class FootprintsUpdater(SupervisedTransformer):
         footprints: Footprints,
         pixel_stats: PixelStats,
         component_stats: ComponentStats,
-        frame: Frame = None,
+        frame: xr.DataArray = None,
     ) -> Self:
         """Update spatial footprints using sufficient statistics.
 

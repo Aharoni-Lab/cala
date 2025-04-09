@@ -55,3 +55,7 @@ class Buffer:
     def is_ready(self, num_frames: int) -> bool:
         """Check if buffer has enough frames."""
         return len(self.buffer) >= num_frames
+
+    def cleanup(self) -> None:
+        self.buffer.clear()
+        return None

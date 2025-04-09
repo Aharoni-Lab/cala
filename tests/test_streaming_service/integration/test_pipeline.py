@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import pytest
 import xarray as xr
 
-from cala.config import Frame
-from cala.config.base import Config
+from cala.config import Config
 from cala.log import setup_logger
 from cala.streaming.composer import Runner
+from cala.streaming.util import package_frame
 
 setup_logger(Path(__file__).parent / "logs", name="")
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def test_preprocess(raw_calcium_video: xr.DataArray) -> None:
     runner = Runner(config.pipeline)
     video = raw_calcium_video
     for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
+        frame = package_frame(frame.values, idx)
         runner.preprocess(frame)
 
 
@@ -34,7 +34,7 @@ def test_initialize(stabilized_video: xr.DataArray) -> None:
     video = stabilized_video
 
     for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
+        frame = package_frame(frame.values, idx)
         while not runner.is_initialized:
             runner.initialize(frame)
 
@@ -49,9 +49,9 @@ def test_integration(video: str, request) -> None:
     runner = Runner(config.pipeline)
 
     for idx, frame in enumerate(video):
-        frame = Frame(frame, idx)
+        frame = package_frame(frame.values, idx)
         frame = runner.preprocess(frame)
-        plt.imsave(f"frame{idx}.png", frame.array)
+        plt.imsave(f"frame{idx}.png", frame)
 
         if not runner.is_initialized:
             runner.initialize(frame)

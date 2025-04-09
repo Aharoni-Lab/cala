@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Self
 
+import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.config.pipe import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import PixelStats
@@ -53,7 +53,7 @@ class PixelStatsUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: Frame,
+        frame: xr.DataArray,
         traces: Traces,
         pixel_stats: PixelStats,
     ) -> Self:
@@ -75,12 +75,12 @@ class PixelStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.index + 1
+        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 
         # Flatten spatial dimensions of frame
-        y_t = frame.array  # .stack({"pixels": self.params.spatial_axes})
+        y_t = frame  # .stack({"pixels": self.params.spatial_axes})
         W = pixel_stats  # .stack({"pixels": self.params.spatial_axes})
         # New frame traces
         c_t = traces.isel({self.params.frames_axis: -1})

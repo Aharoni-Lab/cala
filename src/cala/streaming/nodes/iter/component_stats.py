@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Self
 
+import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.config.pipe import Frame
 from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
@@ -53,7 +53,7 @@ class ComponentStatsUpdater(SupervisedTransformer):
 
     def learn_one(
         self,
-        frame: Frame,
+        frame: xr.DataArray,
         traces: Traces,
         component_stats: ComponentStats,
     ) -> Self:
@@ -75,7 +75,7 @@ class ComponentStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.index + 1
+        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 

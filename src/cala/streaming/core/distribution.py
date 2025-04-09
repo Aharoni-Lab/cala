@@ -88,3 +88,5 @@ class Distributor:
         if get_origin(type_) is Annotated and issubclass(type_.__metadata__[0], ObservableStore):
             return type_.__metadata__[0]
         return None
+
+    def cleanup(self) -> None: ...

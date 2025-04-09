@@ -15,3 +15,7 @@ class Axis:
 
     type_coordinates: str = "type_"
     """Name of the coordinate used to specify component types (e.g., neuron, background)."""
+
+    frame_idx_coordinates: str = "frame_idx"
+
+    timestamp_coordinates: str = "timestamp"

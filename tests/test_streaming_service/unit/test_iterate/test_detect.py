@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config import Frame
 from cala.streaming.nodes.init.odl import ComponentStatsInitializer, PixelStatsInitializer
 from cala.streaming.nodes.init.odl.component_stats import ComponentStatsInitializerParams
 from cala.streaming.nodes.init.odl.overlaps import (
@@ -26,6 +25,7 @@ from cala.streaming.nodes.iter.pixel_stats import (
     PixelStatsUpdater,
     PixelStatsUpdaterParams,
 )
+from cala.streaming.util import package_frame
 from cala.viz_util import Visualizer
 
 
@@ -112,7 +112,7 @@ class TestDetector:
         )
 
         updater.learn_one(
-            frame=Frame(mini_denoised[-1], len(mini_denoised) - 1),
+            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
             footprints=foot_missing,  # footprints with a component missing
             traces=trace_missing,
             # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
@@ -251,7 +251,7 @@ class TestDetector:
         residual_missing = mini_denoised[:-1] - foot_missing @ trace_missing
 
         # 2. the new frame comes in
-        incoming_frame = Frame(mini_denoised[-1], len(mini_denoised) - 1)
+        incoming_frame = package_frame(mini_denoised[-1].values, len(mini_denoised) - 1)
 
         # 3. traces were updated
         trace_updated = mini_traces.isel(

@@ -17,7 +17,7 @@ from cala.config.pipe import StreamingConfig
 
 _default_userdir = Path().home() / ".config" / "cala"
 _dirs = PlatformDirs("cala", "cala")
-_global_config_path = Path(_dirs.user_config_path) / "cala_config.yaml"
+_global_config_path = Path(_dirs.user_config_path) / "config.yaml"
 
 
 class Config(BaseSettings, YAMLMixin):
