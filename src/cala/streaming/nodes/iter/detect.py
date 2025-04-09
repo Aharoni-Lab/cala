@@ -244,7 +244,7 @@ class Detector(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.frame_.index,
+            frame_idx=self.frame_.coords[Axis.frame_idx_coordinates].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,

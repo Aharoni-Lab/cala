@@ -51,7 +51,7 @@ def test_integration(video: str, request) -> None:
     for idx, frame in enumerate(video):
         frame = package_frame(frame.values, idx)
         frame = runner.preprocess(frame)
-        plt.imsave(f"frame{idx}.png", frame.array)
+        plt.imsave(f"frame{idx}.png", frame)
 
         if not runner.is_initialized:
             runner.initialize(frame)
