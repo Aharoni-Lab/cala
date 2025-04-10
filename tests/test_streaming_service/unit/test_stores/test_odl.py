@@ -25,7 +25,7 @@ class TestPixelStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
         return PixelStatStore(xr.DataArray(data, dims=("pixels", "components"), coords=coords))
@@ -42,9 +42,9 @@ class TestPixelStats:
         assert sample_pixel_stats.warehouse.shape[1] == 3  # number of components
         assert len(sample_pixel_stats.warehouse.coords["id_"]) == 3
         assert sample_pixel_stats.warehouse.coords["type_"].values.tolist() == [
-            Component.NEURON,
-            Component.NEURON,
-            Component.BACKGROUND,
+            Component.NEURON.value,
+            Component.NEURON.value,
+            Component.BACKGROUND.value,
         ]
 
 
@@ -64,7 +64,7 @@ class TestComponentStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
         return ComponentStatStore(

@@ -183,8 +183,8 @@ class Detector(SupervisedTransformer):
             self.new_traces_ = xr.DataArray([])
             return self
 
-        new_ids = [uuid4() for _ in self.new_footprints_]
-        new_types = [Component.NEURON for _ in self.new_footprints_]
+        new_ids = [uuid4().hex for _ in self.new_footprints_]
+        new_types = [Component.NEURON.value for _ in self.new_footprints_]
 
         self.new_footprints_ = xr.concat(
             self.new_footprints_, dim=self.params.component_axis

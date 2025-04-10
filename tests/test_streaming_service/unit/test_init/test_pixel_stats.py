@@ -95,7 +95,7 @@ class TestPixelStatsInitializer:
             dims=("component", "frame"),
             coords={
                 "id_": ("component", ["comp1", "comp2"]),
-                "type_": ("component", [Component.NEURON, Component.NEURON]),
+                "type_": ("component", [Component.NEURON.value, Component.NEURON.value]),
             },
         )
         traces[0, :] = [1, 2, 3]
@@ -173,7 +173,7 @@ class TestPixelStatsInitializer:
                 "id_": ("components", ["id0", "id1", "id2"]),
                 "type_": (
                     "components",
-                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                    [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
                 ),
             },
         )

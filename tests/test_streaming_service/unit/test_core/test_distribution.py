@@ -32,7 +32,7 @@ class TestDistributor:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
 

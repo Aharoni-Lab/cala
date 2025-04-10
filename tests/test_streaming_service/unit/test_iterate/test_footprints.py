@@ -215,7 +215,7 @@ class TestFootprintUpdater:
         redundant_footprints = mini_footprints.copy()
         rolled = xr.DataArray(np.roll(mini_footprints[-1], -1), dims=("height", "width"))
         rolled = rolled.expand_dims("component").assign_coords(
-            {"id_": ("component", ["id5"]), "type_": ("component", [Component.NEURON])}
+            {"id_": ("component", ["id5"]), "type_": ("component", [Component.NEURON.value])}
         )
         redundant_footprints = xr.concat(
             [redundant_footprints, rolled],

@@ -42,7 +42,7 @@ class TestResidualInitializer:
             "id_": ("component", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "component",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
 
@@ -189,7 +189,7 @@ class TestResidualInitializer:
                 "id_": ("component", ["id0", "id1", "id2"]),
                 "type_": (
                     "component",
-                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                    [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
                 ),
             },
         )
@@ -200,7 +200,7 @@ class TestResidualInitializer:
                 "id_": ("component", ["id0", "id1", "id2"]),
                 "type_": (
                     "component",
-                    [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                    [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
                 ),
             },
         )

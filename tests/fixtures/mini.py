@@ -30,7 +30,8 @@ def mini_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str | Enum
         "id_": ("component", [f"id{i}" for i in range(mini_params.n_components)]),
         "type_": (
             "component",
-            [Component.BACKGROUND] + [Component.NEURON] * (mini_params.n_components - 1),
+            [Component.BACKGROUND.value]
+            + [Component.NEURON.value] * (mini_params.n_components - 1),
         ),
     }
 

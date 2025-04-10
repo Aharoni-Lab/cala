@@ -17,7 +17,7 @@ class TestFootprints:
             "id_": ("components", ["id0", "id1", "id2"]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
         return FootprintStore(
@@ -44,7 +44,7 @@ class TestTraces:
             "id_": ("components", ["id0", "id1", "id2"]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
         return TraceStore(xr.DataArray(data, dims=("components", "frames"), coords=coords))
