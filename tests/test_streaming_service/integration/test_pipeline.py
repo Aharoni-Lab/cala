@@ -56,7 +56,7 @@ def test_initialize(stabilized_video: xr.DataArray) -> None:
 
     for idx, frame in enumerate(video):
         frame = package_frame(frame.values, idx)
-        while not runner.is_initialized:
+        if not runner.is_initialized:
             runner.initialize(frame)
 
     assert runner.is_initialized
