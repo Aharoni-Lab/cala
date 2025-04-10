@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Any, get_args, get_origin
 
 import xarray as xr
@@ -33,7 +34,7 @@ class Distributor:
                 return getattr(self, attr_name).warehouse
         return None
 
-    def init(self, result: xr.DataArray, type_: type) -> None:
+    def init(self, result: xr.DataArray, type_: type, peek_size: int, store_dir: Path) -> None:
         """Store a DataArray results in their appropriate Observable containers.
 
         This method automatically determines the correct storage location based on the
@@ -51,7 +52,12 @@ class Distributor:
         # Add to annotations
         self.__annotations__[store_name] = target_store_type
         # Create and set the store
-        setattr(self, store_name, target_store_type(result))
+        if getattr(target_store_type, "persistent", False):
+            params = {"peek_size": peek_size, "store_dir": store_dir}
+            setattr(self, store_name, target_store_type(**params))
+        else:
+            setattr(self, store_name, target_store_type())
+        getattr(self, store_name).warehouse = result
 
     def update(
         self,
