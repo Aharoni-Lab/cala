@@ -3,17 +3,27 @@ from pathlib import Path
 import pytest
 import yaml
 
-from cala.config.base import Config
+from cala.config.general import Config
 
 
-class TestBaseConfig:
+class TestGeneralConfig:
     @pytest.fixture
     def sample_config_yaml(self, tmp_path):
         """Create a sample config file for testing"""
+        # Create some dummy input files
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+        input_files = [input_dir / "file1.mov", input_dir / "file2.mov"]
+        # Create the actual files
+        for file in input_files:
+            file.touch()  # Creates empty files
+
         config_path = tmp_path / "cala_config.yaml"
         config_data = {
-            "video_dir": str(tmp_path / "videos"),
+            "output_dir": str(tmp_path / "output"),
+            "input_files": [str(file) for file in input_files],
             "pipeline": {
+                "general": {"buffer_size": 10},
                 "preprocess": {
                     "downsample": {
                         "transformer": "Downsampler",
@@ -85,5 +95,5 @@ class TestBaseConfig:
         config = Config.from_yaml(sample_config_yaml)
 
         # Check that video directory is a Path
-        assert isinstance(config.video_dir, Path)
-        assert config.video_dir.is_absolute()
+        assert isinstance(config.output_dir, Path)
+        assert config.output_dir.is_absolute()

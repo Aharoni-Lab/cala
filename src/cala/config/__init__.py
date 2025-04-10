@@ -1,4 +1,3 @@
-from .base import Config
-from .pipe import StreamingConfig
+from .general import Config
 
-__all__ = ["Config", "StreamingConfig"]
+__all__ = ["Config"]
