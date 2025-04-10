@@ -73,7 +73,7 @@ class ComponentStatsInitializer(SupervisedTransformer):
         M = C @ C.rename({self.params.component_axis: f"{self.params.component_axis}'"}) / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.component_stats_ = M.assign_coords(C.coords)
+        self.component_stats_ = M.assign_coords(C.coords[Axis.component_axis].coords)
 
         return self
 

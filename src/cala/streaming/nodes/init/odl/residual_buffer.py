@@ -95,9 +95,7 @@ class ResidualInitializer(SupervisedTransformer):
         start_idx = max(0, t_prime - self.params.buffer_length)
         R = R.isel({self.params.frames_axis: slice(start_idx, None)})
 
-        # Create xarray DataArray with proper dimensions and coordinates
         self.residual_ = R.unstack("pixels")
-
         return self
 
     def transform_one(self, _: None = None) -> Residuals:
