@@ -1,9 +1,12 @@
+import logging
 from typing import Annotated
 
 import numpy as np
 import xarray as xr
 
 from cala.streaming.core import Axis, ObservableStore
+
+logger = logging.getLogger(__name__)
 
 
 class FootprintStore(ObservableStore):
@@ -49,6 +52,25 @@ class TraceStore(ObservableStore):
     representing their activity patterns over time.
     """
 
+    persistent = True
+
+    @property
+    def warehouse(self) -> xr.DataArray:
+        return (
+            xr.open_zarr(self.store_path)
+            .isel({Axis.frames_axis: slice(-self.peek_size, None)})
+            .to_dataarray()
+            .isel({"variable": 0})  # not sure why it automatically makes this coordinate
+            .reset_coords("variable", drop=True)
+        )
+
+    @warehouse.setter
+    def warehouse(self, value: xr.DataArray) -> None:
+        value.to_zarr(self.store_path, mode="w")  # need to make sure it can overwrite
+
+    def _append(self, data: xr.DataArray, append_dim: str | list[str]) -> None:
+        data.to_zarr(self.store_path, append_dim=append_dim)
+
     def update(self, data: xr.DataArray) -> None:
         # 4 possibilities:
         # 1. updating traces of existing items: (identical ids)
@@ -63,22 +85,18 @@ class TraceStore(ObservableStore):
         if len(data) == 0:
             return
 
-        existing_ids = set(data.coords[Axis.id_coordinates].values) & set(
-            self.warehouse.coords[Axis.id_coordinates].values
-        )
-        new_ids = set(data.coords[Axis.id_coordinates].values) - set(
-            self.warehouse.coords[Axis.id_coordinates].values
-        )
+        warehouse_ids = self.warehouse.coords[Axis.id_coordinates].values
+
+        existing_ids = set(data.coords[Axis.id_coordinates].values) & set(warehouse_ids)
+        new_ids = set(data.coords[Axis.id_coordinates].values) - set(warehouse_ids)
 
         if existing_ids and new_ids:  # detect returned the original
             raise NotImplementedError(
                 "There should not be a case of both existing trace update and new components detection in update"
             )
         elif existing_ids:  # new frame trace update
-            self.warehouse = xr.concat(
-                [self.warehouse, data],
-                dim=Axis.frames_axis,
-            )
+            self._append(data, append_dim=Axis.frames_axis)
+
         elif new_ids:  # detect only returned new elements
             n_frames_to_backfill = len(self.warehouse.coords[Axis.frames_axis]) - len(
                 data.coords[Axis.frames_axis]
@@ -95,10 +113,7 @@ class TraceStore(ObservableStore):
             else:
                 backfilled_data = data
 
-            self.warehouse = xr.concat(
-                [self.warehouse, backfilled_data],
-                dim=Axis.component_axis,
-            )
+            self._append(backfilled_data, append_dim=Axis.component_axis)
 
 
 Traces = Annotated[xr.DataArray, TraceStore]
