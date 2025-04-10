@@ -244,7 +244,7 @@ class Detector(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.frame_.coords[Axis.frame_idx_coordinates].item(),
+            frame_idx=self.frame_.coords[Axis.frame_coordinates].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,
@@ -489,7 +489,7 @@ class Detector(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
         scale = 1 / frame_idx
 
         footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_axis)

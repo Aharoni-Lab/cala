@@ -124,8 +124,8 @@ def test_preprocess_execution(
     result = runner.preprocess(frame)
 
     assert isinstance(result, xr.DataArray)
-    assert Axis.frame_idx_coordinates in result.coords
-    assert Axis.timestamp_coordinates in result.coords
+    assert Axis.frame_coordinates in result.coords
+    assert Axis.time_coordinates in result.coords
 
     # Verify dimensions are reduced by downsampling
     assert result.shape[0] == original_shape[0] // 2
