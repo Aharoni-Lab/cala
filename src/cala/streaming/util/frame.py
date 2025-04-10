@@ -17,6 +17,11 @@ def package_frame(frame: np.ndarray, index: int, timestamp: datetime | None = No
     Returns:
         xr.DataArray: The frame packaged as a DataArray with axes and index
     """
+    if timestamp is None:
+        timestamp = datetime.now().strftime(
+            "%H:%M:%S.%f"
+        )  # means nothing. filler so that they're unique.
+
     return xr.DataArray(
         frame,
         dims=Axis.spatial_axes,
