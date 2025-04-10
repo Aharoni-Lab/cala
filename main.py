@@ -35,7 +35,7 @@ def run_pipeline(config_path: Path, enable_visual: bool = False) -> None:
 
     io = IO()
     stream = io.stream(config.video_files)
-    runner = Runner(config.pipeline)
+    runner = Runner(config.pipeline, config.output_dir)
 
     if enable_visual:
         # visualization setup
