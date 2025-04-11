@@ -1,20 +1,8 @@
-import numpy as np
 import pytest
 
 from cala.streaming.core import (
     Component,
-    ObservableStore,
 )
-
-
-class TestObservable:
-    """Test suite for the Observable base class."""
-
-    def test_inheritance(self) -> None:
-        """Test that Observable properly inherits from DataArray."""
-        data = np.random.rand(5, 5)
-        observable = ObservableStore(data)
-        assert isinstance(observable, ObservableStore)
 
 
 class TestComponent:

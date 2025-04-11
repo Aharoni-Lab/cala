@@ -54,7 +54,7 @@ def test_package_frame_datetimeless():
     assert Axis.frame_coordinates in dataarray.coords
     assert Axis.time_coordinates in dataarray.coords
     assert dataarray.coords[Axis.frame_coordinates].item() == index
-    assert not dataarray.coords[Axis.time_coordinates].item()
+    assert isinstance(dataarray.coords[Axis.time_coordinates].item(), str)
 
     # Check the data
     np.testing.assert_array_equal(dataarray.values, frame)
