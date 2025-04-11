@@ -85,7 +85,9 @@ class TraceStore(ObservableStore):
         if len(data) == 0:
             return
 
-        warehouse_ids = self.warehouse.coords[Axis.id_coordinates].values
+        warehouse_coords = self.warehouse.coords
+
+        warehouse_ids = warehouse_coords[Axis.id_coordinates].values
 
         existing_ids = set(data.coords[Axis.id_coordinates].values) & set(warehouse_ids)
         new_ids = set(data.coords[Axis.id_coordinates].values) - set(warehouse_ids)
@@ -98,15 +100,27 @@ class TraceStore(ObservableStore):
             self._append(data, append_dim=Axis.frames_axis)
 
         elif new_ids:  # detect only returned new elements
-            n_frames_to_backfill = len(self.warehouse.coords[Axis.frames_axis]) - len(
+            n_frames_to_backfill = len(warehouse_coords[Axis.frames_axis]) - len(
                 data.coords[Axis.frames_axis]
             )
 
             if n_frames_to_backfill > 0:
+                # grab coordinates in warehouse
+                warehouse_frames = warehouse_coords[Axis.frame_coordinates].values[
+                    :n_frames_to_backfill
+                ]
+                warehouse_times = warehouse_coords[Axis.time_coordinates].values[
+                    :n_frames_to_backfill
+                ]
+
                 # Create zeros array with same shape as data but for missing frames
                 zeros = xr.DataArray(
                     np.zeros((data.sizes[Axis.component_axis], n_frames_to_backfill)),
                     dims=(Axis.component_axis, Axis.frames_axis),
+                    coords={
+                        Axis.frame_coordinates: (Axis.frames_axis, warehouse_frames),
+                        Axis.time_coordinates: (Axis.frames_axis, warehouse_times),
+                    },
                 )
                 # Combine zeros and data along frames axis
                 backfilled_data = xr.concat([zeros, data], dim=Axis.frames_axis)
