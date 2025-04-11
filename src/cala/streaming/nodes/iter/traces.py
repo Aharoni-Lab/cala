@@ -184,7 +184,8 @@ class TracesUpdater(SupervisedTransformer):
                 ).rename({f"{self.params.component_axis}'": self.params.component_axis})
 
                 c.loc[{self.params.component_axis: cluster}] = np.maximum(
-                    c.isel({self.params.component_axis: cluster}) + numerator / V_diag[cluster],
+                    c.isel({self.params.component_axis: cluster})
+                    + numerator / np.array([V_diag[cluster]]).T,
                     0,
                 )
 
