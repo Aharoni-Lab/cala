@@ -372,7 +372,9 @@ class Detector(SupervisedTransformer):
 
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
-            c.squeeze(), dims=[self.params.frames_axis], coords=self.residuals_.coords
+            c.squeeze(),
+            dims=[self.params.frames_axis],
+            coords=self.residuals_.coords[Axis.frames_axis].coords,
         )
 
         # Create full-frame zero array with proper coordinates
