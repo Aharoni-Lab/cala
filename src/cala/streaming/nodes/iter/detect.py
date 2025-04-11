@@ -266,7 +266,7 @@ class Detector(SupervisedTransformer):
 
     def _estimate_cell_radius(self, footprints: Footprints) -> float:
         neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
-            {self.params.type_coordinates: Component.NEURON}
+            {self.params.type_coordinates: Component.NEURON.value}
         )
         if self.params.component_axis not in neuron_footprints.dims:
             neuron_footprints = neuron_footprints.expand_dims(self.params.component_axis)
@@ -316,6 +316,7 @@ class Detector(SupervisedTransformer):
             input_core_dims=[[*self.params.spatial_axes]],
             output_core_dims=[[*self.params.spatial_axes]],
             vectorize=True,
+            dask="allowed",
         )
 
         return V
