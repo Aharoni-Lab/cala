@@ -24,12 +24,10 @@ def test_package_frame():
     assert dataarray.dims == Axis.spatial_axes
 
     # Check the coordinates
-    assert Axis.frame_idx_coordinates in dataarray.coords
-    assert Axis.timestamp_coordinates in dataarray.coords
-    assert dataarray.coords[Axis.frame_idx_coordinates].item() == index
-    assert pd.Timestamp(dataarray.coords[Axis.timestamp_coordinates].values) == pd.Timestamp(
-        timestamp
-    )
+    assert Axis.frame_coordinates in dataarray.coords
+    assert Axis.time_coordinates in dataarray.coords
+    assert dataarray.coords[Axis.frame_coordinates].item() == index
+    assert pd.Timestamp(dataarray.coords[Axis.time_coordinates].values) == pd.Timestamp(timestamp)
 
     # Check the data
     np.testing.assert_array_equal(dataarray.values, frame)
@@ -53,10 +51,10 @@ def test_package_frame_datetimeless():
     assert dataarray.dims == Axis.spatial_axes
 
     # Check the coordinates
-    assert Axis.frame_idx_coordinates in dataarray.coords
-    assert Axis.timestamp_coordinates in dataarray.coords
-    assert dataarray.coords[Axis.frame_idx_coordinates].item() == index
-    assert not dataarray.coords[Axis.timestamp_coordinates].item()
+    assert Axis.frame_coordinates in dataarray.coords
+    assert Axis.time_coordinates in dataarray.coords
+    assert dataarray.coords[Axis.frame_coordinates].item() == index
+    assert isinstance(dataarray.coords[Axis.time_coordinates].item(), str)
 
     # Check the data
     np.testing.assert_array_equal(dataarray.values, frame)

@@ -75,7 +75,7 @@ class PixelStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 

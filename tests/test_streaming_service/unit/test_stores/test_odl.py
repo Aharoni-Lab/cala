@@ -25,10 +25,12 @@ class TestPixelStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
-        return PixelStatStore(xr.DataArray(data, dims=("pixels", "components"), coords=coords))
+        pixelstore = PixelStatStore()
+        pixelstore.warehouse = xr.DataArray(data, dims=("pixels", "components"), coords=coords)
+        return pixelstore
 
     def test_initialization(self, sample_pixel_stats: PixelStatStore) -> None:
         """Test proper initialization of PixelStats."""
@@ -42,9 +44,9 @@ class TestPixelStats:
         assert sample_pixel_stats.warehouse.shape[1] == 3  # number of components
         assert len(sample_pixel_stats.warehouse.coords["id_"]) == 3
         assert sample_pixel_stats.warehouse.coords["type_"].values.tolist() == [
-            Component.NEURON,
-            Component.NEURON,
-            Component.BACKGROUND,
+            Component.NEURON.value,
+            Component.NEURON.value,
+            Component.BACKGROUND.value,
         ]
 
 
@@ -64,12 +66,13 @@ class TestComponentStats:
             "id_": ("components", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "components",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
-        return ComponentStatStore(
-            xr.DataArray(data, dims=("components", "components"), coords=coords)
-        )
+        compstore = ComponentStatStore()
+        compstore.warehouse = xr.DataArray(data, dims=("components", "components"), coords=coords)
+
+        return compstore
 
     def test_initialization(self, sample_component_stats: ComponentStatStore) -> None:
         """Test proper initialization of ComponentStats."""
@@ -88,7 +91,9 @@ class TestResidual:
         height, width = 10, 10
         n_frames = 5
         data = np.random.randn(height, width, n_frames)  # Should be zero-centered
-        return ResidualStore(xr.DataArray(data, dims=("height", "width", "frames")))
+        residstore = ResidualStore()
+        residstore.warehouse = xr.DataArray(data, dims=("height", "width", "frames"))
+        return residstore
 
     def test_initialization(self, sample_residual: ResidualStore) -> None:
         """Test proper initialization of Residual."""
@@ -117,10 +122,12 @@ class TestOverlapGroups:
                 [Component.NEURON] * 3 + [Component.BACKGROUND] * 2,
             ),
         }
-
-        return OverlapStore(
-            xr.DataArray(sparse_matrix, dims=("components", "components"), coords=coords_dict)
+        overlapstore = OverlapStore()
+        overlapstore.warehouse = xr.DataArray(
+            sparse_matrix, dims=("components", "components"), coords=coords_dict
         )
+
+        return overlapstore
 
     def test_initialization(self, sample_overlap_groups: OverlapStore) -> None:
         """Test proper initialization of OverlapGroups."""

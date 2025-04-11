@@ -92,7 +92,13 @@ class TracesUpdater(SupervisedTransformer):
         # Prepare inputs for the update algorithm
         A = footprints.stack({"pixels": self.params.spatial_axes})
         y = frame.stack({"pixels": self.params.spatial_axes})
-        c = traces.isel({self.params.frames_axis: -1})
+        c = xr.DataArray(
+            traces.isel({self.params.frames_axis: [-1]}),
+            coords={
+                **traces.coords[Axis.component_axis].coords,
+                **{k: (Axis.frames_axis, [v.item()]) for k, v in frame.coords.items()},
+            },
+        )
 
         _, labels = connected_components(csgraph=overlaps.data, directed=False, return_labels=True)
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
@@ -145,7 +151,7 @@ class TracesUpdater(SupervisedTransformer):
                 Shape: (components × pixels)
             y (xr.DataArray): Current data frame.
                 Shape: (pixels,)
-            c (xr.DataArray): Current value of temporal traces.
+            c (xr.DataArray): Last value of temporal traces. (just used for shape)
                 Shape: (components,)
             clusters (list[np.ndarray]): list of groups that each contain component indices that have overlapping footprints.
             eps (float): Tolerance level for convergence checking.
@@ -178,7 +184,8 @@ class TracesUpdater(SupervisedTransformer):
                 ).rename({f"{self.params.component_axis}'": self.params.component_axis})
 
                 c.loc[{self.params.component_axis: cluster}] = np.maximum(
-                    c.isel({self.params.component_axis: cluster}) + numerator / V_diag[cluster],
+                    c.isel({self.params.component_axis: cluster})
+                    + numerator / np.array([V_diag[cluster]]).T,
                     0,
                 )
 

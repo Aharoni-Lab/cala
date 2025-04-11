@@ -38,7 +38,7 @@ def setup_logger(
         log_path.mkdir(exist_ok=True)
 
         file_handler = logging.FileHandler(
-            log_path / f"{datetime.now().strftime('%Y%m%d_%H:%M:%S')}.log"
+            log_path / f"{datetime.now().strftime('%Y%m%d_%H-%M-%S')}.log"
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)

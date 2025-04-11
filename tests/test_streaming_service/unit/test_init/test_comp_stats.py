@@ -28,7 +28,7 @@ class TestComponentStatsInitializer:
             "id_": ("component", [f"id{i}" for i in range(n_components)]),
             "type_": (
                 "component",
-                [Component.NEURON, Component.NEURON, Component.BACKGROUND],
+                [Component.NEURON.value, Component.NEURON.value, Component.BACKGROUND.value],
             ),
         }
 
@@ -85,9 +85,9 @@ class TestComponentStatsInitializer:
         assert "id_" in initializer.component_stats_.coords
         assert "type_" in initializer.component_stats_.coords
         assert initializer.component_stats_.coords["type_"].values.tolist() == [
-            Component.NEURON,
-            Component.NEURON,
-            Component.BACKGROUND,
+            Component.NEURON.value,
+            Component.NEURON.value,
+            Component.BACKGROUND.value,
         ]
 
     def test_transform_one(

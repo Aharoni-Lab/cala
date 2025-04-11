@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
+from pathlib import Path
 from typing import (
     Any,
     Literal,
@@ -11,7 +12,7 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config import StreamingConfig
+from cala.config.pipe import Step, StreamingConfig
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.nodes import Node
@@ -30,6 +31,8 @@ class Runner:
 
     config: StreamingConfig
     """Configuration defining the pipeline structure and parameters."""
+    output_dir: Path
+
     _buffer: Buffer = field(init=False)
     """Internal frame buffer for multi-frame operations."""
     _state: Distributor = field(default_factory=lambda: Distributor())
@@ -44,7 +47,7 @@ class Runner:
     def __post_init__(self) -> None:
         """Initialize the frame buffer after instance creation."""
         self._buffer = Buffer(
-            buffer_size=10,
+            buffer_size=self.config.general["buffer_size"],
         )
 
     def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
@@ -102,7 +105,9 @@ class Runner:
                 self._init_statuses[idx] = True
 
             result_type = get_type_hints(transformer.transform_one, include_extras=True)["return"]
-            self._state.init(result, result_type)
+            self._state.init(
+                result, result_type, self.config.general["buffer_size"], self.output_dir
+            )
 
         if all(self._init_statuses):
             self.is_initialized = True
@@ -202,7 +207,7 @@ class Runner:
         return matches
 
     @staticmethod
-    def _create_dependency_graph(steps: dict) -> list[str]:
+    def _create_dependency_graph(steps: dict[str, Step]) -> list[str]:
         """Create and validate a dependency graph for execution ordering.
 
         Args:
@@ -218,9 +223,8 @@ class Runner:
         for step in steps:
             graph[step] = set()
 
-        for step, config in steps.items():
-            if "requires" in config:
-                graph[step] = set(config["requires"])
+        for name, step in steps.items():
+            graph[name] = set(getattr(step, "requires", []))
 
         # Create and prepare the sorter
         ts = TopologicalSorter(graph)

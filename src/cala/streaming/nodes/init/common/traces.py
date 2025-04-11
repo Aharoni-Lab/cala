@@ -51,20 +51,10 @@ class TracesInitializer(SupervisedTransformer):
             flattened_frames.sizes[self.params.frames_axis],
         )
 
-        # Store result
         self.traces_ = xr.DataArray(
             temporal_traces,
             dims=(self.params.component_axis, self.params.frames_axis),
-            coords={
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.id_coordinates].values,
-                ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.type_coordinates].values,
-                ),
-            },
+            coords={**footprints.coords, **frame.coords},
         )
 
         self.is_fitted_ = True

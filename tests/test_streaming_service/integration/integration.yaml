@@ -1,11 +1,10 @@
-user_dir: "."
-config_path: "integration.yaml"
-video_dir: "videos"
-video_files: [ ]
+user_dir: "."  # relative to this file
+input_files: [ ]
 output_dir: "output"
-output_name: "test_integration"
 
 pipeline:
+  general:
+    buffer_size: 100
   preprocess:
     downsample:
       transformer: Downsampler

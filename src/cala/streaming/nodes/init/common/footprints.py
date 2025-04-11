@@ -66,11 +66,12 @@ class FootprintsInitializer(Transformer):
             coords={
                 self.params.id_coordinates: (
                     self.params.component_axis,
-                    [uuid4() for _ in range(len(background) + len(neurons))],
+                    [uuid4().hex for _ in range(len(background) + len(neurons))],
                 ),
                 self.params.type_coordinates: (
                     self.params.component_axis,
-                    [Component.BACKGROUND] * len(background) + [Component.NEURON] * len(neurons),
+                    [Component.BACKGROUND.value] * len(background)
+                    + [Component.NEURON.value] * len(neurons),
                 ),
             },
         )

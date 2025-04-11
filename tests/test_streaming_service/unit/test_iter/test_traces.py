@@ -52,7 +52,11 @@ class TestTraceUpdater:
             footprints=mini_footprints,
             traces=mini_traces.isel(frame=slice(None, -1)),
             overlaps=mini_overlap,
-            frame=package_frame(mini_denoised[-1].values, mini_params.n_frames - 1),
+            frame=package_frame(
+                mini_denoised[-1].values,
+                mini_params.n_frames - 1,
+                mini_denoised[-1].coords["time_"].item(),
+            ),
         )
         new_traces = updater.transform_one()
 
@@ -63,5 +67,5 @@ class TestTraceUpdater:
         )
 
         assert np.allclose(
-            new_traces, mini_traces.isel(frame=-1), atol=1e-3 * mini_params.n_components
+            new_traces, mini_traces.isel(frame=[-1]), atol=1e-3 * mini_params.n_components
         )

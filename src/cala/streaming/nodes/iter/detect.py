@@ -134,7 +134,6 @@ class Detector(SupervisedTransformer):
         Returns:
             Self: The transformer instance for method chaining.
         """
-
         self.frame_ = frame
         self.cell_radius_ = self._estimate_cell_radius(footprints)
         logger.info(f"Cell Radius: {self.cell_radius_:4f}")
@@ -183,25 +182,19 @@ class Detector(SupervisedTransformer):
             self.new_traces_ = xr.DataArray([])
             return self
 
-        new_ids = [uuid4() for _ in self.new_footprints_]
-        new_types = [Component.NEURON for _ in self.new_footprints_]
+        new_ids = [uuid4().hex for _ in self.new_footprints_]
+        new_types = [Component.NEURON.value for _ in self.new_footprints_]
+        new_coords = {
+            self.params.id_coordinates: (self.params.component_axis, new_ids),
+            self.params.type_coordinates: (self.params.component_axis, new_types),
+        }
 
         self.new_footprints_ = xr.concat(
             self.new_footprints_, dim=self.params.component_axis
-        ).assign_coords(
-            {
-                self.params.id_coordinates: (self.params.component_axis, new_ids),
-                self.params.type_coordinates: (self.params.component_axis, new_types),
-            }
-        )
+        ).assign_coords(new_coords)
         self.new_traces_ = xr.concat(
             self.new_traces_, dim=self.params.component_axis
-        ).assign_coords(
-            {
-                self.params.id_coordinates: (self.params.component_axis, new_ids),
-                self.params.type_coordinates: (self.params.component_axis, new_types),
-            }
-        )
+        ).assign_coords(new_coords)
         self.is_fitted_ = True
         return self
 
@@ -244,7 +237,7 @@ class Detector(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.frame_.coords[Axis.frame_idx_coordinates].item(),
+            frame_idx=self.frame_.coords[Axis.frame_coordinates].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,
@@ -266,7 +259,7 @@ class Detector(SupervisedTransformer):
 
     def _estimate_cell_radius(self, footprints: Footprints) -> float:
         neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
-            {self.params.type_coordinates: Component.NEURON}
+            {self.params.type_coordinates: Component.NEURON.value}
         )
         if self.params.component_axis not in neuron_footprints.dims:
             neuron_footprints = neuron_footprints.expand_dims(self.params.component_axis)
@@ -288,7 +281,7 @@ class Detector(SupervisedTransformer):
         residuals: Residuals,
     ) -> Residuals:
         """Update residual buffer with new frame."""
-        prediction = footprints @ traces.isel({self.params.frames_axis: [-1]})
+        prediction = footprints @ traces.isel({self.params.frames_axis: -1})
         new_residual = frame - prediction
         if len(residuals) >= self.params.num_nmf_residual_frames:
             n_frames_discard = len(residuals) - self.params.num_nmf_residual_frames + 1
@@ -316,6 +309,7 @@ class Detector(SupervisedTransformer):
             input_core_dims=[[*self.params.spatial_axes]],
             output_core_dims=[[*self.params.spatial_axes]],
             vectorize=True,
+            dask="allowed",
         )
 
         return V
@@ -380,13 +374,11 @@ class Detector(SupervisedTransformer):
         c_new = xr.DataArray(
             c.squeeze(),
             dims=[self.params.frames_axis],
-            # coords={
-            #     self.params.frames_axis: neighborhood.coords[self.params.frames_axis]
-            # },
+            coords=self.residuals_.coords[Axis.frames_axis].coords,
         )
 
         # Create full-frame zero array with proper coordinates
-        a_new = xr.zeros_like(frame)
+        a_new = xr.DataArray(np.zeros_like(frame.values), dims=frame.dims)
 
         # Place the NMF result in the correct location
         a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = xr.DataArray(
@@ -489,7 +481,7 @@ class Detector(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.coords[Axis.frame_idx_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
         scale = 1 / frame_idx
 
         footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_axis)
@@ -555,12 +547,12 @@ class Detector(SupervisedTransformer):
             )
             @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             / t
-        ).assign_coords(traces.coords)
+        ).assign_coords(traces.coords[Axis.component_axis].coords)
 
         top_right_corr = xr.DataArray(
             bottom_left_corr.values,
             dims=bottom_left_corr.dims[::-1],
-            coords=new_traces.coords,
+            coords=new_traces.coords[Axis.component_axis].coords,
         )
 
         # Compute auto-correlation of new components
@@ -569,7 +561,7 @@ class Detector(SupervisedTransformer):
             new_traces
             @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
             / t
-        ).assign_coords(new_traces.coords)
+        ).assign_coords(new_traces.coords[Axis.component_axis].coords)
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]

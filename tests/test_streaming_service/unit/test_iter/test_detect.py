@@ -112,7 +112,11 @@ class TestDetector:
         )
 
         updater.learn_one(
-            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
+            frame=package_frame(
+                mini_denoised[-1].values,
+                len(mini_denoised) - 1,
+                mini_denoised[-1].coords["time_"].item(),
+            ),
             footprints=foot_missing,  # footprints with a component missing
             traces=trace_missing,
             # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
@@ -149,7 +153,13 @@ class TestDetector:
                 trace_missing,
                 xr.concat(
                     [
-                        xr.DataArray(np.zeros(list(fill_dims.values())), dims=fill_dims.keys()),
+                        xr.DataArray(
+                            np.zeros(list(fill_dims.values())),
+                            dims=fill_dims.keys(),
+                            coords=trace_missing.isel(frame=slice(0, fill_dims["frame"]))
+                            .coords["frame"]
+                            .coords,
+                        ),
                         new_traces_,
                     ],
                     dim="frame",
@@ -251,7 +261,11 @@ class TestDetector:
         residual_missing = mini_denoised[:-1] - foot_missing @ trace_missing
 
         # 2. the new frame comes in
-        incoming_frame = package_frame(mini_denoised[-1].values, len(mini_denoised) - 1)
+        incoming_frame = package_frame(
+            mini_denoised[-1].values,
+            len(mini_denoised) - 1,
+            mini_denoised[-1].coords["time_"].item(),
+        )
 
         # 3. traces were updated
         trace_updated = mini_traces.isel(

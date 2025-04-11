@@ -38,12 +38,9 @@ The configuration file is where you set up the entire process. It consists of th
 #### A. Basic Settings
 
 ```yaml
-user_dir: .                                    # Working directory
-config_path: cala_config.yaml                  # Name of this config file
-video_dir: videos                              # Directory containing your videos
-video_files: [ 01.mp4, 02.mp4, 03.mp4 ]       # List of video files to process
+user_dir: .                                    # Working directory (relative to the config file)
+input_files: [ 01.mp4, 02.mp4, 03.mp4 ]        # List of video files to process
 output_dir: output                             # Where to save results
-output_name: 12252025                          # Name prefix for output files
 ```
 
 #### B. Pipeline Structure
@@ -90,14 +87,13 @@ for your specific use case.
 ```yaml
 # cala_config.yaml
 
-user_dir: .
-config_path: cala_config.yaml
-video_dir: videos
-video_files: [ 01.mp4, 02.mp4, 03.mp4 ]
-output_dir: output
-output_name: 12252025
+user_dir: "."  # relative to this file
+input_files: [ ]
+output_dir: "output"
 
 pipeline:
+  general:
+    buffer_size: 100
   preprocess:
     downsample:
       transformer: Downsampler

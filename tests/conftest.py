@@ -9,10 +9,11 @@ from numpy.random import RandomState
 
 from cala.viz_util import Visualizer
 from tests.fixtures.mini import (
+    mini_comp_coords,
     mini_component_stats,
-    mini_coords,
     mini_denoised,
     mini_footprints,
+    mini_frame_coords,
     mini_movie,
     mini_overlaps,
     mini_params,
@@ -20,11 +21,12 @@ from tests.fixtures.mini import (
     mini_residuals,
     mini_traces,
 )
-from tests.fixtures.simple import simply_denoised, simply_params, simply_traces
+from tests.fixtures.simple import simply_coords, simply_denoised, simply_params, simply_traces
 from tests.fixtures.simulation import (
     camera_motion,
     dead_pixels,
     footprints,
+    frame_coords,
     glow,
     hot_pixels,
     ids,

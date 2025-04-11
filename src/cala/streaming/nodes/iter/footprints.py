@@ -114,7 +114,7 @@ class FootprintsUpdater(SupervisedTransformer):
                     input_core_dims=[[*self.params.spatial_axes]],
                     output_core_dims=[[*self.params.spatial_axes]],
                     vectorize=True,
-                    dask="allowed",
+                    dask="parallelized",
                 )
             # Compute AM product using xarray operations
             # Reshape M to align dimensions for broadcasting
@@ -128,6 +128,7 @@ class FootprintsUpdater(SupervisedTransformer):
                 component_stats,
                 input_core_dims=[component_stats.dims],
                 output_core_dims=[[self.params.component_axis]],
+                dask="allowed",
             )
 
             # Apply update equation with masking
