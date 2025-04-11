@@ -5,7 +5,7 @@ import pytest
 import xarray as xr
 
 from cala.streaming.core import Component
-from cala.streaming.nodes.init.odl.residual_buffer import (
+from cala.streaming.nodes.init.odl.residuals import (
     ResidualInitializer,
     ResidualInitializerParams,
 )
