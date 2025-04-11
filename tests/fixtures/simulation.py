@@ -63,13 +63,21 @@ def ids(params: CalciumVideoParams) -> list[str]:
 
 
 @pytest.fixture(scope="session")
-def types(params: CalciumVideoParams) -> list[Enum]:
-    return [Component.NEURON] * params.num_neurons
+def types(params: CalciumVideoParams) -> list[str]:
+    return [Component.NEURON.value] * params.num_neurons
 
 
 @pytest.fixture(scope="session")
 def radii(params: CalciumVideoParams) -> np.ndarray:
     return np.random.uniform(*params.neuron_size_range, params.num_neurons)
+
+
+@pytest.fixture(scope="session")
+def frame_coords(params: CalciumVideoParams) -> dict:
+    return {
+        "frame_": ("frame", [i for i in range(params.frames)]),
+        "time_": ("frame", [f"t_{i}" for i in range(params.frames)]),
+    }
 
 
 @pytest.fixture(scope="session")
@@ -128,7 +136,9 @@ def footprints(
 
 
 @pytest.fixture(scope="session")
-def spikes(params: CalciumVideoParams, ids: list[str], types: list[Enum]) -> xr.DataArray:
+def spikes(
+    params: CalciumVideoParams, ids: list[str], types: list[str], frame_coords: dict
+) -> xr.DataArray:
     """Generate spike times for neurons."""
     firing_rates = np.random.uniform(*params.firing_rate_range, params.num_neurons)
     spikes = np.random.rand(params.num_neurons, params.frames) < firing_rates[:, None]
@@ -140,7 +150,7 @@ def spikes(params: CalciumVideoParams, ids: list[str], types: list[Enum]) -> xr.
             "id_": ("component", ids),
             "type_": ("component", types),
         },
-    )
+    ).assign_coords(frame_coords)
 
 
 @pytest.fixture(scope="session")

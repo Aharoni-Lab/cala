@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
 import pytest
@@ -21,12 +20,12 @@ def simply_params() -> SimplyParams:
 
 @pytest.fixture(scope="session")
 def simply_traces(
-    simply_params: SimplyParams, mini_coords: dict[str, tuple[str, str | Enum]]
+    simply_params: SimplyParams, mini_comp_coords: dict, mini_frame_coords: dict
 ) -> xr.DataArray:
     traces = xr.DataArray(
         np.zeros((simply_params.n_components, simply_params.n_frames)),
         dims=("component", "frame"),
-        coords=mini_coords,
+        coords={**mini_comp_coords, **mini_frame_coords},
     )
     traces[0, :] = [1 for _ in range(simply_params.n_frames)]
     traces[1, :] = [i for i in range(simply_params.n_frames)]

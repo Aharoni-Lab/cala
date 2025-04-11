@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
 import pytest
@@ -24,7 +23,7 @@ def mini_params() -> MiniParams:
 
 
 @pytest.fixture(scope="session")
-def mini_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str | Enum]]]:
+def mini_comp_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str]]]:
     # Create sample coordinates
     return {
         "id_": ("component", [f"id{i}" for i in range(mini_params.n_components)]),
@@ -37,14 +36,20 @@ def mini_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str | Enum
 
 
 @pytest.fixture(scope="session")
-def mini_footprints(
-    mini_params: MiniParams, mini_coords: dict[str, tuple[str, str | Enum]]
-) -> xr.DataArray:
+def mini_frame_coords(mini_params: MiniParams) -> dict[str, tuple[str, list[str]]]:
+    return {
+        "frame_": ("frame", [i for i in range(mini_params.n_frames)]),
+        "time_": ("frame", [f"t_{i}" for i in range(mini_params.n_frames)]),
+    }
+
+
+@pytest.fixture(scope="session")
+def mini_footprints(mini_params: MiniParams, mini_comp_coords: dict) -> xr.DataArray:
     """Create sample data for testing."""
     footprints = xr.DataArray(
         np.zeros((mini_params.n_components, mini_params.height, mini_params.width)),
         dims=("component", "height", "width"),
-        coords=mini_coords,
+        coords=mini_comp_coords,
     )
     # Set up specific overlap patterns
     footprints[0, 0:5, 0:5] = 1  # Component 0
@@ -58,12 +63,12 @@ def mini_footprints(
 
 @pytest.fixture(scope="session")
 def mini_traces(
-    mini_params: MiniParams, mini_coords: dict[str, tuple[str, str | Enum]]
+    mini_params: MiniParams, mini_comp_coords: dict, mini_frame_coords: dict
 ) -> xr.DataArray:
     traces = xr.DataArray(
         np.zeros((mini_params.n_components, mini_params.n_frames)),
         dims=("component", "frame"),
-        coords=mini_coords,
+        coords={**mini_comp_coords, **mini_frame_coords},
     )
     traces[0, :] = [1 for _ in range(mini_params.n_frames)]
     traces[1, :] = [i for i in range(mini_params.n_frames)]
@@ -75,10 +80,11 @@ def mini_traces(
 
 
 @pytest.fixture(scope="session")
-def mini_residuals(mini_params: MiniParams) -> xr.DataArray:
+def mini_residuals(mini_params: MiniParams, mini_frame_coords: dict) -> xr.DataArray:
     residual = xr.DataArray(
         np.zeros((mini_params.n_frames, mini_params.height, mini_params.width)),
         dims=("frame", "height", "width"),
+        coords=mini_frame_coords,
     )
     for i in range(mini_params.n_frames):
         residual[i, :, i % mini_params.width] = 3
@@ -116,7 +122,7 @@ def mini_component_stats(mini_params: MiniParams, mini_traces: xr.DataArray) -> 
     # Compute M = C * C.T / t'
     M = C @ C.rename({"component": "component'"}) / t_prime
 
-    return M.assign_coords(C.coords)
+    return M.assign_coords(C.coords["component"].coords)
 
 
 @pytest.fixture(scope="session")
