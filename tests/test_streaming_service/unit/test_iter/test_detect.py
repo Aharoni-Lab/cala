@@ -112,7 +112,11 @@ class TestDetector:
         )
 
         updater.learn_one(
-            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
+            frame=package_frame(
+                mini_denoised[-1].values,
+                len(mini_denoised) - 1,
+                mini_denoised[-1].coords["time_"].item(),
+            ),
             footprints=foot_missing,  # footprints with a component missing
             traces=trace_missing,
             # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
