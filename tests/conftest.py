@@ -21,7 +21,7 @@ from tests.fixtures.mini import (
     mini_residuals,
     mini_traces,
 )
-from tests.fixtures.simple import simply_denoised, simply_params, simply_traces
+from tests.fixtures.simple import simply_coords, simply_denoised, simply_params, simply_traces
 from tests.fixtures.simulation import (
     camera_motion,
     dead_pixels,
