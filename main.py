@@ -34,7 +34,7 @@ def run_pipeline(config_path: Path, enable_visual: bool = False) -> None:
     config = Config.from_yaml(config_path)
 
     io = IO()
-    stream = io.stream(config.video_files)
+    stream = io.stream(config.input_files)
     runner = Runner(config.pipeline, config.output_dir)
 
     if enable_visual:
