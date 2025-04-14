@@ -96,6 +96,9 @@ dev = [
     "types-requests>=2.32.0.20250328",
 ]
 
+[project.scripts]
+cala = "cala.cli:main"
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
