@@ -32,10 +32,6 @@ dependencies = [
     "pywavelets>=1.8.0",
     "pyyaml>=6.0.2",
 ]
-include = [
-    "src/cala/config/**/*.env",
-    "src/cala/config/**/*.yaml"
-]
 keywords = [
     "pipeline",
     "pipelines",
@@ -106,6 +102,11 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[tool.pdm.build]
+excludes = [
+    "**/sample_movies/", "**/artifacts/", "**/htmlcov/", "**/.coverage"
+]
 
 [tool.pdm.version]
 # versions from tags like "v0.1.2"
