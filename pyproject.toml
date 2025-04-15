@@ -1,6 +1,6 @@
 [project]
 name = "cala"
-description = ""
+description = "Cala is a neural endoscope image processing tool designed for neuroscience research, with a focus on long-term massive recordings."
 authors = [{ name = "raymondwjang", email = "raymond@physics.ucla.edu" }]
 dynamic = ["version"]
 requires-python = ">=3.11"
@@ -31,10 +31,6 @@ dependencies = [
     "seaborn>=0.13.2",
     "pywavelets>=1.8.0",
     "pyyaml>=6.0.2",
-]
-include = [
-    "src/cala/config/**/*.env",
-    "src/cala/config/**/*.yaml"
 ]
 keywords = [
     "pipeline",
@@ -106,6 +102,11 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[tool.pdm.build]
+excludes = [
+    "**/sample_movies/", "**/artifacts/", "**/htmlcov/", "**/.coverage"
+]
 
 [tool.pdm.version]
 # versions from tags like "v0.1.2"
