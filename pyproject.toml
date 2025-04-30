@@ -95,7 +95,7 @@ dev = [
 ]
 
 [project.scripts]
-cala = "cala.cli:main"
+cala = "cala.__main__:main"
 
 [build-system]
 requires = ["pdm-backend"]
