@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Cala Dashboard</title>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <link href="./src/styles.css" rel="stylesheet">
+</head>
+<body>
+<div class="dashboard">
+    <div class="video-container">
+        <video-js
+                class="vjs-default-skin"
+                controls
+                height="{{ config.video.height }}"
+                id="stream-player"
+                width="{{ config.video.width }}"
+        >
+            <source
+                    src="{{ config.video.streamPath }}"
+                    type="application/x-mpegURL"
+            />
+        </video-js>
+    </div>
+    <div id="plot-container"></div>
+</div>
+
+<script>
+    window.config = {{ config | tojson | safe }}
+</script>
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
