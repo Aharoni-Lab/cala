@@ -6,13 +6,12 @@ class LineChart {
         this.containerId = containerId;
         this.config = config;
         this.view = null;
-        this.maxPoints = 100;
     }
 
     createSpec() {
         return {
-            $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-            description: "Live data stream",
+            $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+            description: "Live trace stream",
             width: this.config.width || 640,
             height: this.config.height || 480,
             data: {name: "table"},
@@ -28,8 +27,8 @@ class LineChart {
     }
 
     async initialize() {
-        const result = await embed(this.containerId, this.createSpec());
-        this.view = result.view;
+        const embedding = await embed(this.containerId, this.createSpec());
+        this.view = embedding.view;
         return this;
     }
 
@@ -39,7 +38,7 @@ class LineChart {
         const currentData = this.view.data("table");
         let changeSet;
 
-        if (currentData.length >= this.maxPoints) {
+        if (currentData.length >= this.config.maxPoints) {
             // Get the oldest time we want to remove
             const oldestIdx = currentData[0].index;
             changeSet = vega.changeset()

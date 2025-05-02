@@ -1,10 +1,9 @@
-import VideoPlayer from './components/videoPlayer';
-import LineChart from './components/lineChart';
-import WebSocketClient from './utils/webSocket';
+import VideoPlayer from "./components/videoPlayer";
+import LineChart from "./components/lineChart";
 
-// Initialize application when DOM is loaded
+
 document.addEventListener('DOMContentLoaded', () => {
-    const config = window.config || {};
+    const config = window.config
 
     // Initialize video player
     const videoPlayer = new VideoPlayer('stream-player', {
@@ -14,21 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayer.initialize();
     videoPlayer.play();
 
-    // Initialize chart
-    const chart = new LineChart('#plot-container', {
-        width: config.video?.width,
-        height: config.video?.height
-    });
+    const chart = new LineChart('#plot-container', config.plot)
 
-    // Setup WebSocket and connect chart to data stream
-    const wsUrl = `ws://${window.location.host}/ws`;
-    const wsClient = new WebSocketClient(wsUrl);
+    // Create WebSocket connection
+    const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
-    // Initialize chart then connect to WebSocket
     chart.initialize().then(() => {
-        wsClient.addDataListener(data => {
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
             chart.updateData(data);
-        });
-        wsClient.connect();
+        };
     });
 });
