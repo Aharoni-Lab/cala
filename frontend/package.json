@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "cala-dashboard",
   "version": "1.0.0",
   "scripts": {
     "dev": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
