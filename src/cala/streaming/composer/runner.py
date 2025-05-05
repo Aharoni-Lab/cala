@@ -13,6 +13,7 @@ import xarray as xr
 from river import compose
 
 from cala.config.pipe import Step, StreamingConfig
+from cala.connection_manager import ConnectionManager
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.nodes import Node
@@ -32,6 +33,11 @@ class Runner:
     config: StreamingConfig
     """Configuration defining the pipeline structure and parameters."""
     output_dir: Path
+    """Directory where pipeline outputs will be stored."""
+    socket_manager: ConnectionManager | None = None
+    """Connection manager for streaming connections."""
+    stream_dir: Path | None = None
+    """Directory where streaming data chunks will be stored."""
 
     _buffer: Buffer = field(init=False)
     """Internal frame buffer for multi-frame operations."""
