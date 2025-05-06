@@ -23,15 +23,12 @@ dependencies = [
     "scikit-learn>=1.5.2",
     "xarray>=2024.10.0",
     "scikit-image>=0.24.0",
-    "matplotlib>=3.9.3",
     "river>=0.22.0",
     "numba>=0.61.0",
     "sparse>=0.15.5",
     "graphlib>=0.9.5",
-    "seaborn>=0.13.2",
     "pywavelets>=1.8.0",
     "pyyaml>=6.0.2",
-    "fastapi[standard]>=0.115.12",
     "typer>=0.15.3",
 ]
 keywords = [
@@ -82,8 +79,13 @@ docs = [
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-nb>=1.2.0",
 ]
+gui = [
+    "matplotlib>=3.9.3",
+    "seaborn>=0.13.2",
+    "fastapi[standard]>=0.115.12",
+]
 dev = [
-    "cala[tests,docs]",
+    "cala[tests,docs, gui]",
     "sphinx-autobuild>=2024.10.3",
     "ruff>=0.11.0",
     "black>=24.10.0",
@@ -94,6 +96,7 @@ dev = [
     "types-requests>=2.32.0.20250328",
     "twine>=6.1.0",
 ]
+
 
 [project.scripts]
 cala = "cala.__main__:app"
