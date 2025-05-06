@@ -43,8 +43,8 @@ app = FastAPI(lifespan=lifespan)
 app.mount(path="/dist", app=StaticFiles(directory=frontend_dir / "dist"), name="dist")
 
 
-@app.get("/")
-async def get(request: Request) -> dict[str, str] | None:
+@app.get("/", response_class=HTMLResponse)
+async def get(request: Request):
     """Serve the dashboard page"""
     return templates.TemplateResponse("index.html", {"request": request, "config": config})
 
