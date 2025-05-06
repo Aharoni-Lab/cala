@@ -34,6 +34,8 @@ async def lifespan(app: FastAPI) -> None:
     asyncio.create_task(run_pipeline(config, manager, temp_dir))
 
     yield
+    
+    shutil.rmtree(temp_dir)
 
 
 app = FastAPI(lifespan=lifespan)
