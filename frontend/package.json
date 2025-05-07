@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
-    "build": "esbuild src/main.js --bundle --minify --outfile=dist/main.js"
+    "build": "esbuild src/main.js --bundle --minify --outfile=../src/cala/gui/dist/main.js"
   },
   "keywords": [],
   "author": "",
