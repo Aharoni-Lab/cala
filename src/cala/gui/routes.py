@@ -11,7 +11,7 @@ from cala.config import Config
 from cala.gui.dependencies import get_config, get_socket_manager, get_stream_dir
 from cala.gui.socket_manager import SocketManager
 
-frontend_dir = Path(__file__).parents[2] / "frontend"
+frontend_dir = Path(__file__).parents[3] / "frontend"
 
 templates = Jinja2Templates(directory=frontend_dir / "templates")
 

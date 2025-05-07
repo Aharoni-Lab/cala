@@ -2,18 +2,21 @@ import asyncio
 from pathlib import Path
 
 from cala.config import Config
-from cala.connection_manager import ConnectionManager
+from cala.gui.socket_manager import SocketManager
 from cala.io import IO
 from cala.streaming.composer import Runner
 from cala.streaming.util import package_frame
 
 
-async def run_pipeline(config: Config, socket_manager: ConnectionManager, stream_dir: Path) -> None:
+async def run_pipeline(
+    config: Config, socket_manager: SocketManager | None = None, stream_dir: Path | None = None
+) -> None:
     """Run the Cala processing pipeline.
 
     Args:
         config: User configurations
         socket_manager: Connection manager for streaming connections.
+        stream_dir:
     """
 
     io = IO()
