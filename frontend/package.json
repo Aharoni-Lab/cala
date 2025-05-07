@@ -1,0 +1,21 @@
+{
+  "name": "cala-dashboard",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
+    "build": "esbuild src/main.js --bundle --minify --outfile=../src/cala/gui/dist/main.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "vega": "^6.1.2",
+    "vega-embed": "^7.0.2",
+    "vega-lite": "^6.1.0",
+    "video.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.3"
+  }
+}
