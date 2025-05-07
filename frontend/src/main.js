@@ -1,6 +1,6 @@
 import VideoPlayer from "./components/videoPlayer";
 import LineChart from "./components/lineChart";
-
+import './css/video-js.css';
 
 document.addEventListener('DOMContentLoaded', () => {
     const config = window.config
