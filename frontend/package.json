@@ -2,7 +2,9 @@
   "name": "cala-dashboard",
   "version": "1.0.0",
   "scripts": {
-    "dev": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
+    "dev:frontend": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
+    "dev:backend": "NODE_ENV=development pdm run cala",
+    "dev": "concurrently --names frontend,backend -c red,blue 'npm run dev:frontend' 'npm run dev:backend'",
     "build": "esbuild src/main.js --bundle --minify --outfile=../src/cala/gui/dist/main.js"
   },
   "keywords": [],
@@ -16,6 +18,7 @@
     "video.js": "^8.22.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "esbuild": "^0.25.3"
   }
 }
