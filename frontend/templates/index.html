@@ -2,17 +2,16 @@
 <html>
 <head>
     <title>Cala Dashboard</title>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-</head>
+    <link href="./dist/main.css" rel="stylesheet"/></head>
 <body>
 <div class="dashboard">
     <div class="video-container">
         <video-js
-                height="{{ config.video.height }}"
                 class="vjs-default-skin"
-                controls
-                width="{{ config.video.width }}"
                 id="stream-player"
+                height="{{ config.video.height }}"
+                width="{{ config.video.width }}"
+                controls
         >
             <source
                     src="{{ config.video.streamPath }}"

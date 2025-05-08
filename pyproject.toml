@@ -9,6 +9,10 @@ repository = "https://github.com/aharoni-lab/cala"
 packages = [
     { include = "cala", from = "src" }
 ]
+include = [
+    "cala/gui/dist/**/*",
+    "cala/gui/templates/**/*",
+]
 dependencies = [
     "dask>=2024.9.0",
     "zarr>=2.18.3",

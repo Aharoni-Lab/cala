@@ -33,16 +33,6 @@ class Config(BaseSettings, YAMLMixin):
 
     pipeline: StreamingConfig
 
-    model_config: SettingsConfigDict = SettingsConfigDict(
-        env_prefix="cala_",
-        env_file=".env",
-        env_nested_delimiter="__",
-        extra="ignore",
-        nested_model_default_partial_update=True,
-        yaml_file="cala_config.yaml",
-        pyproject_toml_table_header=("tool", "cala", "config_examples"),
-    )
-
     @field_validator("user_dir", mode="after")
     @classmethod
     def dir_exists(cls, v: Path) -> Path:
@@ -81,6 +71,16 @@ class Config(BaseSettings, YAMLMixin):
         """Validate pipeline config"""
         # additional validation logic
         return self
+
+    model_config: SettingsConfigDict = SettingsConfigDict(
+        env_prefix="cala_",
+        env_file=".env",
+        env_nested_delimiter="__",
+        extra="ignore",
+        nested_model_default_partial_update=True,
+        yaml_file="cala_config.yaml",
+        pyproject_toml_table_header=("tool", "cala", "config_examples"),
+    )
 
     @classmethod
     def settings_customize_sources(
