@@ -7,11 +7,11 @@
 <div class="dashboard">
     <div class="video-container">
         <video-js
-                height="{{ config.video.height }}"
                 class="vjs-default-skin"
-                controls
-                width="{{ config.video.width }}"
                 id="stream-player"
+                height="{{ config.video.height }}"
+                width="{{ config.video.width }}"
+                controls
         >
             <source
                     src="{{ config.video.streamPath }}"
