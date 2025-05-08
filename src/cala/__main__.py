@@ -4,7 +4,9 @@ from typing import Annotated
 
 import typer
 import uvicorn
+from dotenv import load_dotenv
 
+load_dotenv()
 app = typer.Typer()
 
 
@@ -16,7 +18,7 @@ def main(
     dashboard: Annotated[bool, typer.Option(help="Launch the dashboard.")] = False,
 ) -> None:
     if dashboard:
-        os.environ["CALA_CONFIG_PATH"] = config_path.name
+        os.environ["CALA_CONFIG_PATH"] = str(config_path)
         uvicorn.run("cala.gui.__main__:app", host="127.0.0.1", port=8000, reload=True)
     else:
         import asyncio

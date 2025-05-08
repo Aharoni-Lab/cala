@@ -1,3 +1,5 @@
+import importlib
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -11,8 +13,36 @@ from cala.config import Config
 from cala.gui.dependencies import get_config, get_socket_manager, get_stream_dir
 from cala.gui.socket_manager import SocketManager
 
-frontend_dir = Path(__file__).parents[3] / "frontend"
 
+def get_frontend_dir() -> Path:
+    env = os.getenv("NODE_ENV", "production")
+
+    if env == "development":
+        root_dir = Path(__file__).parents[3]
+        frontend_dir = root_dir / "frontend"
+
+        if not frontend_dir.exists():
+            raise FileNotFoundError(
+                f"Frontend build directory not found at {frontend_dir}. "
+                "Run the frontend build process first in development mode."
+            )
+
+        return frontend_dir
+    elif env == "production":
+        package_name = __name__.split(".")[0]  # Get the top-level package name
+        with importlib.resources.files(package_name) as package_path:
+            frontend_path = package_path / "gui"
+            if frontend_path.exists():
+                return frontend_path
+            else:
+                raise FileNotFoundError(
+                    f"Could not find frontend assets in the installed package {package_name}"
+                )
+    else:
+        raise ValueError(f"Invalid NODE_ENV value: {env}")
+
+
+frontend_dir = get_frontend_dir()
 templates = Jinja2Templates(directory=frontend_dir / "templates")
 
 router = APIRouter()
