@@ -1,3 +1,4 @@
+import importlib
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -16,7 +17,6 @@ from cala.config.pipe import Step, StreamingConfig
 from cala.gui.socket_manager import SocketManager
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
-from cala.streaming.nodes import Node
 from cala.streaming.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -151,7 +151,8 @@ class Runner:
         """
         config = getattr(self.config, process)[step]
         params = getattr(config, "params", {})
-        transformer = Node[config.transformer].value
+        module_name, class_name = config.transformer.rsplit(".", 1)
+        transformer = getattr(importlib.import_module(module_name), class_name)
 
         param_class = next(
             (
