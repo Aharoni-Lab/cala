@@ -22,10 +22,7 @@ def get_frontend_dir() -> Path:
         frontend_dir = root_dir / "frontend"
 
         if not frontend_dir.exists():
-            raise FileNotFoundError(
-                f"Frontend build directory not found at {frontend_dir}. "
-                "Run the frontend build process first in development mode."
-            )
+            raise FileNotFoundError(f"Frontend build directory not found at {frontend_dir}. ")
 
         return frontend_dir
     elif env == "production":

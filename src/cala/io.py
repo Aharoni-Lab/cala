@@ -185,5 +185,7 @@ class IO:
             return MultiVideoStream(video_files)
         elif tiff_files and not video_files:
             return TiffStream(tiff_files)
+        elif not video_files and not tiff_files:
+            raise ValueError("No video or TIFF files provided")
         else:
             raise ValueError("Cannot mix video and TIFF files in the same stream")

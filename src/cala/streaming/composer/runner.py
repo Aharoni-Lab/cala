@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Runner:
-    """Manages the execution of streaming calcium imaging analysis pipeline.
+    """Manages the execution of streaming image analysis pipeline.
 
     This class orchestrates the preprocessing, initialization, and iterate steps
-    of the calcium imaging analysis pipeline according to a provided configuration.
+    of the imaging analysis pipeline according to a provided configuration.
     """
 
     config: StreamingConfig
