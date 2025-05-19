@@ -3,7 +3,7 @@ import shutil
 import warnings
 from contextlib import asynccontextmanager
 
-from cala.gui.dependencies import get_config, get_socket_manager, get_stream_dir
+from cala.gui.dependencies import get_config, get_stream_dir
 from cala.main import run_pipeline
 
 try:
@@ -16,13 +16,12 @@ except ImportError:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
     config = await get_config()
-    socket_manager = await get_socket_manager()
     stream_dir = await get_stream_dir()
     stream_dir.mkdir(exist_ok=True, parents=True)
 
     # Start the streamers in the background
     # modify runner.run_streamers to not block the event loop or run it in a background task
-    asyncio.create_task(run_pipeline(config, socket_manager, stream_dir))
+    asyncio.create_task(run_pipeline(config))
 
     yield
 
