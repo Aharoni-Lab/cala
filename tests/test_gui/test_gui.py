@@ -68,3 +68,5 @@ class TestGUIIntegration:
         for _idx, frame in enumerate(raw_calcium_video):
             runner.preprocess(frame)
             time.sleep(0.03)
+
+        shutil.rmtree(config.output_dir)
