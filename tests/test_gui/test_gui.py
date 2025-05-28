@@ -65,7 +65,6 @@ class TestGUIIntegration:
         return runner
 
     def test_runner_preprocess(self, config, runner, raw_calcium_video):
-        idx = 0
-        while True:
-            runner.preprocess(raw_calcium_video[idx % len(raw_calcium_video)])
-            idx += 1
+        for _idx, frame in enumerate(raw_calcium_video):
+            runner.preprocess(frame)
+            time.sleep(0.03)
