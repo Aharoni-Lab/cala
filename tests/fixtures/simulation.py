@@ -262,6 +262,8 @@ def raw_calcium_video(
         ]
     )
 
+    motion_video = (motion_video / motion_video.max() * 255).astype(np.uint8)
+
     return xr.DataArray(motion_video, dims=video.dims)
 
 
@@ -296,6 +298,8 @@ def preprocessed_video(
         ]
     )
 
+    movie = (movie / movie.max() * 255).astype(np.uint8)
+
     return xr.DataArray(movie, dims=video.dims, coords=video.coords)
 
 
@@ -309,6 +313,8 @@ def stabilized_video(
 
     # add photobleaching
     stabilized *= photobleaching
+
+    stabilized = (stabilized / stabilized.max() * 255).astype(np.uint8)
 
     return stabilized
 
