@@ -14,6 +14,7 @@ class FrameStreamerParams(Parameters):
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"
+    segment_filename: str = "stream%d.ts"
     segment_duration_in_seconds: int = 2
     num_segments_to_keep: int = 5
 
@@ -47,7 +48,9 @@ class FrameStreamer(Transformer):
                 # "hls_start_number_source": "datetime",
                 # "strftime": "1",
                 # "use_localtime": "1",
-                # "hls_segment_filename": str(Path(self.params.stream_dir) / "%02d.ts"),
+                "hls_segment_filename": str(
+                    Path(self.params.stream_dir) / self.params.segment_filename
+                ),
             },
         )
         # Create a video stream
@@ -69,8 +72,6 @@ class FrameStreamer(Transformer):
 
             # Encode and write the packet
             packets = self.stream.encode(frame_sample)
-            if not packets:
-                raise Exception(f"Failed to encode frame. container: {self.stream.container.name}")
             for packet in packets:
                 self._container.mux(packet)
 
