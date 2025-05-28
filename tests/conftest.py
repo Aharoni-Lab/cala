@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from numpy.random import RandomState
 
-from cala.viz_util import Visualizer
+from cala.gui.viz_util import Visualizer
 from tests.fixtures.mini import (
     mini_comp_coords,
     mini_component_stats,
