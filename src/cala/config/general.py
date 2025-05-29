@@ -12,6 +12,7 @@ from pydantic_settings import (
 )
 
 from cala.config.base import _dirs, _global_config_path
+from cala.config.gui import GUIConfig
 from cala.config.mixin import YAMLMixin
 from cala.config.pipe import StreamingConfig
 
@@ -30,6 +31,8 @@ class Config(BaseSettings, YAMLMixin):
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
+
+    gui: GUIConfig
 
     pipeline: StreamingConfig
 

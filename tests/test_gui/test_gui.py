@@ -1,3 +1,4 @@
+import os
 import shutil
 import time
 from pathlib import Path
@@ -6,7 +7,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+os.environ["CALA_CONFIG_PATH"] = "test_config.yaml"
+
+from fastapi.testclient import TestClient
+
 from cala.config import Config
+from cala.gui.app import get_app
 from cala.gui.nodes import FrameStreamer
 from cala.gui.nodes.frame_streamer import FrameStreamerParams
 from cala.streaming.composer import Runner
@@ -70,3 +76,13 @@ class TestGUIIntegration:
             time.sleep(0.03)
 
         shutil.rmtree(config.output_dir)
+
+
+class TestGUISpinUp:
+    @pytest.fixture(scope="class")
+    def client(self):
+        return TestClient(get_app())
+
+    def test_gui_spinup(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
