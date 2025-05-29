@@ -59,7 +59,15 @@ class TestFrameStreamer:
         shutil.rmtree(stream_dir)
 
 
-class TestGUIIntegration:
+class TestGUIStream:
+    @pytest.fixture(scope="class")
+    def client(self):
+        return TestClient(get_app())
+
+    def test_gui_spinup(self, client):
+        response = client.get("/")
+        assert response.status_code == 200
+
     @pytest.fixture(scope="class")
     def config(self):
         config = Config.from_yaml("test_config.yaml")
@@ -77,12 +85,13 @@ class TestGUIIntegration:
 
         shutil.rmtree(config.output_dir)
 
+    def test_stream_read(self, runner, client, config, raw_calcium_video):
+        video = xr.concat([raw_calcium_video] * 5, dim="frame")
+        for _idx, frame in enumerate(video):
+            runner.preprocess(frame)
+            time.sleep(0.03 / 100)
 
-class TestGUISpinUp:
-    @pytest.fixture(scope="class")
-    def client(self):
-        return TestClient(get_app())
-
-    def test_gui_spinup(self, client):
-        response = client.get("/")
+        response = client.get("/raw_movie/stream.m3u8")
         assert response.status_code == 200
+
+        shutil.rmtree(config.output_dir)
