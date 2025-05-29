@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from cala.config import Config
-from cala.gui.dependencies import get_config, get_socket_manager, get_stream_dir
+from cala.gui.dependencies import get_config, get_socket_manager
 from cala.gui.socket_manager import SocketManager
 
 
@@ -49,7 +49,7 @@ router.mount(path="/dist", app=StaticFiles(directory=frontend_dir / "dist"), nam
 @router.get("/", response_class=HTMLResponse)
 async def get(request: Request, config: Annotated[Config, Depends(get_config)]) -> HTMLResponse:
     """Serve the dashboard page"""
-    return templates.TemplateResponse(request, "index.html", {"config": config})
+    return templates.TemplateResponse(request, "index.html", {"config": config.gui.model_dump()})
 
 
 @router.websocket("/ws")
@@ -70,12 +70,11 @@ async def websocket_endpoint(
             socket_manager.disconnect(websocket)
 
 
-@router.get("/stream/{filename}")
-async def stream(
-    filename: str, stream_dir: Annotated[Path, Depends(get_stream_dir)]
-) -> FileResponse:
+@router.get("/{node_id}/stream.m3u8")
+async def stream(node_id: str, config: Annotated[Config, Depends(get_config)]) -> FileResponse:
     """Serve HLS stream files"""
-    stream_path = stream_dir / filename
+    output_dir = config.output_dir
+    stream_path = output_dir / node_id / "stream.m3u8"
     if stream_path.exists():
         return FileResponse(str(stream_path))
     raise FileNotFoundError({"AppStreamError": "Playlist not found"})
