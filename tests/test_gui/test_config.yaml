@@ -1,0 +1,45 @@
+user_dir: "."  # relative to this file
+input_files: [ ]
+output_dir: "output"
+
+gui:
+  raw_movie:
+    height: 512
+    width: 512
+    stream_url: /raw_movie/stream.m3u8
+
+pipeline:
+  general:
+    buffer_size: 100
+  preprocess:
+    downsample:
+      transformer: cala.streaming.nodes.preprocess.Downsampler
+      params:
+        method: mean
+        dimensions: [ width, height ]
+        strides: [ 2, 2 ]
+
+    denoise:
+      transformer: cala.streaming.nodes.preprocess.Denoiser
+      params:
+        method: gaussian
+        kwargs:
+          ksize: [ 3, 3 ]
+          sigmaX: 1.5
+      requires: [ downsample ]
+
+    glow_removal:
+      transformer: cala.streaming.nodes.preprocess.GlowRemover
+      params:
+        learning_rate: 0.1
+      requires: [ denoise ]
+
+    motion_stabilization:
+      transformer: cala.streaming.nodes.preprocess.RigidStabilizer
+      params:
+        drift_speed: 1
+        anchor_frame_index: 0
+      requires: [ glow_removal ]
+
+  initialization: { }
+  iteration: { }
