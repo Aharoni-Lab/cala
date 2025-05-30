@@ -68,11 +68,13 @@ async def websocket_endpoint(
             socket_manager.disconnect(websocket)
 
 
-@router.get("/{node_id}/stream.m3u8")
-async def stream(node_id: str, config: Annotated[Config, Depends(get_config)]) -> FileResponse:
+@router.get("/{node_id}/{filename}")
+async def stream(
+    node_id: str, filename: str, config: Annotated[Config, Depends(get_config)]
+) -> FileResponse:
     """Serve HLS stream files"""
     output_dir = config.output_dir
-    stream_path = output_dir / node_id / "stream.m3u8"
+    stream_path = output_dir / node_id / filename
     if stream_path.exists():
         return FileResponse(str(stream_path))
     raise FileNotFoundError({"AppStreamError": "Playlist not found"})
