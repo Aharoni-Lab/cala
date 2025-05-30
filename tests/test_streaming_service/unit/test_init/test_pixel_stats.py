@@ -2,12 +2,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.core import Component
 from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,
 )
-from cala.viz_util import Visualizer
 
 
 class TestPixelStatsInitializer:
@@ -30,7 +30,7 @@ class TestPixelStatsInitializer:
         mini_traces: xr.DataArray,
         mini_footprints: xr.DataArray,
         mini_denoised: xr.DataArray,
-        visualizer: Visualizer,
+        plotter: Plotter,
     ) -> None:
         """Test learn_one method."""
         # Run learn_one
@@ -51,9 +51,9 @@ class TestPixelStatsInitializer:
         assert "id_" in initializer.pixel_stats_.coords
         assert "type_" in initializer.pixel_stats_.coords
 
-        visualizer.plot_traces(mini_traces, subdir="init/pixel_stats")
-        visualizer.write_movie(mini_denoised, subdir="init/pixel_stats")
-        visualizer.plot_pixel_stats(
+        plotter.plot_traces(mini_traces, subdir="init/pixel_stats")
+        plotter.write_movie(mini_denoised, subdir="init/pixel_stats")
+        plotter.plot_pixel_stats(
             pixel_stats=initializer.pixel_stats_.transpose(*mini_footprints.dims),
             footprints=mini_footprints,
             subdir="init/pixel_stats",
@@ -83,7 +83,7 @@ class TestPixelStatsInitializer:
         }
 
     @pytest.mark.viz
-    def test_sanity_check(self, initializer: PixelStatsInitializer, visualizer: Visualizer) -> None:
+    def test_sanity_check(self, initializer: PixelStatsInitializer, plotter: Plotter) -> None:
         """Test the correctness of the pixel statistics computation."""
         video = xr.DataArray(np.zeros((2, 2, 3)), dims=("height", "width", "frame"))
         video[0, 0, :] = [1, 2, 3]
@@ -107,8 +107,8 @@ class TestPixelStatsInitializer:
 
         label = (video @ traces).transpose("component", "width", "height") / video.sizes["frame"]
 
-        visualizer.plot_traces(traces, subdir="init/pixel_stats/sanity_check")
-        visualizer.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
+        plotter.plot_traces(traces, subdir="init/pixel_stats/sanity_check")
+        plotter.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
 
         assert np.array_equal(result, label)
 
@@ -119,7 +119,7 @@ class TestPixelStatsInitializer:
         mini_traces: xr.DataArray,
         mini_footprints: xr.DataArray,
         initializer: PixelStatsInitializer,
-        visualizer: Visualizer,
+        plotter: Plotter,
     ) -> None:
         """Test the correctness of the pixel statistics computation."""
 
@@ -131,15 +131,15 @@ class TestPixelStatsInitializer:
             "component", "width", "height"
         ) / mini_denoised.sizes["frame"]
 
-        visualizer.plot_footprints(mini_footprints, subdir="init/pixel_stats/sanity_check_2")
-        visualizer.plot_traces(mini_traces, subdir="init/pixel_stats/sanity_check_2")
-        visualizer.plot_pixel_stats(
+        plotter.plot_footprints(mini_footprints, subdir="init/pixel_stats/sanity_check_2")
+        plotter.plot_traces(mini_traces, subdir="init/pixel_stats/sanity_check_2")
+        plotter.plot_pixel_stats(
             result,
             mini_footprints,
             subdir="init/pixel_stats/sanity_check_2",
             name="result",
         )
-        visualizer.plot_pixel_stats(
+        plotter.plot_pixel_stats(
             label,
             mini_footprints,
             subdir="init/pixel_stats/sanity_check_2",

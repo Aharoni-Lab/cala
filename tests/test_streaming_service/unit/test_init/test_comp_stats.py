@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.core import Component
 from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
 )
-from cala.viz_util import Visualizer
 
 
 class TestComponentStatsInitializer:
@@ -115,7 +115,7 @@ class TestComponentStatsInitializer:
         self,
         initializer: ComponentStatsInitializer,
         sample_data: dict[str, Any],
-        visualizer: Visualizer,
+        plotter: Plotter,
     ) -> None:
         """Test the correctness of the component correlation computation."""
         # Prepare data
@@ -139,11 +139,11 @@ class TestComponentStatsInitializer:
         assert np.allclose(np.diag(result.values), 0.5)  # Self-correlation
 
         # Visualize correlations if enabled
-        if visualizer is not None:
-            visualizer.plot_trace_correlations(
+        if plotter is not None:
+            plotter.plot_trace_correlations(
                 traces, name="trace_correlations", subdir="init/comp_stats"
             )
-            visualizer.plot_component_stats(
+            plotter.plot_component_stats(
                 result, name="component_correlation_matrix", subdir="init/comp_stats"
             )
 

@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,
@@ -13,7 +14,6 @@ from cala.streaming.nodes.iter.component_stats import (
     ComponentStatsUpdaterParams,
 )
 from cala.streaming.util import package_frame
-from cala.viz_util import Visualizer
 
 
 class TestCompStatsUpdater:
@@ -47,7 +47,7 @@ class TestCompStatsUpdater:
     @pytest.mark.viz
     def test_sanity_check(
         self,
-        visualizer: Visualizer,
+        plotter: Plotter,
         updater: ComponentStatsUpdater,
         mini_footprints: xr.DataArray,
         mini_traces: xr.DataArray,
@@ -55,24 +55,24 @@ class TestCompStatsUpdater:
         mini_denoised: xr.DataArray,
         initializer: ComponentStatsInitializer,
     ) -> None:
-        visualizer.plot_footprints(mini_footprints, subdir="iter/comp_stats")
-        visualizer.plot_traces(mini_traces, subdir="iter/comp_stats")
-        visualizer.plot_trace_correlations(mini_traces, subdir="iter/comp_stats")
-        visualizer.save_video_frames(mini_denoised, subdir="iter/comp_stats")
-        visualizer.plot_component_stats(prev_comp_stats, subdir="iter/comp_stats", name="prev_cs")
+        plotter.plot_footprints(mini_footprints, subdir="iter/comp_stats")
+        plotter.plot_traces(mini_traces, subdir="iter/comp_stats")
+        plotter.plot_trace_correlations(mini_traces, subdir="iter/comp_stats")
+        plotter.save_video_frames(mini_denoised, subdir="iter/comp_stats")
+        plotter.plot_component_stats(prev_comp_stats, subdir="iter/comp_stats", name="prev_cs")
         updater.learn_one(
             frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
             traces=mini_traces,
             component_stats=prev_comp_stats,
         )
         new_comp_stats = updater.transform_one()
-        visualizer.plot_component_stats(new_comp_stats, subdir="iter/comp_stats", name="new_cs")
+        plotter.plot_component_stats(new_comp_stats, subdir="iter/comp_stats", name="new_cs")
 
         late_init_cs = initializer.learn_one(
             mini_traces,
             frame=mini_denoised,
         ).transform_one()
 
-        visualizer.plot_component_stats(late_init_cs, subdir="iter/comp_stats", name="late_cs")
+        plotter.plot_component_stats(late_init_cs, subdir="iter/comp_stats", name="late_cs")
 
         assert np.allclose(late_init_cs, new_comp_stats)

@@ -50,7 +50,7 @@ class TestTracesInitializer:
         footprints_setup,
         stabilized_video,
         jit_enabled,
-        visualizer,
+        plotter,
     ):
         """Test basic learning functionality."""
         if not jit_enabled:
@@ -62,7 +62,7 @@ class TestTracesInitializer:
         default_initializer.learn_one(footprints=footprints_setup, frame=frames)
         traces = default_initializer.transform_one()
 
-        visualizer.plot_traces(traces, subdir="init")
+        plotter.plot_traces(traces, subdir="init")
         assert isinstance(traces, xr.DataArray)
         assert (
             traces.sizes[default_initializer.params.component_axis]

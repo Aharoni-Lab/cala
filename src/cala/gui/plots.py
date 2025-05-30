@@ -13,8 +13,8 @@ from skimage.measure import find_contours
 from cala.streaming.core import Axis
 
 
-class Visualizer:
-    """Utility class for visualization."""
+class Plotter:
+    """Utility class for plotters."""
 
     def __init__(self, output_dir: Path | str):
         if isinstance(output_dir, str):
