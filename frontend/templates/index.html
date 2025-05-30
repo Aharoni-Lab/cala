@@ -9,12 +9,12 @@
         <video-js
                 class="vjs-default-skin"
                 id="stream-player"
-                height="{{ config.raw_movie.height }}"
-                width="{{ config.raw_movie.width }}"
+                height="{{ config.prep_movie.height }}"
+                width="{{ config.prep_movie.width }}"
                 controls
         >
             <source
-                    src="{{ config.raw_movie.stream_url }}"
+                    src="{{ config.prep_movie.stream_url }}"
                     type="application/x-mpegURL"
             />
         </video-js>
