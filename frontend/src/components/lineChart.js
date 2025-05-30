@@ -38,7 +38,7 @@ class LineChart {
         const currentData = this.view.data("table");
         let changeSet;
 
-        if (currentData.length >= this.config.maxPoints) {
+        if (currentData.length >= this.config.max_points) {
             // Get the oldest time we want to remove
             const oldestIdx = currentData[0].index;
             changeSet = vega.changeset()

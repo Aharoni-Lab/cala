@@ -5,8 +5,12 @@ output_dir: "output"
 gui:
   raw_movie:
     height: 512
-    width: 512
-    stream_url: /raw_movie/stream.m3u8
+    stream_url: /prep_movie/stream.m3u8
+
+  metric_plot:
+    width: 480
+    height: 200
+    max_points: 100
 
 pipeline:
   general:
