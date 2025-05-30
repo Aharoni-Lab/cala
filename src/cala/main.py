@@ -15,7 +15,7 @@ async def run_pipeline(config: Config) -> None:
 
     io = IO()
     stream = io.stream(config.input_files)
-    runner = Runner(config.pipeline, config.output_dir)
+    runner = Runner(config)
 
     try:
         for idx, frame in enumerate(stream):
