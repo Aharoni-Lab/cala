@@ -49,10 +49,10 @@ class Runner:
 
     def __post_init__(self) -> None:
         """Initialize the frame buffer after instance creation."""
-        self.raw_movie_streamer = FrameStreamer(
+        self.prep_movie_streamer = FrameStreamer(
             FrameStreamerParams(
                 frame_rate=30,
-                stream_dir=self.config.output_dir / "raw_movie",
+                stream_dir=self.config.output_dir / "prep_movie",
                 segment_filename="stream%d.ts",
             )
         )
@@ -78,12 +78,12 @@ class Runner:
 
             pipeline = pipeline | transformer
 
-        # plug in raw_movie_display
-        self.raw_movie_streamer.learn_one(x=frame)
-        self.raw_movie_streamer.transform_one(frame=frame)
-
         pipeline.learn_one(x=frame)
         result = pipeline.transform_one(x=frame)
+
+        # plug in prep_movie_display
+        self.prep_movie_streamer.learn_one(frame=frame)
+        self.prep_movie_streamer.transform_one(frame=result)
 
         frame = result
 

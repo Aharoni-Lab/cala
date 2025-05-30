@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import av
+import numpy as np
 import xarray as xr
 from river.base import Transformer
 
@@ -30,6 +31,7 @@ class FrameStreamerParams(Parameters):
 @dataclass
 class FrameStreamer(Transformer):
     params: FrameStreamerParams
+    _comparison_frame: xr.DataArray | None = None
     _container: av.container.OutputContainer | None = None
 
     def __post_init__(self):
@@ -57,10 +59,14 @@ class FrameStreamer(Transformer):
         self.stream = self._container.add_stream("h264", rate=self.params.frame_rate)
         self.stream.pix_fmt = "yuv420p"
 
-    def learn_one(self, x: xr.DataArray) -> None:
-        pass
+    def learn_one(self, frame: xr.DataArray) -> None:
+        if frame is not None:
+            self._comparison_frame = frame
 
     def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
+        if self._comparison_frame is not None:
+            frame = xr.concat([self._comparison_frame, frame.astype(np.uint8)], dim="width")
+
         self.stream.width = frame.sizes["width"]
         self.stream.height = frame.sizes["height"]
 
