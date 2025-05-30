@@ -3,7 +3,8 @@ input_files: [ "/Users/raymond/Documents/GitHub/cala/tests/fixtures/sample_movie
 output_dir: "output"
 
 gui:
-  raw_movie:
+  prep_movie:
+    width: 1024
     height: 512
     stream_url: /prep_movie/stream.m3u8
 
@@ -16,13 +17,6 @@ pipeline:
   general:
     buffer_size: 100
   preprocess:
-    downsample:
-      transformer: cala.streaming.nodes.preprocess.Downsampler
-      params:
-        method: mean
-        dimensions: [ width, height ]
-        strides: [ 2, 2 ]
-
     denoise:
       transformer: cala.streaming.nodes.preprocess.Denoiser
       params:
@@ -30,7 +24,6 @@ pipeline:
         kwargs:
           ksize: [ 3, 3 ]
           sigmaX: 1.5
-      requires: [ downsample ]
 
     glow_removal:
       transformer: cala.streaming.nodes.preprocess.GlowRemover
