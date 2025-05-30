@@ -16,6 +16,7 @@ from cala.config import Config
 from cala.config.pipe import Step
 from cala.gui.nodes import FrameStreamer
 from cala.gui.nodes.frame_streamer import FrameStreamerParams
+from cala.gui.nodes.metric_streamer import MetricStreamer, MetricStreamerParams
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
@@ -56,6 +57,9 @@ class Runner:
                 segment_filename="stream%d.ts",
             )
         )
+
+        self.random_metric_streamer = MetricStreamer(MetricStreamerParams())
+
         self._buffer = Buffer(
             buffer_size=self.config.pipeline.general["buffer_size"],
         )
@@ -87,7 +91,8 @@ class Runner:
 
         frame = result
 
-        # plug in preprocessed_movie_display
+        self.random_metric_streamer.learn_one(frame=frame)
+        self.random_metric_streamer.transform_one(frame=frame)
 
         return frame
 
