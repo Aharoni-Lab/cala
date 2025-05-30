@@ -11,5 +11,5 @@ async def get_config() -> Config:
     return config
 
 
-async def get_socket_manager() -> SocketManager:
+def get_socket_manager() -> SocketManager:
     return socket_manager
