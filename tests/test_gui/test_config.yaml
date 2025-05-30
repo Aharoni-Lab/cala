@@ -1,5 +1,5 @@
 user_dir: "."  # relative to this file
-input_files: [ ]
+input_files: [ "/Users/raymond/Documents/GitHub/cala/tests/fixtures/sample_movies/neurofinder.00.00/video.mp4" ]
 output_dir: "output"
 
 gui:
