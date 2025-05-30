@@ -6,7 +6,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from cala.config import Config
@@ -43,7 +42,6 @@ frontend_dir = get_frontend_dir()
 templates = Jinja2Templates(directory=frontend_dir / "templates")
 
 router = APIRouter()
-router.mount(path="/dist", app=StaticFiles(directory=frontend_dir / "dist"), name="dist")
 
 
 @router.get("/", response_class=HTMLResponse)

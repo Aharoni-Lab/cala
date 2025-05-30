@@ -24,8 +24,12 @@ async def lifespan(app: FastAPI) -> None:
 
 
 def get_app() -> FastAPI:
-    from cala.gui.routes import router
+    from fastapi.staticfiles import StaticFiles
+
+    from cala.gui.routes import get_frontend_dir, router
 
     app = FastAPI(lifespan=lifespan, debug=True)
     app.include_router(router)
+    app.mount(path="/dist", app=StaticFiles(directory=get_frontend_dir() / "dist"), name="dist")
+
     return app
