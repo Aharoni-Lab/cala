@@ -2,10 +2,17 @@ from pydantic import BaseModel
 
 
 class MovieConfig(BaseModel):
-    height: int
     width: int
+    height: int
     stream_url: str
 
 
+class PlotConfig(BaseModel):
+    width: int
+    height: int
+    max_points: int
+
+
 class GUIConfig(BaseModel):
-    raw_movie: MovieConfig
+    prep_movie: MovieConfig
+    metric_plot: PlotConfig
