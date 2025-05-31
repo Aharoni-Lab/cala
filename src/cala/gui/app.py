@@ -29,7 +29,9 @@ def get_app() -> FastAPI:
     from cala.gui.routes import get_frontend_dir, router
 
     app = FastAPI(lifespan=lifespan, debug=True)
-    app.include_router(router)
+
     app.mount(path="/dist", app=StaticFiles(directory=get_frontend_dir() / "dist"), name="dist")
+    app.include_router(router)
+    print(get_frontend_dir())
 
     return app
