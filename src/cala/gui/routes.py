@@ -77,4 +77,4 @@ async def stream(
     stream_path = output_dir / node_id / filename
     if stream_path.exists():
         return FileResponse(str(stream_path))
-    raise FileNotFoundError({"AppStreamError": "Playlist not found"})
+    raise FileNotFoundError({"AppStreamError": f"Playlist not found: {stream_path}"})
