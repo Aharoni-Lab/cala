@@ -8,6 +8,8 @@ import pytest
 import xarray as xr
 
 os.environ["CALA_CONFIG_PATH"] = "test_config.yaml"
+os.environ["NODE_ENV"] = "development"
+os.environ["PYTHONASYNCIODEBUG"] = "1"
 
 from fastapi.testclient import TestClient
 
@@ -68,6 +70,10 @@ class TestGUIStream:
         response = client.get("/")
         assert response.status_code == 200
 
+    def test_gui_static(self, client):
+        response = client.get("/dist/main.js")
+        assert response.status_code == 200
+
     @pytest.fixture(scope="class")
     def config(self):
         config = Config.from_yaml("test_config.yaml")
@@ -91,7 +97,7 @@ class TestGUIStream:
             runner.preprocess(frame)
             time.sleep(0.03 / 100)
 
-        response = client.get("/raw_movie/stream.m3u8")
+        response = client.get("/prep_movie/stream.m3u8")
         assert response.status_code == 200
 
         shutil.rmtree(config.output_dir)
