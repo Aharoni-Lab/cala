@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-os.environ["CALA_CONFIG_PATH"] = "test_config.yaml"
+os.environ["CALA_CONFIG_PATH"] = "tests/test_gui/test_config.yaml"
 os.environ["NODE_ENV"] = "development"
 os.environ["PYTHONASYNCIODEBUG"] = "1"
 
