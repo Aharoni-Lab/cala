@@ -7,14 +7,14 @@ pipeline:
     buffer_size: 100
   preprocess:
     downsample:
-      transformer: Downsampler
+      transformer: cala.streaming.nodes.preprocess.Downsampler
       params:
         method: mean
         dimensions: [ width, height ]
         strides: [ 2, 2 ]
 
     denoise:
-      transformer: Denoiser
+      transformer: cala.streaming.nodes.preprocess.Denoiser
       params:
         method: gaussian
         kwargs:
@@ -23,13 +23,13 @@ pipeline:
       requires: [ downsample ]
 
     glow_removal:
-      transformer: GlowRemover
+      transformer: cala.streaming.nodes.preprocess.GlowRemover
       params:
         learning_rate: 0.1
       requires: [ denoise ]
 
     motion_stabilization:
-      transformer: RigidStabilizer
+      transformer: cala.streaming.nodes.preprocess.RigidStabilizer
       params:
         drift_speed: 1
         anchor_frame_index: 0
@@ -37,7 +37,7 @@ pipeline:
 
   initialization:
     footprints:
-      transformer: FootprintsInitializer
+      transformer: cala.streaming.nodes.init.common.FootprintsInitializer
       params:
         threshold_factor: 0.5
         kernel_size: 3
@@ -45,53 +45,53 @@ pipeline:
         distance_mask_size: 5
 
     traces:
-      transformer: TracesInitializer
+      transformer: cala.streaming.nodes.init.common.TracesInitializer
       params: { }
       n_frames: 3
       requires: [ footprints ]
 
     pixel_stats:
-      transformer: PixelStatsInitializer
+      transformer: cala.streaming.nodes.init.odl.PixelStatsInitializer
       params: { }
       n_frames: 3
       requires: [ traces ]
 
     component_stats:
-      transformer: ComponentStatsInitializer
+      transformer: cala.streaming.nodes.init.odl.ComponentStatsInitializer
       params: { }
       n_frames: 3
       requires: [ traces ]
 
     residual:
-      transformer: ResidualInitializer
+      transformer: cala.streaming.nodes.init.odl.ResidualInitializer
       params:
         buffer_length: 3
       n_frames: 3
       requires: [ footprints, traces ]
 
     overlap_groups:
-      transformer: OverlapsInitializer
+      transformer: cala.streaming.nodes.init.odl.OverlapsInitializer
       params: { }
       requires: [ footprints ]
 
   iteration:
     traces:
-      transformer: TracesUpdater
+      transformer: cala.streaming.nodes.iter.TracesUpdater
       params:
         tolerance: 0.001
 
     pixel_stats:
-      transformer: PixelStatsUpdater
+      transformer: cala.streaming.nodes.iter.PixelStatsUpdater
       params: { }
       requires: [ traces ]
 
     component_stats:
-      transformer: ComponentStatsUpdater
+      transformer: cala.streaming.nodes.iter.ComponentStatsUpdater
       params: { }
       requires: [ traces ]
 
     detect:
-      transformer: Detector
+      transformer: cala.streaming.nodes.iter.Detector
       params:
         num_nmf_residual_frames: 10
         gaussian_std: 4.0
@@ -100,12 +100,12 @@ pipeline:
       requires: [ pixel_stats, component_stats ]
 
     footprints:
-      transformer: FootprintsUpdater
+      transformer: cala.streaming.nodes.iter.FootprintsUpdater
       params:
         boundary_expansion_pixels: 1
       requires: [ detect ]
 
     overlaps:
-      transformer: OverlapsUpdater
+      transformer: cala.streaming.nodes.iter.OverlapsUpdater
       params: { }
       requires: [ footprints ]

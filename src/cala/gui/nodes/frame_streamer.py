@@ -65,7 +65,10 @@ class FrameStreamer(Transformer):
 
     def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
         if self._comparison_frame is not None:
-            frame = xr.concat([self._comparison_frame, frame.astype(np.uint8)], dim="width")
+            try:
+                frame = xr.concat([self._comparison_frame, frame.astype(np.uint8)], dim="width")
+            except xr.AlignmentError:
+                frame = frame.astype(np.uint8)
 
         self.stream.width = frame.sizes["width"]
         self.stream.height = frame.sizes["height"]

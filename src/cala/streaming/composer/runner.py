@@ -85,14 +85,16 @@ class Runner:
         pipeline.learn_one(x=frame)
         result = pipeline.transform_one(x=frame)
 
-        # plug in prep_movie_display
-        self.prep_movie_streamer.learn_one(frame=frame)
-        self.prep_movie_streamer.transform_one(frame=result)
+        if self.config.gui:
+            # plug in prep_movie_display
+            self.prep_movie_streamer.learn_one(frame=frame)
+            self.prep_movie_streamer.transform_one(frame=result)
 
         frame = result
 
-        self.random_metric_streamer.learn_one(frame=frame)
-        self.random_metric_streamer.transform_one(frame=frame)
+        if self.config.gui:
+            self.random_metric_streamer.learn_one(frame=frame)
+            self.random_metric_streamer.transform_one(frame=frame)
 
         return frame
 
