@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.core import Component
 from cala.streaming.nodes.init.odl.residuals import (
     ResidualInitializer,
     ResidualInitializerParams,
 )
-from cala.viz_util import Visualizer
 
 
 class TestResidualInitializerParams:
@@ -127,9 +127,7 @@ class TestResidualInitializer:
         assert set(result.dims) == {"frame", "width", "height"}
 
     @pytest.mark.viz
-    def test_computation_correctness(
-        self, sample_data: dict[str, Any], visualizer: Visualizer
-    ) -> None:
+    def test_computation_correctness(self, sample_data: dict[str, Any], plotter: Plotter) -> None:
         """Test the correctness of the residual computation."""
         # Prepare data
         sample_movie = sample_data["movie"]
@@ -140,9 +138,9 @@ class TestResidualInitializer:
 
         isitclean = sample_movie - sample_denoised - sample_residual
 
-        visualizer.plot_footprints(sample_footprints, subdir="init/resid")
-        visualizer.plot_traces(sample_traces, subdir="init/resid")
-        visualizer.save_video_frames(
+        plotter.plot_footprints(sample_footprints, subdir="init/resid")
+        plotter.plot_traces(sample_traces, subdir="init/resid")
+        plotter.save_video_frames(
             [
                 (sample_movie, "movie"),
                 (sample_denoised, "denoised"),

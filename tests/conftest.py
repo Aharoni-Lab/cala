@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from numpy.random import RandomState
 
-from cala.viz_util import Visualizer
+from cala.gui.plots import Plotter
 from tests.fixtures.mini import (
     mini_comp_coords,
     mini_component_stats,
@@ -83,27 +83,27 @@ def viz_dir() -> Path:
     return viz_path
 
 
-class NullVisualizer:
+class NullPlotter:
     def __init__(self, *args: Any, **kwargs: Any):
         pass
 
 
 @pytest.fixture
-def visualizer(request: pytest.FixtureRequest, viz_dir: Path) -> NullVisualizer | Visualizer:
-    """Function-scoped fixture for visualization utilities."""
+def plotter(request: pytest.FixtureRequest, viz_dir: Path) -> NullPlotter | Plotter:
+    """Function-scoped fixture for plotting utilities."""
     # Skip if in CI or test isn't marked for viz
     if os.environ.get("CI") or not request.node.get_closest_marker("viz"):
 
-        def create_null_visualizer() -> type:
+        def create_null_plotter() -> type:
             # Get all methods from the real Visualizer class
-            for name, _ in inspect.getmembers(Visualizer, predicate=inspect.isfunction):
+            for name, _ in inspect.getmembers(Plotter, predicate=inspect.isfunction):
                 # Skip magic methods
                 if not name.startswith("_"):
                     # Create a no-op method with the same name
-                    setattr(NullVisualizer, name, lambda self, *args, **kwargs: None)
+                    setattr(NullPlotter, name, lambda self, *args, **kwargs: None)
 
-            return NullVisualizer
+            return NullPlotter
 
-        return create_null_visualizer()(viz_dir)
+        return create_null_plotter()(viz_dir)
 
-    return Visualizer(viz_dir)
+    return Plotter(viz_dir)

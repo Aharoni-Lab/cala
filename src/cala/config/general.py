@@ -12,6 +12,7 @@ from pydantic_settings import (
 )
 
 from cala.config.base import _dirs, _global_config_path
+from cala.config.gui import GUIConfig
 from cala.config.mixin import YAMLMixin
 from cala.config.pipe import StreamingConfig
 
@@ -30,6 +31,8 @@ class Config(BaseSettings, YAMLMixin):
         "If a relative path that doesn't exist relative to cwd, "
         "interpreted as a relative to ``user_dir``",
     )
+
+    gui: GUIConfig | None = None
 
     pipeline: StreamingConfig
 
@@ -58,11 +61,20 @@ class Config(BaseSettings, YAMLMixin):
         return self
 
     @model_validator(mode="after")
-    def files_exist(self) -> "Config":
-        files = self.input_files
-        missing_files = [file for file in files if not Path(file).exists()]
+    def validate_input_files(self) -> "Config":
+        inputs_relative_to_user_dir = []
+        missing_files = []
+        for filepath in self.input_files:
+            resolved_path = (self.user_dir / filepath).resolve()
+            if resolved_path.exists():
+                inputs_relative_to_user_dir.append(resolved_path)
+            else:
+                missing_files.append(str(resolved_path))
         if missing_files:
+            print(missing_files)
             raise ValueError(f"The following files do not exist: {', '.join(missing_files)}")
+
+        self.input_files = inputs_relative_to_user_dir
 
         return self
 

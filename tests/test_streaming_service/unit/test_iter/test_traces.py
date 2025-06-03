@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
 from cala.streaming.nodes.iter.traces import TracesUpdater, TracesUpdaterParams
 from cala.streaming.util import package_frame
-from cala.viz_util import Visualizer
 
 
 class TestTraceUpdater:
@@ -42,12 +42,12 @@ class TestTraceUpdater:
         mini_traces: xr.DataArray,
         mini_overlap: xr.DataArray,
         mini_denoised: xr.DataArray,
-        visualizer: Visualizer,
+        plotter: Plotter,
     ) -> None:
-        visualizer.plot_footprints(mini_footprints, subdir="iter/trace")
-        visualizer.plot_traces(mini_traces, subdir="iter/trace")
-        visualizer.save_video_frames(mini_denoised, subdir="iter/trace")
-        visualizer.plot_overlaps(mini_overlap, footprints=mini_footprints, subdir="iter/trace")
+        plotter.plot_footprints(mini_footprints, subdir="iter/trace")
+        plotter.plot_traces(mini_traces, subdir="iter/trace")
+        plotter.save_video_frames(mini_denoised, subdir="iter/trace")
+        plotter.plot_overlaps(mini_overlap, footprints=mini_footprints, subdir="iter/trace")
         updater.learn_one(
             footprints=mini_footprints,
             traces=mini_traces.isel(frame=slice(None, -1)),
@@ -60,7 +60,7 @@ class TestTraceUpdater:
         )
         new_traces = updater.transform_one()
 
-        visualizer.plot_comparison(
+        plotter.plot_comparison(
             mini_footprints @ new_traces,
             mini_footprints @ mini_traces.isel(frame=-1),
             subdir="iter/trace",

@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayer.initialize();
     videoPlayer.play();
 
-    const chart = new LineChart('#plot-container', config.plot)
+    const chart = new LineChart('#plot-container', config.metric_plot)
 
     // Create WebSocket connection
     const ws = new WebSocket(`ws://${window.location.host}/ws`);

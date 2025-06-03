@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.nodes.init.odl import ComponentStatsInitializer, PixelStatsInitializer
 from cala.streaming.nodes.init.odl.component_stats import ComponentStatsInitializerParams
 from cala.streaming.nodes.init.odl.overlaps import (
@@ -26,7 +27,6 @@ from cala.streaming.nodes.iter.pixel_stats import (
     PixelStatsUpdaterParams,
 )
 from cala.streaming.util import package_frame
-from cala.viz_util import Visualizer
 
 
 class TestDetector:
@@ -64,7 +64,7 @@ class TestDetector:
     @pytest.mark.viz
     def test_missing_footprint(
         self,
-        visualizer: Visualizer,
+        plotter: Plotter,
         updater: Detector,
         mini_footprints: xr.DataArray,
         mini_traces: xr.DataArray,
@@ -73,16 +73,12 @@ class TestDetector:
         mini_component_stats: xr.DataArray,
         mini_overlaps: xr.DataArray,
     ) -> None:
-        visualizer.plot_footprints(mini_footprints, subdir="iter/detect/footprints", name="label")
-        visualizer.plot_traces(mini_traces, subdir="iter/detect/traces", name="label")
-        visualizer.plot_trace_correlations(
-            mini_traces, subdir="iter/detect/traces_corr", name="label"
-        )
+        plotter.plot_footprints(mini_footprints, subdir="iter/detect/footprints", name="label")
+        plotter.plot_traces(mini_traces, subdir="iter/detect/traces", name="label")
+        plotter.plot_trace_correlations(mini_traces, subdir="iter/detect/traces_corr", name="label")
         # TODO: these two labels should be 4 minis and the 5th added according to the paper algo
-        visualizer.plot_pixel_stats(
-            mini_pixel_stats, subdir="iter/detect/pixel_stats", name="label"
-        )
-        visualizer.plot_component_stats(
+        plotter.plot_pixel_stats(mini_pixel_stats, subdir="iter/detect/pixel_stats", name="label")
+        plotter.plot_component_stats(
             mini_component_stats, subdir="iter/detect/comp_stats", name="label"
         )
 
@@ -101,15 +97,13 @@ class TestDetector:
             {"component": slice(None, -1), "component'": slice(None, -1)}
         )
 
-        visualizer.plot_footprints(foot_missing, subdir="iter/detect/footprints", name="missing")
-        visualizer.plot_traces(trace_missing, subdir="iter/detect/traces", name="missing")
-        visualizer.plot_trace_correlations(
+        plotter.plot_footprints(foot_missing, subdir="iter/detect/footprints", name="missing")
+        plotter.plot_traces(trace_missing, subdir="iter/detect/traces", name="missing")
+        plotter.plot_trace_correlations(
             trace_missing, subdir="iter/detect/traces_corr", name="missing"
         )
-        visualizer.plot_pixel_stats(pixel_missing, subdir="iter/detect/pixel_stats", name="missing")
-        visualizer.plot_component_stats(
-            comp_missing, subdir="iter/detect/comp_stats", name="missing"
-        )
+        plotter.plot_pixel_stats(pixel_missing, subdir="iter/detect/pixel_stats", name="missing")
+        plotter.plot_component_stats(comp_missing, subdir="iter/detect/comp_stats", name="missing")
 
         updater.learn_one(
             frame=package_frame(
@@ -168,22 +162,20 @@ class TestDetector:
             dim="component",
         )
 
-        visualizer.plot_footprints(new_full_fps, subdir="iter/detect/footprints", name="recovered")
-        visualizer.plot_traces(new_full_trs, subdir="iter/detect/traces", name="recovered")
-        visualizer.plot_trace_correlations(
+        plotter.plot_footprints(new_full_fps, subdir="iter/detect/footprints", name="recovered")
+        plotter.plot_traces(new_full_trs, subdir="iter/detect/traces", name="recovered")
+        plotter.plot_trace_correlations(
             new_full_trs, subdir="iter/detect/traces_corr", name="recovered"
         )
         # TODO: Make sure the below two can recover the new footprint
-        visualizer.plot_pixel_stats(
-            pixel_stats_, subdir="iter/detect/pixel_stats", name="recovered"
-        )
-        visualizer.plot_component_stats(
+        plotter.plot_pixel_stats(pixel_stats_, subdir="iter/detect/pixel_stats", name="recovered")
+        plotter.plot_component_stats(
             component_stats_, subdir="iter/detect/comp_stats", name="recovered"
         )
 
         mini_recovery = (new_full_fps @ new_full_trs).transpose(*mini_denoised.dims)
 
-        visualizer.save_video_frames(
+        plotter.save_video_frames(
             [
                 (mini_denoised, "label"),
                 (
@@ -200,13 +192,13 @@ class TestDetector:
         overlap_missing.values = overlap_missing.data.todense()
         overlaps_.values = overlaps_.data.todense()
 
-        visualizer.plot_overlaps(
+        plotter.plot_overlaps(
             label_overlaps, mini_footprints, subdir="iter/detect/overlap", name="label"
         )
-        visualizer.plot_overlaps(
+        plotter.plot_overlaps(
             overlap_missing, foot_missing, subdir="iter/detect/overlap", name="missing"
         )
-        visualizer.plot_overlaps(
+        plotter.plot_overlaps(
             overlaps_, new_full_fps, subdir="iter/detect/overlap", name="recovered"
         )
 
@@ -232,7 +224,7 @@ class TestDetector:
     @pytest.mark.viz
     def test_new_suff_stats(
         self,
-        visualizer: Visualizer,
+        plotter: Plotter,
         updater: Detector,
         ps_initializer: PixelStatsUpdater,
         cs_initializer: ComponentStatsUpdater,
@@ -321,7 +313,7 @@ class TestDetector:
             frame=incoming_frame,  # same iteration
         ).transform_one()
 
-        visualizer.plot_footprints(
+        plotter.plot_footprints(
             footprints_updated.transpose(*new_full_fps.dims),
             subdir="iter/detect/post_update",
         )

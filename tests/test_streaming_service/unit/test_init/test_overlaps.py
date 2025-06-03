@@ -3,11 +3,11 @@ import pytest
 import sparse
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.nodes.init.odl.overlaps import (
     OverlapsInitializer,
     OverlapsInitializerParams,
 )
-from cala.viz_util import Visualizer
 
 
 class TestOverlapsInitializer:
@@ -56,16 +56,16 @@ class TestOverlapsInitializer:
         self,
         initializer: OverlapsInitializer,
         mini_footprints: xr.DataArray,
-        visualizer: Visualizer,
+        plotter: Plotter,
     ) -> None:
         """Test the correctness of overlap detection."""
-        visualizer.plot_footprints(mini_footprints, subdir="init/overlap")
+        plotter.plot_footprints(mini_footprints, subdir="init/overlap")
 
         initializer.learn_one(mini_footprints)
         result = initializer.transform_one()
 
         result.values = result.data.todense()
-        visualizer.plot_overlaps(result, mini_footprints, subdir="init/overlap")
+        plotter.plot_overlaps(result, mini_footprints, subdir="init/overlap")
         # Convert to dense for testing
 
         # Test expected overlap patterns

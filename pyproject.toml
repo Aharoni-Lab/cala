@@ -65,7 +65,13 @@ repository = "https://github.com/aharoni-lab/cala"
 changelog = "https://cala.readthedocs.io/en/latest/changelog.html"
 
 [project.optional-dependencies]
+gui = [
+    "matplotlib>=3.9.3",
+    "seaborn>=0.13.2",
+    "fastapi[standard]>=0.115.12",
+]
 tests = [
+    "cala[gui]",
     "pytest>=8.3.3",
     "tomli-w>=1.1.0",
     "pytest-cov>=6.0.0",
@@ -83,13 +89,8 @@ docs = [
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-nb>=1.2.0",
 ]
-gui = [
-    "matplotlib>=3.9.3",
-    "seaborn>=0.13.2",
-    "fastapi[standard]>=0.115.12",
-]
 dev = [
-    "cala[tests,docs, gui]",
+    "cala[tests, docs, gui]",
     "sphinx-autobuild>=2024.10.3",
     "ruff>=0.11.0",
     "black>=24.10.0",

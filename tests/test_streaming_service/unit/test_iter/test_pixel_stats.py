@@ -42,7 +42,7 @@ class TestPixelStatsUpdater:
     @pytest.mark.viz
     def test_sanity_check(
         self,
-        visualizer,
+        plotter,
         updater,
         mini_footprints,
         mini_traces,
@@ -50,11 +50,11 @@ class TestPixelStatsUpdater:
         mini_denoised,
         initializer,
     ):
-        visualizer.plot_footprints(mini_footprints, subdir="iter/pixel_stats")
-        visualizer.plot_traces(mini_traces, subdir="iter/pixel_stats")
-        visualizer.plot_trace_correlations(mini_traces, subdir="iter/pixel_stats")
-        visualizer.save_video_frames(mini_denoised, subdir="iter/pixel_stats")
-        visualizer.plot_pixel_stats(
+        plotter.plot_footprints(mini_footprints, subdir="iter/pixel_stats")
+        plotter.plot_traces(mini_traces, subdir="iter/pixel_stats")
+        plotter.plot_trace_correlations(mini_traces, subdir="iter/pixel_stats")
+        plotter.save_video_frames(mini_denoised, subdir="iter/pixel_stats")
+        plotter.plot_pixel_stats(
             prev_pixel_stats.transpose(*mini_footprints.dims),
             mini_footprints,
             subdir="iter/pixel_stats",
@@ -66,7 +66,7 @@ class TestPixelStatsUpdater:
             pixel_stats=prev_pixel_stats,
         )
         new_pixel_stats = updater.transform_one()
-        visualizer.plot_pixel_stats(
+        plotter.plot_pixel_stats(
             new_pixel_stats.transpose(*mini_footprints.dims),
             mini_footprints,
             subdir="iter/pixel_stats",
@@ -78,7 +78,7 @@ class TestPixelStatsUpdater:
             frame=mini_denoised,
         ).transform_one()
 
-        visualizer.plot_pixel_stats(
+        plotter.plot_pixel_stats(
             late_init_ps.transpose(*mini_footprints.dims),
             mini_footprints,
             subdir="iter/pixel_stats",

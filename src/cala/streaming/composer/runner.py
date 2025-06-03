@@ -3,7 +3,6 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
-from pathlib import Path
 from typing import (
     Any,
     Literal,
@@ -13,8 +12,11 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config.pipe import Step, StreamingConfig
-from cala.gui.socket_manager import SocketManager
+from cala.config import Config
+from cala.config.pipe import Step
+from cala.gui.nodes import FrameStreamer
+from cala.gui.nodes.frame_streamer import FrameStreamerParams
+from cala.gui.nodes.metric_streamer import MetricStreamer, MetricStreamerParams
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
@@ -24,25 +26,21 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Runner:
-    """Manages the execution of streaming calcium imaging analysis pipeline.
+    """Manages the execution of streaming image analysis pipeline.
 
-    This class orchestrates the preprocessing, initialization, and iterate steps
-    of the calcium imaging analysis pipeline according to a provided configuration.
+    This class orchestrates the steps of the imaging analysis pipeline
+    according to a provided configuration.
     """
 
-    config: StreamingConfig
+    config: Config
     """Configuration defining the pipeline structure and parameters."""
-    output_dir: Path
-    """Directory where pipeline outputs will be stored."""
-    socket_manager: SocketManager | None = None
-    """Connection manager for streaming connections."""
-    stream_dir: Path | None = None
-    """Directory where streaming data chunks will be stored."""
 
     _buffer: Buffer = field(init=False)
     """Internal frame buffer for multi-frame operations."""
     _state: Distributor = field(default_factory=lambda: Distributor())
     """Current state of the pipeline containing computed results."""
+    _transformers: dict[str, Any] = field(default_factory=dict)
+    """Cache of transformer instances for reuse."""
     execution_order: list[str] | None = None
     """Ordered list of initialization steps."""
     _init_statuses: list[bool] | None = None
@@ -52,8 +50,18 @@ class Runner:
 
     def __post_init__(self) -> None:
         """Initialize the frame buffer after instance creation."""
+        self.prep_movie_streamer = FrameStreamer(
+            FrameStreamerParams(
+                frame_rate=30,
+                stream_dir=self.config.output_dir / "prep_movie",
+                segment_filename="stream%d.ts",
+            )
+        )
+
+        self.random_metric_streamer = MetricStreamer(MetricStreamerParams())
+
         self._buffer = Buffer(
-            buffer_size=self.config.general["buffer_size"],
+            buffer_size=self.config.pipeline.general["buffer_size"],
         )
 
     def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
@@ -65,7 +73,7 @@ class Runner:
         Returns:
             Dictionary containing preprocessed results.
         """
-        execution_order = self._create_dependency_graph(self.config.preprocess)
+        execution_order = self._create_dependency_graph(self.config.pipeline.preprocess)
 
         pipeline = compose.Pipeline()
 
@@ -77,7 +85,17 @@ class Runner:
         pipeline.learn_one(x=frame)
         result = pipeline.transform_one(x=frame)
 
+        if self.config.gui:
+            # plug in prep_movie_display
+            self.prep_movie_streamer.learn_one(frame=frame)
+            self.prep_movie_streamer.transform_one(frame=result)
+
         frame = result
+
+        if self.config.gui:
+            self.random_metric_streamer.learn_one(frame=frame)
+            self.random_metric_streamer.transform_one(frame=frame)
+
         return frame
 
     def initialize(self, frame: xr.DataArray) -> None:
@@ -92,14 +110,16 @@ class Runner:
         self._buffer.add_frame(frame)
 
         if not self.execution_order or not self._init_statuses:
-            self.execution_order = self._create_dependency_graph(self.config.initialization)
+            self.execution_order = self._create_dependency_graph(
+                self.config.pipeline.initialization
+            )
             self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
             if self._init_statuses[idx]:
                 continue
 
-            n_frames = getattr(self.config.initialization[step], "n_frames", 1)
+            n_frames = getattr(self.config.pipeline.initialization[step], "n_frames", 1)
             if not self._buffer.is_ready(n_frames):
                 break
 
@@ -112,7 +132,10 @@ class Runner:
 
             result_type = get_type_hints(transformer.transform_one, include_extras=True)["return"]
             self._state.init(
-                result, result_type, self.config.general["buffer_size"], self.output_dir
+                result,
+                result_type,
+                self.config.pipeline.general["buffer_size"],
+                self.config.output_dir,
             )
 
         if all(self._init_statuses):
@@ -124,8 +147,7 @@ class Runner:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config.iteration)
-        logger.info(f"Footprint Count: {self._state.footprintstore.warehouse.sizes}")
+        execution_order = self._create_dependency_graph(self.config.pipeline.iteration)
 
         # Execute transformers in order
         for step in execution_order:
@@ -149,7 +171,10 @@ class Runner:
         Returns:
             Configured transformer instance.
         """
-        config = getattr(self.config, process)[step]
+        config = getattr(self.config.pipeline, process)[step]
+        if self._transformers.get(config.transformer, None):
+            return self._transformers[config.transformer]
+
         params = getattr(config, "params", {})
         module_name, class_name = config.transformer.rsplit(".", 1)
         transformer = getattr(importlib.import_module(module_name), class_name)
@@ -167,6 +192,8 @@ class Runner:
             transformer = transformer(param_obj)
         else:
             transformer = transformer()
+
+        self._transformers[config.transformer] = transformer
 
         return transformer
 

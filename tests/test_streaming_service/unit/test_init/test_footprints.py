@@ -1,11 +1,11 @@
 import pytest
 import xarray as xr
 
+from cala.gui.plots import Plotter
 from cala.streaming.nodes.init.common import (
     FootprintsInitializer,
     FootprintsInitializerParams,
 )
-from cala.viz_util import Visualizer
 
 
 class TestFootprintsInitializer:
@@ -60,7 +60,7 @@ class TestFootprintsInitializer:
     @pytest.mark.viz
     def test_transform_one_output_shapes(
         self,
-        visualizer: Visualizer,
+        plotter: Plotter,
         default_initializer: FootprintsInitializer,
         stabilized_video: xr.DataArray,
     ) -> None:
@@ -71,7 +71,7 @@ class TestFootprintsInitializer:
         default_initializer.learn_one(frame=first_frame)
         footprints = default_initializer.transform_one()
 
-        visualizer.plot_footprints(footprints, subdir="init")
+        plotter.plot_footprints(footprints, subdir="init")
         # Check shapes match input frame
         assert footprints[0].shape == first_frame.shape
 

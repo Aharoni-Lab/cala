@@ -1,4 +1,5 @@
 import logging
+import os
 import tempfile
 from pathlib import Path
 
@@ -6,6 +7,8 @@ import matplotlib.pyplot as plt
 import pytest
 import xarray as xr
 import yaml
+
+os.environ["CALA_CONFIG_PATH"] = "tests/test_streaming_service/integration/integration.yaml"
 
 from cala.config import Config
 from cala.log import setup_logger
@@ -37,12 +40,12 @@ def load_config(config_name: str) -> Config:
         with open(temp_config_path, "w") as f:
             yaml.dump(config_data, f)
 
-        return Config.from_yaml(str(temp_config_path))
+        return Config.from_yaml(temp_config_path)
 
 
 def test_preprocess(raw_calcium_video: xr.DataArray) -> None:
     config = load_config("integration")
-    runner = Runner(config.pipeline, config.output_dir)
+    runner = Runner(config)
     video = raw_calcium_video
     for idx, frame in enumerate(video):
         frame = package_frame(frame.values, idx)
@@ -51,7 +54,7 @@ def test_preprocess(raw_calcium_video: xr.DataArray) -> None:
 
 def test_initialize(stabilized_video: xr.DataArray) -> None:
     config = load_config("integration")
-    runner = Runner(config.pipeline, config.output_dir)
+    runner = Runner(config)
     video = stabilized_video
 
     for idx, frame in enumerate(video):
@@ -67,7 +70,7 @@ def test_initialize(stabilized_video: xr.DataArray) -> None:
 def test_integration(video: str, request) -> None:
     video = request.getfixturevalue(video)
     config = load_config("integration")
-    runner = Runner(config.pipeline, config.output_dir)
+    runner = Runner(config)
 
     for idx, frame in enumerate(video):
         frame = package_frame(frame.values, idx)

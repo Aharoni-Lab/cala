@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 from scipy.ndimage import binary_dilation, binary_erosion
 
+from cala.gui.plots import Plotter
 from cala.streaming.core import Component
 from cala.streaming.nodes.init.common import (
     TracesInitializer,
@@ -17,7 +18,6 @@ from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializerParams,
 )
 from cala.streaming.nodes.iter.footprints import FootprintsUpdater, FootprintsUpdaterParams
-from cala.viz_util import Visualizer
 
 
 class TestFootprintUpdater:
@@ -42,7 +42,7 @@ class TestFootprintUpdater:
 
     def visualize_iteration(
         self,
-        visualizer: Visualizer,
+        visualizer: Plotter,
         footprints: xr.DataArray,
         traces: xr.DataArray,
         pixel_stats: xr.DataArray,
@@ -98,7 +98,7 @@ class TestFootprintUpdater:
     @pytest.mark.viz
     def test_perfect_condition(
         self,
-        visualizer: Visualizer,
+        plotter: Plotter,
         mini_footprints: xr.DataArray,
         mini_traces: xr.DataArray,
         mini_denoised: xr.DataArray,
@@ -110,7 +110,7 @@ class TestFootprintUpdater:
         mini_component_stats = cs.learn_one(traces=mini_traces, frame=mini_denoised).transform_one()
 
         new_footprints = self.visualize_iteration(
-            visualizer,
+            plotter,
             mini_footprints,
             mini_traces,
             mini_pixel_stats,
@@ -126,7 +126,7 @@ class TestFootprintUpdater:
 
     @pytest.mark.viz
     def test_imperfect_condition(
-        self, visualizer: Visualizer, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
+        self, plotter: Plotter, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
     ) -> None:
         # Add noise to stats
         traces, pixel_stats, component_stats = self.get_stats(mini_footprints, mini_denoised)
@@ -134,7 +134,7 @@ class TestFootprintUpdater:
         noisy_component_stats = component_stats + 0.1 * np.random.rand(*component_stats.shape)
 
         self.visualize_iteration(
-            visualizer,
+            plotter,
             mini_footprints,
             traces,
             noisy_pixel_stats,
@@ -147,7 +147,7 @@ class TestFootprintUpdater:
 
     @pytest.mark.viz
     def test_wrong_footprint(
-        self, visualizer: Visualizer, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
+        self, plotter: Plotter, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
     ) -> None:
         wrong_footprints = mini_footprints.copy()[:4]
         wrong_footprints[3] = mini_footprints[3] + mini_footprints[4]
@@ -155,7 +155,7 @@ class TestFootprintUpdater:
         traces, pixel_stats, component_stats = self.get_stats(wrong_footprints, mini_denoised)
 
         self.visualize_iteration(
-            visualizer,
+            plotter,
             wrong_footprints,
             traces,
             pixel_stats,
@@ -168,7 +168,7 @@ class TestFootprintUpdater:
 
     @pytest.mark.viz
     def test_small_footprint(
-        self, visualizer: Visualizer, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
+        self, plotter: Plotter, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
     ) -> None:
         small_footprints = mini_footprints.copy()
         small_footprints[1] = binary_erosion(small_footprints[1])
@@ -176,7 +176,7 @@ class TestFootprintUpdater:
         traces, pixel_stats, component_stats = self.get_stats(small_footprints, mini_denoised)
 
         self.visualize_iteration(
-            visualizer,
+            plotter,
             small_footprints,
             traces,
             pixel_stats,
@@ -189,7 +189,7 @@ class TestFootprintUpdater:
 
     @pytest.mark.viz
     def test_oversized_footprint(
-        self, visualizer: Visualizer, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
+        self, plotter: Plotter, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
     ) -> None:
         oversized_footprints = mini_footprints.copy()
         oversized_footprints[1] = binary_dilation(oversized_footprints[1])
@@ -197,7 +197,7 @@ class TestFootprintUpdater:
         traces, pixel_stats, component_stats = self.get_stats(oversized_footprints, mini_denoised)
 
         self.visualize_iteration(
-            visualizer,
+            plotter,
             oversized_footprints,
             traces,
             pixel_stats,
@@ -210,7 +210,7 @@ class TestFootprintUpdater:
 
     @pytest.mark.viz
     def test_redundant_footprint(
-        self, visualizer: Visualizer, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
+        self, plotter: Plotter, mini_footprints: xr.DataArray, mini_denoised: xr.DataArray
     ) -> None:
         redundant_footprints = mini_footprints.copy()
         rolled = xr.DataArray(np.roll(mini_footprints[-1], -1), dims=("height", "width"))
@@ -225,7 +225,7 @@ class TestFootprintUpdater:
         traces, pixel_stats, component_stats = self.get_stats(redundant_footprints, mini_denoised)
 
         self.visualize_iteration(
-            visualizer,
+            plotter,
             redundant_footprints,
             traces,
             pixel_stats,

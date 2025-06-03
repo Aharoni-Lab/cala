@@ -1,27 +1,21 @@
 import asyncio
-from pathlib import Path
 
 from cala.config import Config
-from cala.gui.socket_manager import SocketManager
 from cala.io import IO
 from cala.streaming.composer import Runner
 from cala.streaming.util import package_frame
 
 
-async def run_pipeline(
-    config: Config, socket_manager: SocketManager | None = None, stream_dir: Path | None = None
-) -> None:
+async def run_pipeline(config: Config) -> None:
     """Run the Cala processing pipeline.
 
     Args:
         config: User configurations
-        socket_manager: Connection manager for streaming connections.
-        stream_dir:
     """
 
     io = IO()
     stream = io.stream(config.input_files)
-    runner = Runner(config.pipeline, config.output_dir, socket_manager, stream_dir)
+    runner = Runner(config)
 
     try:
         for idx, frame in enumerate(stream):
