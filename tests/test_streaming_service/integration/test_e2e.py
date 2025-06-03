@@ -37,7 +37,7 @@ def load_config(config_name: str) -> Config:
         with open(temp_config_path, "w") as f:
             yaml.dump(config_data, f)
 
-        return Config.from_yaml(str(temp_config_path))
+        return Config.from_yaml(temp_config_path)
 
 
 def test_preprocess(raw_calcium_video: xr.DataArray) -> None:
