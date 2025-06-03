@@ -76,7 +76,8 @@ class TestGUIStream:
 
     @pytest.fixture(scope="class")
     def config(self):
-        config = Config.from_yaml("test_config.yaml")
+        root_path = Path(__file__).parents[2]
+        config = Config.from_yaml(root_path / "tests/test_gui/test_config.yaml")
         return config
 
     @pytest.fixture(scope="class")

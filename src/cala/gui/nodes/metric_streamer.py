@@ -29,15 +29,18 @@ class MetricStreamer(Transformer):
 
         try:
             loop = asyncio.get_running_loop()
+        except RuntimeError as e:
+            print(e)
+            loop = None
 
+        try:
             for websocket in manager.active_connections:
                 payload = {"index": self.params.idx, "value": int(random.random() * 10000) / 100}
-                loop.create_task(manager.send_json(payload, websocket))
+                if loop:
+                    loop.create_task(manager.send_json(payload, websocket))
+                else:
+                    asyncio.run(manager.send_json(payload, websocket))
 
-                # await manager.send_json(
-                #     {"index": self.params.idx, "value": int(random.random() * 10000) / 100},
-                #     websocket,
-                # )
         # https://fastapi.tiangolo.com/reference/websockets/#fastapi.WebSocket.send
         except WebSocketDisconnect:
             print(f"Num Connections: {len(manager.active_connections)}")
