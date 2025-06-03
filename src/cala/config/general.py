@@ -61,11 +61,11 @@ class Config(BaseSettings, YAMLMixin):
         return self
 
     @model_validator(mode="after")
-    def files_exist(self) -> "Config":
+    def input_files_exist(self) -> "Config":
         files = self.input_files
         missing_files = [file for file in files if not Path(file).exists()]
         if missing_files:
-            raise ValueError(f"The following files do not exist: {', '.join(missing_files)}")
+            raise ValueError(f"The following files do not exist: {', '.join(str(missing_files))}")
 
         return self
 
