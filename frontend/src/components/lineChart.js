@@ -11,6 +11,10 @@ class LineChart {
     createSpec() {
         return {
             $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+            title: {
+                text: "Plot Title",
+                fontSize: 30,
+            },
             description: "Live trace stream",
             width: this.config.width || 640,
             height: this.config.height || 480,
