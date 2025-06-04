@@ -1,5 +1,5 @@
-user_dir: "."  # relative to this file's parent directory
-input_files: [ "../fixtures/sample_movies/neurofinder.00.00/video.mp4" ]
+user_dir: "."  # relative to where you're running cala from
+input_files: [ "tests/fixtures/sample_movies/neurofinder.00.00/video.mp4" ]
 output_dir: "output"
 
 gui:
@@ -9,7 +9,7 @@ gui:
     stream_url: /prep_movie/stream.m3u8
 
   metric_plot:
-    width: 480
+    width: 1024
     height: 200
     max_points: 100
 
