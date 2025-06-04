@@ -2,12 +2,19 @@
 <html>
 <head>
     <title>Cala Dashboard</title>
-    <link href="./dist/main.css" rel="stylesheet"/></head>
+    <link href="./dist/main.css" rel="stylesheet"/>
+    <style>
+        .video-container {
+            width: 30%;
+        }
+    </style>
+</head>
 <body>
 <div class="dashboard">
     <div class="video-container">
-        <video-js
-                class="vjs-default-skin"
+        <video
+                class="video-js"
+                data-setup='{"fluid": true}'
                 id="stream-player"
                 height="{{ config.prep_movie.height }}"
                 width="{{ config.prep_movie.width }}"
