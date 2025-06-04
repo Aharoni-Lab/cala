@@ -11,26 +11,36 @@
 </head>
 <body>
 <div class="dashboard">
+    <h1>Cala Dashboard</h1>
+    <details>
+        <summary>Metadata</summary>
+        <ul>
+            <li>User: </li>
+            <li>Animal ID: </li>
+            <li>Experiment ID: </li>
+            <li>Run ID: </li>
+            <li>Started: <time></time></li>
+            <li>Elapsed: <time></time></li>
+        </ul>
+    </details>
     <div class="video-container">
         <video
                 class="video-js"
                 data-setup='{"fluid": true}'
                 id="stream-player"
-                height="{{ config.prep_movie.height }}"
-                width="{{ config.prep_movie.width }}"
                 controls
         >
             <source
                     src="{{ config.prep_movie.stream_url }}"
                     type="application/x-mpegURL"
             />
-        </video-js>
+        </video>
     </div>
     <div id="plot-container"></div>
 </div>
 
 <script>
-    window.config = {{ config | tojson | safe }}
+    window.config = {{config | tojson | safe}}
 </script>
 <script src="./dist/main.js"></script>
 </body>
