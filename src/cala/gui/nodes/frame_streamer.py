@@ -85,8 +85,8 @@ class FrameStreamer(Transformer):
                 self._container.mux(packet)
 
         except Exception as e:
-            raise Exception(f"VideoStreamError: {e}") from e
             self._container.close()
+            raise Exception(f"VideoStreamError: {e}") from e
 
         return frame
 
