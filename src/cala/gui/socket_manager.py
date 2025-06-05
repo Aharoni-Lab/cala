@@ -1,7 +1,5 @@
 from fastapi import WebSocket
 
-from cala.gui import WebsocketMessage
-
 
 class SocketManager:
     def __init__(self) -> None:
@@ -15,7 +13,6 @@ class SocketManager:
         self.active_connections.remove(websocket)
 
     async def send_json(self, data: dict, websocket: WebSocket) -> None:
-        _ = WebsocketMessage.model_validate(data)
         await websocket.send_json(data)
 
     async def broadcast(self, data: dict) -> None:

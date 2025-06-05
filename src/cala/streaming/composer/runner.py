@@ -14,9 +14,7 @@ from river import compose
 
 from cala.config import Config
 from cala.config.pipe import Step
-from cala.gui.nodes import FrameStreamer
-from cala.gui.nodes.frame_streamer import FrameStreamerParams
-from cala.gui.nodes.metric_streamer import MetricStreamer, MetricStreamerParams
+from cala.gui.nodes import FrameCounter, FrameCounterParams, FrameStreamer, FrameStreamerParams
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
@@ -58,7 +56,7 @@ class Runner:
             )
         )
 
-        self.random_metric_streamer = MetricStreamer(MetricStreamerParams())
+        self.frame_counter = FrameCounter(FrameCounterParams())
 
         self._buffer = Buffer(
             buffer_size=self.config.pipeline.general["buffer_size"],
@@ -77,6 +75,10 @@ class Runner:
 
         pipeline = compose.Pipeline()
 
+        if self.config.gui:
+            self.frame_counter.learn_one(frame=frame)
+            self.frame_counter.transform_one(_=frame)
+
         for step in execution_order:
             transformer = self._build_transformer(process="preprocess", step=step)
 
@@ -91,10 +93,6 @@ class Runner:
             self.prep_movie_streamer.transform_one(frame=result)
 
         frame = result
-
-        if self.config.gui:
-            self.random_metric_streamer.learn_one(frame=frame)
-            self.random_metric_streamer.transform_one(frame=frame)
 
         return frame
 

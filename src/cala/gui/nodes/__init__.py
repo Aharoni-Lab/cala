@@ -1,3 +1,4 @@
-from .frame_streamer import FrameStreamer
+from .frame_counter import FrameCounter, FrameCounterParams
+from .frame_streamer import FrameStreamer, FrameStreamerParams
 
-__all__ = ["FrameStreamer"]
+__all__ = ["FrameStreamer", "FrameStreamerParams", "FrameCounter", "FrameCounterParams"]
