@@ -12,22 +12,25 @@ class LineChart {
         return {
             $schema: "https://vega.github.io/schema/vega-lite/v6.json",
             title: {
-                text: "Plot Title",
-                fontSize: 30,
+                text: "Frame Index vs. Component Count",
+                fontSize: 20,
             },
-            description: "Live trace stream",
-            "autosize": {
-                "type": "fit",
-                "contains": "padding"
-            },
+            description: "Livestream",
+            width: this.config.width,
+            height: this.config.height,
+            // autosize: {
+            //     type: "fit",
+            //     contains: "padding"
+            // },
             data: {name: "table"},
             mark: "line",
             encoding: {
                 x: {
                     field: "index",
                     type: "quantitative",
+                    title: "Frame Index",
                 },
-                y: {field: "value", type: "quantitative"},
+                y: {field: "count", type: "quantitative", title: "Count"},
             }
         };
     }
