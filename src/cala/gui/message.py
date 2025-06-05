@@ -6,12 +6,12 @@ from pydantic import BaseModel, Field
 
 class FrameIndex(BaseModel):
     type_: Literal["frame_index"]
-    idx: int
+    index: int
 
 
 class ComponentCount(BaseModel):
     type_: Literal["component_count"]
-    idx: int
+    index: int
     count: int
 
 
