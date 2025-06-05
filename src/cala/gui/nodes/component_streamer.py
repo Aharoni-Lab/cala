@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import av
-import numpy as np
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.core import Parameters
+from cala.streaming.core import Axis, Parameters
+from cala.streaming.stores.common import Footprints
 
 
 @dataclass
-class FrameStreamerParams(Parameters):
+class ComponentStreamerParams(Axis, Parameters):
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"
@@ -29,9 +29,9 @@ class FrameStreamerParams(Parameters):
 
 
 @dataclass
-class FrameStreamer(Transformer):
-    params: FrameStreamerParams
-    _comparison_frame: xr.DataArray | None = None
+class ComponentStreamer(Transformer):
+    params: ComponentStreamerParams
+    footprint_projection_: xr.DataArray | None = None
     _container: av.container.OutputContainer | None = None
 
     def __post_init__(self):
@@ -59,25 +59,18 @@ class FrameStreamer(Transformer):
         self.stream = self._container.add_stream("h264", rate=self.params.frame_rate)
         self.stream.pix_fmt = "yuv420p"
 
-    def learn_one(self, frame: xr.DataArray) -> None:
-        if frame is not None:
-            self._comparison_frame = frame
+    def learn_one(self, footprints: Footprints) -> None:
+        self.footprint_projection_ = footprints.max(dim=self.params.component_axis)
 
     def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
-        if self._comparison_frame is not None:
-            try:
-                frame = xr.concat([self._comparison_frame, frame.astype(np.uint8)], dim="width")
-            except xr.AlignmentError:
-                frame = frame.astype(np.uint8)
-
-        self.stream.width = frame.sizes["width"]
-        self.stream.height = frame.sizes["height"]
+        self.stream.width = self.footprint_projection_.sizes["width"]
+        self.stream.height = self.footprint_projection_.sizes["height"]
 
         try:
             # Create frame
-            frame_sample = av.VideoFrame.from_ndarray(frame.to_numpy(), format="gray").reformat(
-                format="yuv420p"
-            )
+            frame_sample = av.VideoFrame.from_ndarray(
+                self.footprint_projection_.to_numpy(), format="gray"
+            ).reformat(format="yuv420p")
 
             # Encode and write the packet
             packets = self.stream.encode(frame_sample)

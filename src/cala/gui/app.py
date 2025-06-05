@@ -32,6 +32,5 @@ def get_app() -> FastAPI:
 
     app.mount(path="/dist", app=StaticFiles(directory=get_frontend_dir() / "dist"), name="dist")
     app.include_router(router)
-    print(get_frontend_dir())
 
     return app

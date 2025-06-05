@@ -71,7 +71,6 @@ class Config(BaseSettings, YAMLMixin):
             else:
                 missing_files.append(str(resolved_path))
         if missing_files:
-            print(missing_files)
             raise ValueError(f"The following files do not exist: {', '.join(missing_files)}")
 
         self.input_files = inputs_relative_to_user_dir

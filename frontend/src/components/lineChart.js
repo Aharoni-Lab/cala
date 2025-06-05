@@ -11,17 +11,26 @@ class LineChart {
     createSpec() {
         return {
             $schema: "https://vega.github.io/schema/vega-lite/v6.json",
-            description: "Live trace stream",
-            width: this.config.width || 640,
-            height: this.config.height || 480,
+            title: {
+                text: "Frame Index vs. Component Count",
+                fontSize: 20,
+            },
+            description: "Livestream",
+            width: this.config.width,
+            height: this.config.height,
+            // autosize: {
+            //     type: "fit",
+            //     contains: "padding"
+            // },
             data: {name: "table"},
             mark: "line",
             encoding: {
                 x: {
                     field: "index",
                     type: "quantitative",
+                    title: "Frame Index",
                 },
-                y: {field: "value", type: "quantitative"},
+                y: {field: "count", type: "quantitative", title: "Count"},
             }
         };
     }

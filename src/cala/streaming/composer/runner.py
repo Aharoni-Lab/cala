@@ -14,9 +14,16 @@ from river import compose
 
 from cala.config import Config
 from cala.config.pipe import Step
-from cala.gui.nodes import FrameStreamer
-from cala.gui.nodes.frame_streamer import FrameStreamerParams
-from cala.gui.nodes.metric_streamer import MetricStreamer, MetricStreamerParams
+from cala.gui.nodes import (
+    ComponentCounter,
+    ComponentCounterParams,
+    ComponentStreamer,
+    ComponentStreamerParams,
+    FrameCounter,
+    FrameCounterParams,
+    FrameStreamer,
+    FrameStreamerParams,
+)
 from cala.streaming.core import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
@@ -57,8 +64,15 @@ class Runner:
                 segment_filename="stream%d.ts",
             )
         )
-
-        self.random_metric_streamer = MetricStreamer(MetricStreamerParams())
+        self.frame_counter = FrameCounter(FrameCounterParams())
+        self.component_counter = ComponentCounter(ComponentCounterParams())
+        self.component_streamer = ComponentStreamer(
+            ComponentStreamerParams(
+                frame_rate=30,
+                stream_dir=self.config.output_dir / "components",
+                segment_filename="stream%d.ts",
+            )
+        )
 
         self._buffer = Buffer(
             buffer_size=self.config.pipeline.general["buffer_size"],
@@ -77,6 +91,10 @@ class Runner:
 
         pipeline = compose.Pipeline()
 
+        if self.config.gui:
+            self.frame_counter.learn_one(frame=frame)
+            self.frame_counter.transform_one(_=frame)
+
         for step in execution_order:
             transformer = self._build_transformer(process="preprocess", step=step)
 
@@ -91,10 +109,6 @@ class Runner:
             self.prep_movie_streamer.transform_one(frame=result)
 
         frame = result
-
-        if self.config.gui:
-            self.random_metric_streamer.learn_one(frame=frame)
-            self.random_metric_streamer.transform_one(frame=frame)
 
         return frame
 
@@ -158,6 +172,13 @@ class Runner:
             result_type = get_type_hints(transformer.transform_one, include_extras=True)["return"]
 
             self._state.update(result, result_type)
+
+        if getattr(self._state, "footprintstore", None):
+            self.component_counter.learn_one(self._state.footprintstore)
+            self.component_counter.transform_one()
+
+            self.component_streamer.learn_one(self._state.footprintstore)
+            self.component_counter.transform_one()
 
     def _build_transformer(
         self, process: Literal["preprocess", "initialization", "iteration"], step: str

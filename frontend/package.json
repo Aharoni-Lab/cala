@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "esbuild": "^0.25.3"
+    "esbuild": "^0.25.3",
+    "prettier": "3.5.3"
   }
 }
