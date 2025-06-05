@@ -57,6 +57,20 @@
         <div class="plot-section gfg"><h3>Component Discovery</h3>
             <div id="plot-container"></div>
         </div>
+        <div class="video-container gfg">
+            <h3>Footprint Video</h3>
+            <video
+                    class="video-js"
+                    controls
+                    data-setup='{"fluid": true}'
+                    id="footprint-player"
+            >
+                <source
+                        src="{{ config.footprint_movie.stream_url }}"
+                        type="application/x-mpegURL"
+                />
+            </video>
+        </div>
     </div>
 </div>
 

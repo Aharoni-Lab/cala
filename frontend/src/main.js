@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     videoPlayer.initialize();
     videoPlayer.play();
 
+    // Initialize video player
+    const footprintPlayer = new VideoPlayer('footprint-player', {
+        fluid: true,
+        liveui: true
+    });
+    footprintPlayer.initialize();
+    footprintPlayer.play();
+
     // Create WebSocket connection
     const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
