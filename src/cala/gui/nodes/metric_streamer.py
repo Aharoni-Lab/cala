@@ -6,6 +6,7 @@ import xarray as xr
 from fastapi import WebSocketDisconnect
 from river.base import Transformer
 
+from cala.gui import WebsocketMessage
 from cala.gui.dependencies import get_socket_manager
 from cala.streaming.core import Parameters
 
@@ -35,11 +36,17 @@ class MetricStreamer(Transformer):
 
         try:
             for websocket in manager.active_connections:
-                payload = {"index": self.params.idx, "value": int(random.random() * 10000) / 100}
+                payload = {
+                    "type_": "component_count",
+                    "index": self.params.idx,
+                    "count": random.randint(0, 100),
+                }
+                message = WebsocketMessage(payload=payload)
+
                 if loop:
-                    loop.create_task(manager.send_json(payload, websocket))
+                    loop.create_task(manager.send_json(message.model_dump(mode="json"), websocket))
                 else:
-                    asyncio.run(manager.send_json(payload, websocket))
+                    asyncio.run(manager.send_json(message.model_dump(mode="json"), websocket))
 
         # https://fastapi.tiangolo.com/reference/websockets/#fastapi.WebSocket.send
         except WebSocketDisconnect:
