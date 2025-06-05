@@ -9,7 +9,7 @@ class FrameNumber {
     }
 
     updateData(data) {
-        this.liveNumberElement.textContent = data;
+        this.liveNumberElement.textContent = data.index.toString();
     }
 }
 
