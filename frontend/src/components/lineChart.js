@@ -16,8 +16,10 @@ class LineChart {
                 fontSize: 30,
             },
             description: "Live trace stream",
-            width: this.config.width || 640,
-            height: this.config.height || 480,
+            "autosize": {
+                "type": "fit",
+                "contains": "padding"
+            },
             data: {name: "table"},
             mark: "line",
             encoding: {

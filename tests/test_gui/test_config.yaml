@@ -9,7 +9,7 @@ gui:
     stream_url: /prep_movie/stream.m3u8
 
   metric_plot:
-    width: 1024
+    width: 500
     height: 200
     max_points: 100
 

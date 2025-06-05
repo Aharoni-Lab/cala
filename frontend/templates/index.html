@@ -4,15 +4,25 @@
     <title>Cala Dashboard</title>
     <link href="./dist/main.css" rel="stylesheet"/>
     <style>
-        .video-container {
-            width: 30%;
+        .main{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 10px;
+            background-color: #181818;
+            padding: 10px;
+        }
+        .gfg {
+            background-color: rgb(255, 255, 255);
+            text-align: center;
+            padding: 25px 0;
+            font-size: 30px;
         }
     </style>
 </head>
 <body>
 <div class="dashboard">
     <h1>Cala Dashboard</h1>
-    <details>
+    <details style="margin-bottom:20px">
         <summary>Metadata</summary>
         <ul>
             <li>User: </li>
@@ -23,7 +33,9 @@
             <li>Elapsed: <time></time></li>
         </ul>
     </details>
-    <div class="video-container">
+    <div class="main">
+    <div class="video-container gfg">
+        <h3>Preprocessed Video</h3>
         <video
                 class="video-js"
                 data-setup='{"fluid": true}'
@@ -36,7 +48,10 @@
             />
         </video>
     </div>
-    <div id="plot-container"></div>
+    <div class="plot-section gfg"> <h3>Plot section</h3>
+        <div id="plot-container"></div>
+    </div>
+    </div>
 </div>
 
 <script>
