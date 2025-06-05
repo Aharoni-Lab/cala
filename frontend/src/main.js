@@ -1,9 +1,19 @@
 import VideoPlayer from "./components/videoPlayer";
 import LineChart from "./components/lineChart";
+import FrameNumber from "./components/frameNumber";
 import './css/video-js.css';
 
 document.addEventListener('DOMContentLoaded', () => {
     const config = window.config
+
+    // initialize frame number display
+    const eventSource = new EventSource('/stream');
+
+    const frameNumber = new FrameNumber('frame-index');
+    frameNumber.initialize();
+    eventSource.onmessage = (event) => {
+        frameNumber.updateData(event.data);
+    };
 
     // Initialize video player
     const videoPlayer = new VideoPlayer('stream-player', {
