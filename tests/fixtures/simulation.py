@@ -264,7 +264,7 @@ def raw_calcium_video(
 
     motion_video = (motion_video / motion_video.max() * 255).astype(np.uint8)
 
-    return xr.DataArray(motion_video, dims=video.dims)
+    return xr.DataArray(motion_video, dims=video.dims).astype(np.float32)
 
 
 @pytest.fixture(scope="session")
@@ -300,7 +300,7 @@ def preprocessed_video(
 
     movie = (movie / movie.max() * 255).astype(np.uint8)
 
-    return xr.DataArray(movie, dims=video.dims, coords=video.coords)
+    return xr.DataArray(movie, dims=video.dims, coords=video.coords).astype(np.float32)
 
 
 @pytest.fixture(scope="session")
@@ -316,7 +316,7 @@ def stabilized_video(
 
     stabilized = (stabilized / stabilized.max() * 255).astype(np.uint8)
 
-    return stabilized
+    return stabilized.astype(np.float32)
 
 
 def create_irregular_neuron(radius: int, irregularity: float) -> np.ndarray:

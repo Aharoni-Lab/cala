@@ -30,4 +30,4 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
             Axis.time_coordinates: timestamp,
         },
         name="frame",
-    )
+    ).astype(np.float32)

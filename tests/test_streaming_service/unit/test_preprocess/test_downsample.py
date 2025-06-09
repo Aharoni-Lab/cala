@@ -76,7 +76,7 @@ class TestStreamingDownsampler:
             **downsampler_mean.params.kwargs
         )
 
-        np.testing.assert_array_almost_equal(result, expected)
+        np.testing.assert_array_almost_equal(result, expected, decimal=5)
 
     def test_subset_downsampling(
         self, downsampler_subset: Downsampler, raw_calcium_video: xr.DataArray
@@ -132,7 +132,7 @@ class TestStreamingDownsampler:
 
         # Compare results
         for streaming, batch in zip(streaming_results, batch_results):
-            np.testing.assert_array_almost_equal(streaming, batch)
+            np.testing.assert_array_almost_equal(streaming, batch, decimal=5)
 
 
 def check_dimensions(
