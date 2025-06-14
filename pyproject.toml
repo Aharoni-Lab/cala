@@ -144,10 +144,10 @@ pythonpath = ["src"]
 addopts = [
     "-ra",
     "-q",
-    "--cov=cala",
-    "--cov-append",
-    "--cov-report=term-missing",
-    "--cov-report=html"
+#    "--cov=cala",
+#    "--cov-append",
+#    "--cov-report=term-missing",
+#    "--cov-report=html"
 ]
 markers = [
     "viz: marks tests that produce plots",
