@@ -154,7 +154,7 @@ def spikes(
 
 
 @pytest.fixture(scope="session")
-def traces(params: CalciumVideoParams, spikes: np.ndarray) -> np.ndarray:
+def traces(params: CalciumVideoParams, spikes: np.ndarray) -> xr.DataArray:
     """Generate calcium traces from spikes."""
     decay_times = np.random.uniform(*params.decay_time_range, params.num_neurons)
     amplitudes = np.random.uniform(*params.amplitude_range, params.num_neurons)

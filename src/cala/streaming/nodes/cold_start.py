@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Self, Hashable
+from typing import Self, Mapping, Hashable
 from uuid import uuid4
 
 import numpy as np
@@ -86,8 +86,6 @@ class ColdStarter(SupervisedTransformer):
 
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
-    frames_: xr.DataArray = None
-
     noise_level_: float = field(init=False)
 
     new_footprints_: Footprints = field(default_factory=list)
@@ -135,28 +133,28 @@ class ColdStarter(SupervisedTransformer):
         Returns:
             Self: The transformer instance for method chaining.
         """
-        self.frames_ = frame
+        self.residuals_ = frame
 
-        self.noise_level_ = self._estimate_gaussian_noise(self.frames_, frame.shape)
+        # i added this
+        self.noise_level_ = self._estimate_gaussian_noise(self.residuals_, frame.shape)
 
         valid = True
         while valid:
             # Compute deviation from median
-            V = self._center_to_median(self.frames_)
+            V = self._center_to_median(self.residuals_)
             if (V.max() - V.min()) / 2 <= self.noise_level_:  # if fluctuation is noise level
                 valid = False
                 continue
 
-            # Compute energy (variance)
+            # Compute energy (variance)  -- why are we giving real value to below median? floor it?
             E = (V**2).sum(dim=self.params.frames_axis)
 
             # Find and analyze neighborhood of maximum variance
-            neighborhood = self._get_max_energy_slice(arr=self.frames_, energy_landscape=E)
+            neighborhood = self._get_max_energy_slice(arr=self.residuals_, energy_landscape=E)
             a_new, c_new = self._local_nmf(
                 neighborhood=neighborhood,
-                spatial_size=self.frames_.shape,
-                spatial_dims=self.frames_.dims,
-                temporal_coords=self.frames_.coords[Axis.frames_axis].coords,
+                spatial_sizes=self.residuals_.sizes,
+                temporal_coords=self.residuals_.coords,
             )
 
             logger.info(f"New C: {c_new.values}")
@@ -185,7 +183,7 @@ class ColdStarter(SupervisedTransformer):
             return self
 
         new_ids = [uuid4().hex for _ in self.new_footprints_]
-        new_types = [Component.NEURON.value for _ in self.new_footprints_]
+        new_types = [Component.UNKNOWN.value for _ in self.new_footprints_]
         new_coords = {
             self.params.id_coordinates: (self.params.component_axis, new_ids),
             self.params.type_coordinates: (self.params.component_axis, new_types),
@@ -230,7 +228,7 @@ class ColdStarter(SupervisedTransformer):
 
         # Update statistics and overlaps
         pixel_stats_ = self._update_pixel_stats(
-            frame=self.frame_,
+            frame=self.residuals_,
             og_footprints=footprints,
             new_footprints=self.new_footprints_,
             og_traces=traces,
@@ -239,7 +237,7 @@ class ColdStarter(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.frame_.coords[Axis.frame_coordinates].item(),
+            frame_idx=self.residuals_.coords[self.params.frame_coordinates].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,
@@ -258,17 +256,6 @@ class ColdStarter(SupervisedTransformer):
             component_stats_,
             overlaps_,
         )
-
-    def _estimate_cell_radius(self, footprints: Footprints) -> float:
-        neuron_footprints = footprints.set_xindex(self.params.type_coordinates).sel(
-            {self.params.type_coordinates: Component.NEURON.value}
-        )
-        if self.params.component_axis not in neuron_footprints.dims:
-            neuron_footprints = neuron_footprints.expand_dims(self.params.component_axis)
-        avg_footprint = (neuron_footprints != 0).sum() / neuron_footprints.sizes[
-            self.params.component_axis
-        ]
-        return max(float(np.sqrt(avg_footprint)) / 2, 1.0)
 
     def _estimate_gaussian_noise(self, residuals: Residuals, frame_shape: tuple[int, ...]) -> float:
         self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
@@ -345,8 +332,7 @@ class ColdStarter(SupervisedTransformer):
     def _local_nmf(
         self,
         neighborhood: xr.DataArray,
-        spatial_size: tuple[int, ...],
-        spatial_dims: tuple[Hashable, ...],
+        spatial_sizes: Mapping[Hashable, int],
         temporal_coords: Coordinates,
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Perform local rank-1 Non-negative Matrix Factorization.
@@ -369,7 +355,7 @@ class ColdStarter(SupervisedTransformer):
         )
 
         # Apply NMF
-        model = NMF(n_components=1, init="random")
+        model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
         logger.info(f"R Sizes: {R.sizes}")
         # when residual is negative, the error becomes massive...
         c = model.fit_transform(R.clip(0))  # temporal component
@@ -379,7 +365,9 @@ class ColdStarter(SupervisedTransformer):
         c_new = xr.DataArray(c.squeeze(), dims=[self.params.frames_axis], coords=temporal_coords)
 
         # Create full-frame zero array with proper coordinates
-        a_new = xr.DataArray(np.zeros(spatial_size), dims=spatial_dims)
+        a_new = xr.DataArray(
+            np.zeros(tuple(spatial_sizes.values())), dims=tuple(spatial_sizes.keys())
+        )
 
         # Place the NMF result in the correct location
         a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = xr.DataArray(
@@ -405,8 +393,15 @@ class ColdStarter(SupervisedTransformer):
     ) -> bool:
         """Validate new component against spatial and temporal criteria."""
 
+        # not sure if this step is necessary or even makes sense
+        # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
+        # and if the error is massive, maybe it just means it's overlapping with another
+        # luminescent object?
+        # so why are we just tossing it out?
+        # instead of tossing, we do candidates - cell, background, UNKNOWN
+        # we gather everything. we merge everything as much as possible. and then we decide what to do.
         valid_spatial = self._check_spatial_validity(
-            new_footprints=new_footprints, residuals=residuals
+            new_footprint=new_footprints, residuals=residuals
         )
 
         if not valid_spatial:
@@ -425,6 +420,7 @@ class ColdStarter(SupervisedTransformer):
         if not overlapping_components.any():
             return True
 
+        # instead of tossing when duplicate, we should merge
         valid_temporal = self._check_temporal_validity(
             suspect_ids=overlapping_components,
             traces=traces,
@@ -437,24 +433,27 @@ class ColdStarter(SupervisedTransformer):
 
         return False
 
-    def _check_spatial_validity(
-        self, new_footprints: xr.DataArray, residuals: xr.DataArray
-    ) -> bool:
+    def _check_spatial_validity(self, new_footprint: xr.DataArray, residuals: xr.DataArray) -> bool:
         nonzero_ax_to_idx = {
             ax: sorted([int(x) for x in set(idx)])
-            for ax, idx in zip(new_footprints.dims, new_footprints.values.nonzero())
+            for ax, idx in zip(new_footprint.dims, new_footprint.values.nonzero())
         }  # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]] for [0, 0], [0, 1], [1, 0], [1, 1]
 
         if len(list(nonzero_ax_to_idx.values())[0]) == 0:
             return False
 
-            # it should look like something from a residual. paper does not specify this,
-            # but i think we should only get correlation from the new footprint perimeter,
-            # since otherwise the correlation will get drowned out by the mismatch
-            # from where the detected cell is NOT present.
+        # it should look like something from a residual. paper does not specify this,
+        # but i think we should only get correlation from the new footprint perimeter,
+        # since otherwise the correlation will get drowned out by the mismatch
+        # from where the detected cell is NOT present.
         mean_residual = residuals.mean(dim=self.params.frames_axis)
 
-        a_norm = new_footprints.isel(nonzero_ax_to_idx) / new_footprints.sum()
+        # is this step necessary? what exact cases would this filter out?
+        # if the trace is similar enough, we should accept it regardless. - right? what's the downside here
+        # it doesn't look like the mean residual - but has a trace that looks like one of the og.
+        # hmm?
+        # if the trace is not similar, only THEN we check if it looks like the residual.
+        a_norm = new_footprint.isel(nonzero_ax_to_idx) / new_footprint.sum()
         res_norm = mean_residual.isel(nonzero_ax_to_idx) / mean_residual.sum()
         r_spatial = xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
 

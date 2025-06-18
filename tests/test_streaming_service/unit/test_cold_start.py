@@ -29,8 +29,7 @@ class TestColdStart:
         )
         a_new, c_new = cold_starter._local_nmf(
             suspect_area,
-            stabilized_video[0].shape,
-            stabilized_video[0].dims,
+            stabilized_video[0].sizes,
             stabilized_video.coords[cold_starter.params.frames_axis].coords,
         )
 
@@ -46,30 +45,80 @@ class TestColdStart:
 
         return a_new, c_new
 
-    def test_validate_component(self, cold_starter, new_components, stabilized_video):
+    def test_validate_component(
+        self, cold_starter, new_components, stabilized_video, footprints, traces
+    ):
         a_new, c_new = new_components
 
         # a few different scenarios...
-        # 1. completely new cell (cannot be rejected)
+        # 1. very first cell (cannot be rejected)
         # 2. same trace as existing - footprint overlapping (should merge post normalization)
         # 3. same trace as existing - footprint non-overlapping (should merge but how to normalize??)
-        # 4. unique trace - footprint nonoverlapping ()
-        # 5. unique trace - footprint overlapping ()
+        # 4. unique trace - footprint nonoverlapping (add as a new component)
+        # 5. unique trace - footprint overlapping (add as a new component)
 
-        # 1.
-        footprints = xr.DataArray(
+        # 1. completely new cell (cannot be rejected)
+        starting_footprints = xr.DataArray(
             np.array([]), dims=cold_starter.params.component_axis
         ).assign_coords()
-        traces = xr.DataArray(np.array([]), dims=cold_starter.params.component_axis)
+        starting_traces = xr.DataArray(np.array([]), dims=cold_starter.params.component_axis)
 
         valid = cold_starter._validate_new_components(
             new_footprints=a_new,
             new_traces=c_new,
-            footprints=footprints,
-            traces=traces,
+            footprints=starting_footprints,
+            traces=starting_traces,
             residuals=stabilized_video,
         )
 
-        # 2.
+        assert valid
+
+        new_component = a_new * c_new
+        cold_starter.residuals_ = stabilized_video - new_component
+
+        cold_starter.new_footprints_.append(a_new)
+        cold_starter.new_traces_.append(c_new)
+
+        # 2. same trace as existing - footprint overlapping (should merge post normalization)
+        def idx_from_trace(orig_traces: xr.DataArray, new_trace: xr.DataArray) -> int:
+            return xr.corr(new_trace, orig_traces, dim="frame").argmax()
+
+        import matplotlib.pyplot as plt
+
+        idx = idx_from_trace(traces, c_new)
+        overlap_fp = footprints.sel({"component": idx})
+        plt.imsave("overlap.png", overlap_fp)
+
+        # fp_cutoff = overlap_fp.where(overlap_fp > 0, drop=True).quantile(0.90)
+        centroid = overlap_fp.reset_coords(["id_", "type_"], drop=True).where(a_new > 0, 0)
+        rim = overlap_fp.reset_coords(["id_", "type_"], drop=True).where(a_new <= 0, 0).copy()
+        footprints.loc[{"component": idx}] = centroid
+
+        plt.imsave("rim.png", rim)
+        plt.imsave("centroid.png", centroid)
+        plt.imsave("res_mean.png", stabilized_video.mean(dim=cold_starter.params.frames_axis))
+
+        residuals = stabilized_video.where(rim > 0, 0)
+        # Compute deviation from median
+        V = cold_starter._center_to_median(residuals)
+
+        # Compute energy (variance)
+        E = (V**2).sum(dim="frame")
+
+        # Find and analyze neighborhood of maximum variance
+        neighborhood = cold_starter._get_max_energy_slice(arr=residuals, energy_landscape=E)
+        a_merge, c_merge = cold_starter._local_nmf(
+            neighborhood=neighborhood,
+            spatial_sizes=residuals.sel({"frame": 0}).sizes,
+            temporal_coords=residuals.coords,
+        )
+
+        valid = cold_starter._validate_new_components(
+            new_footprints=a_merge,
+            new_traces=c_merge,
+            footprints=footprints,
+            traces=traces,
+            residuals=residuals,
+        )
 
         assert valid
