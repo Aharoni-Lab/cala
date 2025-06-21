@@ -85,17 +85,20 @@ class Simulator:
 
         return xr.concat(footprints, dim=Axis.component_axis)
 
-    def _format_traces(self) -> xr.DataArray:
+    def _format_trace(self, trace: np.ndarray, id_: str) -> xr.DataArray:
+        return (
+            xr.DataArray(
+                trace,
+                dims=Axis.frames_axis,
+            )
+            .expand_dims(Axis.component_axis)
+            .assign_coords({Axis.id_coordinates: (Axis.component_axis, [id_])})
+        )
+
+    def _build_traces(self) -> xr.DataArray:
         traces = []
         for trace, id_ in zip(self.cell_traces, self.cell_ids):
-            traces.append(
-                xr.DataArray(
-                    trace,
-                    dims=Axis.frames_axis,
-                )
-                .expand_dims(Axis.component_axis)
-                .assign_coords({Axis.id_coordinates: (Axis.component_axis, [id_])})
-            )
+            traces.append(self._format_trace(trace, id_))
 
         return xr.concat(traces, dim=Axis.component_axis)
 
@@ -104,11 +107,38 @@ class Simulator:
         movie += (footprints @ traces).transpose(Axis.frames_axis, *Axis.spatial_axes)
         return movie
 
-    def run(self):
+    def make_movie(self):
         self.footprints_ = self._build_footprints()
-        self.traces_ = self._format_traces()
+        self.traces_ = self._build_traces()
         movie = self._generate_movie(self.footprints_, self.traces_)
         return movie
+
+    def add_cell(self, position: Position, radius: int, trace: np.ndarray, id_: str):
+        new_footprint = self._generate_footprint(radius, position, id_)
+        self.footprints_ = xr.concat([self.footprints_, new_footprint], dim=Axis.component_axis)
+
+        new_trace = self._format_trace(trace, id_)
+        self.traces_ = xr.concat([self.traces_, new_trace], dim=Axis.component_axis)
+
+    def remove_cell(self, id_: str):
+        self.footprints_.set_xindex(Axis.id_coordinates).drop(
+            {Axis.component_axis: id_}, inplace=True
+        )
+        self.traces_.set_xindex(Axis.id_coordinates).drop({Axis.component_axis: id_}, inplace=True)
+
+    @property
+    def footprints(self) -> xr.DataArray:
+        if self.footprints_:
+            return self.footprints_
+        else:
+            raise ValueError("No footprints available")
+
+    @property
+    def traces(self) -> xr.DataArray:
+        if self.traces_:
+            return self.traces_
+        else:
+            raise ValueError("No traces available")
 
 
 def main():
@@ -124,7 +154,7 @@ def main():
         cell_traces=cell_traces,
     )
 
-    sample_movie = movie_generator.run()
+    sample_movie = movie_generator.make_movie()
 
     Plotter(output_dir="../..").write_movie(sample_movie)
 
