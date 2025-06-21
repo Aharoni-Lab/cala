@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Iterable
 
 import numpy as np
 import xarray as xr
@@ -55,7 +56,10 @@ class Simulator:
             self.cell_ids = [f"cell_{idx}" for idx, _ in enumerate(self.cell_positions)]
         assert len(self.cell_ids) == len(self.cell_traces)
 
-    def _generate_movie_template(self):
+        self.footprints_ = self._build_footprints()
+        self.traces_ = self._build_traces()
+
+    def _build_movie_template(self):
         return xr.DataArray(
             np.zeros((self.n_frames, self.frame_dims.height, self.frame_dims.width)),
             dims=[Axis.frames_axis, *Axis.spatial_axes],
@@ -102,15 +106,13 @@ class Simulator:
 
         return xr.concat(traces, dim=Axis.component_axis)
 
-    def _generate_movie(self, footprints, traces) -> xr.DataArray:
-        movie = self._generate_movie_template()
+    def _build_movie(self, footprints, traces) -> xr.DataArray:
+        movie = self._build_movie_template()
         movie += (footprints @ traces).transpose(Axis.frames_axis, *Axis.spatial_axes)
         return movie
 
     def make_movie(self):
-        self.footprints_ = self._build_footprints()
-        self.traces_ = self._build_traces()
-        movie = self._generate_movie(self.footprints_, self.traces_)
+        movie = self._build_movie(self.footprints_, self.traces_)
         return movie
 
     def add_cell(self, position: Position, radius: int, trace: np.ndarray, id_: str):
@@ -120,11 +122,23 @@ class Simulator:
         new_trace = self._format_trace(trace, id_)
         self.traces_ = xr.concat([self.traces_, new_trace], dim=Axis.component_axis)
 
-    def remove_cell(self, id_: str):
-        self.footprints_.set_xindex(Axis.id_coordinates).drop(
-            {Axis.component_axis: id_}, inplace=True
+    def drop_cell(self, id_: str | Iterable[str]):
+        id_ = {id_} if isinstance(id_, str) else set(id_)
+
+        id_coords = set(self.footprints_.coords["id_"].values.tolist())
+
+        keep_ids = list(id_coords - id_)
+
+        self.footprints_ = (
+            self.footprints_.set_xindex(Axis.id_coordinates)
+            .sel({Axis.id_coordinates: keep_ids})
+            .reset_index(Axis.id_coordinates)
         )
-        self.traces_.set_xindex(Axis.id_coordinates).drop({Axis.component_axis: id_}, inplace=True)
+        self.traces_ = (
+            self.traces_.set_xindex(Axis.id_coordinates)
+            .sel({Axis.id_coordinates: keep_ids})
+            .reset_index(Axis.id_coordinates)
+        )
 
     @property
     def footprints(self) -> xr.DataArray:
@@ -146,7 +160,7 @@ def main():
     cell_positions = [Position(width=200, height=300)]
     cell_traces = [np.array(range(100))]
 
-    movie_generator = Simulator(
+    simulator = Simulator(
         n_frames=100,
         frame_dims=frame_dims,
         cell_radii=20,
@@ -154,7 +168,14 @@ def main():
         cell_traces=cell_traces,
     )
 
-    sample_movie = movie_generator.make_movie()
+    cell_position = Position(width=400, height=300)
+    cell_trace = np.array(range(100, 0, -1))
+
+    simulator.add_cell(cell_position, 10, cell_trace, "cell_a")
+
+    simulator.drop_cell("cell_a")
+
+    sample_movie = simulator.make_movie()
 
     Plotter(output_dir="../..").write_movie(sample_movie)
 
