@@ -96,7 +96,12 @@ class Simulator:
                 dims=Axis.frames_axis,
             )
             .expand_dims(Axis.component_axis)
-            .assign_coords({Axis.id_coordinates: (Axis.component_axis, [id_])})
+            .assign_coords(
+                {
+                    Axis.id_coordinates: (Axis.component_axis, [id_]),
+                    Axis.frames_axis: range(trace.size),
+                }
+            )
         )
 
     def _build_traces(self) -> xr.DataArray:
