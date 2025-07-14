@@ -1,17 +1,12 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Self, Mapping, Hashable
+from typing import Self
 from uuid import uuid4
 
-import numpy as np
 import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
-from scipy.ndimage import gaussian_filter
-from skimage.restoration import estimate_sigma
-from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
-from xarray import Coordinates
 
 from cala.streaming.core import Axis, Component, Parameters
 from cala.streaming.stores.common import Footprints, Traces
@@ -151,6 +146,7 @@ class ColdStarter(SupervisedTransformer):
 
             # Find and analyze neighborhood of maximum variance
             neighborhood = self._get_max_energy_slice(arr=self.residuals_, energy_landscape=E)
+
             a_new, c_new = self._local_nmf(
                 neighborhood=neighborhood,
                 spatial_sizes=self.residuals_.sizes,
@@ -159,9 +155,9 @@ class ColdStarter(SupervisedTransformer):
 
             logger.info(f"New C: {c_new.values}")
             # Validate new component
-            if not self._validate_new_components(
-                new_footprints=a_new,
-                new_traces=c_new,
+            if not self._validate_new_component(
+                new_footprint=a_new,
+                new_trace=c_new,
                 residuals=self.residuals_,
                 traces=traces,
                 footprints=footprints,
@@ -172,7 +168,7 @@ class ColdStarter(SupervisedTransformer):
             # Update residuals and energy
             new_component = a_new * c_new
             self.residuals_ = self.residuals_ - new_component
-            # V = V - (a_new**2) * (c_new**2).sum()
+            # E = E - (a_new**2) * (c_new**2).sum()  --> the paper is wrong here
 
             self.new_footprints_.append(a_new)
             self.new_traces_.append(c_new)
@@ -184,10 +180,14 @@ class ColdStarter(SupervisedTransformer):
 
         new_ids = [uuid4().hex for _ in self.new_footprints_]
         new_types = [Component.UNKNOWN.value for _ in self.new_footprints_]
+        new_confidences = [0] * len(self.new_footprints_)
         new_coords = {
             self.params.id_coordinates: (self.params.component_axis, new_ids),
             self.params.type_coordinates: (self.params.component_axis, new_types),
+            self.params.confidence_coordinates: (self.params.component_axis, new_confidences),
         }
+
+        # two levels of confidence - first, is it a thing? --> second, is it a cell?
 
         self.new_footprints_ = xr.concat(
             self.new_footprints_, dim=self.params.component_axis
@@ -257,11 +257,6 @@ class ColdStarter(SupervisedTransformer):
             overlaps_,
         )
 
-    def _estimate_gaussian_noise(self, residuals: Residuals, frame_shape: tuple[int, ...]) -> float:
-        self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
-        patches = self.sampler.transform(residuals)
-        return float(estimate_sigma(patches))
-
     def _update_residual_buffer(
         self,
         frame: xr.DataArray,
@@ -284,211 +279,6 @@ class ColdStarter(SupervisedTransformer):
             dim=self.params.frames_axis,
         )
         return residuals
-
-    def _center_to_median(self, arr: xr.DataArray) -> xr.DataArray:
-        """Process residuals through median subtraction and spatial filtering."""
-        # Center residuals: why median and not mean?
-        pixels_median = arr.median(dim=self.params.frames_axis)
-        arr_centered = arr - pixels_median
-
-        # Apply spatial filter -- why are we doing this??
-        V = xr.apply_ufunc(
-            lambda x: gaussian_filter(x, self.params.gaussian_std),
-            arr_centered,
-            input_core_dims=[[*self.params.spatial_axes]],
-            output_core_dims=[[*self.params.spatial_axes]],
-            vectorize=True,
-            dask="allowed",
-        )
-
-        return V
-
-    def _get_max_energy_slice(
-        self,
-        arr: xr.DataArray,
-        energy_landscape: xr.DataArray,
-    ) -> xr.DataArray:
-        """Find neighborhood around point of maximum variance."""
-        # Find maximum point
-        max_coords = energy_landscape.argmax(dim=self.params.spatial_axes)
-
-        # Define neighborhood
-        radius = int(np.round(self.params.cell_radius))
-        window = {
-            ax: slice(
-                max(0, pos.values - radius),
-                min(energy_landscape.sizes[ax], pos.values + radius + 1),
-            )
-            for ax, pos in max_coords.items()
-        }
-
-        # ok embed the actual coordinates onto the array
-        neighborhood = arr.isel(window).assign_coords(
-            {ax: energy_landscape.coords[ax][pos] for ax, pos in window.items()}
-        )
-
-        return neighborhood
-
-    def _local_nmf(
-        self,
-        neighborhood: xr.DataArray,
-        spatial_sizes: Mapping[Hashable, int],
-        temporal_coords: Coordinates,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
-        """Perform local rank-1 Non-negative Matrix Factorization.
-
-        Uses scikit-learn's NMF implementation to decompose the neighborhood
-        into spatial (a) and temporal (c) components.
-
-        Args:
-            neighborhood (xr.DataArray): Local region of residual buffer.
-                Shape: (frames × height × width)
-
-        Returns:
-            tuple[xr.DataArray, xr.DataArray]:
-                - Spatial component a_new (height × width)
-                - Temporal component c_new (frames)
-        """
-        # Reshape neighborhood to 2D matrix (time × space)
-        R = neighborhood.stack(space=self.params.spatial_axes).transpose(
-            self.params.frames_axis, "space"
-        )
-
-        # Apply NMF
-        model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
-        logger.info(f"R Sizes: {R.sizes}")
-        # when residual is negative, the error becomes massive...
-        c = model.fit_transform(R.clip(0))  # temporal component
-        a = model.components_  # spatial component
-
-        # Convert back to xarray with proper dimensions and coordinates
-        c_new = xr.DataArray(c.squeeze(), dims=[self.params.frames_axis], coords=temporal_coords)
-
-        # Create full-frame zero array with proper coordinates
-        a_new = xr.DataArray(
-            np.zeros(tuple(spatial_sizes.values())), dims=tuple(spatial_sizes.keys())
-        )
-
-        # Place the NMF result in the correct location
-        a_new.loc[{ax: neighborhood.coords[ax] for ax in self.params.spatial_axes}] = xr.DataArray(
-            a.squeeze().reshape(tuple(neighborhood.sizes[ax] for ax in self.params.spatial_axes)),
-            dims=self.params.spatial_axes,
-            coords={ax: neighborhood.coords[ax] for ax in self.params.spatial_axes},
-        )
-
-        # normalize against the original video
-        factor = neighborhood.max() / a_new.max()
-        a_new = a_new * factor
-        c_new = c_new / factor
-
-        return a_new, c_new
-
-    def _validate_new_components(
-        self,
-        new_footprints: Footprints,
-        new_traces: Traces,
-        footprints: Footprints,
-        traces: Traces,
-        residuals: xr.DataArray,
-    ) -> bool:
-        """Validate new component against spatial and temporal criteria."""
-
-        # not sure if this step is necessary or even makes sense
-        # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
-        # and if the error is massive, maybe it just means it's overlapping with another
-        # luminescent object?
-        # so why are we just tossing it out?
-        # instead of tossing, we do candidates - cell, background, UNKNOWN
-        # we gather everything. we merge everything as much as possible. and then we decide what to do.
-        valid_spatial = self._check_spatial_validity(
-            new_footprint=new_footprints, residuals=residuals
-        )
-
-        if not valid_spatial:
-            return False
-
-        if footprints.size == 0:
-            return True
-
-        # Check for duplicates by computing spatial overlap with existing footprints
-        overlaps = (new_footprints @ footprints) > 0
-
-        overlapping_components = (
-            overlaps.where(overlaps, drop=True).coords[self.params.id_coordinates].values
-        )
-
-        if not overlapping_components.any():
-            return True
-
-        # instead of tossing when duplicate, we should merge
-        valid_temporal = self._check_temporal_validity(
-            suspect_ids=overlapping_components,
-            traces=traces,
-            new_traces=new_traces,
-            residual_length=residuals.sizes[self.params.frames_axis],
-        )
-
-        if valid_temporal:
-            return True
-
-        return False
-
-    def _check_spatial_validity(self, new_footprint: xr.DataArray, residuals: xr.DataArray) -> bool:
-        nonzero_ax_to_idx = {
-            ax: sorted([int(x) for x in set(idx)])
-            for ax, idx in zip(new_footprint.dims, new_footprint.values.nonzero())
-        }  # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]] for [0, 0], [0, 1], [1, 0], [1, 1]
-
-        if len(list(nonzero_ax_to_idx.values())[0]) == 0:
-            return False
-
-        # it should look like something from a residual. paper does not specify this,
-        # but i think we should only get correlation from the new footprint perimeter,
-        # since otherwise the correlation will get drowned out by the mismatch
-        # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=self.params.frames_axis)
-
-        # is this step necessary? what exact cases would this filter out?
-        # if the trace is similar enough, we should accept it regardless. - right? what's the downside here
-        # it doesn't look like the mean residual - but has a trace that looks like one of the og.
-        # hmm?
-        # if the trace is not similar, only THEN we check if it looks like the residual.
-        a_norm = new_footprint.isel(nonzero_ax_to_idx) / new_footprint.sum()
-        res_norm = mean_residual.isel(nonzero_ax_to_idx) / mean_residual.sum()
-        r_spatial = xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
-
-        if r_spatial <= self.params.spatial_threshold:
-            return False
-        return True
-
-    def _check_temporal_validity(
-        self, suspect_ids: xr.DataArray, traces: Traces, residual_length: int, new_traces: Traces
-    ) -> bool:
-        relevant_traces = (
-            traces.set_xindex(self.params.id_coordinates)
-            .sel(
-                {
-                    self.params.id_coordinates: suspect_ids,
-                }
-            )
-            .isel(
-                {
-                    self.params.frames_axis: slice(
-                        -residual_length, None  # -residuals.sizes[self.params.frames_axis], None
-                    )
-                }
-            )
-        )
-        # For components with spatial overlap, check temporal correlation
-        temporal_corr = xr.corr(
-            new_traces,
-            relevant_traces,
-            dim=self.params.frames_axis,
-        )
-
-        if (temporal_corr > self.params.temporal_threshold).any():
-            return False
-        return True
 
     def _update_pixel_stats(
         self,
