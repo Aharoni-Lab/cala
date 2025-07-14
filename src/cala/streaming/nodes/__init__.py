@@ -1,3 +1,3 @@
-from base import Node
+from .base import Node
 
 __all__ = ["Node"]
