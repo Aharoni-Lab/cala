@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import xarray as xr
 from scipy.ndimage import gaussian_filter
@@ -20,7 +20,7 @@ class EnergyParams(Parameters, Axis):
 @dataclass
 class Energy(Node):
     params: EnergyParams
-    noise_level_: float
+    noise_level_: float = field(init=False)
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
     def process(self, residuals: Residuals) -> xr.DataArray | None:
