@@ -9,14 +9,41 @@ from cala.streaming.stores.common import Footprints, Traces
 
 
 @dataclass
-class ValidateParams(Parameters, Axis):
-    spatial_threshold: float
-    temporal_threshold: float
+class CatalogerParams(Parameters, Axis):
+    merge_threshold: float
+
+    def validate(self) -> None: ...
 
 
 @dataclass
-class Validate(Node):
-    params: ValidateParams
+class Cataloger(Node):
+    params: CatalogerParams
+
+    def process(self, new_fp, new_tr, fp_inventory, tr_inventory, residuals) -> str | bool:
+        """
+        determines whether the new component overlaps with an existing component.
+        if not valid at all, return False
+        if novel, return True
+        if similar to existing components (above threshold), return the component IDs.
+
+        :param new_fp:
+        :param new_tr:
+        :param fp_inventory:
+        :param tr_inventory:
+        :param residuals:
+        :return:
+        """
+        s_validity = self._validate_spatial(new_fp, residuals)
+        if not s_validity >= self.params.spatial_threshold:
+            return False
+
+        overlapping_cells = self._find_overlap_ids(new_fp, fp_inventory)
+
+        t_validity = self._validate_temporal(new_tr, tr_inventory, overlapping_cells)
+        if not t_validity >= self.params.merge_threshold:
+            return True
+
+        return True
 
     def _validate_new_component(
         self,
@@ -47,15 +74,6 @@ class Validate(Node):
         #       * what if overlapping & similar trace with more than one cell
         #           * start by overlapping with the highest - then measure the confidence of the larger two,
         #           * worry about merging the large two then
-
-        # not sure if this step is necessary or even makes sense
-        # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
-        # and if the error is massive, maybe it just means it's overlapping with another luminescent object?
-        # instead of tossing, we do candidates - cell, background, UNKNOWN
-        # we gather everything. we merge everything as much as possible. and then we decide what to do.
-        valid_spatial = self._check_spatial_validity(
-            new_footprint=new_footprint, residuals=residuals
-        )
 
         if footprints.size == 0:
             return True
@@ -108,36 +126,6 @@ class Validate(Node):
 
         return overlaps.where(overlaps, drop=True).coords[self.params.id_coordinates].values
 
-    def _check_spatial_validity(self, new_footprint: xr.DataArray, residuals: xr.DataArray) -> bool:
-        nonzero_ax_to_idx = {
-            ax: sorted([int(x) for x in set(idx)])
-            for ax, idx in zip(new_footprint.dims, new_footprint.values.nonzero())
-        }  # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]] for [0, 0], [0, 1], [1, 0], [1, 1]
-
-        if len(list(nonzero_ax_to_idx.values())[0]) == 0:
-            return False
-
-        # it should look like something from a residual. paper does not specify this,
-        # but i think we should only get correlation from the new footprint perimeter,
-        # since otherwise the correlation will get drowned out by the mismatch
-        # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=self.params.frames_axis)
-
-        # is this step necessary? what exact cases would this filter out?
-        # if the trace is similar enough, we should accept it regardless. - right? what's the downside here
-        # it doesn't look like the mean residual - but has a trace that looks like one of the og.
-        # hmm?
-        # if the trace is not similar, only THEN we check if it looks like the residual.
-        a_norm = new_footprint.isel(nonzero_ax_to_idx) / new_footprint.sum()
-        res_norm = mean_residual.isel(nonzero_ax_to_idx) / mean_residual.sum()
-
-        # instead of rejecting, we should attach this value to the component
-        r_spatial = xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
-
-        if r_spatial <= self.params.spatial_threshold:
-            return False
-        return True
-
     def _get_synced_traces(
         self, suspect_ids: xr.DataArray, traces: Traces, residual_length: int, new_traces: Traces
     ) -> xr.DataArray:
@@ -158,4 +146,4 @@ class Validate(Node):
         )
 
         # --> subtract trace from new, merge footprint into original
-        return temporal_corr.where(temporal_corr > self.params.temporal_threshold, drop=True)
+        return temporal_corr.where(temporal_corr > self.params.merge_threshold, drop=True)
