@@ -1,6 +1,13 @@
 from .energy import Energy, EnergyParams
 from .slice_nmf import SliceNMF, SliceNMFParams
-from .catalog import Cataloger, CatalogerParams
+from .dupe_sniff import DupeSniffer, DupeSnifferParams
 
 
-__all__ = ["Energy", "EnergyParams", "SliceNMF", "SliceNMFParams", "Cataloger", "CatalogerParams"]
+__all__ = [
+    "Energy",
+    "EnergyParams",
+    "SliceNMF",
+    "SliceNMFParams",
+    "DupeSniffer",
+    "DupeSnifferParams",
+]

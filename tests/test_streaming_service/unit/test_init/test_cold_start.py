@@ -1,9 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import xarray as xr
 
-from cala.streaming.nodes.init.cold import Energy, EnergyParams, SliceNMF, SliceNMFParams
+from cala.streaming.nodes.init.cold import (
+    Energy,
+    EnergyParams,
+    SliceNMF,
+    SliceNMFParams,
+    DupeSniffer,
+    DupeSnifferParams,
+)
 from cala.testing.simulation import Simulator, FrameSize, Position
 
 
@@ -76,6 +82,9 @@ class TestSliceNMF:
         plt.savefig("c_new.png")
 
     def test_check_validity(self, slice_nmf, single_cell_video, energy_shape, simulator):
+        """
+        test this with multiple overlapping cells!!
+        """
         slice_ = slice_nmf._get_max_energy_slice(single_cell_video, energy_shape)
         footprint, _ = slice_nmf._local_nmf(
             slice_,
@@ -87,83 +96,53 @@ class TestSliceNMF:
         new_component = slice_nmf.process(single_cell_video, energy_shape)
         if new_component:
             new_fp, new_tr = new_component
+        else:
+            assert False, "Failed to detect a new component"
 
 
-class TestCataloger:
+class TestSniffer:
+    @pytest.fixture(scope="module")
+    def energy_shape(self, single_cell_video):
+        return Energy(EnergyParams(gaussian_std=1.0)).process(single_cell_video)
+
     @pytest.fixture(scope="class")
     def new_component(self, single_cell_video, energy_shape):
         return SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
             single_cell_video, energy_shape
         )
 
+    @pytest.fixture(scope="class")
+    def sniffer(self):
+        return DupeSniffer(params=DupeSnifferParams(merge_threshold=0.8))
 
-class TestColdStart:
+    def test_find_overlap_ids(self, simulator, new_component, sniffer):
+        new_fp, new_tr = new_component
 
-    def test_validate_component(self, cold_starter, new_components, single_cell_video):
-        a_new, c_new = new_components
-
-        # a few different scenarios...
-        # 1. very first cell (cannot be rejected)
-        # 2. same trace as existing - footprint overlapping (should merge)
-        # 3. same trace as existing - footprint non-overlapping (add as a new cell - could be just correlated neurons)
-        # 4. unique trace - footprint nonoverlapping (add as a new component)
-        # 5. unique trace - footprint overlapping (add as a new component)
-
-        # 1. completely new cell (cannot be rejected)
-        starting_footprints = xr.DataArray(
-            np.array([]), dims=cold_starter.params.component_axis
-        ).assign_coords()
-        starting_traces = xr.DataArray(np.array([]), dims=cold_starter.params.component_axis)
-
-        valid = cold_starter._validate_new_component(
-            new_footprint=a_new,
-            new_trace=c_new,
-            footprints=starting_footprints,
-            traces=starting_traces,
-            residuals=single_cell_video,
+        simulator.add_cell(
+            Position(width=260, height=260), 30, np.array(range(300, 0, -1)), "cell_1"
         )
 
-        assert valid
+        ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
+        assert np.all(ids == ["cell_0", "cell_1"])
 
-    @pytest.fixture
-    def starter_with_one_component(self, cold_starter, new_components, single_cell_video):
-        a_new, c_new = new_components
-        new_component = a_new * c_new
+    def test_get_overlapped_traces(self, simulator, new_component, sniffer):
+        new_fp, _ = new_component
+        ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
 
-        cold_starter.residuals_ = single_cell_video - new_component
+        trace = sniffer._get_overlapped_traces(ids, simulator.traces)
 
-        cold_starter.new_footprints_.append(a_new)
-        cold_starter.new_traces_.append(c_new)
+        assert np.all(trace == simulator.traces)
 
-        return cold_starter
-
-    def test_validate_duplicate_component(self, starter_with_one_component):
-        # 2. same trace as existing - footprint overlapping (should merge)
-
-        # Compute deviation from median
-        V = starter_with_one_component._center_to_median(starter_with_one_component.residuals_)
-
-        # Compute energy (variance)
-        E = (V**2).sum(dim="frame")
-
-        # Find and analyze neighborhood of maximum variance
-        neighborhood = starter_with_one_component._get_max_energy_slice(
-            arr=starter_with_one_component.residuals_, energy_landscape=E
+    def test_has_unique_trace(self, simulator, new_component, sniffer):
+        new_fp, new_tr = new_component
+        simulator.add_cell(
+            Position(width=260, height=260), 30, np.array(range(300, 0, -1)), "cell_1"
         )
-        a_merge, c_merge = starter_with_one_component._local_nmf(
-            slice_=neighborhood,
-            spatial_sizes=starter_with_one_component.residuals_.sel({"frame": 0}).sizes,
-            temporal_coords=starter_with_one_component.residuals_.coords,
-        )
+        ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
+        traces = sniffer._get_overlapped_traces(ids, simulator.traces)
+        dupe = sniffer._get_synced_traces(new_tr, traces)
 
-        plt.imsave("a_merge.png", a_merge)
+        print(dupe)
 
-        valid = starter_with_one_component._validate_new_component(
-            new_footprint=a_merge,
-            new_trace=c_merge,
-            footprints=starter_with_one_component.new_footprints_,
-            traces=starter_with_one_component.new_traces_,
-            residuals=starter_with_one_component.residuals_,
-        )
 
-        assert valid
+class TestCataloger: ...

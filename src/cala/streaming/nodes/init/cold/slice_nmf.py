@@ -36,6 +36,8 @@ class SliceNMF(Node):
             },
         )
 
+        # eventually we should just log this value instead of throwing out the component
+        # otherwise we keep coming back to this energy max point
         if self._check_validity(a_new, residuals):
             return a_new, c_new
         else:
@@ -129,6 +131,13 @@ class SliceNMF(Node):
         # instead of tossing, we do candidates - cell, background, UNKNOWN
         # we gather everything. we merge everything as much as possible. and then we decide what to do.
 
+        # is it a cell / background, or just a plain wrong estimator - how do we distinguish these?
+        # what i'm worried about is a WRONG estimator cannibalizing real cell signal
+        # estimator_confidence, and neuron_confidence
+        # estimator_confidence - how much of it can be explained by others
+        # this can be remedied in the merge / split step? first it gets split, then it gets merged
+        # neuron_confidence - how likely is it a neuron
+
         nonzero_ax_to_idx = {
             ax: sorted([int(x) for x in set(idx)])
             for ax, idx in zip(a_new.dims, a_new.values.nonzero())
@@ -141,20 +150,16 @@ class SliceNMF(Node):
         # but i think we should only get correlation from within the new footprint perimeter,
         # since otherwise the correlation will get drowned out by the mismatch
         # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=self.params.frames_axis)
+        mean_residual = residuals.mean(dim=self.params.frames_axis).isel(nonzero_ax_to_idx)
 
-        # is this step necessary? what exact cases would this filter out?
-        # if the trace is similar enough, we should accept it regardless. - right? what's the downside here
-        # it doesn't look like the mean residual - but has a trace that looks like one of the og.
-        # hmm?
-        # if the trace is not similar, only THEN we check if it looks like the residual.
         a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
-        res_norm = (
-            mean_residual.isel(nonzero_ax_to_idx) / mean_residual.isel(nonzero_ax_to_idx).sum()
-        )
+        res_norm = mean_residual / mean_residual.sum()
 
-        # instead of rejecting, we should attach this value to the component
-        r_spatial = xr.corr(a_norm, res_norm) if np.abs(a_norm - res_norm).max() > 1e-7 else 1.0
+        # the reason we break from detection as soon as this happens is because
+        # we don't want to get flooded with wrong estimators.
+        # we instead wait for when we get cleaner signal.
+        # (this might not be super viable for cold-start. what if the first cell is bad? we just keep trying?)
+        r_spatial = xr.corr(a_norm, res_norm)
 
         if r_spatial <= self.params.validity_threshold:
             return False
