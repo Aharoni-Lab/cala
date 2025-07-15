@@ -147,14 +147,14 @@ class Simulator:
 
     @property
     def footprints(self) -> xr.DataArray:
-        if self.footprints_:
+        if self.footprints_.any():
             return self.footprints_
         else:
             raise ValueError("No footprints available")
 
     @property
     def traces(self) -> xr.DataArray:
-        if self.traces_:
+        if self.traces_.any():
             return self.traces_
         else:
             raise ValueError("No traces available")
