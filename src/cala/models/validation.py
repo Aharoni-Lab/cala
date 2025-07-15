@@ -20,7 +20,8 @@ class DaValidator:
         )
 
     def _build_entity_schema(self, schema: Entity) -> DataArraySchema:
-        coords_schema = self._build_coord_schema(schema.coords)
+        coords_schema = self._build_coord_schema(schema.coords) if schema.coords else None
+
         return DataArraySchema(
             dims=DimsSchema(tuple(dim.name for dim in schema.dims)),
             coords=coords_schema,

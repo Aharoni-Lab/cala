@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class Coord(BaseModel):
 
 class Dim(BaseModel):
     name: str
-    coords: list[Coord]
+    coords: list[Coord] = Field(default_factory=list)
 
 
 class Coords(Enum):
