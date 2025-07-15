@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 import numpy as np
 import xarray as xr
@@ -31,3 +32,7 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
         },
         name="frame",
     ).astype(np.float32)
+
+
+def create_id():
+    return uuid4().hex

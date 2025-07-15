@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Self
-from uuid import uuid4
 
 import numpy as np
 import sparse
@@ -15,6 +14,7 @@ from sklearn.feature_extraction.image import PatchExtractor
 from cala.streaming.core import Axis, Component, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
+from cala.streaming.util.new import create_id
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,7 @@ class Detector(SupervisedTransformer):
             self.new_traces_ = xr.DataArray([])
             return self
 
-        new_ids = [uuid4().hex for _ in self.new_footprints_]
+        new_ids = [create_id() for _ in self.new_footprints_]
         new_types = [Component.NEURON.value for _ in self.new_footprints_]
         new_coords = {
             self.params.id_coordinates: (self.params.component_axis, new_ids),
