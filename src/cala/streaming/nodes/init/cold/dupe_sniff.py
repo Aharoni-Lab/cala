@@ -10,16 +10,19 @@ from cala.streaming.stores.common import Footprints, Traces
 
 @dataclass
 class DupeSnifferParams(Parameters, Axis):
-    merge_threshold: float
+    merge_threshold: float  # this should get later replaced by confidence level
 
-    def validate(self) -> None: ...
+    def validate(self) -> None:
+        assert 0 <= self.merge_threshold <= 1, "merge_threshold must be between 0 and 1."
 
 
 @dataclass
 class DupeSniffer(Node):
     params: DupeSnifferParams
 
-    def process(self, new_fp, new_tr, existing_fp, existing_tr, residuals) -> np.ndarray | None:
+    def process(
+        self, new_fp, new_tr, existing_fp, existing_tr, residuals
+    ) -> dict[str, float] | None:
         """
         determines whether the new component overlaps with an existing component.
         if novel, return None.
@@ -42,7 +45,7 @@ class DupeSniffer(Node):
 
         synced_traces = self._get_synced_traces(new_tr, overlapped_traces)
 
-        if synced_traces.any():
+        if synced_traces:
             return synced_traces
 
         return True
@@ -71,7 +74,7 @@ class DupeSniffer(Node):
         self,
         new_trace: Traces,
         existing_traces: Traces,
-    ) -> np.ndarray:
+    ) -> dict[str, float]:
         """Validate new component against spatial and temporal criteria."""
 
         relevant_traces = existing_traces.isel(
@@ -84,8 +87,8 @@ class DupeSniffer(Node):
             dim=self.params.frames_axis,
         )
 
-        return (
-            temporal_corr.where(temporal_corr >= self.params.merge_threshold, drop=True)
-            .coords[self.params.id_coordinates]
-            .values
-        )
+        dupes = temporal_corr.where(temporal_corr >= self.params.merge_threshold, drop=True)
+        dupe_ids = dupes.coords[self.params.id_coordinates].values.tolist()
+        dupe_scores = dupes.values.tolist()
+
+        return dict(zip(dupe_ids, dupe_scores))
