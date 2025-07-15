@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from operator import itemgetter
 
 import numpy as np
 import xarray as xr
@@ -22,7 +23,7 @@ class DupeSniffer(Node):
 
     def process(
         self, new_fp, new_tr, existing_fp, existing_tr, residuals
-    ) -> dict[str, float] | None:
+    ) -> list[tuple[str, float]] | None:
         """
         determines whether the new component overlaps with an existing component.
         if novel, return None.
@@ -39,7 +40,7 @@ class DupeSniffer(Node):
         overlapping_components = self._find_overlap_ids(new_fp, existing_fp)
 
         if not overlapping_components:
-            return True
+            return None
 
         overlapped_traces = self._get_overlapped_traces(overlapping_components, existing_tr)
 
@@ -48,7 +49,7 @@ class DupeSniffer(Node):
         if synced_traces:
             return synced_traces
 
-        return True
+        return None
 
     def _find_overlap_ids(
         self, new_footprints: Footprints, existing_footprints: Footprints
@@ -66,15 +67,15 @@ class DupeSniffer(Node):
     ) -> xr.DataArray:
         return (
             existing_tr.set_xindex(self.params.id_coordinates)
-            .sel({Axis.id_coordinates: overlapping_components})
-            .reset_index(Axis.id_coordinates)
+            .sel({self.params.id_coordinates: overlapping_components})
+            .reset_index(self.params.id_coordinates)
         )
 
     def _get_synced_traces(
         self,
         new_trace: Traces,
         existing_traces: Traces,
-    ) -> dict[str, float]:
+    ) -> list[tuple[str, float]]:
         """Validate new component against spatial and temporal criteria."""
 
         relevant_traces = existing_traces.isel(
@@ -91,4 +92,4 @@ class DupeSniffer(Node):
         dupe_ids = dupes.coords[self.params.id_coordinates].values.tolist()
         dupe_scores = dupes.values.tolist()
 
-        return dict(zip(dupe_ids, dupe_scores))
+        return sorted(list(zip(dupe_ids, dupe_scores)), key=itemgetter(1))
