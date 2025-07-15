@@ -8,6 +8,7 @@ import numpy as np
 class Coord(BaseModel):
     name: str
     dtype: type
+    dim: str | None = None
 
 
 class Dim(BaseModel):
