@@ -1,14 +1,13 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Self
-from uuid import uuid4
 
 import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Axis, Component, Parameters
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 
@@ -98,105 +97,7 @@ class ColdStarter(SupervisedTransformer):
     is_fitted_: bool = False
     """Indicator whether the transformer has been fitted."""
 
-    def learn_one(
-        self,
-        frame: xr.DataArray,
-        footprints: Footprints,
-        traces: Traces,
-        residuals: Residuals,
-        overlaps: Overlaps,
-    ) -> Self:
-        """Process current frame to detect new components.
-
-        This method implements the main detection algorithm, processing the
-        current frame to identify and validate new components. It maintains
-        the residual buffer, performs spatial filtering, and updates the
-        model when new components are found.
-
-        Args:
-            frame (Frame): Current data frame y.
-                Shape: (height × width)
-            footprints (Footprints): Current spatial footprints [A, b].
-                Shape: (components × height × width)
-            traces (Traces): Current temporal traces [C; f].
-                Shape: (components × time)
-            residuals (Residuals): Current residual buffer R_buf.
-                Shape: (buffer_size × height × width)
-            overlaps (Overlaps): Current component overlaps G (sparse matrix)
-                Shape: (components × components')
-
-        Returns:
-            Self: The transformer instance for method chaining.
-        """
-        self.residuals_ = frame
-
-        # i added this
-        self.noise_level_ = self._estimate_gaussian_noise(self.residuals_, frame.shape)
-
-        valid = True
-        while valid:
-            # Compute deviation from median
-            V = self._center_to_median(self.residuals_)
-            if (V.max() - V.min()) / 2 <= self.noise_level_:  # if fluctuation is noise level
-                valid = False
-                continue
-
-            # Compute energy (variance)  -- why are we giving real value to below median? floor it?
-            E = (V**2).sum(dim=self.params.frames_axis)
-
-            # Find and analyze neighborhood of maximum variance
-            neighborhood = self._get_max_energy_slice(arr=self.residuals_, energy_landscape=E)
-
-            a_new, c_new = self._local_nmf(
-                neighborhood=neighborhood,
-                spatial_sizes=self.residuals_.sizes,
-                temporal_coords=self.residuals_.coords,
-            )
-
-            logger.info(f"New C: {c_new.values}")
-            # Validate new component
-            if not self._validate_new_component(
-                new_footprint=a_new,
-                new_trace=c_new,
-                residuals=self.residuals_,
-                traces=traces,
-                footprints=footprints,
-            ):
-                valid = False
-                continue
-
-            # Update residuals and energy
-            new_component = a_new * c_new
-            self.residuals_ = self.residuals_ - new_component
-            # E = E - (a_new**2) * (c_new**2).sum()  --> the paper is wrong here
-
-            self.new_footprints_.append(a_new)
-            self.new_traces_.append(c_new)
-
-        if len(self.new_footprints_) == 0:
-            self.new_footprints_ = xr.DataArray([])
-            self.new_traces_ = xr.DataArray([])
-            return self
-
-        new_ids = [uuid4().hex for _ in self.new_footprints_]
-        new_types = [Component.UNKNOWN.value for _ in self.new_footprints_]
-        new_confidences = [0] * len(self.new_footprints_)
-        new_coords = {
-            self.params.id_coordinates: (self.params.component_axis, new_ids),
-            self.params.type_coordinates: (self.params.component_axis, new_types),
-            self.params.confidence_coordinates: (self.params.component_axis, new_confidences),
-        }
-
-        # two levels of confidence - first, is it a thing? --> second, is it a cell?
-
-        self.new_footprints_ = xr.concat(
-            self.new_footprints_, dim=self.params.component_axis
-        ).assign_coords(new_coords)
-        self.new_traces_ = xr.concat(
-            self.new_traces_, dim=self.params.component_axis
-        ).assign_coords(new_coords)
-        self.is_fitted_ = True
-        return self
+    def learn_one(self, x, y) -> Self: ...
 
     def transform_one(
         self,
