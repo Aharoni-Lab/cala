@@ -1,149 +1,185 @@
 from dataclasses import dataclass
+from typing import Mapping, Hashable
 
 import numpy as np
 import xarray as xr
+from sklearn.decomposition import NMF
+from xarray import Coordinates
 
+from cala.models.entity import Entities, Groups
 from cala.streaming.core import Parameters, Axis
 from cala.streaming.nodes import Node
-from cala.streaming.stores.common import Footprints, Traces
+from cala.streaming.util.new import create_id
 
 
 @dataclass
 class CatalogerParams(Parameters, Axis):
-    merge_threshold: float
 
-    def validate(self) -> None: ...
+    def validate(self): ...
 
 
 @dataclass
 class Cataloger(Node):
     params: CatalogerParams
 
-    def process(self, new_fp, new_tr, fp_inventory, tr_inventory, residuals) -> str | bool:
-        """
-        determines whether the new component overlaps with an existing component.
-        if not valid at all, return False
-        if novel, return True
-        if similar to existing components (above threshold), return the component IDs.
-
-        :param new_fp:
-        :param new_tr:
-        :param fp_inventory:
-        :param tr_inventory:
-        :param residuals:
-        :return:
-        """
-        s_validity = self._validate_spatial(new_fp, residuals)
-        if not s_validity >= self.params.spatial_threshold:
-            return False
-
-        overlapping_cells = self._find_overlap_ids(new_fp, fp_inventory)
-
-        t_validity = self._validate_temporal(new_tr, tr_inventory, overlapping_cells)
-        if not t_validity >= self.params.merge_threshold:
-            return True
-
-        return True
-
-    def _validate_new_component(
+    def process(
         self,
-        new_footprint: Footprints,
-        new_trace: Traces,
-        footprints: Footprints,
-        traces: Traces,
-        residuals: xr.DataArray,
-    ) -> bool:
-        """Validate new component against spatial and temporal criteria."""
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        existing_fp: xr.DataArray = None,
+        existing_tr: xr.DataArray = None,
+        duplicates: list[tuple[str, float]] | None = None,
+    ):
+        if not duplicates:
+            footprints, traces = self._register(new_fp, new_tr, existing_fp, existing_tr)
 
-        # for the next round of discovery, we do need to register and subtract
-        # so this is what we do
-        # we grab everything. r_spatial < thresh, include it
-        # we however mark it "temporary"
-        # after we exhaust the entire frame, we do a review
-        # is it a cell, background, or just a plain wrong estimator - how do we distinguish these?
-        # estimator_confidence, and neuron_confidence
-        # estimator_confidence - how much of it can be explained by others
-        # this can be remedied in the merge / split step? first it gets split, then it gets merged
-        # neuron_confidence - how likely is it a neuron
+        else:
+            footprints, traces = self._merge(new_fp, new_tr, existing_fp, existing_tr, duplicates)
 
-        # we need a few different mechanisms - register, merge, toss
-        # register - it's a brand-new thing.
-        #       * isolated footprint, any trace (could be correlated cells)
-        #       * overlapping footprint, unique trace
-        # merge - overlapping footprint, similar trace (more similar than confidence level)
-        #       * what if overlapping & similar trace with more than one cell
-        #           * start by overlapping with the highest - then measure the confidence of the larger two,
-        #           * worry about merging the large two then
+        return footprints, traces
 
-        if footprints.size == 0:
-            return True
+    def _register(
+        self,
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        existing_fp: xr.DataArray | None = None,
+        existing_tr: xr.DataArray | None = None,
+    ):
+        footprint, trace = self._init_with(new_fp, new_tr)
 
-        # Check for duplicates by computing spatial overlap with existing footprints
-        overlapping_components = self._find_overlap_ids(new_footprint, footprints)
+        if existing_fp is not None:
+            footprint = xr.concat([existing_fp, footprint], dim=self.params.component_axis)
+            trace = xr.concat([existing_tr, trace], dim=self.params.component_axis)
 
-        if not overlapping_components.any():
-            return True
+        return footprint, trace
 
-        # instead of tossing when duplicate, we should merge
-        synced_components = self._get_synced_traces(
-            suspect_ids=overlapping_components,
-            traces=traces,
-            new_traces=new_trace,
-            residual_length=residuals.sizes[self.params.frames_axis],
+    def _init_with(self, new_fp: xr.DataArray, new_tr: xr.DataArray):
+        # new_fp.validate.against_schema(Entities.footprint.value)
+        # new_tr.validate.against_schema(Entities.trace.value)
+
+        new_id = create_id()
+
+        footprints = new_fp.expand_dims(self.params.component_axis).assign_coords(
+            {self.params.id_coordinates: (self.params.component_axis, [new_id])}
+        )
+        traces = new_tr.expand_dims(self.params.component_axis).assign_coords(
+            {self.params.id_coordinates: (self.params.component_axis, [new_id])}
         )
 
-        if not synced_components.any():
-            return True
+        # footprints.validate.against_schema(Groups.footprint.value)
+        # traces.validate.against_schema(Groups.trace.value)
 
-        # begin merging
-        a_new, c_new = self._deconstruct_new_components(
-            new_footprint, new_trace, synced_components, traces, footprints
+        return footprints, traces
+
+    def _merge(
+        self,
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        existing_fp: xr.DataArray,
+        existing_tr: xr.DataArray,
+        duplicates: list[tuple[str, float]],
+    ):
+        """
+        # 1. get the "movie" of the og piece
+        # 2. get the "movie" of the new piece
+        # 3. sum the movies
+        # 4. do the NMF
+        # 5. replace the original component with the merged one
+        """
+
+        most_similar = duplicates[0]
+
+        combined_movie = self._combine_component_movies(
+            new_fp, new_tr, existing_fp, existing_tr, most_similar[0]
         )
 
-        return False
+        # Reshape neighborhood to 2D matrix (time × space)
+        shape = xr.DataArray(combined_movie.sum(dim=self.params.frames_axis) > 0).reset_coords(
+            self.params.id_coordinates, drop=True
+        )
+        slice_ = combined_movie.where(shape, 0, drop=True)
 
-    def _deconstruct_new_components(
-        self, new_footprint, new_trace, synced_components, traces, footprints
+        a, c = self._nmf(slice_)
+
+        a_new, c_new = self._reshape(
+            footprint=a,
+            trace=c,
+            frame_spec=shape.sizes,
+            frame_coordinates=existing_tr[self.params.frames_axis].coords,
+            spatial_coordinates=slice_.reset_index(self.params.frames_axis)
+            .reset_coords(drop=True)
+            .coords,
+        )
+
+        existing_tr.set_xindex(self.params.id_coordinates).loc[
+            {self.params.id_coordinates: most_similar[0]}
+        ] = c_new
+        existing_fp.set_xindex(self.params.id_coordinates).loc[
+            {self.params.id_coordinates: most_similar[0]}
+        ] = a_new
+
+        return existing_fp, existing_tr
+
+    def _combine_component_movies(
+        self,
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        existing_fp: xr.DataArray,
+        existing_tr: xr.DataArray,
+        most_similar_id: str,
     ) -> xr.DataArray:
-        """Deconstruct new components."""
-        synced_traces = traces.set_xindex(self.params.id_coordinates).sel(
-            {
-                self.params.id_coordinates: synced_components.coords[
-                    self.params.id_coordinates
-                ].values
-            }
+        most_similar_fp = existing_fp.set_xindex(self.params.id_coordinates).sel(
+            {self.params.id_coordinates: most_similar_id}
         )
-        synced_footprints = footprints.set_xindex(self.params.id_coordinates).sel(
-            {
-                self.params.id_coordinates: synced_components.coords[
-                    self.params.id_coordinates
-                ].values
-            }
+        most_similar_tr = existing_tr.set_xindex(self.params.id_coordinates).sel(
+            {self.params.id_coordinates: most_similar_id}
         )
 
-    def _find_overlap_ids(self, new_footprints: Footprints, original_footprints: Footprints):
-        overlaps = (new_footprints @ original_footprints) > 0
+        most_similar_movie = most_similar_fp @ most_similar_tr
+        new_movie = new_fp @ new_tr
+        combined_movie = most_similar_movie + new_movie
 
-        return overlaps.where(overlaps, drop=True).coords[self.params.id_coordinates].values
-
-    def _get_synced_traces(
-        self, suspect_ids: xr.DataArray, traces: Traces, residual_length: int, new_traces: Traces
-    ) -> xr.DataArray:
-        relevant_traces = (
-            traces.set_xindex(self.params.id_coordinates)
-            .sel(
-                {
-                    self.params.id_coordinates: suspect_ids,
-                }
-            )
-            .isel({self.params.frames_axis: slice(-residual_length, None)})
-        )
-        # For components with spatial overlap, check temporal correlation
-        temporal_corr = xr.corr(
-            new_traces,
-            relevant_traces,
-            dim=self.params.frames_axis,
+        return combined_movie.assign_coords(
+            {ax: combined_movie[ax] for ax in self.params.spatial_axes}
         )
 
-        # --> subtract trace from new, merge footprint into original
-        return temporal_corr.where(temporal_corr > self.params.merge_threshold, drop=True)
+    def _nmf(self, movie: xr.DataArray) -> tuple[np.ndarray, np.ndarray]:
+
+        stacked = movie.stack({"space": self.params.spatial_axes}).transpose(
+            self.params.frames_axis, "space"
+        )
+        # Apply NMF (check how long nndsvd takes vs random)
+        model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
+
+        c = model.fit_transform(stacked)  # temporal component
+        a = model.components_  # spatial component
+
+        return a, c
+
+    def _reshape(
+        self,
+        footprint: np.ndarray,
+        trace: np.ndarray,
+        frame_spec: Mapping[Hashable, int],
+        frame_coordinates: Coordinates,
+        spatial_coordinates: Coordinates,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Convert back to xarray with proper dimensions and coordinates"""
+
+        c_new = xr.DataArray(
+            trace.squeeze(),
+            dims=[self.params.frames_axis],
+            coords=frame_coordinates,
+        )
+
+        a_new = xr.DataArray(np.zeros(tuple(frame_spec.values())), dims=tuple(frame_spec.keys()))
+
+        a_new.loc[spatial_coordinates] = xr.DataArray(
+            footprint.squeeze().reshape(
+                list(spatial_coordinates[ax].size for ax in self.params.spatial_axes)
+            ),
+            dims=self.params.spatial_axes,
+            coords=spatial_coordinates,
+        )
+
+        return a_new, c_new

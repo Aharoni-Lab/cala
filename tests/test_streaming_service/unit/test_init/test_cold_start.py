@@ -10,6 +10,7 @@ from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
 )
+from cala.streaming.nodes.init.cold.catalog import CatalogerParams, Cataloger
 from cala.testing.simulation import Simulator, FrameSize, Position
 
 
@@ -19,7 +20,7 @@ def simulator():
     frame_dims = FrameSize(width=512, height=512)
     cell_positions = [Position(width=256, height=256)]
     cell_radii = 30
-    cell_traces = [np.array(range(300))]
+    cell_traces = [np.array(range(300), dtype=float)]
 
     return Simulator(
         n_frames=n_frames,
@@ -145,4 +146,38 @@ class TestSniffer:
         print(dupe)
 
 
-class TestCataloger: ...
+class TestCataloger:
+    @pytest.fixture(scope="module")
+    def energy_shape(self, single_cell_video):
+        return Energy(EnergyParams(gaussian_std=1.0)).process(single_cell_video)
+
+    @pytest.fixture(scope="class")
+    def new_component(self, single_cell_video, energy_shape):
+        return SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
+            single_cell_video, energy_shape
+        )
+
+    @pytest.fixture(scope="class")
+    def cataloger(self):
+        return Cataloger(params=CatalogerParams())
+
+    def test_init_with(self, cataloger, new_component):
+        fp, tr = cataloger._init_with(*new_component)
+        # I'd love to check the schema gdi
+
+        print(fp.sizes, fp.coords)
+        print(tr.sizes, tr.coords)
+
+    def test_register(self, cataloger, new_component, simulator):
+        fp, tr = cataloger._register(*new_component, simulator.footprints, simulator.traces)
+
+        print(fp.sizes, fp.coords)
+        print(tr.sizes, tr.coords)
+
+    def test_merge(self, cataloger, new_component, simulator):
+        fp, tr = cataloger._merge(
+            *new_component, simulator.footprints, simulator.traces, duplicates=[("cell_0", 1.0)]
+        )
+
+        print(fp.sizes, fp.coords)
+        print(tr.sizes, tr.coords)
