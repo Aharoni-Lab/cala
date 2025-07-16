@@ -11,3 +11,4 @@ class Component(Enum):
 
     NEURON = "neuron"
     BACKGROUND = "background"
+    UNKNOWN = "unknown"

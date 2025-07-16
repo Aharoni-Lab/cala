@@ -28,4 +28,18 @@ Due to performance / efficiency issues, we have different implementations from w
 * we only build cells when the residuals are higher than a threshold value: this prevents detection stage from trying
   to build useless cells from trace amounts of residual
 
+* the footprint and traces in detect steps are "normalized" to the actual movie pixel values. (max of the footprint = max of the video patch)
+this stems from an effort to be able to merge two parts of the same cell that are discovered during the same cycle.
+
+* the cold start / detect algorithm have been modified to account for cell overlaps
+  * we detect the most energetic area in the residual (what if this point is 1. entirely negative, or 2. has negative sections within)
+  * we slice out the energetic area from the residual
+  * perform a rank-1 nmf with this parfait
+  * calculate trace correlations of this new component with spatially overlapping components
+  * if the correlation is above threshold, we merge (what if there are more than one component to merge?)
+  
+* what if the initial guess is an overlap point
+  * during the next trace update, if only one of them fires, there will be error
+  * this will become residual and gets added as a cell!
+
 * TODO: traces and sufficient stats should be updated after footprints are updated.

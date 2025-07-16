@@ -34,6 +34,7 @@ dependencies = [
     "pywavelets>=1.8.0",
     "pyyaml>=6.0.2",
     "typer>=0.15.3",
+    "xarray-validate>=0.0.1",
 ]
 keywords = [
     "pipeline",
@@ -100,6 +101,7 @@ dev = [
     "types-pyYAML>=6.0.12.20250402",
     "types-requests>=2.32.0.20250328",
     "twine>=6.1.0",
+    "pooch>=1.8.2",
 ]
 
 
@@ -144,10 +146,10 @@ pythonpath = ["src"]
 addopts = [
     "-ra",
     "-q",
-    "--cov=cala",
-    "--cov-append",
-    "--cov-report=term-missing",
-    "--cov-report=html"
+#    "--cov=cala",
+#    "--cov-append",
+#    "--cov-report=term-missing",
+#    "--cov-report=html"
 ]
 markers = [
     "viz: marks tests that produce plots",
