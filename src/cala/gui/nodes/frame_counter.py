@@ -4,7 +4,7 @@ import xarray as xr
 from river.base import Transformer
 
 from cala.gui.nodes.util import send_through
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 
 
 @dataclass

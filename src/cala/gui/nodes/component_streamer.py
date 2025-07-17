@@ -6,7 +6,7 @@ import av
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints
 
 

@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from cala.gui.plots import Plotter
-from cala.streaming.core import Component
+from cala.models.components import Component
 from cala.streaming.nodes.init.odl.pixel_stats import (
     PixelStatsInitializer,
     PixelStatsInitializerParams,

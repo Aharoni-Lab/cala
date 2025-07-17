@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Component
+from cala.models.components import Component
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import (

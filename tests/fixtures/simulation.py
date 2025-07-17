@@ -8,7 +8,7 @@ import xarray as xr
 from scipy.ndimage import gaussian_filter
 from scipy.stats.qmc import PoissonDisk
 
-from cala.streaming.core import Component
+from cala.models.components import Component
 
 
 @dataclass

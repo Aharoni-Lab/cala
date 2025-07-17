@@ -11,7 +11,8 @@ from skimage.restoration import estimate_sigma
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Component, Parameters
+from cala.models.components import Component
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 from cala.streaming.util.new import create_id

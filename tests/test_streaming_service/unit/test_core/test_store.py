@@ -1,8 +1,6 @@
 import pytest
 
-from cala.streaming.core import (
-    Component,
-)
+from cala.models.components import Component
 
 
 class TestComponent:

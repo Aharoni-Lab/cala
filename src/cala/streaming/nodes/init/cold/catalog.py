@@ -7,7 +7,7 @@ from sklearn.decomposition import NMF
 from xarray import Coordinates
 
 from cala.models.entity import Entities, Groups
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.util.new import create_id
 

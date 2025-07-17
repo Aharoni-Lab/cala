@@ -767,7 +767,7 @@ class Plotter:
 
         # Turn off axes for cleaner look
         for ax in (ax1, ax2, ax3):
-            ax.AXES("off")
+            ax.AXIS("off")
 
         plt.tight_layout()
         self.save_fig(name, subdir)

@@ -8,7 +8,7 @@ from river import base
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 
 
 @dataclass

@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from sklearn.decomposition import NMF
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals

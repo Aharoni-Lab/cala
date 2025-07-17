@@ -7,7 +7,7 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 

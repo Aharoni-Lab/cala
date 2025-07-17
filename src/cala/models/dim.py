@@ -32,7 +32,7 @@ class Axis:
         return self.height_coord, self.width_coord
 
 
-AXES = Axis()
+AXIS = Axis()
 
 
 class Coord(BaseModel):
@@ -47,16 +47,16 @@ class Dim(BaseModel):
 
 
 class Coords(Enum):
-    id = Coord(name=AXES.id_coord, dtype=str)
-    height = Coord(name=AXES.height_coord, dtype=int)
-    width = Coord(name=AXES.width_coord, dtype=int)
-    frame = Coord(name=AXES.frame_coord, dtype=int)
-    timestamp = Coord(name=AXES.timestamp_coord, dtype=np.datetime64)
-    confidence = Coord(name=AXES.confidence_coord, dtype=float)
+    id = Coord(name=AXIS.id_coord, dtype=str)
+    height = Coord(name=AXIS.height_coord, dtype=int)
+    width = Coord(name=AXIS.width_coord, dtype=int)
+    frame = Coord(name=AXIS.frame_coord, dtype=int)
+    timestamp = Coord(name=AXIS.timestamp_coord, dtype=np.datetime64)
+    confidence = Coord(name=AXIS.confidence_coord, dtype=float)
 
 
 class Dims(Enum):
-    width = Dim(name=AXES.width_dim, coords=[Coords.width.value])
-    height = Dim(name=AXES.height_dim, coords=[Coords.height.value])
-    frame = Dim(name=AXES.frames_dim, coords=[Coords.frame.value, Coords.timestamp.value])
-    component = Dim(name=AXES.component_dim, coords=[Coords.id.value, Coords.confidence.value])
+    width = Dim(name=AXIS.width_dim, coords=[Coords.width.value])
+    height = Dim(name=AXIS.height_dim, coords=[Coords.height.value])
+    frame = Dim(name=AXIS.frames_dim, coords=[Coords.frame.value, Coords.timestamp.value])
+    component = Dim(name=AXIS.component_dim, coords=[Coords.id.value, Coords.confidence.value])

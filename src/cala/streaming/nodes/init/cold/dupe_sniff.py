@@ -4,7 +4,7 @@ from operator import itemgetter
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.common import Footprints, Traces
 

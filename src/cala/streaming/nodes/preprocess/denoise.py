@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 from river import base
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 
 
 @dataclass

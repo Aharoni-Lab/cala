@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from cala.streaming.core.parameters import Parameters
+from cala.models.params import Parameters
 
 
 @dataclass

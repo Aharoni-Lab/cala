@@ -24,7 +24,7 @@ from cala.gui.nodes import (
     FrameStreamer,
     FrameStreamerParams,
 )
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.core.distribution import Distributor
 from cala.streaming.util.buffer import Buffer
 

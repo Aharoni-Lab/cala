@@ -7,7 +7,7 @@ from river.base import SupervisedTransformer
 from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
