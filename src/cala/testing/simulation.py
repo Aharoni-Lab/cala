@@ -7,7 +7,7 @@ import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.models.axis import Axis
+from cala.models.axis import AXIS
 
 
 class FrameSize(BaseModel):
@@ -90,13 +90,13 @@ class Simulator:
     def _build_movie_template(self) -> xr.DataArray:
         return xr.DataArray(
             np.zeros((self.n_frames, self.frame_dims.height, self.frame_dims.width)),
-            dims=[Axis.frames_dim, *Axis.spatial_dims],
+            dims=[AXIS.frames_dim, *AXIS.spatial_dims],
         ).astype(np.float32)
 
     def _generate_footprint(self, radius: int, position: Position, id_: str) -> xr.DataArray:
         footprint = xr.DataArray(
             np.zeros((self.frame_dims.height, self.frame_dims.width)),
-            dims=Axis.spatial_dims,
+            dims=AXIS.spatial_dims,
         )
 
         shape = disk(radius).astype(np.float32)
@@ -106,10 +106,10 @@ class Simulator:
 
         footprint.loc[{"height": height_slice, "width": width_slice}] = shape
 
-        return footprint.expand_dims(Axis.component_dim).assign_coords(
+        return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
-                Axis.id_coord: (Axis.component_dim, [id_]),
-                **{ax: footprint[ax] for ax in Axis.spatial_dims},
+                AXIS.id_coord: (AXIS.component_dim, [id_]),
+                **{ax: footprint[ax] for ax in AXIS.spatial_dims},
             }
         )
 
@@ -118,21 +118,21 @@ class Simulator:
         for radius, position, id_ in zip(self.cell_radii, self.cell_positions, self.cell_ids):
             footprints.append(self._generate_footprint(radius, position, id_))
 
-        return xr.concat(footprints, dim=Axis.component_dim)
+        return xr.concat(footprints, dim=AXIS.component_dim)
 
     def _format_trace(self, trace: np.ndarray, id_: str) -> xr.DataArray:
         return (
             xr.DataArray(
                 trace,
-                dims=Axis.frames_dim,
+                dims=AXIS.frames_dim,
             )
-            .expand_dims(Axis.component_dim)
+            .expand_dims(AXIS.component_dim)
             .assign_coords(
                 {
-                    Axis.id_coord: (Axis.component_dim, [id_]),
-                    Axis.frames_dim: range(trace.size),
-                    Axis.timestamp_coord: (
-                        Axis.frames_dim,
+                    AXIS.id_coord: (AXIS.component_dim, [id_]),
+                    AXIS.frames_dim: range(trace.size),
+                    AXIS.timestamp_coord: (
+                        AXIS.frames_dim,
                         [
                             (datetime.now() + i * timedelta(microseconds=20)).strftime(
                                 "%H:%M:%S.%f"
@@ -149,11 +149,11 @@ class Simulator:
         for trace, id_ in zip(self.cell_traces, self.cell_ids):
             traces.append(self._format_trace(trace, id_))
 
-        return xr.concat(traces, dim=Axis.component_dim)
+        return xr.concat(traces, dim=AXIS.component_dim)
 
     def _build_movie(self, footprints: xr.DataArray, traces: xr.DataArray) -> xr.DataArray:
         movie = self._build_movie_template()
-        movie += (footprints @ traces).transpose(Axis.frames_dim, *Axis.spatial_dims)
+        movie += (footprints @ traces).transpose(AXIS.frames_dim, *AXIS.spatial_dims)
         return movie
 
     def make_movie(self) -> xr.DataArray:
@@ -162,10 +162,10 @@ class Simulator:
 
     def add_cell(self, position: Position, radius: int, trace: np.ndarray, id_: str) -> None:
         new_footprint = self._generate_footprint(radius, position, id_)
-        self.footprints_ = xr.concat([self.footprints_, new_footprint], dim=Axis.component_dim)
+        self.footprints_ = xr.concat([self.footprints_, new_footprint], dim=AXIS.component_dim)
 
         new_trace = self._format_trace(trace, id_)
-        self.traces_ = xr.concat([self.traces_, new_trace], dim=Axis.component_dim)
+        self.traces_ = xr.concat([self.traces_, new_trace], dim=AXIS.component_dim)
 
     def drop_cell(self, id_: str | Iterable[str]) -> None:
         id_ = {id_} if isinstance(id_, str) else set(id_)
@@ -175,14 +175,14 @@ class Simulator:
         keep_ids = list(id_coords - id_)
 
         self.footprints_ = (
-            self.footprints_.set_xindex(Axis.id_coord)
-            .sel({Axis.id_coord: keep_ids})
-            .reset_index(Axis.id_coord)
+            self.footprints_.set_xindex(AXIS.id_coord)
+            .sel({AXIS.id_coord: keep_ids})
+            .reset_index(AXIS.id_coord)
         )
         self.traces_ = (
-            self.traces_.set_xindex(Axis.id_coord)
-            .sel({Axis.id_coord: keep_ids})
-            .reset_index(Axis.id_coord)
+            self.traces_.set_xindex(AXIS.id_coord)
+            .sel({AXIS.id_coord: keep_ids})
+            .reset_index(AXIS.id_coord)
         )
 
     @property
