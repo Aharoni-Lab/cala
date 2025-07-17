@@ -1,6 +1,6 @@
 import pytest
 
-from cala.models.components import Component
+from cala.models.entity import Component
 
 
 class TestComponent:

@@ -3,7 +3,7 @@ import pytest
 import sparse
 import xarray as xr
 
-from cala.models.components import Component
+from cala.models.entity import Component
 from cala.streaming.core import ObservableStore
 from cala.streaming.stores.odl import (
     ComponentStatStore,

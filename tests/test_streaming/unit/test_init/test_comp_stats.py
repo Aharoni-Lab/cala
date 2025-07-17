@@ -5,7 +5,7 @@ import pytest
 import xarray as xr
 
 from cala.gui.plots import Plotter
-from cala.models.components import Component
+from cala.models.entity import Component
 from cala.streaming.nodes.init.odl.component_stats import (
     ComponentStatsInitializer,
     ComponentStatsInitializerParams,

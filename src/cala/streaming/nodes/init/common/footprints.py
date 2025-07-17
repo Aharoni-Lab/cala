@@ -9,7 +9,7 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 from sklearn.exceptions import NotFittedError
 
-from cala.models.components import Component
+from cala.models.entity import Component
 from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints
 
