@@ -54,7 +54,7 @@ class Cataloger(Node):
         return footprint, trace
 
     def _init_with(
-        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0
+        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0.0
     ) -> tuple[xr.DataArray, xr.DataArray]:
         new_fp.validate.against_schema(Entities.footprint.value)
         new_tr.validate.against_schema(Entities.trace.value)

@@ -56,6 +56,7 @@ class Simulator:
     cell_positions: list[Position]
     cell_traces: list[np.ndarray]
     cell_ids: list[str] | None = None
+    confidences: list[float] = field(default_factory=list)
 
     footprints_: xr.DataArray = field(init=False)
     traces_: xr.DataArray = field(init=False)
@@ -84,6 +85,9 @@ class Simulator:
             self.cell_ids = [f"cell_{idx}" for idx, _ in enumerate(self.cell_positions)]
         assert len(self.cell_ids) == len(self.cell_traces)
 
+        if not self.confidences:
+            self.confidences = [0.0] * len(self.cell_ids)
+
         self.footprints_ = self._build_footprints()
         self.traces_ = self._build_traces()
 
@@ -93,7 +97,9 @@ class Simulator:
             dims=[AXIS.frames_dim, *AXIS.spatial_dims],
         ).astype(np.float32)
 
-    def _generate_footprint(self, radius: int, position: Position, id_: str) -> xr.DataArray:
+    def _generate_footprint(
+        self, radius: int, position: Position, id_: str, confidence: float
+    ) -> xr.DataArray:
         footprint = xr.DataArray(
             np.zeros((self.frame_dims.height, self.frame_dims.width)),
             dims=AXIS.spatial_dims,
@@ -109,19 +115,21 @@ class Simulator:
         return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
                 AXIS.id_coord: (AXIS.component_dim, [id_]),
-                AXIS.confidence_coord: (AXIS.component_dim, [0.5]),
+                AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
                 **{ax: footprint[ax] for ax in AXIS.spatial_dims},
             }
         )
 
     def _build_footprints(self) -> xr.DataArray:
         footprints = []
-        for radius, position, id_ in zip(self.cell_radii, self.cell_positions, self.cell_ids):
-            footprints.append(self._generate_footprint(radius, position, id_))
+        for radius, position, id_, confid in zip(
+            self.cell_radii, self.cell_positions, self.cell_ids, self.confidences
+        ):
+            footprints.append(self._generate_footprint(radius, position, id_, confid))
 
         return xr.concat(footprints, dim=AXIS.component_dim)
 
-    def _format_trace(self, trace: np.ndarray, id_: str) -> xr.DataArray:
+    def _format_trace(self, trace: np.ndarray, id_: str, confidence: float) -> xr.DataArray:
         return (
             xr.DataArray(
                 trace,
@@ -131,6 +139,7 @@ class Simulator:
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
+                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
                     AXIS.frames_dim: range(trace.size),
                     AXIS.timestamp_coord: (
                         AXIS.frames_dim,
@@ -147,8 +156,8 @@ class Simulator:
 
     def _build_traces(self) -> xr.DataArray:
         traces = []
-        for trace, id_ in zip(self.cell_traces, self.cell_ids):
-            traces.append(self._format_trace(trace, id_))
+        for trace, id_, confid in zip(self.cell_traces, self.cell_ids, self.confidences):
+            traces.append(self._format_trace(trace, id_, confid))
 
         return xr.concat(traces, dim=AXIS.component_dim)
 
@@ -161,11 +170,13 @@ class Simulator:
         movie = self._build_movie(self.footprints_, self.traces_)
         return movie
 
-    def add_cell(self, position: Position, radius: int, trace: np.ndarray, id_: str) -> None:
-        new_footprint = self._generate_footprint(radius, position, id_)
+    def add_cell(
+        self, position: Position, radius: int, trace: np.ndarray, id_: str, confidence: float = 0.0
+    ) -> None:
+        new_footprint = self._generate_footprint(radius, position, id_, confidence)
         self.footprints_ = xr.concat([self.footprints_, new_footprint], dim=AXIS.component_dim)
 
-        new_trace = self._format_trace(trace, id_)
+        new_trace = self._format_trace(trace, id_, confidence)
         self.traces_ = xr.concat([self.traces_, new_trace], dim=AXIS.component_dim)
 
     def drop_cell(self, id_: str | Iterable[str]) -> None:
