@@ -4,11 +4,11 @@ import xarray as xr
 from river.base import Transformer
 
 from cala.gui.nodes.util import send_through
-from cala.streaming.core import Axis, Parameters
+from cala.streaming.core import Parameters
 
 
 @dataclass
-class FrameCounterParams(Axis, Parameters):
+class FrameCounterParams(Parameters):
     pass
 
     def validate(self) -> None:
@@ -21,7 +21,7 @@ class FrameCounter(Transformer):
     frame_count_: int = 0
 
     def learn_one(self, frame: xr.DataArray) -> "FrameCounter":
-        self.frame_count_ = frame.coords[Axis.frame_coord].item()
+        self.frame_count_ = frame.coords[self.params.frame_coord].item()
 
         return self
 

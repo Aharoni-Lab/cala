@@ -9,12 +9,12 @@ from river.base import Transformer
 from skimage.segmentation import watershed
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Axis, Component, Parameters
+from cala.streaming.core import Component, Parameters
 from cala.streaming.stores.common import Footprints
 
 
 @dataclass
-class FootprintsInitializerParams(Parameters, Axis):
+class FootprintsInitializerParams(Parameters):
     """Parameters for footprints initialization methods"""
 
     threshold_factor: float = 0.2

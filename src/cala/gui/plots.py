@@ -10,7 +10,7 @@ import xarray as xr
 from scipy.sparse.csgraph import connected_components
 from skimage.measure import find_contours
 
-from cala.streaming.core import Axis
+from cala.models.dim import Axis
 
 
 class Plotter:
@@ -767,7 +767,7 @@ class Plotter:
 
         # Turn off axes for cleaner look
         for ax in (ax1, ax2, ax3):
-            ax.axis("off")
+            ax.AXES("off")
 
         plt.tight_layout()
         self.save_fig(name, subdir)

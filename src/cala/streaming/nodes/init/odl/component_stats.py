@@ -4,13 +4,13 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Axis, Parameters
+from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
 @dataclass
-class ComponentStatsInitializerParams(Parameters, Axis):
+class ComponentStatsInitializerParams(Parameters):
     """Parameters for component statistics computation.
 
     This class defines the configuration parameters needed for computing statistics
@@ -73,7 +73,7 @@ class ComponentStatsInitializer(SupervisedTransformer):
         M = C @ C.rename({self.params.component_dim: f"{self.params.component_dim}'"}) / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.component_stats_ = M.assign_coords(C.coords[Axis.component_dim].coords)
+        self.component_stats_ = M.assign_coords(C.coords[self.params.component_dim].coords)
 
         return self
 

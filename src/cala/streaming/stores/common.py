@@ -4,7 +4,8 @@ from typing import Annotated
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core import Axis, ObservableStore
+from cala.models.dim import Axis
+from cala.streaming.core import ObservableStore
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,9 @@ class TraceStore(ObservableStore):
             if n_frames_to_backfill > 0:
                 # grab coordinates in warehouse
                 warehouse_frames = warehouse_coords[Axis.frame_coord].values[:n_frames_to_backfill]
-                warehouse_times = warehouse_coords[Axis.time_coord].values[:n_frames_to_backfill]
+                warehouse_times = warehouse_coords[Axis.timestamp_coord].values[
+                    :n_frames_to_backfill
+                ]
 
                 # Create zeros array with same shape as data but for missing frames
                 zeros = xr.DataArray(
@@ -115,7 +118,7 @@ class TraceStore(ObservableStore):
                     dims=(Axis.component_dim, Axis.frames_dim),
                     coords={
                         Axis.frame_coord: (Axis.frames_dim, warehouse_frames),
-                        Axis.time_coord: (Axis.frames_dim, warehouse_times),
+                        Axis.timestamp_coord: (Axis.frames_dim, warehouse_times),
                     },
                 )
                 # Combine zeros and data along frames axis

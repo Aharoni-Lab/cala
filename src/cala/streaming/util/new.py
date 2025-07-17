@@ -4,7 +4,7 @@ from uuid import uuid4
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core.axis import Axis
+from cala.models.dim import Axis
 
 
 def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -> xr.DataArray:
@@ -28,7 +28,7 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
         dims=Axis.spatial_dims,
         coords={
             Axis.frame_coord: index,
-            Axis.time_coord: timestamp,
+            Axis.timestamp_coord: timestamp,
         },
         name="frame",
     ).astype(np.float32)

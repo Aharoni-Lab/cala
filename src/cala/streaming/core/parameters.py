@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any
 
-from cala.streaming.core import Axis
+from cala.models.dim import Axis
 
 
 @dataclass

@@ -4,6 +4,37 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 
+class Axis:
+    """Mixin providing common axis-related attributes."""
+
+    frames_dim: str = "frame"
+    height_dim: str = "height"
+    width_dim: str = "width"
+    component_dim: str = "component"
+    """Name of the dimension representing individual components."""
+
+    id_coord: str = "id_"
+    type_coord: str = "type_"
+    timestamp_coord: str = "timestamp"
+    confidence_coord: str = "confidence"
+    frame_coord: str = "frame"
+    width_coord: str = "width"
+    height_coord: str = "height"
+
+    @property
+    def spatial_dims(self) -> tuple[str, str]:
+        """Names of the dimensions representing 2-d spatial coordinates Default: (height, width)."""
+        return self.height_dim, self.width_dim
+
+    @property
+    def spatial_coords(self) -> tuple[str, str]:
+        """Names of the dimensions representing 2-d spatial coordinates Default: (height, width)."""
+        return self.height_coord, self.width_coord
+
+
+AXES = Axis()
+
+
 class Coord(BaseModel):
     name: str
     dtype: type
@@ -16,16 +47,16 @@ class Dim(BaseModel):
 
 
 class Coords(Enum):
-    id = Coord(name="id", dtype=str)
-    height = Coord(name="height", dtype=int)
-    width = Coord(name="width", dtype=int)
-    frame = Coord(name="frame", dtype=int)
-    timestamp = Coord(name="timestamp", dtype=np.datetime64)
-    confidence = Coord(name="confidence", dtype=float)
+    id = Coord(name=AXES.id_coord, dtype=str)
+    height = Coord(name=AXES.height_coord, dtype=int)
+    width = Coord(name=AXES.width_coord, dtype=int)
+    frame = Coord(name=AXES.frame_coord, dtype=int)
+    timestamp = Coord(name=AXES.timestamp_coord, dtype=np.datetime64)
+    confidence = Coord(name=AXES.confidence_coord, dtype=float)
 
 
 class Dims(Enum):
-    width = Dim(name="width", coords=[Coords.width.value])
-    height = Dim(name="height", coords=[Coords.height.value])
-    frame = Dim(name="frame", coords=[Coords.frame.value, Coords.timestamp.value])
-    component = Dim(name="component", coords=[Coords.id.value, Coords.confidence.value])
+    width = Dim(name=AXES.width_dim, coords=[Coords.width.value])
+    height = Dim(name=AXES.height_dim, coords=[Coords.height.value])
+    frame = Dim(name=AXES.frames_dim, coords=[Coords.frame.value, Coords.timestamp.value])
+    component = Dim(name=AXES.component_dim, coords=[Coords.id.value, Coords.confidence.value])

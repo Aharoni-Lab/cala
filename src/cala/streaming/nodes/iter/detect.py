@@ -11,7 +11,7 @@ from skimage.restoration import estimate_sigma
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Axis, Component, Parameters
+from cala.streaming.core import Component, Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 from cala.streaming.util.new import create_id
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DetectorParams(Parameters, Axis):
+class DetectorParams(Parameters):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new
@@ -237,7 +237,7 @@ class Detector(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.frame_.coords[Axis.frame_coord].item(),
+            frame_idx=self.frame_.coords[self.params.frame_coord].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,
@@ -372,7 +372,7 @@ class Detector(SupervisedTransformer):
         c_new = xr.DataArray(
             c.squeeze(),
             dims=[self.params.frames_dim],
-            coords=self.residuals_.coords[Axis.frames_dim].coords,
+            coords=self.residuals_.coords[self.params.frames_dim].coords,
         )
 
         # Create full-frame zero array with proper coordinates
@@ -479,7 +479,7 @@ class Detector(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.coords[Axis.frame_coord].item() + 1
+        frame_idx = frame.coords[self.params.frame_coord].item() + 1
         scale = 1 / frame_idx
 
         footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_dim)
@@ -545,12 +545,12 @@ class Detector(SupervisedTransformer):
             )
             @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(traces.coords[Axis.component_dim].coords)
+        ).assign_coords(traces.coords[self.params.component_dim].coords)
 
         top_right_corr = xr.DataArray(
             bottom_left_corr.values,
             dims=bottom_left_corr.dims[::-1],
-            coords=new_traces.coords[Axis.component_dim].coords,
+            coords=new_traces.coords[self.params.component_dim].coords,
         )
 
         # Compute auto-correlation of new components
@@ -559,7 +559,7 @@ class Detector(SupervisedTransformer):
             new_traces
             @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(new_traces.coords[Axis.component_dim].coords)
+        ).assign_coords(new_traces.coords[self.params.component_dim].coords)
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]

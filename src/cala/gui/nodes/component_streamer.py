@@ -6,12 +6,12 @@ import av
 import xarray as xr
 from river.base import Transformer
 
-from cala.streaming.core import Axis, Parameters
+from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Footprints
 
 
 @dataclass
-class ComponentStreamerParams(Axis, Parameters):
+class ComponentStreamerParams(Parameters):
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"

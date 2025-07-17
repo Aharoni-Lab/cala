@@ -7,7 +7,7 @@ import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.streaming.core import Axis
+from cala.models.dim import Axis
 
 
 class FrameSize(BaseModel):
@@ -131,7 +131,7 @@ class Simulator:
                 {
                     Axis.id_coord: (Axis.component_dim, [id_]),
                     Axis.frames_dim: range(trace.size),
-                    Axis.time_coord: (
+                    Axis.timestamp_coord: (
                         Axis.frames_dim,
                         [
                             (datetime.now() + i * timedelta(microseconds=20)).strftime(

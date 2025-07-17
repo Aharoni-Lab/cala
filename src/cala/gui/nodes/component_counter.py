@@ -4,12 +4,12 @@ import xarray as xr
 from river.base import Transformer
 
 from cala.gui.nodes.util import send_through
-from cala.streaming.core import Axis, Parameters
+from cala.streaming.core import Parameters
 from cala.streaming.stores.common import Footprints
 
 
 @dataclass
-class ComponentCounterParams(Axis, Parameters):
+class ComponentCounterParams(Parameters):
     pass
 
     def validate(self) -> None:
@@ -29,7 +29,7 @@ class ComponentCounter(Transformer):
     def transform_one(self, frame: xr.DataArray) -> None:
         payload = {
             "type_": "component_count",
-            "index": frame.coords[Axis.frame_coord].item(),
+            "index": frame.coords[self.params.frame_coord].item(),
             "count": self.component_count_,
         }
 

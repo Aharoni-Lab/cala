@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from cala.streaming.core.axis import Axis
+from cala.models.dim import Axis
 from cala.streaming.util.new import package_frame
 
 
@@ -25,9 +25,9 @@ def test_package_frame():
 
     # Check the coordinates
     assert Axis.frame_coord in dataarray.coords
-    assert Axis.time_coord in dataarray.coords
+    assert Axis.timestamp_coord in dataarray.coords
     assert dataarray.coords[Axis.frame_coord].item() == index
-    assert pd.Timestamp(dataarray.coords[Axis.time_coord].values) == pd.Timestamp(timestamp)
+    assert pd.Timestamp(dataarray.coords[Axis.timestamp_coord].values) == pd.Timestamp(timestamp)
 
     # Check the data
     np.testing.assert_array_equal(dataarray.values, frame)
@@ -52,9 +52,9 @@ def test_package_frame_datetimeless():
 
     # Check the coordinates
     assert Axis.frame_coord in dataarray.coords
-    assert Axis.time_coord in dataarray.coords
+    assert Axis.timestamp_coord in dataarray.coords
     assert dataarray.coords[Axis.frame_coord].item() == index
-    assert isinstance(dataarray.coords[Axis.time_coord].item(), str)
+    assert isinstance(dataarray.coords[Axis.timestamp_coord].item(), str)
 
     # Check the data
     np.testing.assert_array_equal(dataarray.values, frame)

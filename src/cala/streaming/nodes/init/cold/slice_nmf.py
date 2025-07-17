@@ -5,14 +5,14 @@ import numpy as np
 import xarray as xr
 from sklearn.decomposition import NMF
 
-from cala.streaming.core import Axis, Parameters
+from cala.streaming.core import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals
 
 
 @dataclass
-class SliceNMFParams(Parameters, Axis):
+class SliceNMFParams(Parameters):
     cell_radius: int
     validity_threshold: float
 
@@ -102,7 +102,7 @@ class SliceNMF(Node):
         c_new = xr.DataArray(
             c.squeeze(),
             dims=[self.params.frames_dim],
-            coords=slice_.coords[Axis.frames_dim].coords,
+            coords=slice_.coords[self.params.frames_dim].coords,
         )
 
         # Create full-frame zero array with proper coordinates
