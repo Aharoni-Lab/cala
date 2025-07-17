@@ -75,16 +75,16 @@ class ComponentStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coord].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 
         # New frame traces
-        c_t = traces.isel({self.params.frames_axis: -1})
+        c_t = traces.isel({self.params.frames_dim: -1})
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
-        new_corr = c_t @ c_t.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+        new_corr = c_t @ c_t.rename({self.params.component_dim: f"{self.params.component_dim}'"})
         M_update = prev_scale * component_stats + new_scale * new_corr
 
         # Create updated xarray DataArrays with same coordinates/dimensions

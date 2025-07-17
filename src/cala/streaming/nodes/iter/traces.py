@@ -90,13 +90,13 @@ class TracesUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Prepare inputs for the update algorithm
-        A = footprints.stack({"pixels": self.params.spatial_axes})
-        y = frame.stack({"pixels": self.params.spatial_axes})
+        A = footprints.stack({"pixels": self.params.spatial_dims})
+        y = frame.stack({"pixels": self.params.spatial_dims})
         c = xr.DataArray(
-            traces.isel({self.params.frames_axis: [-1]}),
+            traces.isel({self.params.frames_dim: [-1]}),
             coords={
-                **traces.coords[Axis.component_axis].coords,
-                **{k: (Axis.frames_axis, [v.item()]) for k, v in frame.coords.items()},
+                **traces.coords[Axis.component_dim].coords,
+                **{k: (Axis.frames_dim, [v.item()]) for k, v in frame.coords.items()},
             },
         )
 
@@ -164,7 +164,7 @@ class TracesUpdater(SupervisedTransformer):
         u = A @ y
 
         # Step 2: Compute gram matrix of spatial components
-        V = A @ A.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+        V = A @ A.rename({self.params.component_dim: f"{self.params.component_dim}'"})
 
         # Step 3: Extract diagonal elements for normalization
         V_diag = np.diag(V)
@@ -179,12 +179,12 @@ class TracesUpdater(SupervisedTransformer):
             # Steps 7-9: Update each group using block coordinate descent
             for cluster in clusters:
                 # Update traces for current group (division is pointwise)
-                numerator = u.isel({self.params.component_axis: cluster}) - (
-                    V.isel({f"{self.params.component_axis}'": cluster}) @ c
-                ).rename({f"{self.params.component_axis}'": self.params.component_axis})
+                numerator = u.isel({self.params.component_dim: cluster}) - (
+                    V.isel({f"{self.params.component_dim}'": cluster}) @ c
+                ).rename({f"{self.params.component_dim}'": self.params.component_dim})
 
-                c.loc[{self.params.component_axis: cluster}] = np.maximum(
-                    c.isel({self.params.component_axis: cluster})
+                c.loc[{self.params.component_dim: cluster}] = np.maximum(
+                    c.isel({self.params.component_dim: cluster})
                     + numerator / np.array([V_diag[cluster]]).T,
                     0,
                 )

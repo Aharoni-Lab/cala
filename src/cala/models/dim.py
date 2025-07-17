@@ -1,8 +1,7 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field
-
 import numpy as np
+from pydantic import BaseModel, Field
 
 
 class Coord(BaseModel):

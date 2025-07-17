@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:f3dfa87f3ba2cfdf38f45bb0a5be4aa11c6f9c0b228873be51a52f9cc81969ab"
+content_hash = "sha256:b6e334c8b372092447c805e86ca2f9ee903531723493617813b6e04b4fd20808"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -3748,16 +3748,14 @@ files = [
 [[package]]
 name = "xarray-validate"
 version = "0.0.1"
-requires_python = ">=3.8"
+requires_python = ">= 3.8"
+git = "https://github.com/raymondwjang/xarray-validate"
+revision = "17cba9ac4c037c209574e7d8ff06164a8a032fcc"
 summary = "Add your description here"
 dependencies = [
     "attrs",
     "numpy",
     "xarray",
-]
-files = [
-    {file = "xarray_validate-0.0.1-py3-none-any.whl", hash = "sha256:03a091becd072488eefa538190ae91e90b019a5c1215996082ab07db99cbb074"},
-    {file = "xarray_validate-0.0.1.tar.gz", hash = "sha256:78b534970593c0dbe4faf5aaf814b292264c44b7b50b1794bf1f8390cb2c4f31"},
 ]
 
 [[package]]

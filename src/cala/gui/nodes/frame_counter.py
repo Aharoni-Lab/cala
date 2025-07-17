@@ -21,7 +21,7 @@ class FrameCounter(Transformer):
     frame_count_: int = 0
 
     def learn_one(self, frame: xr.DataArray) -> "FrameCounter":
-        self.frame_count_ = frame.coords[Axis.frame_coordinates].item()
+        self.frame_count_ = frame.coords[Axis.frame_coord].item()
 
         return self
 

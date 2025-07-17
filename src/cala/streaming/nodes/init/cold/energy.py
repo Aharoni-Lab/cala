@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.odl import Residuals
 
@@ -33,7 +33,7 @@ class Energy(Node):
             return None
 
         # Compute energy (variance)  -- why are we giving real value to below median? floor it?
-        E = (V**2).sum(dim=self.params.frames_axis)
+        E = (V**2).sum(dim=self.params.frames_dim)
 
         return E
 
@@ -45,15 +45,15 @@ class Energy(Node):
     def _center_to_median(self, arr: xr.DataArray) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
         # Center residuals: why median and not mean?
-        pixels_median = arr.median(dim=self.params.frames_axis)
+        pixels_median = arr.median(dim=self.params.frames_dim)
         arr_centered = arr - pixels_median
 
         # Apply spatial filter -- why are we doing this??
         V = xr.apply_ufunc(
             lambda x: gaussian_filter(x, self.params.gaussian_std),
             arr_centered,
-            input_core_dims=[[*self.params.spatial_axes]],
-            output_core_dims=[[*self.params.spatial_axes]],
+            input_core_dims=[[*self.params.spatial_dims]],
+            output_core_dims=[[*self.params.spatial_dims]],
             vectorize=True,
             dask="allowed",
         )

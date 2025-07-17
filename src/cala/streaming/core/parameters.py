@@ -4,9 +4,11 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any
 
+from cala.streaming.core import Axis
+
 
 @dataclass
-class Parameters(ABC):
+class Parameters(ABC, Axis):
     """Parameter management and validation"""
 
     def __post_init__(self) -> None:

@@ -35,25 +35,25 @@ class TracesInitializer(SupervisedTransformer):
         frame: xr.DataArray,
     ) -> Self:
         """Learn temporal traces from footprints and frames."""
-        if footprints.isel({self.params.component_axis: 0}).shape != frame[0].shape:
+        if footprints.isel({self.params.component_dim: 0}).shape != frame[0].shape:
             raise ValueError("Footprint and frame dimensions must be identical.")
 
         # Get frames to use and flatten them
-        n_frames = frame.sizes[self.params.frames_axis]
-        flattened_frames = frame[:n_frames].stack({"pixels": self.params.spatial_axes})
-        flattened_footprints = footprints.stack({"pixels": self.params.spatial_axes})
+        n_frames = frame.sizes[self.params.frames_dim]
+        flattened_frames = frame[:n_frames].stack({"pixels": self.params.spatial_dims})
+        flattened_footprints = footprints.stack({"pixels": self.params.spatial_dims})
 
         # Process all components
         temporal_traces = solve_all_component_traces(
             flattened_footprints.values,
             flattened_frames.values,
-            flattened_footprints.sizes[self.params.component_axis],
-            flattened_frames.sizes[self.params.frames_axis],
+            flattened_footprints.sizes[self.params.component_dim],
+            flattened_frames.sizes[self.params.frames_dim],
         )
 
         self.traces_ = xr.DataArray(
             temporal_traces,
-            dims=(self.params.component_axis, self.params.frames_axis),
+            dims=(self.params.component_dim, self.params.frames_dim),
             coords={**footprints.coords, **frame.coords},
         )
 

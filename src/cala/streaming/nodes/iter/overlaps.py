@@ -67,7 +67,7 @@ class OverlapsUpdater(SupervisedTransformer):
         # Use matrix multiplication with broadcasting to compute overlaps
         data = (
             footprints.dot(
-                footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+                footprints.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             )
             > 0
         ).astype(int)
@@ -76,13 +76,13 @@ class OverlapsUpdater(SupervisedTransformer):
         data.values = sparse.COO(data.values)
         self.overlaps_ = data.assign_coords(
             {
-                self.params.id_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.id_coordinates].values,
+                self.params.id_coord: (
+                    self.params.component_dim,
+                    footprints.coords[self.params.id_coord].values,
                 ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
-                    footprints.coords[self.params.type_coordinates].values,
+                self.params.type_coord: (
+                    self.params.component_dim,
+                    footprints.coords[self.params.type_coord].values,
                 ),
             }
         )

@@ -1,7 +1,7 @@
 ## 📝 Description
 
 <!--
-Provide a clear and concise description of the changes introduced by this PR.
+Provide a concise description of the changes introduced by this PR.
 Explain the purpose and any relevant context.
 -->
 
@@ -59,13 +59,3 @@ Please ensure you have completed the following tasks:
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-
-
-## 🔗 Additional Resources
-
-<!--
-Provide any additional links or resources that are relevant to the PR.
-For example:
-- [Design Document](https://link-to-design-doc.com)
-- [Related PR](https://github.com/user/repo/pull/456)
--->

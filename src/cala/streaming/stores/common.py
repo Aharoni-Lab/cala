@@ -21,11 +21,11 @@ class FootprintStore(ObservableStore):
         if len(data) == 0:
             return None
 
-        existing_ids = set(data.coords[Axis.id_coordinates].values) & set(
-            self.warehouse.coords[Axis.id_coordinates].values
+        existing_ids = set(data.coords[Axis.id_coord].values) & set(
+            self.warehouse.coords[Axis.id_coord].values
         )
-        new_ids = set(data.coords[Axis.id_coordinates].values) - set(
-            self.warehouse.coords[Axis.id_coordinates].values
+        new_ids = set(data.coords[Axis.id_coord].values) - set(
+            self.warehouse.coords[Axis.id_coord].values
         )
 
         if existing_ids and new_ids:  # detect returned the original
@@ -37,7 +37,7 @@ class FootprintStore(ObservableStore):
         elif new_ids:  # detect only returned new elements
             self.warehouse = xr.concat(
                 [self.warehouse, data],
-                dim=Axis.component_axis,
+                dim=Axis.component_dim,
             )
         return None
 
@@ -58,7 +58,7 @@ class TraceStore(ObservableStore):
     def warehouse(self) -> xr.DataArray:
         return (
             xr.open_zarr(self.store_path)
-            .isel({Axis.frames_axis: slice(-self.peek_size, None)})
+            .isel({Axis.frames_dim: slice(-self.peek_size, None)})
             .to_dataarray()
             .isel({"variable": 0})  # not sure why it automatically makes this coordinate
             .reset_coords("variable", drop=True)
@@ -87,47 +87,43 @@ class TraceStore(ObservableStore):
 
         warehouse_coords = self.warehouse.coords
 
-        warehouse_ids = warehouse_coords[Axis.id_coordinates].values
+        warehouse_ids = warehouse_coords[Axis.id_coord].values
 
-        existing_ids = set(data.coords[Axis.id_coordinates].values) & set(warehouse_ids)
-        new_ids = set(data.coords[Axis.id_coordinates].values) - set(warehouse_ids)
+        existing_ids = set(data.coords[Axis.id_coord].values) & set(warehouse_ids)
+        new_ids = set(data.coords[Axis.id_coord].values) - set(warehouse_ids)
 
         if existing_ids and new_ids:  # detect returned the original
             raise NotImplementedError(
                 "There should not be a case of both existing trace update and new components detection in update"
             )
         elif existing_ids:  # new frame trace update
-            self._append(data, append_dim=Axis.frames_axis)
+            self._append(data, append_dim=Axis.frames_dim)
 
         elif new_ids:  # detect only returned new elements
-            n_frames_to_backfill = len(warehouse_coords[Axis.frames_axis]) - len(
-                data.coords[Axis.frames_axis]
+            n_frames_to_backfill = len(warehouse_coords[Axis.frames_dim]) - len(
+                data.coords[Axis.frames_dim]
             )
 
             if n_frames_to_backfill > 0:
                 # grab coordinates in warehouse
-                warehouse_frames = warehouse_coords[Axis.frame_coordinates].values[
-                    :n_frames_to_backfill
-                ]
-                warehouse_times = warehouse_coords[Axis.time_coordinates].values[
-                    :n_frames_to_backfill
-                ]
+                warehouse_frames = warehouse_coords[Axis.frame_coord].values[:n_frames_to_backfill]
+                warehouse_times = warehouse_coords[Axis.time_coord].values[:n_frames_to_backfill]
 
                 # Create zeros array with same shape as data but for missing frames
                 zeros = xr.DataArray(
-                    np.zeros((data.sizes[Axis.component_axis], n_frames_to_backfill)),
-                    dims=(Axis.component_axis, Axis.frames_axis),
+                    np.zeros((data.sizes[Axis.component_dim], n_frames_to_backfill)),
+                    dims=(Axis.component_dim, Axis.frames_dim),
                     coords={
-                        Axis.frame_coordinates: (Axis.frames_axis, warehouse_frames),
-                        Axis.time_coordinates: (Axis.frames_axis, warehouse_times),
+                        Axis.frame_coord: (Axis.frames_dim, warehouse_frames),
+                        Axis.time_coord: (Axis.frames_dim, warehouse_times),
                     },
                 )
                 # Combine zeros and data along frames axis
-                backfilled_data = xr.concat([zeros, data], dim=Axis.frames_axis)
+                backfilled_data = xr.concat([zeros, data], dim=Axis.frames_dim)
             else:
                 backfilled_data = data
 
-            self._append(backfilled_data, append_dim=Axis.component_axis)
+            self._append(backfilled_data, append_dim=Axis.component_dim)
 
 
 Traces = Annotated[xr.DataArray, TraceStore]

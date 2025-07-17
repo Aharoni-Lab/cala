@@ -4,7 +4,7 @@ from operator import itemgetter
 import numpy as np
 import xarray as xr
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.common import Footprints, Traces
 
@@ -22,7 +22,12 @@ class DupeSniffer(Node):
     params: DupeSnifferParams
 
     def process(
-        self, new_fp, new_tr, existing_fp, existing_tr, residuals
+        self,
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        existing_fp: xr.DataArray,
+        existing_tr: xr.DataArray,
+        residuals: xr.DataArray,
     ) -> list[tuple[str, float]] | None:
         """
         determines whether the new component overlaps with an existing component.
@@ -60,15 +65,15 @@ class DupeSniffer(Node):
         overlaps = (new_footprints @ existing_footprints) > 0
         overlaps: xr.DataArray[bool]
 
-        return overlaps.where(overlaps, drop=True).coords[self.params.id_coordinates].values
+        return overlaps.where(overlaps, drop=True).coords[self.params.id_coord].values
 
     def _get_overlapped_traces(
         self, overlapping_components: np.ndarray, existing_tr: xr.DataArray
     ) -> xr.DataArray:
         return (
-            existing_tr.set_xindex(self.params.id_coordinates)
-            .sel({self.params.id_coordinates: overlapping_components})
-            .reset_index(self.params.id_coordinates)
+            existing_tr.set_xindex(self.params.id_coord)
+            .sel({self.params.id_coord: overlapping_components})
+            .reset_index(self.params.id_coord)
         )
 
     def _get_synced_traces(
@@ -79,17 +84,17 @@ class DupeSniffer(Node):
         """Validate new component against spatial and temporal criteria."""
 
         relevant_traces = existing_traces.isel(
-            {self.params.frames_axis: slice(-new_trace.sizes[self.params.frames_axis], None)}
+            {self.params.frames_dim: slice(-new_trace.sizes[self.params.frames_dim], None)}
         )
         # For components with spatial overlap, check temporal correlation
         temporal_corr = xr.corr(
             new_trace,
             relevant_traces,
-            dim=self.params.frames_axis,
+            dim=self.params.frames_dim,
         )
 
         dupes = temporal_corr.where(temporal_corr >= self.params.merge_threshold, drop=True)
-        dupe_ids = dupes.coords[self.params.id_coordinates].values.tolist()
+        dupe_ids = dupes.coords[self.params.id_coord].values.tolist()
         dupe_scores = dupes.values.tolist()
 
         return sorted(list(zip(dupe_ids, dupe_scores)), key=itemgetter(1))

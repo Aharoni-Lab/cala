@@ -62,14 +62,14 @@ class FootprintsInitializer(Transformer):
 
         self.footprints_ = xr.DataArray(
             background + neurons,
-            dims=(self.params.component_axis, *frame.dims),
+            dims=(self.params.component_dim, *frame.dims),
             coords={
-                self.params.id_coordinates: (
-                    self.params.component_axis,
+                self.params.id_coord: (
+                    self.params.component_dim,
                     [uuid4().hex for _ in range(len(background) + len(neurons))],
                 ),
-                self.params.type_coordinates: (
-                    self.params.component_axis,
+                self.params.type_coord: (
+                    self.params.component_dim,
                     [Component.BACKGROUND.value] * len(background)
                     + [Component.NEURON.value] * len(neurons),
                 ),

@@ -25,14 +25,14 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
 
     return xr.DataArray(
         frame,
-        dims=Axis.spatial_axes,
+        dims=Axis.spatial_dims,
         coords={
-            Axis.frame_coordinates: index,
-            Axis.time_coordinates: timestamp,
+            Axis.frame_coord: index,
+            Axis.time_coord: timestamp,
         },
         name="frame",
     ).astype(np.float32)
 
 
-def create_id():
+def create_id() -> str:
     return uuid4().hex

@@ -60,7 +60,7 @@ class ComponentStreamer(Transformer):
         self.stream.pix_fmt = "yuv420p"
 
     def learn_one(self, footprints: Footprints) -> None:
-        self.footprint_projection_ = footprints.max(dim=self.params.component_axis)
+        self.footprint_projection_ = footprints.max(dim=self.params.component_dim)
 
     def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
         self.stream.width = self.footprint_projection_.sizes["width"]
