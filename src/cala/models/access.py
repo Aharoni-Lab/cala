@@ -23,7 +23,7 @@ class DaValidator:
         coords_schema = self._build_coord_schema(schema.coords) if schema.coords else None
 
         return DataArraySchema(
-            dims=DimsSchema(tuple(dim.name for dim in schema.dims)),
+            dims=DimsSchema(tuple(dim.name for dim in schema.dims), ordered=False),
             coords=coords_schema,
             dtype=DTypeSchema(schema.dtype),
         )
