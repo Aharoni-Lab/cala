@@ -7,7 +7,7 @@ import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 
 
 class FrameSize(BaseModel):

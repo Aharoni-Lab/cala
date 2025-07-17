@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from cala.models.dim import Coord, Dim, Dims
+from cala.models.axis import Coord, Dim, Dims
 
 
 class Entity(BaseModel):

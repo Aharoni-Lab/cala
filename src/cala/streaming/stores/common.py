@@ -4,7 +4,7 @@ from typing import Annotated
 import numpy as np
 import xarray as xr
 
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 from cala.streaming.core import ObservableStore
 
 logger = logging.getLogger(__name__)

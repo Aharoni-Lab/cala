@@ -4,7 +4,7 @@ from uuid import uuid4
 import numpy as np
 import xarray as xr
 
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 
 
 def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -> xr.DataArray:

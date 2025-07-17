@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 from cala.streaming.util.new import package_frame
 
 

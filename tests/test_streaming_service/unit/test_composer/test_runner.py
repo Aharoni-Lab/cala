@@ -7,7 +7,7 @@ from cala.config.pipe import (
     Step,
     StreamingConfig,
 )
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 from cala.streaming.composer import Runner
 from cala.streaming.util import package_frame
 

@@ -10,7 +10,7 @@ import xarray as xr
 from scipy.sparse.csgraph import connected_components
 from skimage.measure import find_contours
 
-from cala.models.dim import Axis
+from cala.models.axis import Axis
 
 
 class Plotter:
