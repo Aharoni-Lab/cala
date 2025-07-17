@@ -79,7 +79,10 @@ class Simulator:
         footprint.loc[{"height": height_slice, "width": width_slice}] = shape
 
         return footprint.expand_dims(Axis.component_axis).assign_coords(
-            {Axis.id_coordinates: (Axis.component_axis, [id_])}
+            {
+                Axis.id_coordinates: (Axis.component_axis, [id_]),
+                **{ax: footprint[ax] for ax in Axis.spatial_axes},
+            }
         )
 
     def _build_footprints(self) -> xr.DataArray:

@@ -54,8 +54,8 @@ class Cataloger(Node):
         return footprint, trace
 
     def _init_with(self, new_fp: xr.DataArray, new_tr: xr.DataArray):
-        # new_fp.validate.against_schema(Entities.footprint.value)
-        # new_tr.validate.against_schema(Entities.trace.value)
+        new_fp.validate.against_schema(Entities.footprint.value)
+        new_tr.validate.against_schema(Entities.trace.value)
 
         new_id = create_id()
 
@@ -66,8 +66,8 @@ class Cataloger(Node):
             {self.params.id_coordinates: (self.params.component_axis, [new_id])}
         )
 
-        # footprints.validate.against_schema(Groups.footprint.value)
-        # traces.validate.against_schema(Groups.trace.value)
+        footprints.validate.against_schema(Groups.footprint.value)
+        traces.validate.against_schema(Groups.trace.value)
 
         return footprints, traces
 

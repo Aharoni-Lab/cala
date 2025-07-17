@@ -107,7 +107,9 @@ class SliceNMF(Node):
 
         # Create full-frame zero array with proper coordinates
         a_new = xr.DataArray(
-            np.zeros(tuple(spatial_sizes.values())), dims=tuple(spatial_sizes.keys())
+            np.zeros(tuple(spatial_sizes.values())),
+            dims=tuple(spatial_sizes.keys()),
+            coords={ax: np.arange(size) for ax, size in spatial_sizes.items()},
         )
 
         # Place the NMF result in the correct location
