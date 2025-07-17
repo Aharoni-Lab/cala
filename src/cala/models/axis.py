@@ -51,7 +51,7 @@ class Coords(Enum):
     height = Coord(name=AXIS.height_coord, dtype=int)
     width = Coord(name=AXIS.width_coord, dtype=int)
     frame = Coord(name=AXIS.frame_coord, dtype=int)
-    timestamp = Coord(name=AXIS.timestamp_coord, dtype=np.datetime64)
+    timestamp = Coord(name=AXIS.timestamp_coord, dtype=str)
     confidence = Coord(name=AXIS.confidence_coord, dtype=float)
 
 

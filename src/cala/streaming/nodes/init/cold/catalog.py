@@ -54,7 +54,7 @@ class Cataloger(Node):
         return footprint, trace
 
     def _init_with(
-        self, new_fp: xr.DataArray, new_tr: xr.DataArray
+        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0
     ) -> tuple[xr.DataArray, xr.DataArray]:
         new_fp.validate.against_schema(Entities.footprint.value)
         new_tr.validate.against_schema(Entities.trace.value)
@@ -62,14 +62,17 @@ class Cataloger(Node):
         new_id = create_id()
 
         footprints = new_fp.expand_dims(self.params.component_dim).assign_coords(
-            {self.params.id_coord: (self.params.component_dim, [new_id])}
+            {
+                self.params.id_coord: (self.params.component_dim, [new_id]),
+                self.params.confidence_coord: (self.params.component_dim, [confidence]),
+            }
         )
         traces = new_tr.expand_dims(self.params.component_dim).assign_coords(
-            {self.params.id_coord: (self.params.component_dim, [new_id])}
+            {
+                self.params.id_coord: (self.params.component_dim, [new_id]),
+                self.params.confidence_coord: (self.params.component_dim, [confidence]),
+            }
         )
-
-        footprints.validate.against_schema(Groups.footprint.value)
-        traces.validate.against_schema(Groups.trace.value)
 
         return footprints, traces
 

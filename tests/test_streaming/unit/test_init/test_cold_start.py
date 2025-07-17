@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from cala.models.entity import Groups
 from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
@@ -163,7 +164,9 @@ class TestCataloger:
 
     def test_init_with(self, cataloger, new_component):
         fp, tr = cataloger._init_with(*new_component)
-        # I'd love to check the schema gdi
+
+        fp.validate.against_schema(Groups.footprint.value)
+        tr.validate.against_schema(Groups.trace.value)
 
         print(fp.sizes, fp.coords)
         print(tr.sizes, tr.coords)

@@ -109,6 +109,7 @@ class Simulator:
         return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
                 AXIS.id_coord: (AXIS.component_dim, [id_]),
+                AXIS.confidence_coord: (AXIS.component_dim, [0.5]),
                 **{ax: footprint[ax] for ax in AXIS.spatial_dims},
             }
         )
