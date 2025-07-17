@@ -56,7 +56,7 @@ class OverlapsInitializer(SupervisedTransformer):
         # Use matrix multiplication with broadcasting to compute overlaps
         data = (
             footprints.dot(
-                footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+                footprints.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             )
             > 0
         ).astype(int)

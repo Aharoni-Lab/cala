@@ -1,7 +1,8 @@
-from typing import Any
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
+
 from cala.models.dim import Coord, Dim, Dims
 
 
@@ -15,7 +16,7 @@ class Entity(BaseModel):
     coords: list[Coord] = Field(default_factory=list)
     dtype: type
 
-    def model_post_init(self, __context__=None):
+    def model_post_init(self, __context__: None = None) -> None:
         for dim in self.dims:
             for coord in dim.coords:
                 coord.dim = dim.name
@@ -40,7 +41,7 @@ class Group(Entity):
     dims: tuple[Dim, ...] = Field(default=tuple())
     dtype: type = Field(default=Any)
 
-    def model_post_init(self, __context__=None) -> None:
+    def model_post_init(self, __context__: None = None) -> None:
         if self.group_by:
             self.dims = self.entity.dims + (self.group_by.value,)
             self.coords = self.entity.coords + self.group_by.value.coords

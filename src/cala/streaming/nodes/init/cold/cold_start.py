@@ -97,7 +97,7 @@ class ColdStarter(SupervisedTransformer):
     is_fitted_: bool = False
     """Indicator whether the transformer has been fitted."""
 
-    def learn_one(self, x, y) -> Self: ...
+    def learn_one(self, x: xr.DataArray, y: xr.DataArray) -> Self: ...
 
     def transform_one(
         self,
@@ -138,7 +138,7 @@ class ColdStarter(SupervisedTransformer):
             pixel_stats=pixel_stats,
         )
         component_stats_ = self._update_component_stats(
-            frame_idx=self.residuals_.coords[self.params.frame_coordinates].item(),
+            frame_idx=self.residuals_.coords[self.params.frame_coord].item(),
             traces=traces,
             new_traces=self.new_traces_,
             component_stats=component_stats,
@@ -166,18 +166,16 @@ class ColdStarter(SupervisedTransformer):
         residuals: Residuals,
     ) -> Residuals:
         """Update residual buffer with new frame."""
-        prediction = footprints @ traces.isel({self.params.frames_axis: -1})
+        prediction = footprints @ traces.isel({self.params.frames_dim: -1})
         new_residual = frame - prediction
         if len(residuals) >= self.params.num_nmf_residual_frames:
             n_frames_discard = len(residuals) - self.params.num_nmf_residual_frames + 1
-            residual_slice = residuals.isel(
-                {self.params.frames_axis: slice(n_frames_discard, None)}
-            )
+            residual_slice = residuals.isel({self.params.frames_dim: slice(n_frames_discard, None)})
         else:
             residual_slice = residuals
         residuals = xr.concat(
             [residual_slice, new_residual],
-            dim=self.params.frames_axis,
+            dim=self.params.frames_dim,
         )
         return residuals
 
@@ -209,16 +207,16 @@ class ColdStarter(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coord].item() + 1
         scale = 1 / frame_idx
 
-        footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_axis)
+        footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_dim)
         traces = xr.concat(
             [
-                og_traces.isel({self.params.frames_axis: slice(-len(residuals), None)}),
+                og_traces.isel({self.params.frames_dim: slice(-len(residuals), None)}),
                 new_traces,
             ],
-            dim=self.params.component_axis,
+            dim=self.params.component_dim,
         )
 
         # traces has to be the same number of frames as residuals
@@ -229,7 +227,7 @@ class ColdStarter(SupervisedTransformer):
         new_stats = scale * (y_buf @ new_traces)
 
         # Concatenate with existing pixel stats along component axis
-        return xr.concat([pixel_stats, new_stats], dim=self.params.component_axis)
+        return xr.concat([pixel_stats, new_stats], dim=self.params.component_dim)
 
     def _update_component_stats(
         self,
@@ -271,34 +269,34 @@ class ColdStarter(SupervisedTransformer):
         # C_buf probably has to be the same number of frames as c_new
         bottom_left_corr = (
             traces.sel(
-                {self.params.frames_axis: slice(-new_traces.sizes[self.params.frames_axis], None)}
+                {self.params.frames_dim: slice(-new_traces.sizes[self.params.frames_dim], None)}
             )
-            @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+            @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(traces.coords[Axis.component_axis].coords)
+        ).assign_coords(traces.coords[Axis.component_dim].coords)
 
         top_right_corr = xr.DataArray(
             bottom_left_corr.values,
             dims=bottom_left_corr.dims[::-1],
-            coords=new_traces.coords[Axis.component_axis].coords,
+            coords=new_traces.coords[Axis.component_dim].coords,
         )
 
         # Compute auto-correlation of new components
         # ||c_new||^2
         auto_corr = (
             new_traces
-            @ new_traces.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+            @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(new_traces.coords[Axis.component_axis].coords)
+        ).assign_coords(new_traces.coords[Axis.component_dim].coords)
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]
-        top_block = xr.concat([M, top_right_corr], dim=self.params.component_axis)
+        top_block = xr.concat([M, top_right_corr], dim=self.params.component_dim)
 
         # Bottom block: [cross_corr.T, auto_corr]
-        bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=self.params.component_axis)
+        bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=self.params.component_dim)
         # Combine blocks
-        return xr.concat([top_block, bottom_block], dim=f"{self.params.component_axis}'")
+        return xr.concat([top_block, bottom_block], dim=f"{self.params.component_dim}'")
 
     def _update_overlaps(
         self,
@@ -325,20 +323,20 @@ class ColdStarter(SupervisedTransformer):
 
         # Compute spatial overlaps between new and existing components
         old_new_overlap = footprints.dot(
-            new_footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+            new_footprints.rename({self.params.component_dim: f"{self.params.component_dim}'"})
         )
         bottom_left_overlap = (
             (old_new_overlap != 0)
             .astype(int)
             .assign_coords(
                 {
-                    self.params.id_coordinates: (
-                        self.params.component_axis,
-                        footprints.coords[self.params.id_coordinates].values,
+                    self.params.id_coord: (
+                        self.params.component_dim,
+                        footprints.coords[self.params.id_coord].values,
                     ),
-                    self.params.type_coordinates: (
-                        self.params.component_axis,
-                        footprints.coords[self.params.type_coordinates].values,
+                    self.params.type_coord: (
+                        self.params.component_dim,
+                        footprints.coords[self.params.type_coord].values,
                     ),
                 }
             )
@@ -354,7 +352,7 @@ class ColdStarter(SupervisedTransformer):
 
         # Compute overlaps between new components themselves
         new_new_overlaps = new_footprints.dot(
-            new_footprints.rename({self.params.component_axis: f"{self.params.component_axis}'"})
+            new_footprints.rename({self.params.component_dim: f"{self.params.component_dim}'"})
         )
         new_new_overlaps = (new_new_overlaps != 0).astype(int).assign_coords(new_footprints.coords)
 
@@ -365,16 +363,14 @@ class ColdStarter(SupervisedTransformer):
         # [new_overlaps        new_new_overlaps   ]
 
         # First concatenate horizontally: [existing_overlaps, old_new_overlaps]
-        top_block = xr.concat([overlaps, top_right_overlap], dim=self.params.component_axis)
+        top_block = xr.concat([overlaps, top_right_overlap], dim=self.params.component_dim)
 
         # Then concatenate vertically with [new_overlaps, new_new_overlaps]
         bottom_block = xr.concat(
-            [bottom_left_overlap, new_new_overlaps], dim=self.params.component_axis
+            [bottom_left_overlap, new_new_overlaps], dim=self.params.component_dim
         )
 
         # Finally combine top and bottom blocks
-        updated_overlaps = xr.concat(
-            [top_block, bottom_block], dim=f"{self.params.component_axis}'"
-        )
+        updated_overlaps = xr.concat([top_block, bottom_block], dim=f"{self.params.component_dim}'")
 
         return updated_overlaps

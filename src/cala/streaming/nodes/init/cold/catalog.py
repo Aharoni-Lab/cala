@@ -1,5 +1,5 @@
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
-from typing import Mapping, Hashable
 
 import numpy as np
 import xarray as xr
@@ -7,7 +7,7 @@ from sklearn.decomposition import NMF
 from xarray import Coordinates
 
 from cala.models.entity import Entities, Groups
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.util.new import create_id
 
@@ -15,7 +15,7 @@ from cala.streaming.util.new import create_id
 @dataclass
 class CatalogerParams(Parameters, Axis):
 
-    def validate(self): ...
+    def validate(self) -> bool: ...
 
 
 @dataclass
@@ -29,7 +29,7 @@ class Cataloger(Node):
         existing_fp: xr.DataArray = None,
         existing_tr: xr.DataArray = None,
         duplicates: list[tuple[str, float]] | None = None,
-    ):
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         if not duplicates:
             footprints, traces = self._register(new_fp, new_tr, existing_fp, existing_tr)
 
@@ -44,26 +44,28 @@ class Cataloger(Node):
         new_tr: xr.DataArray,
         existing_fp: xr.DataArray | None = None,
         existing_tr: xr.DataArray | None = None,
-    ):
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         footprint, trace = self._init_with(new_fp, new_tr)
 
         if existing_fp is not None:
-            footprint = xr.concat([existing_fp, footprint], dim=self.params.component_axis)
-            trace = xr.concat([existing_tr, trace], dim=self.params.component_axis)
+            footprint = xr.concat([existing_fp, footprint], dim=self.params.component_dim)
+            trace = xr.concat([existing_tr, trace], dim=self.params.component_dim)
 
         return footprint, trace
 
-    def _init_with(self, new_fp: xr.DataArray, new_tr: xr.DataArray):
+    def _init_with(
+        self, new_fp: xr.DataArray, new_tr: xr.DataArray
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         new_fp.validate.against_schema(Entities.footprint.value)
         new_tr.validate.against_schema(Entities.trace.value)
 
         new_id = create_id()
 
-        footprints = new_fp.expand_dims(self.params.component_axis).assign_coords(
-            {self.params.id_coordinates: (self.params.component_axis, [new_id])}
+        footprints = new_fp.expand_dims(self.params.component_dim).assign_coords(
+            {self.params.id_coord: (self.params.component_dim, [new_id])}
         )
-        traces = new_tr.expand_dims(self.params.component_axis).assign_coords(
-            {self.params.id_coordinates: (self.params.component_axis, [new_id])}
+        traces = new_tr.expand_dims(self.params.component_dim).assign_coords(
+            {self.params.id_coord: (self.params.component_dim, [new_id])}
         )
 
         footprints.validate.against_schema(Groups.footprint.value)
@@ -78,7 +80,7 @@ class Cataloger(Node):
         existing_fp: xr.DataArray,
         existing_tr: xr.DataArray,
         duplicates: list[tuple[str, float]],
-    ):
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         """
         # 1. get the "movie" of the og piece
         # 2. get the "movie" of the new piece
@@ -94,8 +96,8 @@ class Cataloger(Node):
         )
 
         # Reshape neighborhood to 2D matrix (time × space)
-        shape = xr.DataArray(combined_movie.sum(dim=self.params.frames_axis) > 0).reset_coords(
-            self.params.id_coordinates, drop=True
+        shape = xr.DataArray(combined_movie.sum(dim=self.params.frames_dim) > 0).reset_coords(
+            self.params.id_coord, drop=True
         )
         slice_ = combined_movie.where(shape, 0, drop=True)
 
@@ -105,17 +107,17 @@ class Cataloger(Node):
             footprint=a,
             trace=c,
             frame_spec=shape.sizes,
-            frame_coordinates=existing_tr[self.params.frames_axis].coords,
-            spatial_coordinates=slice_.reset_index(self.params.frames_axis)
+            frame_coordinates=existing_tr[self.params.frames_dim].coords,
+            spatial_coordinates=slice_.reset_index(self.params.frames_dim)
             .reset_coords(drop=True)
             .coords,
         )
 
-        existing_tr.set_xindex(self.params.id_coordinates).loc[
-            {self.params.id_coordinates: most_similar[0]}
+        existing_tr.set_xindex(self.params.id_coord).loc[
+            {self.params.id_coord: most_similar[0]}
         ] = c_new
-        existing_fp.set_xindex(self.params.id_coordinates).loc[
-            {self.params.id_coordinates: most_similar[0]}
+        existing_fp.set_xindex(self.params.id_coord).loc[
+            {self.params.id_coord: most_similar[0]}
         ] = a_new
 
         return existing_fp, existing_tr
@@ -128,11 +130,11 @@ class Cataloger(Node):
         existing_tr: xr.DataArray,
         most_similar_id: str,
     ) -> xr.DataArray:
-        most_similar_fp = existing_fp.set_xindex(self.params.id_coordinates).sel(
-            {self.params.id_coordinates: most_similar_id}
+        most_similar_fp = existing_fp.set_xindex(self.params.id_coord).sel(
+            {self.params.id_coord: most_similar_id}
         )
-        most_similar_tr = existing_tr.set_xindex(self.params.id_coordinates).sel(
-            {self.params.id_coordinates: most_similar_id}
+        most_similar_tr = existing_tr.set_xindex(self.params.id_coord).sel(
+            {self.params.id_coord: most_similar_id}
         )
 
         most_similar_movie = most_similar_fp @ most_similar_tr
@@ -140,13 +142,13 @@ class Cataloger(Node):
         combined_movie = most_similar_movie + new_movie
 
         return combined_movie.assign_coords(
-            {ax: combined_movie[ax] for ax in self.params.spatial_axes}
+            {ax: combined_movie[ax] for ax in self.params.spatial_dims}
         )
 
     def _nmf(self, movie: xr.DataArray) -> tuple[np.ndarray, np.ndarray]:
 
-        stacked = movie.stack({"space": self.params.spatial_axes}).transpose(
-            self.params.frames_axis, "space"
+        stacked = movie.stack({"space": self.params.spatial_dims}).transpose(
+            self.params.frames_dim, "space"
         )
         # Apply NMF (check how long nndsvd takes vs random)
         model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
@@ -168,7 +170,7 @@ class Cataloger(Node):
 
         c_new = xr.DataArray(
             trace.squeeze(),
-            dims=[self.params.frames_axis],
+            dims=[self.params.frames_dim],
             coords=frame_coordinates,
         )
 
@@ -176,9 +178,9 @@ class Cataloger(Node):
 
         a_new.loc[spatial_coordinates] = xr.DataArray(
             footprint.squeeze().reshape(
-                list(spatial_coordinates[ax].size for ax in self.params.spatial_axes)
+                list(spatial_coordinates[ax].size for ax in self.params.spatial_dims)
             ),
-            dims=self.params.spatial_axes,
+            dims=self.params.spatial_dims,
             coords=spatial_coordinates,
         )
 

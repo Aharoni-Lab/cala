@@ -146,12 +146,11 @@ class Plotter:
         title: str | None = None,
         subdir: str | None = None,
     ) -> None:
-        for idx, fp in enumerate(footprints.transpose(Axis.component_axis, *Axis.spatial_axes)):
+        for idx, fp in enumerate(footprints.transpose(Axis.component_dim, *Axis.spatial_dims)):
             fig, ax = plt.subplots(figsize=(10, 10))
             plt.imshow(fp)
             ax.set_title(
-                title
-                or f"Spatial Footprints ({idx + 1} of {footprints.sizes[Axis.component_axis]})"
+                title or f"Spatial Footprints ({idx + 1} of {footprints.sizes[Axis.component_dim]})"
             )
             self.save_fig(f"footprint_{idx}", subdir)
 

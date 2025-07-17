@@ -90,8 +90,8 @@ class FootprintsUpdater(SupervisedTransformer):
         A = footprints
         M = component_stats
         side_length = min(
-            footprints.sizes[self.params.spatial_axes[0]],
-            footprints.sizes[self.params.spatial_axes[1]],
+            footprints.sizes[self.params.spatial_dims[0]],
+            footprints.sizes[self.params.spatial_dims[1]],
         )
         if self.params.boundary_expansion_pixels:
             kernel = cv2.getStructuringElement(
@@ -111,14 +111,14 @@ class FootprintsUpdater(SupervisedTransformer):
                 mask = xr.apply_ufunc(
                     lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
                     mask.astype(np.uint8),
-                    input_core_dims=[[*self.params.spatial_axes]],
-                    output_core_dims=[[*self.params.spatial_axes]],
+                    input_core_dims=[[*self.params.spatial_dims]],
+                    output_core_dims=[[*self.params.spatial_dims]],
                     vectorize=True,
                     dask="parallelized",
                 )
             # Compute AM product using xarray operations
             # Reshape M to align dimensions for broadcasting
-            AM = (A @ M).rename({f"{self.params.component_axis}'": f"{self.params.component_axis}"})
+            AM = (A @ M).rename({f"{self.params.component_dim}'": f"{self.params.component_dim}"})
             numerator = pixel_stats - AM
 
             # Compute update using vectorized operations
@@ -127,7 +127,7 @@ class FootprintsUpdater(SupervisedTransformer):
                 np.diag,
                 component_stats,
                 input_core_dims=[component_stats.dims],
-                output_core_dims=[[self.params.component_axis]],
+                output_core_dims=[[self.params.component_dim]],
                 dask="allowed",
             )
 

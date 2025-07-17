@@ -1,11 +1,11 @@
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
-from typing import Hashable, Mapping
 
 import numpy as np
 import xarray as xr
 from sklearn.decomposition import NMF
 
-from cala.streaming.core import Parameters, Axis
+from cala.streaming.core import Axis, Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Residuals
@@ -32,7 +32,7 @@ class SliceNMF(Node):
         a_new, c_new = self._local_nmf(
             slice_=slice_,
             spatial_sizes={
-                k: v for k, v in residuals.sizes.items() if k in self.params.spatial_axes
+                k: v for k, v in residuals.sizes.items() if k in self.params.spatial_dims
             },
         )
 
@@ -50,7 +50,7 @@ class SliceNMF(Node):
     ) -> xr.DataArray:
         """Find neighborhood around point of maximum variance."""
         # Find maximum point
-        max_coords = energy_landscape.argmax(dim=self.params.spatial_axes)
+        max_coords = energy_landscape.argmax(dim=self.params.spatial_dims)
 
         # Define neighborhood
         radius = int(np.round(self.params.cell_radius))
@@ -89,7 +89,7 @@ class SliceNMF(Node):
                 - Temporal component c_new (frames)
         """
         # Reshape neighborhood to 2D matrix (time × space)
-        R = slice_.stack(space=self.params.spatial_axes).transpose(self.params.frames_axis, "space")
+        R = slice_.stack(space=self.params.spatial_dims).transpose(self.params.frames_dim, "space")
 
         # Apply NMF (check how long nndsvd takes vs random)
         model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
@@ -101,8 +101,8 @@ class SliceNMF(Node):
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
             c.squeeze(),
-            dims=[self.params.frames_axis],
-            coords=slice_.coords[Axis.frames_axis].coords,
+            dims=[self.params.frames_dim],
+            coords=slice_.coords[Axis.frames_dim].coords,
         )
 
         # Create full-frame zero array with proper coordinates
@@ -113,10 +113,10 @@ class SliceNMF(Node):
         )
 
         # Place the NMF result in the correct location
-        a_new.loc[{ax: slice_.coords[ax] for ax in self.params.spatial_axes}] = xr.DataArray(
-            a.squeeze().reshape(tuple(slice_.sizes[ax] for ax in self.params.spatial_axes)),
-            dims=self.params.spatial_axes,
-            coords={ax: slice_.coords[ax] for ax in self.params.spatial_axes},
+        a_new.loc[{ax: slice_.coords[ax] for ax in self.params.spatial_dims}] = xr.DataArray(
+            a.squeeze().reshape(tuple(slice_.sizes[ax] for ax in self.params.spatial_dims)),
+            dims=self.params.spatial_dims,
+            coords={ax: slice_.coords[ax] for ax in self.params.spatial_dims},
         )
 
         # normalize against the original video (as in whatever the residual used at the time)
@@ -152,7 +152,7 @@ class SliceNMF(Node):
         # but i think we should only get correlation from within the new footprint perimeter,
         # since otherwise the correlation will get drowned out by the mismatch
         # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=self.params.frames_axis).isel(nonzero_ax_to_idx)
+        mean_residual = residuals.mean(dim=self.params.frames_dim).isel(nonzero_ax_to_idx)
 
         a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
         res_norm = mean_residual / mean_residual.sum()
@@ -163,6 +163,4 @@ class SliceNMF(Node):
         # (this might not be super viable for cold-start. what if the first cell is bad? we just keep trying?)
         r_spatial = xr.corr(a_norm, res_norm)
 
-        if r_spatial <= self.params.validity_threshold:
-            return False
-        return True
+        return not r_spatial <= self.params.validity_threshold

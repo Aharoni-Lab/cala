@@ -64,7 +64,7 @@ class PixelStatsInitializer(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Get current timestep
-        t_prime = frame.sizes[self.params.frames_axis]
+        t_prime = frame.sizes[self.params.frames_dim]
 
         # Reshape frames to pixels x time
         Y = frame  # .stack({"pixels": self.params.spatial_axes})

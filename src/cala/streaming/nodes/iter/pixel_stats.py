@@ -75,7 +75,7 @@ class PixelStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[Axis.frame_coordinates].item() + 1
+        frame_idx = frame.coords[Axis.frame_coord].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 
@@ -83,7 +83,7 @@ class PixelStatsUpdater(SupervisedTransformer):
         y_t = frame  # .stack({"pixels": self.params.spatial_axes})
         W = pixel_stats  # .stack({"pixels": self.params.spatial_axes})
         # New frame traces
-        c_t = traces.isel({self.params.frames_axis: -1})
+        c_t = traces.isel({self.params.frames_dim: -1})
 
         # Update pixel-component statistics W_t
         # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T

@@ -64,16 +64,16 @@ class ComponentStatsInitializer(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Get current timestep
-        t_prime = frame.sizes[self.params.frames_axis]
+        t_prime = frame.sizes[self.params.frames_dim]
 
         # Get temporal components C
         C = traces  # components x time
 
         # Compute M = C * C.T / t'
-        M = C @ C.rename({self.params.component_axis: f"{self.params.component_axis}'"}) / t_prime
+        M = C @ C.rename({self.params.component_dim: f"{self.params.component_dim}'"}) / t_prime
 
         # Create xarray DataArray with proper dimensions and coordinates
-        self.component_stats_ = M.assign_coords(C.coords[Axis.component_axis].coords)
+        self.component_stats_ = M.assign_coords(C.coords[Axis.component_dim].coords)
 
         return self
 

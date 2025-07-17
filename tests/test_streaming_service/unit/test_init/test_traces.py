@@ -65,10 +65,10 @@ class TestTracesInitializer:
         plotter.plot_traces(traces, subdir="init")
         assert isinstance(traces, xr.DataArray)
         assert (
-            traces.sizes[default_initializer.params.component_axis]
-            == footprints_setup.sizes[default_initializer.params.component_axis]
+            traces.sizes[default_initializer.params.component_dim]
+            == footprints_setup.sizes[default_initializer.params.component_dim]
         )
-        assert traces.sizes[default_initializer.params.frames_axis] == 3
+        assert traces.sizes[default_initializer.params.frames_dim] == 3
 
     class TestEdgeCases:
         """Nested test class for edge cases and error conditions."""

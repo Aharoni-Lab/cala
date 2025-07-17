@@ -77,23 +77,23 @@ class ResidualInitializer(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Get current timestep
-        t_prime = frame.sizes[self.params.frames_axis]
+        t_prime = frame.sizes[self.params.frames_dim]
 
         # Reshape frames to pixels x time
-        Y = frame.stack({"pixels": self.params.spatial_axes})
+        Y = frame.stack({"pixels": self.params.spatial_dims})
 
         # Get temporal components [C; f]
         C = traces  # components x time
 
         # Reshape footprints to (pixels x components)
-        A = footprints.stack({"pixels": self.params.spatial_axes})
+        A = footprints.stack({"pixels": self.params.spatial_dims})
 
         # Compute residual R = Y - [A,b][C;f]
         R = Y - (A @ C)
 
         # Only keep the last l_b frames
         start_idx = max(0, t_prime - self.params.buffer_length)
-        R = R.isel({self.params.frames_axis: slice(start_idx, None)})
+        R = R.isel({self.params.frames_dim: slice(start_idx, None)})
 
         self.residual_ = R.unstack("pixels")
         return self
