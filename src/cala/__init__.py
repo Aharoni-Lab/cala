@@ -1,1 +1,1 @@
-from cala.models import access
+from cala.models import access as access

@@ -3,15 +3,15 @@ import numpy as np
 import pytest
 
 from cala.streaming.nodes.init.cold import (
+    DupeSniffer,
+    DupeSnifferParams,
     Energy,
     EnergyParams,
     SliceNMF,
     SliceNMFParams,
-    DupeSniffer,
-    DupeSnifferParams,
 )
-from cala.streaming.nodes.init.cold.catalog import CatalogerParams, Cataloger
-from cala.testing.simulation import Simulator, FrameSize, Position
+from cala.streaming.nodes.init.cold.catalog import Cataloger, CatalogerParams
+from cala.testing.simulation import FrameSize, Position, Simulator
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -51,7 +51,7 @@ class TestEnergy:
 
     def test_process(self, energy, single_cell_video):
         energy_landscape = energy.process(single_cell_video)
-        plt.imsave("mean_video.png", single_cell_video.mean(dim=energy.params.frames_axis))
+        plt.imsave("mean_video.png", single_cell_video.mean(dim=energy.params.frames_dim))
         plt.imsave("energy.png", energy_landscape)
         assert energy_landscape.sizes == single_cell_video[0].sizes
         assert np.all(energy_landscape >= 0)
@@ -98,7 +98,7 @@ class TestSliceNMF:
         if new_component:
             new_fp, new_tr = new_component
         else:
-            assert False, "Failed to detect a new component"
+            raise AssertionError("Failed to detect a new component")
 
 
 class TestSniffer:

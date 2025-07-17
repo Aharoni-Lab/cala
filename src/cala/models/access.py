@@ -1,6 +1,5 @@
 import xarray as xr
-
-from xarray_validate import DataArraySchema, DimsSchema, CoordsSchema, DTypeSchema
+from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
 from cala.models.dim import Coord
 from cala.models.entity import Entity
@@ -28,7 +27,7 @@ class DaValidator:
             dtype=DTypeSchema(schema.dtype),
         )
 
-    def against_schema(self, schema: Entity):
+    def against_schema(self, schema: Entity) -> bool:
         """
         Validates the DataArray against a given Pydantic schema.
         Raises ValueError if validation fails.
