@@ -116,14 +116,15 @@ class Cataloger(Node):
             .coords,
         )
 
-        existing_tr.set_xindex(self.params.id_coord).loc[
-            {self.params.id_coord: most_similar[0]}
-        ] = c_new
-        existing_fp.set_xindex(self.params.id_coord).loc[
+        footprints, traces = existing_fp.copy(), existing_tr.copy()
+
+        traces.set_xindex(self.params.id_coord).loc[{self.params.id_coord: most_similar[0]}] = c_new
+
+        footprints.set_xindex(self.params.id_coord).loc[
             {self.params.id_coord: most_similar[0]}
         ] = a_new
 
-        return existing_fp, existing_tr
+        return footprints, traces
 
     def _combine_component_movies(
         self,
