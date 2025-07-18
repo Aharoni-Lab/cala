@@ -171,7 +171,7 @@ class TestCataloger:
 
     @pytest.fixture(scope="class")
     def new_component(self, single_cell_video, energy_shape):
-        return SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
+        return SliceNMF(SliceNMFParams(cell_radius=60, validity_threshold=0.8)).process(
             single_cell_video, energy_shape
         )
 
@@ -185,16 +185,32 @@ class TestCataloger:
         assert fp.validate.against_schema(Groups.footprint.value)
         assert tr.validate.against_schema(Groups.trace.value)
 
+        assert np.array_equal(fp.values[0], new_component[0].values)
+        assert np.array_equal(tr.values[0], new_component[1].values)
+
     def test_register(self, cataloger, new_component, simulator):
         fp, tr = cataloger._register(*new_component, simulator.footprints, simulator.traces)
 
         assert fp.validate.against_schema(Groups.footprint.value)
         assert tr.validate.against_schema(Groups.trace.value)
 
-    def test_merge(self, cataloger, new_component, simulator):
+        assert np.array_equal(fp.values[-1], new_component[0].values)
+        assert np.array_equal(tr.values[-1], new_component[1].values)
+
+    def test_merge(self, cataloger, simulator, single_cell_video, energy_shape):
+        new_component = SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
+            single_cell_video, energy_shape
+        )
         fp, tr = cataloger._merge(
             *new_component, simulator.footprints, simulator.traces, duplicates=[("cell_0", 1.0)]
         )
 
         assert fp.validate.against_schema(Groups.footprint.value)
         assert tr.validate.against_schema(Groups.trace.value)
+
+        movie_recon = fp @ tr
+        new_fp, new_tr = new_component
+        movie_new_comp = new_fp @ new_tr
+        movie_expected = single_cell_video + movie_new_comp
+
+        np.testing.assert_allclose(movie_recon, movie_expected.transpose(*movie_recon.dims))
