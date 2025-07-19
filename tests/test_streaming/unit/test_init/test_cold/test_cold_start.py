@@ -13,6 +13,7 @@ from cala.streaming.nodes.init.cold import (
 )
 from cala.streaming.nodes.init.cold.catalog import Cataloger, CatalogerParams
 from cala.testing.simulation import FrameSize, Position, Simulator
+from cala.testing.util import assert_scalar_multiple_arrays
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -107,11 +108,7 @@ class TestSliceNMF:
             raise AssertionError("Failed to detect a new component")
 
         for new, old in zip([new_fp, new_tr], [simulator.footprints, simulator.traces]):
-            # Using the Pythagorean Theorem
-            abab = (new @ old) ** 2
-            aabb = new.dot(new) * old.dot(old)
-
-            assert abab > aabb * 0.99999997
+            assert_scalar_multiple_arrays(new, old)
 
 
 class TestSniffer:
