@@ -6,14 +6,14 @@ import xarray as xr
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
-from cala.models.entity import Entities, Groups
-from cala.streaming.core import Axis, Parameters
+from cala.models.entity import Entities
+from cala.models.params import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.util.new import create_id
 
 
 @dataclass
-class CatalogerParams(Parameters, Axis):
+class CatalogerParams(Parameters):
 
     def validate(self) -> bool: ...
 
@@ -54,7 +54,7 @@ class Cataloger(Node):
         return footprint, trace
 
     def _init_with(
-        self, new_fp: xr.DataArray, new_tr: xr.DataArray
+        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0.0
     ) -> tuple[xr.DataArray, xr.DataArray]:
         new_fp.validate.against_schema(Entities.footprint.value)
         new_tr.validate.against_schema(Entities.trace.value)
@@ -62,14 +62,17 @@ class Cataloger(Node):
         new_id = create_id()
 
         footprints = new_fp.expand_dims(self.params.component_dim).assign_coords(
-            {self.params.id_coord: (self.params.component_dim, [new_id])}
+            {
+                self.params.id_coord: (self.params.component_dim, [new_id]),
+                self.params.confidence_coord: (self.params.component_dim, [confidence]),
+            }
         )
         traces = new_tr.expand_dims(self.params.component_dim).assign_coords(
-            {self.params.id_coord: (self.params.component_dim, [new_id])}
+            {
+                self.params.id_coord: (self.params.component_dim, [new_id]),
+                self.params.confidence_coord: (self.params.component_dim, [confidence]),
+            }
         )
-
-        footprints.validate.against_schema(Groups.footprint.value)
-        traces.validate.against_schema(Groups.trace.value)
 
         return footprints, traces
 
@@ -113,14 +116,15 @@ class Cataloger(Node):
             .coords,
         )
 
-        existing_tr.set_xindex(self.params.id_coord).loc[
-            {self.params.id_coord: most_similar[0]}
-        ] = c_new
-        existing_fp.set_xindex(self.params.id_coord).loc[
+        footprints, traces = existing_fp.copy(), existing_tr.copy()
+
+        traces.set_xindex(self.params.id_coord).loc[{self.params.id_coord: most_similar[0]}] = c_new
+
+        footprints.set_xindex(self.params.id_coord).loc[
             {self.params.id_coord: most_similar[0]}
         ] = a_new
 
-        return existing_fp, existing_tr
+        return footprints, traces
 
     def _combine_component_movies(
         self,

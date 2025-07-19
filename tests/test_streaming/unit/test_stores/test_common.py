@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.core import Component, ObservableStore
+from cala.models.entity import Component
+from cala.streaming.core import ObservableStore
 from cala.streaming.stores.common import FootprintStore, TraceStore
 
 

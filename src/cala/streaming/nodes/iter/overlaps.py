@@ -6,13 +6,13 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Axis, Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class OverlapsUpdaterParams(Parameters, Axis):
+class OverlapsUpdaterParams(Parameters):
     """Parameters for component statistics updates.
 
     This class defines the configuration parameters needed for updating

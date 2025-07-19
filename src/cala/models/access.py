@@ -1,7 +1,7 @@
 import xarray as xr
 from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
-from cala.models.dim import Coord
+from cala.models.axis import Coord
 from cala.models.entity import Entity
 
 
@@ -13,7 +13,7 @@ class DaValidator:
     def _build_coord_schema(self, coords: list[Coord]) -> CoordsSchema:
         return CoordsSchema(
             {
-                c.name: DataArraySchema(dims=DimsSchema([c.dim]), dtype=DTypeSchema(c.dtype))
+                c.name: DataArraySchema(dims=DimsSchema((c.dim,)), dtype=DTypeSchema(c.dtype))
                 for c in coords
             }
         )

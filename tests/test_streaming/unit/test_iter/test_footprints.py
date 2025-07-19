@@ -4,7 +4,7 @@ import xarray as xr
 from scipy.ndimage import binary_dilation, binary_erosion
 
 from cala.gui.plots import Plotter
-from cala.streaming.core import Component
+from cala.models.entity import Component
 from cala.streaming.nodes.init.common import (
     TracesInitializer,
     TracesInitializerParams,

@@ -7,8 +7,8 @@ from cala.config.pipe import (
     Step,
     StreamingConfig,
 )
+from cala.models.axis import AXIS
 from cala.streaming.composer import Runner
-from cala.streaming.core import Axis
 from cala.streaming.util import package_frame
 
 
@@ -125,8 +125,8 @@ def test_preprocess_execution(
     result = runner.preprocess(frame)
 
     assert isinstance(result, xr.DataArray)
-    assert Axis.frame_coord in result.coords
-    assert Axis.time_coord in result.coords
+    assert AXIS.frame_coord in result.coords
+    assert AXIS.timestamp_coord in result.coords
 
     # Verify dimensions are reduced by downsampling
     assert result.shape[0] == original_shape[0] // 2

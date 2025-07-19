@@ -7,13 +7,13 @@ from river.base import SupervisedTransformer
 from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Axis, Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class TracesUpdaterParams(Parameters, Axis):
+class TracesUpdaterParams(Parameters):
     """Parameters for temporal trace updates.
 
     This class defines the configuration parameters needed for updating temporal
@@ -95,8 +95,8 @@ class TracesUpdater(SupervisedTransformer):
         c = xr.DataArray(
             traces.isel({self.params.frames_dim: [-1]}),
             coords={
-                **traces.coords[Axis.component_dim].coords,
-                **{k: (Axis.frames_dim, [v.item()]) for k, v in frame.coords.items()},
+                **traces.coords[self.params.component_dim].coords,
+                **{k: (self.params.frames_dim, [v.item()]) for k, v in frame.coords.items()},
             },
         )
 

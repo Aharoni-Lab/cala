@@ -7,7 +7,7 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.streaming.core import Axis, Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints, Traces
 from cala.streaming.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ColdStarterParams(Parameters, Axis):
+class ColdStarterParams(Parameters):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new
@@ -207,7 +207,7 @@ class ColdStarter(SupervisedTransformer):
             return pixel_stats
 
         # Compute scaling factor (1/t)
-        frame_idx = frame.coords[Axis.frame_coord].item() + 1
+        frame_idx = frame.coords[self.params.frame_coord].item() + 1
         scale = 1 / frame_idx
 
         footprints = xr.concat([og_footprints, new_footprints], dim=self.params.component_dim)
@@ -273,12 +273,12 @@ class ColdStarter(SupervisedTransformer):
             )
             @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(traces.coords[Axis.component_dim].coords)
+        ).assign_coords(traces.coords[self.params.component_dim].coords)
 
         top_right_corr = xr.DataArray(
             bottom_left_corr.values,
             dims=bottom_left_corr.dims[::-1],
-            coords=new_traces.coords[Axis.component_dim].coords,
+            coords=new_traces.coords[self.params.component_dim].coords,
         )
 
         # Compute auto-correlation of new components
@@ -287,7 +287,7 @@ class ColdStarter(SupervisedTransformer):
             new_traces
             @ new_traces.rename({self.params.component_dim: f"{self.params.component_dim}'"})
             / t
-        ).assign_coords(new_traces.coords[Axis.component_dim].coords)
+        ).assign_coords(new_traces.coords[self.params.component_dim].coords)
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]

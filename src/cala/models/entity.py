@@ -3,7 +3,20 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from cala.models.dim import Coord, Dim, Dims
+from cala.models.axis import Coord, Dim, Dims
+
+
+class Component(Enum):
+    """Enumeration of possible component types in the imaging data.
+
+    Attributes:
+        NEURON: Represents neuronal components.
+        BACKGROUND: Represents background components (non-neuronal signals).
+    """
+
+    NEURON = "neuron"
+    BACKGROUND = "background"
+    UNKNOWN = "unknown"
 
 
 class Entity(BaseModel):

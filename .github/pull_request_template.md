@@ -1,9 +1,5 @@
 ## 📝 Description
 
-<!--
-Provide a concise description of the changes introduced by this PR.
-Explain the purpose and any relevant context.
--->
 
 ## 🔍 Type of Change
 
@@ -19,17 +15,12 @@ Please delete options that are not relevant.
 
 ## 🚀 Implementation Details
 
-<!--
-Provide details about how the changes were implemented.
-Include any important design decisions or trade-offs.
--->
 
 ## 🧪 Testing
 
 <!--
 Describe the tests that you ran to verify your changes.
 Provide instructions so that others can reproduce.
-Include any relevant details for testing.
 -->
 
 - [ ] Ran unit tests
@@ -42,17 +33,11 @@ Include any relevant details for testing.
 
 <!--
 List any new dependencies added or existing ones updated.
-For example:
-- `pandas` from version 1.2 to 1.3
-- New library: `seaborn` for enhanced visualization
 -->
 
 
 ## ✅ Checklist
 
-<!--
-Please ensure you have completed the following tasks:
--->
 - [ ] My code follows the project's style guidelines
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation

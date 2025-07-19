@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from cala.models.entity import Groups
 from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
@@ -12,6 +13,7 @@ from cala.streaming.nodes.init.cold import (
 )
 from cala.streaming.nodes.init.cold.catalog import Cataloger, CatalogerParams
 from cala.testing.simulation import FrameSize, Position, Simulator
+from cala.testing.util import assert_scalar_multiple_arrays
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -21,6 +23,7 @@ def simulator():
     cell_positions = [Position(width=256, height=256)]
     cell_radii = 30
     cell_traces = [np.array(range(300), dtype=float)]
+    confidences = [0.8]
 
     return Simulator(
         n_frames=n_frames,
@@ -28,6 +31,7 @@ def simulator():
         cell_radii=cell_radii,
         cell_positions=cell_positions,
         cell_traces=cell_traces,
+        confidences=confidences,
     )
 
 
@@ -63,8 +67,10 @@ class TestSliceNMF:
         return Energy(EnergyParams(gaussian_std=1.0)).process(single_cell_video)
 
     @pytest.fixture(scope="class")
-    def slice_nmf(self):
-        return SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8))
+    def slice_nmf(self, simulator):
+        return SliceNMF(
+            SliceNMFParams(cell_radius=2 * simulator.cell_radii[0], validity_threshold=0.8)
+        )
 
     def test_get_max_energy_slice(self, slice_nmf, single_cell_video, energy):
         slice_ = slice_nmf._get_max_energy_slice(single_cell_video, energy)
@@ -76,11 +82,12 @@ class TestSliceNMF:
             slice_,
             simulator.frame_dims.model_dump(),
         )
-        print(f"footprint: {footprint.sizes}")
-        print(f"trace: {trace.sizes}")
-        plt.imsave("a_new.png", footprint)
-        plt.plot(trace)
-        plt.savefig("c_new.png")
+
+        # Using the Pythagorean Theorem
+        abab = (footprint @ simulator.footprints) ** 2
+        aabb = footprint.dot(footprint) * simulator.footprints.dot(simulator.footprints)
+
+        assert abab > aabb * 0.99999997
 
     def test_check_validity(self, slice_nmf, single_cell_video, energy_shape, simulator):
         """
@@ -93,12 +100,15 @@ class TestSliceNMF:
         )
         assert slice_nmf._check_validity(footprint, single_cell_video)
 
-    def test_process(self, slice_nmf, single_cell_video, energy_shape):
+    def test_process(self, slice_nmf, single_cell_video, energy_shape, simulator):
         new_component = slice_nmf.process(single_cell_video, energy_shape)
         if new_component:
             new_fp, new_tr = new_component
         else:
             raise AssertionError("Failed to detect a new component")
+
+        for new, old in zip([new_fp, new_tr], [simulator.footprints, simulator.traces]):
+            assert_scalar_multiple_arrays(new, old)
 
 
 class TestSniffer:
@@ -120,7 +130,10 @@ class TestSniffer:
         new_fp, new_tr = new_component
 
         simulator.add_cell(
-            Position(width=260, height=260), 30, np.array(range(300, 0, -1)), "cell_1"
+            Position(width=260, height=260),
+            simulator.cell_radii[0],
+            simulator.traces[0][::-1],
+            "cell_1",
         )
 
         ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
@@ -143,7 +156,9 @@ class TestSniffer:
         traces = sniffer._get_overlapped_traces(ids, simulator.traces)
         dupe = sniffer._get_synced_traces(new_tr, traces)
 
-        print(dupe)
+        assert len(dupe) == 1
+        assert dupe[0][0] == "cell_0"
+        assert np.isclose(dupe[0][1], 1.0)
 
 
 class TestCataloger:
@@ -153,7 +168,7 @@ class TestCataloger:
 
     @pytest.fixture(scope="class")
     def new_component(self, single_cell_video, energy_shape):
-        return SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
+        return SliceNMF(SliceNMFParams(cell_radius=60, validity_threshold=0.8)).process(
             single_cell_video, energy_shape
         )
 
@@ -163,21 +178,36 @@ class TestCataloger:
 
     def test_init_with(self, cataloger, new_component):
         fp, tr = cataloger._init_with(*new_component)
-        # I'd love to check the schema gdi
 
-        print(fp.sizes, fp.coords)
-        print(tr.sizes, tr.coords)
+        assert fp.validate.against_schema(Groups.footprint.value)
+        assert tr.validate.against_schema(Groups.trace.value)
+
+        assert np.array_equal(fp.values[0], new_component[0].values)
+        assert np.array_equal(tr.values[0], new_component[1].values)
 
     def test_register(self, cataloger, new_component, simulator):
         fp, tr = cataloger._register(*new_component, simulator.footprints, simulator.traces)
 
-        print(fp.sizes, fp.coords)
-        print(tr.sizes, tr.coords)
+        assert fp.validate.against_schema(Groups.footprint.value)
+        assert tr.validate.against_schema(Groups.trace.value)
 
-    def test_merge(self, cataloger, new_component, simulator):
+        assert np.array_equal(fp.values[-1], new_component[0].values)
+        assert np.array_equal(tr.values[-1], new_component[1].values)
+
+    def test_merge(self, cataloger, simulator, single_cell_video, energy_shape):
+        new_component = SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
+            single_cell_video, energy_shape
+        )
         fp, tr = cataloger._merge(
             *new_component, simulator.footprints, simulator.traces, duplicates=[("cell_0", 1.0)]
         )
 
-        print(fp.sizes, fp.coords)
-        print(tr.sizes, tr.coords)
+        assert fp.validate.against_schema(Groups.footprint.value)
+        assert tr.validate.against_schema(Groups.trace.value)
+
+        movie_recon = fp @ tr
+        new_fp, new_tr = new_component
+        movie_new_comp = new_fp @ new_tr
+        movie_expected = single_cell_video + movie_new_comp
+
+        np.testing.assert_allclose(movie_recon, movie_expected.transpose(*movie_recon.dims))

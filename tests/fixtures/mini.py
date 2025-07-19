@@ -5,7 +5,7 @@ import pytest
 import sparse
 import xarray as xr
 
-from cala.streaming.core import Component
+from cala.models.entity import Component
 
 
 @dataclass

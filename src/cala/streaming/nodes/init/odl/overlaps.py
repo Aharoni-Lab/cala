@@ -5,13 +5,13 @@ import sparse
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.streaming.core import Axis, Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Footprints
 from cala.streaming.stores.odl import Overlaps
 
 
 @dataclass
-class OverlapsInitializerParams(Parameters, Axis):
+class OverlapsInitializerParams(Parameters):
     """Parameters for computing spatially overlapping component groups.
 
     This class defines the configuration parameters needed for determining

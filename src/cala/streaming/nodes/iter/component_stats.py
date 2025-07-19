@@ -5,13 +5,13 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.streaming.core import Axis, Parameters
+from cala.models.params import Parameters
 from cala.streaming.stores.common import Traces
 from cala.streaming.stores.odl import ComponentStats
 
 
 @dataclass
-class ComponentStatsUpdaterParams(Parameters, Axis):
+class ComponentStatsUpdaterParams(Parameters):
     """Parameters for component statistics updates.
 
     This class defines the configuration parameters needed for updating
@@ -75,7 +75,7 @@ class ComponentStatsUpdater(SupervisedTransformer):
             Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[Axis.frame_coord].item() + 1
+        frame_idx = frame.coords[self.params.frame_coord].item() + 1
         prev_scale = (frame_idx - 1) / frame_idx
         new_scale = 1 / frame_idx
 
