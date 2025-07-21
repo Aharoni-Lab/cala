@@ -4,8 +4,8 @@ import xarray as xr
 from river.base import Transformer
 
 from cala.gui.nodes.util import send_through
-from cala.models.params import Parameters
-from cala.streaming.stores.common import Footprints
+from cala.models import Parameters
+from cala.stores.common import Footprints
 
 
 @dataclass

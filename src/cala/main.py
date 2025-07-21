@@ -2,8 +2,8 @@ import asyncio
 
 from cala.config import Config
 from cala.io import IO
-from cala.streaming.composer import Runner
-from cala.streaming.util import package_frame
+from cala.composer import Runner
+from cala.util import package_frame
 
 
 async def run_pipeline(config: Config) -> None:

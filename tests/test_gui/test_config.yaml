@@ -20,7 +20,7 @@ pipeline:
     buffer_size: 100
   preprocess:
     denoise:
-      transformer: cala.streaming.nodes.preprocess.Denoiser
+      transformer: cala.nodes.preprocess.Denoiser
       params:
         method: gaussian
         kwargs:
@@ -28,13 +28,13 @@ pipeline:
           sigmaX: 1.5
 
     glow_removal:
-      transformer: cala.streaming.nodes.preprocess.GlowRemover
+      transformer: cala.nodes.preprocess.GlowRemover
       params:
         learning_rate: 0.1
       requires: [ denoise ]
 
     motion_stabilization:
-      transformer: cala.streaming.nodes.preprocess.RigidStabilizer
+      transformer: cala.nodes.preprocess.RigidStabilizer
       params:
         drift_speed: 1
         anchor_frame_index: 0

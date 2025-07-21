@@ -17,7 +17,7 @@ from cala.config import Config
 from cala.gui.app import get_app
 from cala.gui.nodes import FrameStreamer
 from cala.gui.nodes.frame_streamer import FrameStreamerParams
-from cala.streaming.composer import Runner
+from cala.core.execute import Executor
 
 
 class TestFrameStreamer:
@@ -82,7 +82,7 @@ class TestGUIStream:
 
     @pytest.fixture(scope="class")
     def runner(self, config):
-        runner = Runner(config)
+        runner = Executor(config)
         return runner
 
     def test_runner_preprocess(self, config, runner, raw_calcium_video):
