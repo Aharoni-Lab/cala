@@ -1,8 +1,9 @@
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel, Field, PrivateAttr
-from xarray_validate import DataArraySchema, DimsSchema, DTypeSchema, CoordsSchema
+from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
 from cala.models.axis import Coord, Dim, Dims
 

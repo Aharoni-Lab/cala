@@ -1,7 +1,8 @@
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable
 
 from pydantic import BaseModel, Field
+
 from cala.models.checks import is_unique, is_unit_interval
 
 

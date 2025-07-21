@@ -1,4 +1,3 @@
-from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -6,8 +5,8 @@ import xarray as xr
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
+from cala.models.observable import Footprint, Footprints, Movie, Trace, Traces
 from cala.models.params import Parameters
-from cala.models.observable import Footprint, Footprints, Trace, Traces, Movie
 from cala.streaming.nodes import Node
 from cala.streaming.util.new import create_id
 

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from cala.models.observable import Footprints, Traces, Footprint, Trace
+from cala.models.observable import Footprint, Footprints, Trace, Traces
 from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
