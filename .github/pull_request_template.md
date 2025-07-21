@@ -1,6 +1,3 @@
-## 📝 Description
-
-
 ## 🔍 Type of Change
 
 <!--
@@ -13,7 +10,8 @@ Please delete options that are not relevant.
 🧹 **Refactor:** Code changes that neither fix a bug nor add a feature
 🗑️ **Chore:** Maintenance tasks, such as dependency updates
 
-## 🚀 Implementation Details
+
+## 📝 Description
 
 
 ## 🧪 Testing

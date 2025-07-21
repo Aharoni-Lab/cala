@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from cala.models.entity import Groups
+from cala.models.observable import Footprint, Footprints, Trace, Traces
 from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
@@ -72,8 +72,8 @@ class TestSliceNMF:
             SliceNMFParams(cell_radius=2 * simulator.cell_radii[0], validity_threshold=0.8)
         )
 
-    def test_get_max_energy_slice(self, slice_nmf, single_cell_video, energy):
-        slice_ = slice_nmf._get_max_energy_slice(single_cell_video, energy)
+    def test_get_max_energy_slice(self, slice_nmf, single_cell_video, energy_shape):
+        slice_ = slice_nmf._get_max_energy_slice(single_cell_video, energy_shape)
         return slice_
 
     def test_local_nmf(self, slice_nmf, single_cell_video, energy_shape, simulator):
@@ -139,6 +139,8 @@ class TestSniffer:
         ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
         assert np.all(ids == ["cell_0", "cell_1"])
 
+        simulator.drop_cell("cell_1")
+
     def test_get_overlapped_traces(self, simulator, new_component, sniffer):
         new_fp, _ = new_component
         ids = sniffer._find_overlap_ids(new_fp, simulator.footprints)
@@ -160,6 +162,8 @@ class TestSniffer:
         assert dupe[0][0] == "cell_0"
         assert np.isclose(dupe[0][1], 1.0)
 
+        simulator.drop_cell("cell_1")
+
 
 class TestCataloger:
     @pytest.fixture(scope="module")
@@ -179,34 +183,35 @@ class TestCataloger:
     def test_init_with(self, cataloger, new_component):
         fp, tr = cataloger._init_with(*new_component)
 
-        assert fp.validate.against_schema(Groups.footprint.value)
-        assert tr.validate.against_schema(Groups.trace.value)
-
         assert np.array_equal(fp.values[0], new_component[0].values)
         assert np.array_equal(tr.values[0], new_component[1].values)
 
     def test_register(self, cataloger, new_component, simulator):
-        fp, tr = cataloger._register(*new_component, simulator.footprints, simulator.traces)
+        new_fp, new_tr = new_component
+        fp, tr = cataloger._register(
+            new_fp=Footprint(array=new_fp),
+            new_tr=Trace(array=new_tr),
+            existing_fp=Footprints(array=simulator.footprints),
+            existing_tr=Traces(array=simulator.traces),
+        )
 
-        assert fp.validate.against_schema(Groups.footprint.value)
-        assert tr.validate.against_schema(Groups.trace.value)
-
-        assert np.array_equal(fp.values[-1], new_component[0].values)
-        assert np.array_equal(tr.values[-1], new_component[1].values)
+        assert np.array_equal(fp.array.values[-1], new_component[0].values)
+        assert np.array_equal(tr.array.values[-1], new_component[1].values)
 
     def test_merge(self, cataloger, simulator, single_cell_video, energy_shape):
         new_component = SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
             single_cell_video, energy_shape
         )
+        new_fp, new_tr = new_component
         fp, tr = cataloger._merge(
-            *new_component, simulator.footprints, simulator.traces, duplicates=[("cell_0", 1.0)]
+            Footprint(array=new_fp),
+            Trace(array=new_tr),
+            Footprints(array=simulator.footprints),
+            Traces(array=simulator.traces),
+            duplicates=[("cell_0", 1.0)],
         )
 
-        assert fp.validate.against_schema(Groups.footprint.value)
-        assert tr.validate.against_schema(Groups.trace.value)
-
-        movie_recon = fp @ tr
-        new_fp, new_tr = new_component
+        movie_recon = fp.array @ tr.array
         movie_new_comp = new_fp @ new_tr
         movie_expected = single_cell_video + movie_new_comp
 

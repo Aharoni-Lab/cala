@@ -1,7 +1,9 @@
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
+from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
 from cala.models.axis import Coord, Dim, Dims
 
@@ -28,6 +30,13 @@ class Entity(BaseModel):
     dims: tuple[Dim, ...]
     coords: list[Coord] = Field(default_factory=list)
     dtype: type
+    checks: list[Callable] = Field(default_factory=list)
+
+    _model: DataArraySchema = PrivateAttr(DataArraySchema())
+
+    @property
+    def model(self) -> DataArraySchema:
+        return self._model
 
     def model_post_init(self, __context__: None = None) -> None:
         for dim in self.dims:
@@ -35,13 +44,28 @@ class Entity(BaseModel):
                 coord.dim = dim.name
             self.coords.extend(dim.coords)
 
+        self._model = self.to_schema()
 
-class Entities(Enum):
-    footprint = Entity(name="footprint", dims=(Dims.width.value, Dims.height.value), dtype=float)
-    trace = Entity(name="trace", dims=(Dims.frame.value,), dtype=float)
-    frame = Entity(
-        name="frame", dims=(Dims.width.value, Dims.height.value, Dims.frame.value), dtype=float
-    )
+    def to_schema(self) -> DataArraySchema:
+        coords_schema = self._build_coord_schema(self.coords) if self.coords else None
+
+        return DataArraySchema(
+            dims=DimsSchema(tuple(dim.name for dim in self.dims), ordered=False),
+            coords=coords_schema,
+            dtype=DTypeSchema(self.dtype),
+            checks=self.checks,
+        )
+
+    @staticmethod
+    def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:
+        return CoordsSchema(
+            {
+                c.name: DataArraySchema(
+                    dims=DimsSchema((c.dim,)), dtype=DTypeSchema(c.dtype), checks=c.checks
+                )
+                for c in coords
+            }
+        )
 
 
 class Group(Entity):
@@ -55,15 +79,14 @@ class Group(Entity):
     dtype: type = Field(default=Any)
 
     def model_post_init(self, __context__: None = None) -> None:
+        self.dims = self.entity.dims
+        self.coords = self.entity.coords
+
         if self.group_by:
-            self.dims = self.entity.dims + (self.group_by.value,)
-            self.coords = self.entity.coords + self.group_by.value.coords
+            self.dims += (self.group_by.value,)
+            self.coords += self.group_by.value.coords
+
         self.dtype = self.entity.dtype
+        self.checks = list(set(self.checks + self.entity.checks))
 
-
-class Groups(Enum):
-    footprint = Group(
-        name="footprint-group", entity=Entities.footprint.value, group_by=Dims.component
-    )
-    trace = Group(name="trace-group", entity=Entities.trace.value, group_by=Dims.component)
-    movie = Group(name="movie", entity=Entities.frame.value)
+        self._model = self.to_schema()
