@@ -1,12 +1,14 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Generator
 
 import numpy as np
 import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
+from cala.models import Footprints, Traces, Frame
 from cala.models.axis import AXIS
 
 
@@ -29,7 +31,7 @@ class Toy:
     cell_positions = [Position(width=200, height=300)]
     cell_traces = [np.array(range(100))]
 
-    simulator = Simulator(
+    toy = Toy(
         n_frames=100,
         frame_dims=frame_dims,
         cell_radii=20,
@@ -198,15 +200,20 @@ class Toy:
         )
 
     @property
-    def footprints(self) -> xr.DataArray:
+    def footprints(self) -> Footprints:
         if self.footprints_.any():
-            return self.footprints_
+            return Footprints(array=self.footprints_)
         else:
             raise ValueError("No footprints available")
 
     @property
-    def traces(self) -> xr.DataArray:
+    def traces(self) -> Traces:
         if self.traces_.any():
-            return self.traces_
+            return Traces(array=self.traces_)
         else:
             raise ValueError("No traces available")
+
+    def iter_frame(self) -> Generator[Frame]:
+        for i in range(self.traces_.sizes[AXIS.frames_dim]):
+            trace = self.traces_.isel({AXIS.frames_dim: i})
+            yield Frame(array=trace @ self.footprints_)
