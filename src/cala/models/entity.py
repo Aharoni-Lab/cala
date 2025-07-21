@@ -1,7 +1,8 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
+from xarray_validate import DataArraySchema, DimsSchema, DTypeSchema, CoordsSchema
 
 from cala.models.axis import Coord, Dim, Dims
 
@@ -28,12 +29,42 @@ class Entity(BaseModel):
     dims: tuple[Dim, ...]
     coords: list[Coord] = Field(default_factory=list)
     dtype: type
+    checks: list[Callable] = Field(default_factory=list)
+
+    _model: DataArraySchema = PrivateAttr(DataArraySchema())
+
+    @property
+    def model(self) -> DataArraySchema:
+        return self._model
 
     def model_post_init(self, __context__: None = None) -> None:
         for dim in self.dims:
             for coord in dim.coords:
                 coord.dim = dim.name
             self.coords.extend(dim.coords)
+
+        self._model = self.to_schema()
+
+    def to_schema(self) -> DataArraySchema:
+        coords_schema = self._build_coord_schema(self.coords) if self.coords else None
+
+        return DataArraySchema(
+            dims=DimsSchema(tuple(dim.name for dim in self.dims), ordered=False),
+            coords=coords_schema,
+            dtype=DTypeSchema(self.dtype),
+            checks=self.checks,
+        )
+
+    @staticmethod
+    def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:
+        return CoordsSchema(
+            {
+                c.name: DataArraySchema(
+                    dims=DimsSchema((c.dim,)), dtype=DTypeSchema(c.dtype), checks=c.checks
+                )
+                for c in coords
+            }
+        )
 
 
 class Group(Entity):
@@ -51,3 +82,6 @@ class Group(Entity):
             self.dims = self.entity.dims + (self.group_by.value,)
             self.coords = self.entity.coords + self.group_by.value.coords
         self.dtype = self.entity.dtype
+        self.checks = list(set(self.checks + self.entity.checks))
+
+        self._model = self.to_schema()
