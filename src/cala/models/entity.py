@@ -36,14 +36,6 @@ class Entity(BaseModel):
             self.coords.extend(dim.coords)
 
 
-class Entities(Enum):
-    footprint = Entity(name="footprint", dims=(Dims.width.value, Dims.height.value), dtype=float)
-    trace = Entity(name="trace", dims=(Dims.frame.value,), dtype=float)
-    frame = Entity(
-        name="frame", dims=(Dims.width.value, Dims.height.value, Dims.frame.value), dtype=float
-    )
-
-
 class Group(Entity):
     """
     an xarray dataarray entity that is also a group of entities.
@@ -59,11 +51,3 @@ class Group(Entity):
             self.dims = self.entity.dims + (self.group_by.value,)
             self.coords = self.entity.coords + self.group_by.value.coords
         self.dtype = self.entity.dtype
-
-
-class Groups(Enum):
-    footprint = Group(
-        name="footprint-group", entity=Entities.footprint.value, group_by=Dims.component
-    )
-    trace = Group(name="trace-group", entity=Entities.trace.value, group_by=Dims.component)
-    movie = Group(name="movie", entity=Entities.frame.value)

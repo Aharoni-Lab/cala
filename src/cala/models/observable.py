@@ -1,67 +1,88 @@
-from typing import Annotated, get_args
+from typing import ClassVar
 
 import xarray as xr
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, PrivateAttr, field_validator
+from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
-from cala.models.axis import Dims
+from cala.models.axis import Coord, Dims
 from cala.models.entity import Entity, Group
 
 
 class Observable(BaseModel):
-    array: Annotated[xr.DataArray, Entity]
+    array: xr.DataArray
+    _model: ClassVar[Entity]
 
     class Config:
         arbitrary_types_allowed = True
         validate_assignment = True
 
+    @classmethod
+    def model(cls) -> Entity:
+        return cls._model
+
     @field_validator("array", mode="after")
     @classmethod
     def validate_array_schema(cls, value: xr.DataArray) -> None:
-        value.validate.against_schema(get_args(cls.array)[1])
+        schema = cls._build_entity_schema(cls._model)
+        value.validate.against_schema(schema)
 
+    @staticmethod
+    def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:
+        return CoordsSchema(
+            {
+                c.name: DataArraySchema(dims=DimsSchema((c.dim,)), dtype=DTypeSchema(c.dtype))
+                for c in coords
+            }
+        )
 
-TFootprint: type = Annotated[
-    xr.DataArray, Entity(name="footprint", dims=(Dims.width.value, Dims.height.value), dtype=float)
-]
+    @classmethod
+    def _build_entity_schema(cls, schema: Entity) -> DataArraySchema:
+        coords_schema = cls._build_coord_schema(schema.coords) if schema.coords else None
 
-TTrace: type = Annotated[xr.DataArray, Entity(name="trace", dims=(Dims.frame.value,), dtype=float)]
-
-TFrame: type = Annotated[
-    xr.DataArray,
-    Entity(name="frame", dims=(Dims.width.value, Dims.height.value, Dims.frame.value), dtype=float),
-]
-
-TFootprints: type = Annotated[
-    xr.DataArray,
-    Group(name="footprint-group", entity=get_args(TFootprint)[1], group_by=Dims.component),
-]
-
-TTraces: type = Annotated[
-    xr.DataArray, Group(name="trace-group", entity=get_args(TTrace)[1], group_by=Dims.component)
-]
-
-TMovie: type = Annotated[xr.DataArray, Group(name="movie", entity=get_args(TFrame)[1])]
+        return DataArraySchema(
+            dims=DimsSchema(tuple(dim.name for dim in schema.dims), ordered=False),
+            coords=coords_schema,
+            dtype=DTypeSchema(schema.dtype),
+        )
 
 
 class Footprint(Observable):
-    array: TFootprint
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(
+        Entity(name="footprint", dims=(Dims.width.value, Dims.height.value), dtype=float)
+    )
 
 
 class Trace(Observable):
-    array: TTrace
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(
+        Entity(name="trace", dims=(Dims.frame.value,), dtype=float)
+    )
 
 
 class Frame(Observable):
-    array: TFrame
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="frame", dims=(Dims.width.value, Dims.height.value, Dims.frame.value), dtype=float
+        )
+    )
 
 
 class Footprints(Observable):
-    array: TFootprints
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(
+        Group(name="footprint-group", entity=Footprint.model(), group_by=Dims.component)
+    )
 
 
 class Traces(Observable):
-    array: TTraces
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(
+        Group(name="trace-group", entity=Trace.model(), group_by=Dims.component)
+    )
 
 
 class Movie(Observable):
-    array: TMovie
+    array: xr.DataArray
+    _model: ClassVar[Entity] = PrivateAttr(Group(name="movie", entity=Frame.model()))
