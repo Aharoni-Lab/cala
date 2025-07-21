@@ -1,6 +1,8 @@
 from enum import Enum
+from typing import Callable
 
 from pydantic import BaseModel, Field
+from cala.models.checks import is_unique, is_unit_interval
 
 
 class Axis:
@@ -38,6 +40,7 @@ class Coord(BaseModel):
     name: str
     dtype: type
     dim: str | None = None
+    checks: list[Callable] = Field(default_factory=list)
 
 
 class Dim(BaseModel):
@@ -46,12 +49,12 @@ class Dim(BaseModel):
 
 
 class Coords(Enum):
-    id = Coord(name=AXIS.id_coord, dtype=str)
-    height = Coord(name=AXIS.height_coord, dtype=int)
-    width = Coord(name=AXIS.width_coord, dtype=int)
-    frame = Coord(name=AXIS.frame_coord, dtype=int)
+    id = Coord(name=AXIS.id_coord, dtype=str, checks=[is_unique])
+    height = Coord(name=AXIS.height_coord, dtype=int, checks=[is_unique])
+    width = Coord(name=AXIS.width_coord, dtype=int, checks=[is_unique])
+    frame = Coord(name=AXIS.frame_coord, dtype=int, checks=[is_unique])
     timestamp = Coord(name=AXIS.timestamp_coord, dtype=str)
-    confidence = Coord(name=AXIS.confidence_coord, dtype=float)
+    confidence = Coord(name=AXIS.confidence_coord, dtype=float, checks=[is_unit_interval])
 
 
 class Dims(Enum):
