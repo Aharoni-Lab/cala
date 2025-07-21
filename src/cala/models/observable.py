@@ -22,9 +22,11 @@ class Observable(BaseModel):
 
     @field_validator("array", mode="after")
     @classmethod
-    def validate_array_schema(cls, value: xr.DataArray) -> None:
+    def validate_array_schema(cls, value: xr.DataArray) -> xr.DataArray:
         schema = cls._build_entity_schema(cls._model)
         value.validate.against_schema(schema)
+
+        return value
 
     @staticmethod
     def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:

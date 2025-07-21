@@ -6,7 +6,6 @@ import xarray as xr
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
-from cala.models.entity import Entities
 from cala.models.params import Parameters
 from cala.streaming.nodes import Node
 from cala.streaming.util.new import create_id
@@ -30,6 +29,7 @@ class Cataloger(Node):
         existing_tr: xr.DataArray = None,
         duplicates: list[tuple[str, float]] | None = None,
     ) -> tuple[xr.DataArray, xr.DataArray]:
+
         if not duplicates:
             footprints, traces = self._register(new_fp, new_tr, existing_fp, existing_tr)
 
@@ -56,8 +56,6 @@ class Cataloger(Node):
     def _init_with(
         self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0.0
     ) -> tuple[xr.DataArray, xr.DataArray]:
-        new_fp.validate.against_schema(Entities.footprint.value)
-        new_tr.validate.against_schema(Entities.trace.value)
 
         new_id = create_id()
 
