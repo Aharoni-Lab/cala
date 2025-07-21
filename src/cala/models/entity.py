@@ -78,9 +78,13 @@ class Group(Entity):
     dtype: type = Field(default=Any)
 
     def model_post_init(self, __context__: None = None) -> None:
+        self.dims = self.entity.dims
+        self.coords = self.entity.coords
+
         if self.group_by:
-            self.dims = self.entity.dims + (self.group_by.value,)
-            self.coords = self.entity.coords + self.group_by.value.coords
+            self.dims += (self.group_by.value,)
+            self.coords += self.group_by.value.coords
+
         self.dtype = self.entity.dtype
         self.checks = list(set(self.checks + self.entity.checks))
 
