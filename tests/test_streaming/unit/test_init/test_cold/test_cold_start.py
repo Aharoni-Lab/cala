@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from cala.models.observable import Footprints, Traces, Footprint, Trace
 from cala.streaming.nodes.init.cold import (
     DupeSniffer,
     DupeSnifferParams,
@@ -186,21 +187,31 @@ class TestCataloger:
         assert np.array_equal(tr.values[0], new_component[1].values)
 
     def test_register(self, cataloger, new_component, simulator):
-        fp, tr = cataloger._register(*new_component, simulator.footprints, simulator.traces)
+        new_fp, new_tr = new_component
+        fp, tr = cataloger._register(
+            new_fp=Footprint(array=new_fp),
+            new_tr=Trace(array=new_tr),
+            existing_fp=Footprints(array=simulator.footprints),
+            existing_tr=Traces(array=simulator.traces),
+        )
 
-        assert np.array_equal(fp.values[-1], new_component[0].values)
-        assert np.array_equal(tr.values[-1], new_component[1].values)
+        assert np.array_equal(fp.array.values[-1], new_component[0].values)
+        assert np.array_equal(tr.array.values[-1], new_component[1].values)
 
     def test_merge(self, cataloger, simulator, single_cell_video, energy_shape):
         new_component = SliceNMF(SliceNMFParams(cell_radius=10, validity_threshold=0.8)).process(
             single_cell_video, energy_shape
         )
+        new_fp, new_tr = new_component
         fp, tr = cataloger._merge(
-            *new_component, simulator.footprints, simulator.traces, duplicates=[("cell_0", 1.0)]
+            Footprint(array=new_fp),
+            Trace(array=new_tr),
+            Footprints(array=simulator.footprints),
+            Traces(array=simulator.traces),
+            duplicates=[("cell_0", 1.0)],
         )
 
-        movie_recon = fp @ tr
-        new_fp, new_tr = new_component
+        movie_recon = fp.array @ tr.array
         movie_new_comp = new_fp @ new_tr
         movie_expected = single_cell_video + movie_new_comp
 
