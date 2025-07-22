@@ -1,20 +1,24 @@
-from typing import Any
+from pathlib import Path
 
 import pytest
-from numpy.random import RandomState
+from _pytest.monkeypatch import MonkeyPatch
+
+from .fixtures import *
+
+DATA_DIR = Path(__file__).parent / "data"
+CONFIG_DIR = DATA_DIR / "config"
+PIPELINE_DIR = DATA_DIR / "pipelines"
+MOCK_DIR = Path(__file__).parent / "mock"
 
 
-@pytest.fixture(autouse=True)
-def mock_random(monkeypatch: pytest.MonkeyPatch) -> None:
-    rs = RandomState(12345)
+@pytest.fixture(scope="session", autouse=True)
+def patch_config_source(monkeypatch_session: MonkeyPatch) -> None:
+    from cala.config.yaml import ConfigYAMLMixin
 
-    def stable_random() -> Any:
-        return rs.random()
+    current_sources = ConfigYAMLMixin.config_sources()
 
-    monkeypatch.setattr("numpy.random.random", stable_random)
+    def _config_sources(cls: type[ConfigYAMLMixin]) -> list[Path]:
+        nonlocal current_sources
+        return [CONFIG_DIR, PIPELINE_DIR, *current_sources]
 
-
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line(
-        "markers", "viz: mark test to run with visualizations (skip during CI/CD)"
-    )
+    monkeypatch_session.setattr(ConfigYAMLMixin, "config_sources", classmethod(_config_sources))

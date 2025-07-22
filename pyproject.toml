@@ -227,7 +227,7 @@ ignore = [
     "F403",
 ]
 "tests/**/test_*" = [
-    # don't require annotating fixture types in test functions
+    # don't require annotating fixtures types in test functions
     "ANN001", "ANN201",
     # allow unused variables, also normal in tests
     "F841",
