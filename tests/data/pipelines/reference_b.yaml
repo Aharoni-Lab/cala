@@ -1,0 +1,7 @@
+cala_id: reference-b
+cala_model: tests.test_yaml.B
+cala_version: 0.0.1
+value:
+  - 1
+  - 2
+  - 3
