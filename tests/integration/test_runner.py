@@ -11,12 +11,11 @@ import yaml
 os.environ["CALA_CONFIG_PATH"] = "tests/test_streaming_service/integration/integration.yaml"
 
 from cala.config import Config
-from cala.log import setup_logger
+from cala.logging import init_logger
 from cala.core.execute import Executor
 from cala.util.new import package_frame
 
-setup_logger(Path(__file__).parent / "logs", name="")
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 
 def load_config(config_name: str) -> Config:

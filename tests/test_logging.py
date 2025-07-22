@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from cala.log import setup_logger
+from cala.logging import setup_logger
 
 
 @pytest.fixture

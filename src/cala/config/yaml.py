@@ -89,7 +89,7 @@ class ConfigYAMLMixin(BaseModel, YAMLMixin):
     model_config = ConfigDict(validate_default=True)
 
     cala_id: ConfigID | None = None
-    cala_model: AbsoluteIdentifier = Field(None, validate_default=True)
+    cala_model: AbsoluteIdentifier = Field(default=None, validate_default=True)
     cala_version: str = version("cala")
 
     HEADER_FIELDS: ClassVar[tuple[str]] = ("cala_id", "cala_model", "cala_version")
@@ -106,7 +106,7 @@ class ConfigYAMLMixin(BaseModel, YAMLMixin):
             instance = cls(**config_data)
         except ValidationError:
             if (backup_path := file_path.with_suffix(".yaml.bak")).exists():
-                from cala.log import init_logger
+                from cala.logging import init_logger
 
                 init_logger("config").debug(
                     f"Model instantiation failed, restoring modified backup from {backup_path}..."
@@ -136,7 +136,7 @@ class ConfigYAMLMixin(BaseModel, YAMLMixin):
                 continue
 
             if file_id == id:
-                from cala.log import init_logger
+                from cala.logging import init_logger
 
                 init_logger("config").debug(
                     "Model for %s found at %s", cls._model_name(), config_file
@@ -249,7 +249,7 @@ class ConfigYAMLMixin(BaseModel, YAMLMixin):
             else:
                 msg = f"Header keys were present, but either not at the start of {str(file_path)} "
                 "or in out of order. Updating file (preserving backup)..."
-            from cala.log import init_logger
+            from cala.logging import init_logger
 
             logger = init_logger(cls.__name__)
             logger.warning(msg)
