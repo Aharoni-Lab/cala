@@ -7,7 +7,9 @@ import xarray as xr
 from cala.models.axis import AXIS
 
 
-def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -> xr.DataArray:
+def package_frame(
+    frame: np.ndarray, index: int, timestamp: datetime | str | None = None
+) -> xr.DataArray:
     """Transform a 2D numpy frame into an xarray DataArray.
 
     Args:
@@ -19,11 +21,12 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
         xr.DataArray: The frame packaged as a DataArray with axes and index
     """
     if timestamp is None:
-        timestamp = datetime.now().strftime(
-            "%H:%M:%S.%f"
-        )  # means nothing. filler so that they're unique.
+        timestamp = datetime.now()  # means nothing. filler so that they're unique.
 
-    return xr.DataArray(
+    if isinstance(timestamp, datetime):
+        timestamp = timestamp.strftime("%H:%M:%S.%f")
+
+    frame = xr.DataArray(
         frame,
         dims=AXIS.spatial_dims,
         coords={
@@ -31,7 +34,14 @@ def package_frame(frame: np.ndarray, index: int, timestamp: str | None = None) -
             AXIS.timestamp_coord: timestamp,
         },
         name="frame",
-    ).astype(np.float32)
+    )
+
+    return frame.assign_coords(
+        {
+            AXIS.width_dim: range(frame.sizes[AXIS.width_dim]),
+            AXIS.height_dim: range(frame.sizes[AXIS.height_dim]),
+        }
+    )
 
 
 def create_id() -> str:

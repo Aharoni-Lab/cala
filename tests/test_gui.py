@@ -33,7 +33,7 @@ class TestFrameStreamer:
         dims = (100, 100)
         fps = 30
         segment_duration_in_seconds = 2
-        stream_dir = (Path(".") / "output" / "test_stream").resolve()
+        stream_dir = (Path("test_gui") / "output" / "test_stream").resolve()
         segment_filename = "stream%d.ts"
 
         params = FrameStreamerParams(
