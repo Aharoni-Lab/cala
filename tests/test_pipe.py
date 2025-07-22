@@ -1,18 +1,17 @@
-from cala.config.pipe import Node, Pipeline
+from cala.config.pipe import NodeSpec, PipeSpec
 
 
 class TestPipeline:
 
     def test_from_init(self):
-        step1 = Node(id="cala.testing.nodes.NodeA", params={"a": 1}, requires=[])
-        assert Pipeline(
+        step1 = NodeSpec(id="cala.testing.nodes.NodeA", params={"a": 1}, requires=[])
+        assert PipeSpec(
             cala_id="testing-from-init",
             buff={"buffer": 100},
-            prep={"node_a": step1},
-            init={"node_a": step1},
-            iter={"node_a": step1},
+            prep={"prep-node-a": step1},
+            init={"init-node-a": step1},
+            iter={"iter-node-a": step1},
         )
 
-    def test_from_id(self): ...
-
-    def test_from_yaml(self): ...
+    def test_from_id(self):
+        assert PipeSpec.from_id("cala-basic")

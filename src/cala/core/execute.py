@@ -12,7 +12,7 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config.pipe import Node, Pipeline
+from cala.config.pipe import NodeSpec, PipeSpec
 from cala.core.distribute import Distributor
 from cala.gui.nodes import (
     ComponentCounter,
@@ -38,7 +38,7 @@ class Executor:
     according to a provided configuration.
     """
 
-    pipeline: Pipeline
+    pipeline: PipeSpec
     """Configuration defining the pipeline structure and parameters."""
 
     _buffer: Buffer = field(init=False)
@@ -259,7 +259,7 @@ class Executor:
         return matches
 
     @staticmethod
-    def _create_dependency_graph(steps: dict[str, Node]) -> list[str]:
+    def _create_dependency_graph(steps: dict[str, NodeSpec]) -> list[str]:
         """Create and validate a dependency graph for execution ordering.
 
         Args:

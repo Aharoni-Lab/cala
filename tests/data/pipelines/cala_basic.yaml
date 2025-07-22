@@ -1,12 +1,33 @@
 cala_id: cala-basic
+cala_model: cala.config.pipe.Pipeline
+cala_version: 0.0.1.dev780+g8c5e3b1.d20250718
 
-pipeline:
-  buffer_size: 100
+buff:
+  size: 100
 
-  prep:
-    step1:
-      node: cala.testing.nodes.NodeA
-  init:
+prep:
+  prep-step1:
+    id: cala.testing.nodes.NodeA
+    params:
+      a: 5
+      b: ABC
+    n_frames: 5
+    requires: []
 
-  iter:
+init:
+  init-step1:
+    id: cala.testing.nodes.NodeA
+    params:
+      a: 5
+      b: ABC
+    n_frames: 5
+    requires: []
 
+iter:
+  iter-step1:
+    id: cala.testing.nodes.NodeA
+    params:
+      a: 5
+      b: ABC
+    n_frames: 5
+    requires: []

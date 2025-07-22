@@ -1,20 +1,20 @@
 from collections.abc import Sequence
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cala.config.yaml import ConfigYAMLMixin
 
 
-class Node(BaseModel):
-    id: str  # The transformer class
-    params: dict[str, Any]  # Parameters for the transformer
-    n_frames: int = 1  # Number of frames to use
-    requires: Sequence[str] = []  # Optional dependencies
+class NodeSpec(BaseModel):
+    id: str
+    params: dict[str, Any]
+    n_frames: int = 1
+    requires: Sequence[str] = Field(default_factory=list)
 
 
-class Pipeline(ConfigYAMLMixin):
+class PipeSpec(ConfigYAMLMixin):
     buff: dict[str, Any]
-    prep: dict[str, Node]
-    init: dict[str, Node]
-    iter: dict[str, Node]
+    prep: dict[str, NodeSpec]
+    init: dict[str, NodeSpec]
+    iter: dict[str, NodeSpec]

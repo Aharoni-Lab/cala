@@ -4,8 +4,8 @@ import pytest
 import xarray as xr
 
 from cala.config.pipe import (
-    Node,
-    Pipeline,
+    NodeSpec,
+    PipeSpec,
 )
 from cala.models.axis import AXIS
 from cala.core.execute import Executor
@@ -13,11 +13,11 @@ from cala.util.new import package_frame
 
 
 @pytest.fixture
-def preprocess_config() -> Pipeline:
-    return Pipeline(
+def preprocess_config() -> PipeSpec:
+    return PipeSpec(
         buff={"buffer_size": 100},
         prep={
-            "downsample": Node(
+            "downsample": NodeSpec(
                 id="Downsampler",
                 params={
                     "method": "mean",
@@ -25,7 +25,7 @@ def preprocess_config() -> Pipeline:
                     "strides": [2, 2],
                 },
             ),
-            "denoise": Node(
+            "denoise": NodeSpec(
                 id="Denoiser",
                 params={
                     "method": "gaussian",
@@ -33,17 +33,17 @@ def preprocess_config() -> Pipeline:
                 },
                 requires=["downsample"],
             ),
-            "glow_removal": Node(
+            "glow_removal": NodeSpec(
                 id="GlowRemover",
                 params={},
                 requires=["denoise"],
             ),
-            "background_removal": Node(
+            "background_removal": NodeSpec(
                 id="BackgroundEraser",
                 params={"method": "uniform", "kernel_size": 3},
                 requires=["glow_removal"],
             ),
-            "motion_stabilization": Node(
+            "motion_stabilization": NodeSpec(
                 id="RigidStabilizer",
                 params={"drift_speed": 1, "anchor_frame_index": 0},
                 requires=["background_removal"],
@@ -55,12 +55,12 @@ def preprocess_config() -> Pipeline:
 
 
 @pytest.fixture
-def initialization_config() -> Pipeline:
-    return Pipeline(
+def initialization_config() -> PipeSpec:
+    return PipeSpec(
         buff={"buffer_size": 100},
         prep={},
         init={
-            "footprints": Node(
+            "footprints": NodeSpec(
                 id="FootprintsInitializer",
                 params={
                     "threshold_factor": 0.2,
@@ -69,7 +69,7 @@ def initialization_config() -> Pipeline:
                     "distance_mask_size": 5,
                 },
             ),
-            "traces": Node(
+            "traces": NodeSpec(
                 id="TracesInitializer",
                 params={},
                 n_frames=3,
@@ -81,16 +81,16 @@ def initialization_config() -> Pipeline:
 
 
 def test_cyclic_dependency_detection(stabilized_video: xr.DataArray, tmp_path) -> None:
-    cyclic_config = Pipeline(
+    cyclic_config = PipeSpec(
         buff={"buffer_size": 100},
         prep={},
         init={
-            "step1": Node(
+            "step1": NodeSpec(
                 id="FootprintsInitializer",
                 params={},
                 requires=["step2"],
             ),
-            "step2": Node(
+            "step2": NodeSpec(
                 id="TracesInitializer",
                 params={},
                 requires=["step1"],
@@ -107,13 +107,13 @@ def test_cyclic_dependency_detection(stabilized_video: xr.DataArray, tmp_path) -
                 runner.initialize(frame)
 
 
-def test_preprocess_initialization(preprocess_config: Pipeline, tmp_path) -> None:
+def test_preprocess_initialization(preprocess_config: PipeSpec, tmp_path) -> None:
     runner = Executor(preprocess_config, tmp_path)
     assert runner.pipeline == preprocess_config
 
 
 def test_preprocess_execution(
-    preprocess_config: Pipeline, stabilized_video: xr.DataArray, tmp_path
+    preprocess_config: PipeSpec, stabilized_video: xr.DataArray, tmp_path
 ) -> None:
     runner = Executor(preprocess_config, tmp_path)
     video = stabilized_video
@@ -133,7 +133,7 @@ def test_preprocess_execution(
     assert result.shape[1] == original_shape[1] // 2
 
 
-def test_preprocess_dependency_resolution(preprocess_config: Pipeline, tmp_path) -> None:
+def test_preprocess_dependency_resolution(preprocess_config: PipeSpec, tmp_path) -> None:
     runner = Executor(preprocess_config, tmp_path)
     execution_order = runner._create_dependency_graph(preprocess_config.prep)
 
@@ -148,13 +148,13 @@ def test_preprocess_dependency_resolution(preprocess_config: Pipeline, tmp_path)
     assert list(execution_order) == expected_order
 
 
-def test_initializer_initialization(initialization_config: Pipeline, tmp_path) -> None:
+def test_initializer_initialization(initialization_config: PipeSpec, tmp_path) -> None:
     runner = Executor(initialization_config, tmp_path)
     assert runner.pipeline == initialization_config
 
 
 def test_initialize_execution(
-    initialization_config: Pipeline, stabilized_video: xr.DataArray, tmp_path
+    initialization_config: PipeSpec, stabilized_video: xr.DataArray, tmp_path
 ) -> None:
     runner = Executor(initialization_config, tmp_path)
     video = stabilized_video
