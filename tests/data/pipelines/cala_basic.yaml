@@ -1,0 +1,12 @@
+cala_id: cala-basic
+
+pipeline:
+  buffer_size: 100
+
+  prep:
+    step1:
+      node: cala.testing.nodes.NodeA
+  init:
+
+  iter:
+

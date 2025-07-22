@@ -3,16 +3,18 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from cala.config.yaml import ConfigYAMLMixin
 
-class Step(BaseModel):
-    transformer: str  # The transformer class
+
+class Node(BaseModel):
+    id: str  # The transformer class
     params: dict[str, Any]  # Parameters for the transformer
     n_frames: int = 1  # Number of frames to use
     requires: Sequence[str] = []  # Optional dependencies
 
 
-class StreamingConfig(BaseModel):
-    general: dict[str, Any]
-    preprocess: dict[str, Step]
-    initialization: dict[str, Step]
-    iteration: dict[str, Step]
+class Pipeline(ConfigYAMLMixin):
+    buff: dict[str, Any]
+    prep: dict[str, Node]
+    init: dict[str, Node]
+    iter: dict[str, Node]

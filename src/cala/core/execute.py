@@ -12,8 +12,8 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config import Config
-from cala.config.pipe import Step
+from cala.config.pipe import Node, Pipeline
+from cala.core.distribute import Distributor
 from cala.gui.nodes import (
     ComponentCounter,
     ComponentCounterParams,
@@ -25,7 +25,6 @@ from cala.gui.nodes import (
     FrameStreamerParams,
 )
 from cala.models.params import Parameters
-from cala.core.distribute import Distributor
 from cala.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -39,7 +38,7 @@ class Executor:
     according to a provided configuration.
     """
 
-    config: Config
+    pipeline: Pipeline
     """Configuration defining the pipeline structure and parameters."""
 
     _buffer: Buffer = field(init=False)
@@ -60,7 +59,7 @@ class Executor:
         self.prep_movie_streamer = FrameStreamer(
             FrameStreamerParams(
                 frame_rate=30,
-                stream_dir=self.config.output_dir / "prep_movie",
+                stream_dir=self.pipeline.output_dir / "prep_movie",
                 segment_filename="stream%d.ts",
             )
         )
@@ -69,13 +68,13 @@ class Executor:
         self.component_streamer = ComponentStreamer(
             ComponentStreamerParams(
                 frame_rate=30,
-                stream_dir=self.config.output_dir / "components",
+                stream_dir=self.pipeline.output_dir / "components",
                 segment_filename="stream%d.ts",
             )
         )
 
         self._buffer = Buffer(
-            buffer_size=self.config.pipeline.general["buffer_size"],
+            buffer_size=self.pipeline.pipeline.buff["buffer_size"],
         )
 
     def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
@@ -87,11 +86,11 @@ class Executor:
         Returns:
             Dictionary containing preprocessed results.
         """
-        execution_order = self._create_dependency_graph(self.config.pipeline.preprocess)
+        execution_order = self._create_dependency_graph(self.pipeline.pipeline.prep)
 
         pipeline = compose.Pipeline()
 
-        if self.config.gui:
+        if self.pipeline.gui:
             self.frame_counter.learn_one(frame=frame)
             self.frame_counter.transform_one(_=frame)
 
@@ -103,7 +102,7 @@ class Executor:
         pipeline.learn_one(x=frame)
         result = pipeline.transform_one(x=frame)
 
-        if self.config.gui:
+        if self.pipeline.gui:
             # plug in prep_movie_display
             self.prep_movie_streamer.learn_one(frame=frame)
             self.prep_movie_streamer.transform_one(frame=result)
@@ -124,16 +123,14 @@ class Executor:
         self._buffer.add_frame(frame)
 
         if not self.execution_order or not self._init_statuses:
-            self.execution_order = self._create_dependency_graph(
-                self.config.pipeline.initialization
-            )
+            self.execution_order = self._create_dependency_graph(self.pipeline.pipeline.init)
             self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
             if self._init_statuses[idx]:
                 continue
 
-            n_frames = getattr(self.config.pipeline.initialization[step], "n_frames", 1)
+            n_frames = getattr(self.pipeline.pipeline.init[step], "n_frames", 1)
             if not self._buffer.is_ready(n_frames):
                 break
 
@@ -148,8 +145,8 @@ class Executor:
             self._state.init(
                 result,
                 result_type,
-                self.config.pipeline.general["buffer_size"],
-                self.config.output_dir,
+                self.pipeline.pipeline.buff["buffer_size"],
+                self.pipeline.output_dir,
             )
 
         if all(self._init_statuses):
@@ -161,7 +158,7 @@ class Executor:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.config.pipeline.iteration)
+        execution_order = self._create_dependency_graph(self.pipeline.pipeline.iter)
 
         # Execute transformers in order
         for step in execution_order:
@@ -192,12 +189,12 @@ class Executor:
         Returns:
             Configured transformer instance.
         """
-        config = getattr(self.config.pipeline, process)[step]
-        if self._transformers.get(config.transformer, None):
-            return self._transformers[config.transformer]
+        config = getattr(self.pipeline.pipeline, process)[step]
+        if self._transformers.get(config.id, None):
+            return self._transformers[config.id]
 
         params = getattr(config, "params", {})
-        module_name, class_name = config.transformer.rsplit(".", 1)
+        module_name, class_name = config.id.rsplit(".", 1)
         transformer = getattr(importlib.import_module(module_name), class_name)
 
         param_class = next(
@@ -214,7 +211,7 @@ class Executor:
         else:
             transformer = transformer()
 
-        self._transformers[config.transformer] = transformer
+        self._transformers[config.id] = transformer
 
         return transformer
 
@@ -262,7 +259,7 @@ class Executor:
         return matches
 
     @staticmethod
-    def _create_dependency_graph(steps: dict[str, Step]) -> list[str]:
+    def _create_dependency_graph(steps: dict[str, Node]) -> list[str]:
         """Create and validate a dependency graph for execution ordering.
 
         Args:

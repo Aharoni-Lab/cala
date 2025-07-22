@@ -4,8 +4,8 @@ import pytest
 import xarray as xr
 
 from cala.config.pipe import (
-    Step,
-    StreamingConfig,
+    Node,
+    Pipeline,
 )
 from cala.models.axis import AXIS
 from cala.core.execute import Executor
@@ -13,55 +13,55 @@ from cala.util.new import package_frame
 
 
 @pytest.fixture
-def preprocess_config() -> StreamingConfig:
-    return StreamingConfig(
-        general={"buffer_size": 100},
-        preprocess={
-            "downsample": Step(
-                transformer="Downsampler",
+def preprocess_config() -> Pipeline:
+    return Pipeline(
+        buff={"buffer_size": 100},
+        prep={
+            "downsample": Node(
+                id="Downsampler",
                 params={
                     "method": "mean",
                     "dimensions": ["width", "height"],
                     "strides": [2, 2],
                 },
             ),
-            "denoise": Step(
-                transformer="Denoiser",
+            "denoise": Node(
+                id="Denoiser",
                 params={
                     "method": "gaussian",
                     "kwargs": {"ksize": (3, 3), "sigmaX": 1.5},
                 },
                 requires=["downsample"],
             ),
-            "glow_removal": Step(
-                transformer="GlowRemover",
+            "glow_removal": Node(
+                id="GlowRemover",
                 params={},
                 requires=["denoise"],
             ),
-            "background_removal": Step(
-                transformer="BackgroundEraser",
+            "background_removal": Node(
+                id="BackgroundEraser",
                 params={"method": "uniform", "kernel_size": 3},
                 requires=["glow_removal"],
             ),
-            "motion_stabilization": Step(
-                transformer="RigidStabilizer",
+            "motion_stabilization": Node(
+                id="RigidStabilizer",
                 params={"drift_speed": 1, "anchor_frame_index": 0},
                 requires=["background_removal"],
             ),
         },
-        initialization={},
-        iteration={},
+        init={},
+        iter={},
     )
 
 
 @pytest.fixture
-def initialization_config() -> StreamingConfig:
-    return StreamingConfig(
-        general={"buffer_size": 100},
-        preprocess={},
-        initialization={
-            "footprints": Step(
-                transformer="FootprintsInitializer",
+def initialization_config() -> Pipeline:
+    return Pipeline(
+        buff={"buffer_size": 100},
+        prep={},
+        init={
+            "footprints": Node(
+                id="FootprintsInitializer",
                 params={
                     "threshold_factor": 0.2,
                     "kernel_size": 3,
@@ -69,34 +69,34 @@ def initialization_config() -> StreamingConfig:
                     "distance_mask_size": 5,
                 },
             ),
-            "traces": Step(
-                transformer="TracesInitializer",
+            "traces": Node(
+                id="TracesInitializer",
                 params={},
                 n_frames=3,
                 requires=["footprints"],
             ),
         },
-        iteration={},
+        iter={},
     )
 
 
 def test_cyclic_dependency_detection(stabilized_video: xr.DataArray, tmp_path) -> None:
-    cyclic_config = StreamingConfig(
-        general={"buffer_size": 100},
-        preprocess={},
-        initialization={
-            "step1": Step(
-                transformer="FootprintsInitializer",
+    cyclic_config = Pipeline(
+        buff={"buffer_size": 100},
+        prep={},
+        init={
+            "step1": Node(
+                id="FootprintsInitializer",
                 params={},
                 requires=["step2"],
             ),
-            "step2": Step(
-                transformer="TracesInitializer",
+            "step2": Node(
+                id="TracesInitializer",
                 params={},
                 requires=["step1"],
             ),
         },
-        iteration={},
+        iter={},
     )
     runner = Executor(cyclic_config, tmp_path)
     video = stabilized_video
@@ -107,13 +107,13 @@ def test_cyclic_dependency_detection(stabilized_video: xr.DataArray, tmp_path) -
                 runner.initialize(frame)
 
 
-def test_preprocess_initialization(preprocess_config: StreamingConfig, tmp_path) -> None:
+def test_preprocess_initialization(preprocess_config: Pipeline, tmp_path) -> None:
     runner = Executor(preprocess_config, tmp_path)
-    assert runner.config == preprocess_config
+    assert runner.pipeline == preprocess_config
 
 
 def test_preprocess_execution(
-    preprocess_config: StreamingConfig, stabilized_video: xr.DataArray, tmp_path
+    preprocess_config: Pipeline, stabilized_video: xr.DataArray, tmp_path
 ) -> None:
     runner = Executor(preprocess_config, tmp_path)
     video = stabilized_video
@@ -133,9 +133,9 @@ def test_preprocess_execution(
     assert result.shape[1] == original_shape[1] // 2
 
 
-def test_preprocess_dependency_resolution(preprocess_config: StreamingConfig, tmp_path) -> None:
+def test_preprocess_dependency_resolution(preprocess_config: Pipeline, tmp_path) -> None:
     runner = Executor(preprocess_config, tmp_path)
-    execution_order = runner._create_dependency_graph(preprocess_config.preprocess)
+    execution_order = runner._create_dependency_graph(preprocess_config.prep)
 
     # Verify correct execution order
     expected_order = [
@@ -148,13 +148,13 @@ def test_preprocess_dependency_resolution(preprocess_config: StreamingConfig, tm
     assert list(execution_order) == expected_order
 
 
-def test_initializer_initialization(initialization_config: StreamingConfig, tmp_path) -> None:
+def test_initializer_initialization(initialization_config: Pipeline, tmp_path) -> None:
     runner = Executor(initialization_config, tmp_path)
-    assert runner.config == initialization_config
+    assert runner.pipeline == initialization_config
 
 
 def test_initialize_execution(
-    initialization_config: StreamingConfig, stabilized_video: xr.DataArray, tmp_path
+    initialization_config: Pipeline, stabilized_video: xr.DataArray, tmp_path
 ) -> None:
     runner = Executor(initialization_config, tmp_path)
     video = stabilized_video
