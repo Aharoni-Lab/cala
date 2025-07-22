@@ -1,4 +1,4 @@
-from cala.config.pipe import NodeSpec, PipeSpec
+from cala.models.spec import NodeSpec, PipeSpec
 
 
 class TestPipeline:

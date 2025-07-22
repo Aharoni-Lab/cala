@@ -7,13 +7,13 @@ from river.base import SupervisedTransformer
 from scipy.sparse.csgraph import connected_components
 from sklearn.exceptions import NotFittedError
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import Overlaps
 
 
 @dataclass
-class TracesUpdaterParams(Parameters):
+class TracesUpdaterParams(Params):
     """Parameters for temporal trace updates.
 
     This class defines the configuration parameters needed for updating temporal

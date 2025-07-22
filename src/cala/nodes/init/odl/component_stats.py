@@ -4,13 +4,13 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.models import Parameters
+from cala.models import Params
 from cala.stores.common import Traces
 from cala.stores.odl import ComponentStats
 
 
 @dataclass
-class ComponentStatsInitializerParams(Parameters):
+class ComponentStatsInitializerParams(Params):
     """Parameters for component statistics computation.
 
     This class defines the configuration parameters needed for computing statistics

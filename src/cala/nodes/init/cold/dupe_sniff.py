@@ -4,13 +4,13 @@ from operator import itemgetter
 import numpy as np
 import xarray as xr
 
-from cala.models import Parameters
+from cala.models import Params
 from cala.models import Node
 from cala.stores.common import Footprints, Traces
 
 
 @dataclass
-class DupeSnifferParams(Parameters):
+class DupeSnifferParams(Params):
     merge_threshold: float  # this should get later replaced by confidence level
 
     def validate(self) -> None:

@@ -5,11 +5,11 @@ import numpy as np
 import xarray as xr
 from river import base
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class DownsamplerParams(Parameters):
+class DownsamplerParams(Params):
     """Downsampler parameters"""
 
     method: Literal["mean", "subset"] = "mean"

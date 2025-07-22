@@ -7,11 +7,11 @@ import xarray as xr
 from river import base
 from skimage.registration import phase_cross_correlation
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class RigidStabilizerParams(Parameters):
+class RigidStabilizerParams(Params):
     drift_speed: float = 1
     anchor_frame_index: int = 0
     kwargs: dict = field(default_factory=dict)

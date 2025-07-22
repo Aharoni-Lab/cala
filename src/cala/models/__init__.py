@@ -1,8 +1,8 @@
 from .axis import AXIS
 from .node import Node
 from .observable import Footprint, Footprints, Trace, Traces, Frame, Movie
-from .params import Parameters
-from .store import ObservableStore
+from .params import Params
+from .store import Store
 
 __all__ = [
     AXIS,
@@ -13,6 +13,6 @@ __all__ = [
     Traces,
     Frame,
     Movie,
-    Parameters,
-    ObservableStore,
+    Params,
+    Store,
 ]

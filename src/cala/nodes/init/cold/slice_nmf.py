@@ -5,14 +5,14 @@ import numpy as np
 import xarray as xr
 from sklearn.decomposition import NMF
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.models import Node
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import Residuals
 
 
 @dataclass
-class SliceNMFParams(Parameters):
+class SliceNMFParams(Params):
     cell_radius: int
     validity_threshold: float
 

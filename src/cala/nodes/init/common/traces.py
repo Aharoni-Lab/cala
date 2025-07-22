@@ -7,12 +7,12 @@ from numba import jit, prange
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.models import Parameters
+from cala.models import Params
 from cala.stores.common import Footprints, Traces
 
 
 @dataclass
-class TracesInitializerParams(Parameters):
+class TracesInitializerParams(Params):
     """Parameters for traces initialization"""
 
     def validate(self) -> None:

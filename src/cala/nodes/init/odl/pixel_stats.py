@@ -4,13 +4,13 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Traces
 from cala.stores.odl import PixelStats
 
 
 @dataclass
-class PixelStatsInitializerParams(Parameters):
+class PixelStatsInitializerParams(Params):
     """Parameters for pixel-component statistics computation.
 
     This class defines the configuration parameters needed for computing statistics

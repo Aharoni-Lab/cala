@@ -4,11 +4,11 @@ import xarray as xr
 from river.base import Transformer
 
 from cala.gui.nodes.util import send_through
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class FrameCounterParams(Parameters):
+class FrameCounterParams(Params):
     pass
 
     def validate(self) -> None:

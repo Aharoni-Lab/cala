@@ -5,7 +5,7 @@ import pytest
 import xarray as xr
 
 from cala.models.entity import Component
-from cala.models.store import ObservableStore
+from cala.models.store import Store
 from cala.stores.common import FootprintStore, TraceStore
 
 
@@ -32,7 +32,7 @@ class TestFootprints:
 
     def test_initialization(self, sample_footprints: FootprintStore) -> None:
         """Test proper initialization of Footprints."""
-        assert isinstance(sample_footprints, ObservableStore)
+        assert isinstance(sample_footprints, Store)
         assert isinstance(sample_footprints, FootprintStore)
         assert sample_footprints.warehouse.dims == ("components", "height", "width")
         assert "id_" in sample_footprints.warehouse.coords

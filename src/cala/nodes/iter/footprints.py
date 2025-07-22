@@ -7,13 +7,13 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Footprints
 from cala.stores.odl import ComponentStats, PixelStats
 
 
 @dataclass
-class FootprintsUpdaterParams(Parameters):
+class FootprintsUpdaterParams(Params):
     """Parameters for spatial footprint updates.
 
     This class defines the configuration parameters needed for updating

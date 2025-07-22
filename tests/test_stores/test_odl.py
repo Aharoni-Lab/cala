@@ -4,7 +4,7 @@ import sparse
 import xarray as xr
 
 from cala.models.entity import Component
-from cala.models.store import ObservableStore
+from cala.models.store import Store
 from cala.stores.odl import (
     ComponentStatStore,
     OverlapStore,
@@ -35,7 +35,7 @@ class TestPixelStats:
 
     def test_initialization(self, sample_pixel_stats: PixelStatStore) -> None:
         """Test proper initialization of PixelStats."""
-        assert isinstance(sample_pixel_stats, ObservableStore)
+        assert isinstance(sample_pixel_stats, Store)
         assert sample_pixel_stats.warehouse.dims == ("pixels", "components")
         assert "id_" in sample_pixel_stats.warehouse.coords
         assert "type_" in sample_pixel_stats.warehouse.coords

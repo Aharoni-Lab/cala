@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.config.pipe import (
+from cala.models.spec import (
     NodeSpec,
     PipeSpec,
 )

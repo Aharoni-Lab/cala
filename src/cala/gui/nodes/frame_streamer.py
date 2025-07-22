@@ -7,11 +7,11 @@ import numpy as np
 import xarray as xr
 from river.base import Transformer
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class FrameStreamerParams(Parameters):
+class FrameStreamerParams(Params):
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"

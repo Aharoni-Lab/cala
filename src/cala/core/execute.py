@@ -12,7 +12,7 @@ from typing import (
 import xarray as xr
 from river import compose
 
-from cala.config.pipe import NodeSpec, PipeSpec
+from cala.models.spec import NodeSpec, PipeSpec
 from cala.core.distribute import Distributor
 from cala.gui.nodes import (
     ComponentCounter,
@@ -24,7 +24,7 @@ from cala.gui.nodes import (
     FrameStreamer,
     FrameStreamerParams,
 )
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.util.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -201,7 +201,7 @@ class Executor:
             (
                 type_
                 for type_ in transformer.__annotations__.values()
-                if issubclass(type_, Parameters)
+                if issubclass(type_, Params)
             ),
             None,
         )

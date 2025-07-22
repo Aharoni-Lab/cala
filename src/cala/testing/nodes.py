@@ -1,8 +1,8 @@
 from cala.models import Node
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
-class NodeAParams(Parameters):
+class NodeAParams(Params):
     a: int
     b: str = "B"
 

@@ -7,7 +7,7 @@ import xarray as xr
 
 
 @dataclass
-class ObservableStore(ABC):
+class Store(ABC):
     """Base class for observable object storage."""
 
     _warehouse: xr.DataArray = field(init=False)

@@ -12,7 +12,7 @@ from sklearn.decomposition import NMF
 from sklearn.feature_extraction.image import PatchExtractor
 
 from cala.models.entity import Component
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 from cala.util.new import create_id
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DetectorParams(Parameters):
+class DetectorParams(Params):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new

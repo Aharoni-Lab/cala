@@ -5,11 +5,11 @@ import numpy as np
 from scipy.sparse.csgraph import connected_components
 from xarray import DataArray
 
-from cala.models import ObservableStore
+from cala.models import Store
 
 
 # pixels x components
-class PixelStatStore(ObservableStore):
+class PixelStatStore(Store):
     """Storage for pixel-component statistics.
 
     This class stores the correlation statistics between each pixel and each component,
@@ -31,7 +31,7 @@ PixelStats = Annotated[DataArray, PixelStatStore]
 
 
 # components x components
-class ComponentStatStore(ObservableStore):
+class ComponentStatStore(Store):
     """Storage for component-component correlation statistics.
 
     This class stores the correlation matrix between all components,
@@ -52,7 +52,7 @@ class ComponentStatStore(ObservableStore):
 ComponentStats = Annotated[DataArray, ComponentStatStore]
 
 
-class ResidualStore(ObservableStore):
+class ResidualStore(Store):
     """Storage for residual signals.
 
     This class stores the unexplained variance in the data after accounting
@@ -73,7 +73,7 @@ class ResidualStore(ObservableStore):
 Residuals = Annotated[DataArray, ResidualStore]
 
 
-class OverlapStore(ObservableStore):
+class OverlapStore(Store):
     """Storage for spatially overlapping component groups.
 
     This class stores information about which components share spatial overlap

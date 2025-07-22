@@ -8,11 +8,11 @@ from river import base
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class BackgroundEraserParams(Parameters):
+class BackgroundEraserParams(Params):
     """Parameters for background eraser."""
 
     method: Literal["uniform", "tophat"] = "uniform"

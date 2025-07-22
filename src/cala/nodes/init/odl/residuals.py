@@ -4,13 +4,13 @@ from typing import Self
 import xarray as xr
 from river.base import SupervisedTransformer
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import Residuals
 
 
 @dataclass
-class ResidualInitializerParams(Parameters):
+class ResidualInitializerParams(Params):
     """Parameters for residual signal computation.
 
     This class defines the configuration parameters needed for computing and maintaining

@@ -5,12 +5,12 @@ import numpy as np
 import xarray as xr
 
 from cala.models.axis import AXIS
-from cala.models.store import ObservableStore
+from cala.models.store import Store
 
 logger = logging.getLogger(__name__)
 
 
-class FootprintStore(ObservableStore):
+class FootprintStore(Store):
     """Spatial footprints of identified components.
 
     Represents the spatial distribution patterns of components (neurons or background)
@@ -46,7 +46,7 @@ class FootprintStore(ObservableStore):
 Footprints = Annotated[xr.DataArray, FootprintStore]
 
 
-class TraceStore(ObservableStore):
+class TraceStore(Store):
     """Temporal activity traces of identified components.
 
     Contains the time-varying fluorescence signals of components across frames,

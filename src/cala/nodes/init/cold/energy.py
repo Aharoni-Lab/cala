@@ -5,13 +5,13 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import Parameters
+from cala.models import Params
 from cala.models import Node
 from cala.stores.odl import Residuals
 
 
 @dataclass
-class EnergyParams(Parameters):
+class EnergyParams(Params):
     gaussian_std: float
 
     def validate(self) -> None: ...

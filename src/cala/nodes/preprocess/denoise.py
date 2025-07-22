@@ -7,11 +7,11 @@ import numpy as np
 import xarray as xr
 from river import base
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 
 
 @dataclass
-class DenoiserParams(Parameters):
+class DenoiserParams(Params):
     """Denoiser parameters"""
 
     method: str = "gaussian"

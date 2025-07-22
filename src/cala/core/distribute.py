@@ -4,7 +4,7 @@ from typing import Annotated, Any, get_args, get_origin
 
 import xarray as xr
 
-from cala.models.store import ObservableStore
+from cala.models.store import Store
 
 
 @dataclass
@@ -17,7 +17,7 @@ class Distributor:
 
     _: int = 0
 
-    def get(self, type_: type) -> ObservableStore | None:
+    def get(self, type_: type) -> Store | None:
         """Retrieve a specific Observable instance based on its type.
 
         Args:
@@ -91,7 +91,7 @@ class Distributor:
 
     @staticmethod
     def _get_store_type(type_: type[Annotated[Any, Any]]) -> type | None:
-        if get_origin(type_) is Annotated and issubclass(type_.__metadata__[0], ObservableStore):
+        if get_origin(type_) is Annotated and issubclass(type_.__metadata__[0], Store):
             return type_.__metadata__[0]
         return None
 

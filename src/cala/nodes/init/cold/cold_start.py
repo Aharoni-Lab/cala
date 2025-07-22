@@ -7,7 +7,7 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import Parameters
+from cala.models import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import ComponentStats, Overlaps, PixelStats, Residuals
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ColdStarterParams(Parameters):
+class ColdStarterParams(Params):
     """Parameters for new component detection.
 
     This class defines the configuration parameters needed for detecting new

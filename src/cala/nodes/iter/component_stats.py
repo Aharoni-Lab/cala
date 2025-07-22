@@ -5,13 +5,13 @@ import xarray as xr
 from river.base import SupervisedTransformer
 from sklearn.exceptions import NotFittedError
 
-from cala.models.params import Parameters
+from cala.models.params import Params
 from cala.stores.common import Traces
 from cala.stores.odl import ComponentStats
 
 
 @dataclass
-class ComponentStatsUpdaterParams(Parameters):
+class ComponentStatsUpdaterParams(Params):
     """Parameters for component statistics updates.
 
     This class defines the configuration parameters needed for updating
