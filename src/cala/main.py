@@ -2,8 +2,8 @@ import asyncio
 
 from cala.config import Config
 from cala.io import IO
-from cala.composer import Runner
-from cala.util import package_frame
+from cala.core.execute import Executor
+from cala.util.new import package_frame
 
 
 async def run_pipeline(config: Config) -> None:
@@ -15,7 +15,7 @@ async def run_pipeline(config: Config) -> None:
 
     io = IO()
     stream = io.stream(config.input_files)
-    runner = Runner(config)
+    runner = Executor(config)
 
     try:
         for idx, frame in enumerate(stream):

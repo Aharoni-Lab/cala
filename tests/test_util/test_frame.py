@@ -5,7 +5,7 @@ import pandas as pd
 import xarray as xr
 
 from cala.models.axis import AXIS
-from cala.streaming.util.new import package_frame
+from cala.util.new import package_frame
 
 
 def test_package_frame():

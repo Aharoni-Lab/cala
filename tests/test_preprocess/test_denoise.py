@@ -5,10 +5,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.nodes.preprocess import (
-    Denoiser,
-    DenoiserParams,
-)
+from cala.nodes.preprocess.denoise import Denoiser, DenoiserParams
 
 
 class TestStreamingDenoiser:

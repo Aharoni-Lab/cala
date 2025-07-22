@@ -2,7 +2,7 @@ from .axis import AXIS
 from .node import Node
 from .observable import Footprint, Footprints, Trace, Traces, Frame, Movie
 from .params import Parameters
-from .stores import ObservableStore
+from .store import ObservableStore
 
 __all__ = [
     AXIS,

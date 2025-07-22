@@ -5,8 +5,8 @@ import pytest
 import xarray as xr
 
 from cala.models.entity import Component
-from cala.streaming.core import ObservableStore
-from cala.streaming.stores.common import FootprintStore, TraceStore
+from cala.models.store import ObservableStore
+from cala.stores.common import FootprintStore, TraceStore
 
 
 class TestFootprints:

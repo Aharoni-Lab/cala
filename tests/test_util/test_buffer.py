@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.streaming.util.buffer import Buffer
+from cala.util.buffer import Buffer
 
 
 class TestBuffer:

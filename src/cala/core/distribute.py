@@ -4,7 +4,7 @@ from typing import Annotated, Any, get_args, get_origin
 
 import xarray as xr
 
-from cala.models.stores import ObservableStore
+from cala.models.store import ObservableStore
 
 
 @dataclass

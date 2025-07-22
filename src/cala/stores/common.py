@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 
 from cala.models.axis import AXIS
-from cala.models.stores import ObservableStore
+from cala.models.store import ObservableStore
 
 logger = logging.getLogger(__name__)
 

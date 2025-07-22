@@ -4,8 +4,8 @@ import sparse
 import xarray as xr
 
 from cala.models.entity import Component
-from cala.streaming.core import ObservableStore
-from cala.streaming.stores.odl import (
+from cala.models.store import ObservableStore
+from cala.stores.odl import (
     ComponentStatStore,
     OverlapStore,
     PixelStatStore,

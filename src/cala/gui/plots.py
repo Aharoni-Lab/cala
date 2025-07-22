@@ -2,7 +2,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import cv2
-import imageio
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -448,7 +448,7 @@ class Plotter:
         )
 
         # Add title
-        g.fig.suptitle("Component Trace Correlations", y=1.02)
+        g.figure.suptitle("Component Trace Correlations", y=1.02)
 
         # Save figure
         self.save_fig(name, subdir)

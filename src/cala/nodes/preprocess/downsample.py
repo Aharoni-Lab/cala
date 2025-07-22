@@ -80,6 +80,8 @@ class Downsampler(base.Transformer):
             return self.mean_downsample(frame)
         elif self.params.method == "subset":
             return self.subset_downsample(frame)
+        else:
+            return None
 
     def get_info(self) -> dict:
         """Get information about the current state.

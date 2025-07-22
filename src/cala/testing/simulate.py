@@ -227,7 +227,7 @@ def scope_noise(
 
 
 @pytest.fixture(scope="session")
-def raw_calcium_video(
+def raw_video(
     params: CalciumVideoParams,
     footprints: xr.DataArray,
     traces: xr.DataArray,
