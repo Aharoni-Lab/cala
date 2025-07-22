@@ -34,6 +34,9 @@ def yaml_config(
     out_file = tmp_config_source / "test_config.yaml"
 
     def _yaml_config(id: str, data: dict, path: Path | None = None) -> Path:
+        """
+        Dump data to yaml after resolving for path. Returns the resolved path.
+        """
         if path is None:
             path = out_file
         else:
@@ -59,6 +62,10 @@ def yaml_config(
 
 @pytest.fixture()
 def tmp_cwd(tmp_path: Path, monkeypatch: MonkeyPatch) -> Path:
+    """
+    Change the current working directory to a temporary path
+    and return the temporary path.
+    """
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -67,7 +74,7 @@ def tmp_cwd(tmp_path: Path, monkeypatch: MonkeyPatch) -> Path:
 def set_env(monkeypatch: MonkeyPatch) -> Callable[[dict[str, Any]], None]:
     """
     Function fixture to set environment variables using a nested dict
-    matching a GlobalConfig.model_dump()
+    matching a Config.model_dump()
     """
 
     def _set_env(config: dict[str, Any]) -> None:

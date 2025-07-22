@@ -102,14 +102,6 @@ class Config(BaseSettings, YAMLMixin):
         value.mkdir(parents=True, exist_ok=True)
         return value
 
-    @field_validator("user_dir", mode="after")
-    @classmethod
-    def dir_exists(cls, v: Path) -> Path:
-        """Ensure user_dir exists, make it otherwise"""
-        v.mkdir(exist_ok=True, parents=True)
-        assert v.exists(), f"{v} does not exist!"
-        return v
-
     @model_validator(mode="after")
     def paths_relative_to_basedir(self) -> "Config":
         """
@@ -141,12 +133,6 @@ class Config(BaseSettings, YAMLMixin):
 
         self.input_files = inputs_relative_to_user_dir
 
-        return self
-
-    @model_validator(mode="after")
-    def validate_pipeline(self) -> "Config":
-        """Validate pipeline config"""
-        # additional validation logic
         return self
 
     @classmethod
