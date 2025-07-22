@@ -5,9 +5,9 @@ import xarray as xr
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
+from cala.models import Node
 from cala.models.observable import Footprint, Footprints, Movie, Trace, Traces
 from cala.models.params import Params
-from cala.models.node import Node
 from cala.util.new import create_id
 
 

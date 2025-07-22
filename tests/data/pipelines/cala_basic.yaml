@@ -7,27 +7,27 @@ buff:
 
 prep:
   prep-step1:
-    id: cala.testing.nodes.NodeA
+    type: cala.testing.nodes.NodeA
     params:
-      a: 5
+      a: 0
       b: ABC
-    n_frames: 5
+    n_frames: 3
     requires: []
 
 init:
   init-step1:
-    id: cala.testing.nodes.NodeA
+    type: cala.testing.nodes.NodeA
     params:
-      a: 5
-      b: ABC
-    n_frames: 5
+      a: 1
+      b: DEF
+    n_frames: 4
     requires: []
 
 iter:
   iter-step1:
-    id: cala.testing.nodes.NodeA
+    type: cala.testing.nodes.NodeA
     params:
-      a: 5
-      b: ABC
+      a: 2
+      b: GHI
     n_frames: 5
     requires: []

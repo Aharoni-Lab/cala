@@ -5,8 +5,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import Params
-from cala.models import Node
+from cala.models import Node, Params
 from cala.stores.odl import Residuals
 
 

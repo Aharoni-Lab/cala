@@ -3,12 +3,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from cala.core.execute import Executor
+from cala.models.axis import AXIS
 from cala.models.spec import (
     NodeSpec,
     PipeSpec,
 )
-from cala.models.axis import AXIS
-from cala.core.execute import Executor
 from cala.util.new import package_frame
 
 

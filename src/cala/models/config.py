@@ -21,6 +21,11 @@ May be made less restrictive in the future, will not be made more restrictive.
 """
 
 
+def _is_identifier(val: str) -> str:
+    assert val.isidentifier(), "Must be a valid python identifier"
+    return val
+
+
 def _is_absolute_identifier(val: str) -> str:
 
     assert not val.startswith("."), "Cannot use relative identifiers"
@@ -28,6 +33,13 @@ def _is_absolute_identifier(val: str) -> str:
         assert part.isidentifier(), f"{part} is not a valid python identifier within {val}"
     return val
 
+
+PythonIdentifier: type = Annotated[str, AfterValidator(_is_identifier)]
+"""
+A single valid python identifier.
+
+See: https://docs.python.org/3.13/library/stdtypes.html#str.isidentifier
+"""
 
 AbsoluteIdentifier: type = Annotated[str, AfterValidator(_is_absolute_identifier)]
 """

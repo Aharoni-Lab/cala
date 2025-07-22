@@ -4,8 +4,7 @@ from operator import itemgetter
 import numpy as np
 import xarray as xr
 
-from cala.models import Params
-from cala.models import Node
+from cala.models import Node, Params
 from cala.stores.common import Footprints, Traces
 
 

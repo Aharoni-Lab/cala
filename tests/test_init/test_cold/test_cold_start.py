@@ -3,10 +3,10 @@ import numpy as np
 import pytest
 
 from cala.models.observable import Footprint, Footprints, Trace, Traces
+from cala.nodes.init.cold.catalog import Cataloger, CatalogerParams
 from cala.nodes.init.cold.dupe_sniff import DupeSniffer, DupeSnifferParams
 from cala.nodes.init.cold.energy import Energy, EnergyParams
 from cala.nodes.init.cold.slice_nmf import SliceNMF, SliceNMFParams
-from cala.nodes.init.cold.catalog import Cataloger, CatalogerParams
 from cala.testing.toy import FrameSize, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 

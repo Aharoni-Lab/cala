@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.models.entity import Component
 from cala.core.distribute import Distributor
+from cala.models.entity import Component
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import PixelStats
 

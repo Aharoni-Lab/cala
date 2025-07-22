@@ -1,8 +1,8 @@
 import asyncio
 
 from cala.config import Config
-from cala.io import IO
 from cala.core.execute import Executor
+from cala.io import IO
 from cala.util.new import package_frame
 
 

@@ -5,8 +5,8 @@ import numpy as np
 import xarray as xr
 from sklearn.decomposition import NMF
 
-from cala.models.params import Params
 from cala.models import Node
+from cala.models.params import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import Residuals
 

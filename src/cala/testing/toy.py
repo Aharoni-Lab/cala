@@ -1,14 +1,13 @@
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Generator
 
 import numpy as np
 import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.models import Footprints, Traces, Frame
+from cala.models import Footprints, Frame, Traces
 from cala.models.axis import AXIS
 
 

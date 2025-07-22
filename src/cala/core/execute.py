@@ -1,18 +1,12 @@
 import importlib
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from graphlib import TopologicalSorter
-from typing import (
-    Any,
-    Literal,
-    get_type_hints,
-)
+from typing import Any, Literal, get_type_hints
 
 import xarray as xr
 from river import compose
 
-from cala.models.spec import NodeSpec, PipeSpec
 from cala.core.distribute import Distributor
 from cala.gui.nodes import (
     ComponentCounter,
@@ -24,10 +18,12 @@ from cala.gui.nodes import (
     FrameStreamer,
     FrameStreamerParams,
 )
+from cala.logging import init_logger
 from cala.models.params import Params
+from cala.models.spec import NodeSpec, Pipe
 from cala.util.buffer import Buffer
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 
 @dataclass
@@ -38,7 +34,7 @@ class Executor:
     according to a provided configuration.
     """
 
-    pipeline: PipeSpec
+    pipeline: Pipe
     """Configuration defining the pipeline structure and parameters."""
 
     _buffer: Buffer = field(init=False)
@@ -86,7 +82,7 @@ class Executor:
         Returns:
             Dictionary containing preprocessed results.
         """
-        execution_order = self._create_dependency_graph(self.pipeline.pipeline.prep)
+        execution_order = self._create_dependency_graph(self.pipeline.prep)
 
         pipeline = compose.Pipeline()
 
@@ -123,14 +119,14 @@ class Executor:
         self._buffer.add_frame(frame)
 
         if not self.execution_order or not self._init_statuses:
-            self.execution_order = self._create_dependency_graph(self.pipeline.pipeline.init)
+            self.execution_order = self._create_dependency_graph(self.pipeline.init)
             self._init_statuses = [False] * len(self.execution_order)
 
         for idx, step in enumerate(self.execution_order):
             if self._init_statuses[idx]:
                 continue
 
-            n_frames = getattr(self.pipeline.pipeline.init[step], "n_frames", 1)
+            n_frames = getattr(self.pipeline.init[step], "n_frames", 1)
             if not self._buffer.is_ready(n_frames):
                 break
 
@@ -145,7 +141,7 @@ class Executor:
             self._state.init(
                 result,
                 result_type,
-                self.pipeline.pipeline.buff["buffer_size"],
+                self.pipeline.buff["buffer_size"],
                 self.pipeline.output_dir,
             )
 
@@ -158,7 +154,7 @@ class Executor:
         Args:
             frame: Input frame to process for component iterate.
         """
-        execution_order = self._create_dependency_graph(self.pipeline.pipeline.iter)
+        execution_order = self._create_dependency_graph(self.pipeline.iter)
 
         # Execute transformers in order
         for step in execution_order:
@@ -189,7 +185,7 @@ class Executor:
         Returns:
             Configured transformer instance.
         """
-        config = getattr(self.pipeline.pipeline, process)[step]
+        config = getattr(self.pipeline, process)[step]
         if self._transformers.get(config.id, None):
             return self._transformers[config.id]
 
@@ -198,11 +194,7 @@ class Executor:
         transformer = getattr(importlib.import_module(module_name), class_name)
 
         param_class = next(
-            (
-                type_
-                for type_ in transformer.__annotations__.values()
-                if issubclass(type_, Params)
-            ),
+            (type_ for type_ in transformer.__annotations__.values() if issubclass(type_, Params)),
             None,
         )
         if param_class:
