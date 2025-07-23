@@ -7,14 +7,14 @@ from cala.nodes.init.cold.catalog import Cataloger, CatalogerParams
 from cala.nodes.init.cold.dupe_sniff import DupeSniffer, DupeSnifferParams
 from cala.nodes.init.cold.energy import Energy, EnergyParams
 from cala.nodes.init.cold.slice_nmf import SliceNMF, SliceNMFParams
-from cala.testing.toy import FrameSize, Position, Toy
+from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
 
 @pytest.fixture(autouse=True, scope="module")
 def simulator():
     n_frames = 300
-    frame_dims = FrameSize(width=512, height=512)
+    frame_dims = FrameDims(width=512, height=512)
     cell_positions = [Position(width=256, height=256)]
     cell_radii = 30
     cell_traces = [np.array(range(300), dtype=float)]

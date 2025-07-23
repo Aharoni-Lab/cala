@@ -129,9 +129,11 @@ class SliceNMF(Node):
     def _check_validity(self, a_new: xr.DataArray, residuals: Residuals) -> bool:
         # not sure if this step is necessary or even makes sense
         # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
-        # and if the error is big, maybe it just means it's partially overlapping with another luminescent object?
+        # and if the error is big, maybe it just means it's partially overlapping with another
+        # luminescent object?
         # instead of tossing, we do candidates - cell, background, UNKNOWN
-        # we gather everything. we merge everything as much as possible. and then we decide what to do.
+        # we gather everything. we merge everything as much as possible. and then we decide what to
+        # do.
 
         # is it a cell / background, or just a plain wrong estimator - how do we distinguish these?
         # what i'm worried about is a WRONG estimator cannibalizing real cell signal
@@ -143,7 +145,9 @@ class SliceNMF(Node):
         nonzero_ax_to_idx = {
             ax: sorted([int(x) for x in set(idx)])
             for ax, idx in zip(a_new.dims, a_new.values.nonzero())
-        }  # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]] for [0, 0], [0, 1], [1, 0], [1, 1]
+        }
+        # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]]
+        # for [0, 0], [0, 1], [1, 0], [1, 1]
 
         if len(list(nonzero_ax_to_idx.values())[0]) == 0:
             return False
@@ -160,7 +164,8 @@ class SliceNMF(Node):
         # the reason we break from detection as soon as this happens is because
         # we don't want to get flooded with wrong estimators.
         # we instead wait for when we get cleaner signal.
-        # (this might not be super viable for cold-start. what if the first cell is bad? we just keep trying?)
+        # (this might not be super viable for cold-start.
+        # what if the first cell is bad? we just keep trying?)
         r_spatial = xr.corr(a_norm, res_norm)
 
         return not r_spatial <= self.params.validity_threshold

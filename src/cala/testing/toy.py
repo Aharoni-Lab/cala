@@ -11,7 +11,7 @@ from cala.models import Footprints, Frame, Traces
 from cala.models.axis import AXIS
 
 
-class FrameSize(BaseModel):
+class FrameDims(BaseModel):
     width: int
     height: int
 
@@ -41,18 +41,15 @@ class Toy:
     cell_position = Position(width=400, height=300)
     cell_trace = np.array(range(100, 0, -1))
 
-    simulator.add_cell(cell_position, 10, cell_trace, "cell_a")
+    toy.add_cell(cell_position, 10, cell_trace, "cell_a")
 
-    simulator.drop_cell("cell_a")
+    toy.drop_cell("cell_a")
 
-    sample_movie = simulator.make_movie()
-
-    Plotter(output_dir="../..").write_movie(sample_movie)
-
+    toy_movie = toy.make_movie()
     """
 
     n_frames: int
-    frame_dims: FrameSize
+    frame_dims: FrameDims
     cell_radii: int | list[int]
     cell_positions: list[Position]
     cell_traces: list[np.ndarray]
@@ -96,7 +93,7 @@ class Toy:
         return xr.DataArray(
             np.zeros((self.n_frames, self.frame_dims.height, self.frame_dims.width)),
             dims=[AXIS.frames_dim, *AXIS.spatial_dims],
-        ).astype(np.float32)
+        )
 
     def _generate_footprint(
         self, radius: int, position: Position, id_: str, confidence: float
@@ -106,12 +103,12 @@ class Toy:
             dims=AXIS.spatial_dims,
         )
 
-        shape = disk(radius).astype(np.float32)
+        shape = disk(radius)
 
         width_slice = slice(position.width - radius, position.width + radius + 1)
         height_slice = slice(position.height - radius, position.height + radius + 1)
 
-        footprint.loc[{"height": height_slice, "width": width_slice}] = shape
+        footprint.loc[{AXIS.height_dim: height_slice, AXIS.width_dim: width_slice}] = shape
 
         return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
@@ -183,7 +180,7 @@ class Toy:
     def drop_cell(self, id_: str | Iterable[str]) -> None:
         id_ = {id_} if isinstance(id_, str) else set(id_)
 
-        id_coords = set(self.footprints_.coords["id_"].values.tolist())
+        id_coords = set(self.footprints_.coords[AXIS.id_coord].values.tolist())
 
         keep_ids = list(id_coords - id_)
 

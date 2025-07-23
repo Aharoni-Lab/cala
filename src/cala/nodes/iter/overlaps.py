@@ -30,11 +30,13 @@ class OverlapsUpdaterParams(Params):
 
 @dataclass
 class OverlapsUpdater(SupervisedTransformer):
-    """Updates overlaps matrices using updated footprints.
+    """
+    Updates overlaps matrices using updated footprints.
 
     This transformer implements the overlaps statistics update.
     Currently it is done in a brute force manner where we take all footprints and recalculate
-    overlaps from scratch, since we're not tracking which footprints have undergone boundary changes.
+    overlaps from scratch, since we're not tracking which footprints have undergone boundary
+    changes.
     """
 
     params: OverlapsUpdaterParams

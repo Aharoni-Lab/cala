@@ -35,7 +35,8 @@ class FootprintsInitializerParams(Params):
             ]
         ):
             raise ValueError(
-                "Parameters threshold_factor, kernel_size, and distance_mask_size must have positive values."
+                "Parameters threshold_factor, kernel_size, and distance_mask_size must have "
+                "positive values."
             )
 
 

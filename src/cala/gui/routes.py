@@ -57,12 +57,14 @@ async def websocket_endpoint(
     """Handle WebSocket connection and run streamers"""
     await socket_manager.connect(websocket)
     try:
-        # some kind of waiting mechanism here to keep the connection open until the client disconnects
+        # some kind of waiting mechanism here to keep the connection open until the client
+        # disconnects
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         print(
-            f"websocket disconnected, still have {len(socket_manager.active_connections)} active connections"
+            f"websocket disconnected, still have {len(socket_manager.active_connections)} active "
+            f"connections"
         )
         if websocket in socket_manager.active_connections:
             socket_manager.disconnect(websocket)

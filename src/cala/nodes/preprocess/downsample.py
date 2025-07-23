@@ -39,8 +39,8 @@ class Downsampler(base.Transformer):
     - mean
 
     Attributes
-    _frame_number (int): The current frame number. Initiates with -1 so that we can immediately add one
-                         and start with 0.
+    _frame_number (int): The current frame number. Initiates with -1 so that we can immediately add
+        one and start with 0.
 
     """
 

@@ -31,7 +31,8 @@ class FootprintStore(Store):
 
         if existing_ids and new_ids:  # detect returned the original
             raise NotImplementedError(
-                "There should not be a case of both existing trace update and new components detection in update"
+                "There should not be a case of both existing trace update and new components "
+                "detection in update"
             )
         elif existing_ids:  # new frame footprint update
             self.warehouse = data
@@ -95,7 +96,8 @@ class TraceStore(Store):
 
         if existing_ids and new_ids:  # detect returned the original
             raise NotImplementedError(
-                "There should not be a case of both existing trace update and new components detection in update"
+                "There should not be a case of both existing trace update and new components "
+                "detection in update"
             )
         elif existing_ids:  # new frame trace update
             self._append(data, append_dim=AXIS.frames_dim)

@@ -14,19 +14,23 @@ from cala.stores.odl import ComponentStats, PixelStats
 
 @dataclass
 class FootprintsUpdaterParams(Params):
-    """Parameters for spatial footprint updates.
+    """
+    Parameters for spatial footprint updates.
 
     This class defines the configuration parameters needed for updating
     spatial footprints of components, including axis names and iteration limits.
     """
 
     boundary_expansion_pixels: int | None = None
-    """Number of pixels to explore the boundary of the footprint outside of the current footprint."""
+    """
+    Number of pixels to explore the boundary of the footprint outside of the current footprint.
+    """
 
     tolerance: float = 1e-7
 
     def validate(self) -> None:
-        """Validate parameter configurations.
+        """
+        Validate parameter configurations.
 
         Raises:
             ValueError: If max_iterations is not positive.
@@ -37,7 +41,8 @@ class FootprintsUpdaterParams(Params):
 
 @dataclass
 class FootprintsUpdater(SupervisedTransformer):
-    """Updates spatial footprints using sufficient statistics.
+    """
+    Updates spatial footprints using sufficient statistics.
 
     This transformer implements Algorithm 6 (UpdateShapes) which updates
     the spatial footprints of components using pixel-wise and component-wise

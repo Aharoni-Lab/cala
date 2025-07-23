@@ -26,7 +26,8 @@ class RigidStabilizer(base.Transformer):
     """Handles motion_stabilization correction
     it first registers anchor frame. and then a reference frame.
     the target frame is corrected to reference frame.
-    the target frame is then corrected to anchor frame, if the shift between the two is less than max_shift.
+    the target frame is then corrected to anchor frame, if the shift between the two is less than
+    max_shift.
 
     two edge cases:
     the drift magnitude goes over the drift threshold --> gotta use anchor shift

@@ -103,7 +103,8 @@ class TestDetector:
             ),
             footprints=foot_missing,  # footprints with a component missing
             traces=trace_missing,
-            # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
+            # traces from a missing footprint (should try with both perfect & fucked up cause
+            # missing a footprint)
             residuals=residual_missing,  # residual (same as traces)
             overlaps=overlap_missing,  # overlaps won't change
         )
@@ -261,14 +262,18 @@ class TestDetector:
             frame=incoming_frame, traces=trace_updated, component_stats=comp_missing
         ).transform_one()
 
-        # 4. time to detect. we're going to get a component with the LATEST frame and attach it to everything.
+        # 4. time to detect. we're going to get a component with the LATEST frame and attach it to
+        # everything.
         # so, everything should already be updated with the latest frame before we go in, as well!!
         updater.learn_one(
             frame=incoming_frame,
-            footprints=foot_missing,  # footprints with a component missing. won't change just with a new frame.
+            footprints=foot_missing,  # footprints with a component missing. won't change just with
+            # a new frame.
             traces=trace_updated,
-            # traces from a missing footprint (should try with both perfect & fucked up cause missing a footprint)
-            residuals=residual_missing,  # residual (update happens inside detect. should probably come out.)
+            # traces from a missing footprint (should try with both perfect & fucked up cause
+            # missing a footprint)
+            residuals=residual_missing,  # residual (update happens inside detect. should probably
+            # come out.)
             overlaps=overlap_missing,  # overlaps won't change just with a new frame.
         )
 
@@ -292,9 +297,11 @@ class TestDetector:
         fill_dims = dict(new_traces_.sizes)
         fill_dims["frame"] = trace_updated.sizes["frame"] - new_traces_.sizes["frame"]
 
-        # once updated, these should be 'identical' to mini_s. not sure how that will work without normalization.
+        # once updated, these should be 'identical' to mini_s. not sure how that will work without
+        # normalization.
         # confirmed, it's same except the newly found traces
-        # think the order is wrong on the paper. suff-stats should be updated before detect for congruency.
+        # think the order is wrong on the paper. suff-stats should be updated before detect for
+        # congruency.
 
         footprints_updated = fp_updater.learn_one(
             footprints=new_full_fps,

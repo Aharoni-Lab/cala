@@ -42,7 +42,8 @@ class Distro:
 
         Args:
             result: A single xr.DataArray to be stored. Must correspond to a valid Observable type.
-            type_: type of the result. If an observable, should be an Annotated type that links to Store class.
+            type_: type of the result. If an observable, should be an Annotated type that links to
+                Store class.
         """
         target_store_type = self._get_store_type(type_)
         if target_store_type is None:
@@ -70,8 +71,10 @@ class Distro:
         type of the input DataArray(s).
 
         Args:
-            result: A single xr.DataArray or tuple of DataArrays to be stored. Must correspond to valid Observable types.
-            type_: Type or tuple of types of the result(s). If an observable, should be an Annotated type that links to Store class.
+            result: A single xr.DataArray or tuple of DataArrays to be stored. Must correspond to
+                valid Observable types.
+            type_: Type or tuple of types of the result(s). If an observable, should be an Annotated
+                type that links to Store class.
         """
         # Convert single inputs to tuples for uniform handling
         results, types = (

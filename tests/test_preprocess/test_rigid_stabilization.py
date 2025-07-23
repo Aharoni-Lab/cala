@@ -65,7 +65,8 @@ class TestMotionStabilizer:
         plt.legend(loc="upper right")
         plt.savefig("x_shifts.png")
         plt.clf()
-        # The estimated motion_stabilization should be approximately the negative of the true motion_stabilization
+        # The estimated motion_stabilization should be approximately the negative of the true
+        # motion_stabilization
         # (within some tolerance due to interpolation and numerical precision)
         np.testing.assert_allclose(
             estimated_motion,
@@ -82,7 +83,10 @@ class TestMotionStabilizer:
         positions: np.ndarray,
         radii: np.ndarray,
     ) -> None:
-        """Test that RigidTranslator's correction preserves neuron calcium traces similarly to ground truth."""
+        """
+        Test that RigidTranslator's correction preserves neuron calcium traces similarly to
+        ground truth.
+        """
         video = preprocessed_video
         ground_truth_stabilized = stabilized_video
 

@@ -153,7 +153,8 @@ class TracesUpdater(SupervisedTransformer):
                 Shape: (pixels,)
             c (xr.DataArray): Last value of temporal traces. (just used for shape)
                 Shape: (components,)
-            clusters (list[np.ndarray]): list of groups that each contain component indices that have overlapping footprints.
+            clusters (list[np.ndarray]): list of groups that each contain component indices that
+                have overlapping footprints.
             eps (float): Tolerance level for convergence checking.
 
         Returns:
