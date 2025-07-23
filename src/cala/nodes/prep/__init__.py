@@ -1,3 +1,3 @@
-from .denoise import Denoiser, denoise
+from .denoise import denoise
 
-__all__ = [Denoiser, denoise]
+__all__ = [denoise]

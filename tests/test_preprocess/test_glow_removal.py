@@ -1,6 +1,6 @@
 import pytest
 
-from cala.nodes.preprocess.glow_removal import GlowRemover
+from cala.nodes.prep.glow_removal import GlowRemover
 
 
 class TestStreamingGlowRemover:
