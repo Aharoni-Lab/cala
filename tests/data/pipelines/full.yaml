@@ -1,0 +1,121 @@
+noob_id: cala-full
+
+gui:
+  prep_movie:
+    stream_url: /prep_movie/stream.m3u8
+
+  metric_plot:
+    width: 500
+    height: 200
+    max_points: 100
+
+  footprint_movie:
+    stream_url: /footprint_movie/stream.m3u8
+
+pipeline:
+  general:
+    buffer_size: 100
+  preprocess:
+    downsample:
+      transformer: cala.nodes.preprocess.Downsampler
+      params:
+        method: mean
+        dimensions: [ width, height ]
+        strides: [ 2, 2 ]
+
+    denoise:
+      transformer: cala.nodes.preprocess.Denoiser
+      params:
+        method: gaussian
+        kwargs:
+          ksize: [ 3, 3 ]
+          sigmaX: 1.5
+      requires: [ downsample ]
+
+    glow_removal:
+      transformer: cala.nodes.preprocess.GlowRemover
+      params:
+        learning_rate: 0.1
+      requires: [ denoise ]
+
+    motion_stabilization:
+      transformer: cala.nodes.preprocess.RigidStabilizer
+      params:
+        drift_speed: 1
+        anchor_frame_index: 0
+      requires: [ glow_removal ]
+
+  initialization:
+    footprints:
+      transformer: cala.nodes.init.common.FootprintsInitializer
+      params:
+        threshold_factor: 0.5
+        kernel_size: 3
+        distance_metric: 2 # cv2.DIST_L2
+        distance_mask_size: 5
+
+    traces:
+      transformer: cala.nodes.init.common.TracesInitializer
+      params: { }
+      n_frames: 3
+      requires: [ footprints ]
+
+    pixel_stats:
+      transformer: cala.nodes.init.odl.PixelStatsInitializer
+      params: { }
+      n_frames: 3
+      requires: [ traces ]
+
+    component_stats:
+      transformer: cala.nodes.init.odl.ComponentStatsInitializer
+      params: { }
+      n_frames: 3
+      requires: [ traces ]
+
+    residual:
+      transformer: cala.nodes.init.odl.ResidualInitializer
+      params:
+        buffer_length: 3
+      n_frames: 3
+      requires: [ footprints, traces ]
+
+    overlap_groups:
+      transformer: cala.nodes.init.odl.OverlapsInitializer
+      params: { }
+      requires: [ footprints ]
+
+  iteration:
+    traces:
+      transformer: cala.nodes.iter.TracesUpdater
+      params:
+        tolerance: 0.001
+
+    pixel_stats:
+      transformer: cala.nodes.iter.PixelStatsUpdater
+      params: { }
+      requires: [ traces ]
+
+    component_stats:
+      transformer: cala.nodes.iter.ComponentStatsUpdater
+      params: { }
+      requires: [ traces ]
+
+    detect:
+      transformer: cala.nodes.iter.Detector
+      params:
+        num_nmf_residual_frames: 10
+        gaussian_std: 4.0
+        spatial_threshold: 0.8
+        temporal_threshold: 0.8
+      requires: [ pixel_stats, component_stats ]
+
+    footprints:
+      transformer: cala.nodes.iter.FootprintsUpdater
+      params:
+        boundary_expansion_pixels: 1
+      requires: [ detect ]
+
+    overlaps:
+      transformer: cala.nodes.iter.OverlapsUpdater
+      params: { }
+      requires: [ footprints ]

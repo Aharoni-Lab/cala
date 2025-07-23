@@ -27,7 +27,6 @@ dependencies = [
     "scikit-learn>=1.5.2",
     "xarray>=2024.10.0",
     "scikit-image>=0.24.0",
-    "river>=0.22.0",
     "numba>=0.61.0",
     "sparse>=0.15.5",
     "graphlib>=0.9.5",
@@ -35,6 +34,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typer>=0.15.3",
     "xarray-validate>=0.0.2",
+    "noob @ git+https://github.com/miniscope/noob.git@20-fix-computation-of-tubegraph",
 ]
 keywords = [
     "pipeline",
@@ -115,11 +115,6 @@ build-backend = "pdm.backend"
 [tool.pdm]
 distribution = true
 
-[tool.pdm.build]
-excludes = [
-    "**/sample_movies/", "**/artifacts/", "**/htmlcov/", "**/.coverage"
-]
-
 [tool.pdm.version]
 # versions from tags like "v0.1.2"
 fallback_version = "0.0.0"
@@ -152,7 +147,6 @@ addopts = [
 #    "--cov-report=html"
 ]
 markers = [
-    "viz: marks tests that produce plots",
     "timeout: marks tests that need a timeout failure to prevent falling into an infinite loop"
 ]
 
@@ -162,9 +156,9 @@ line-length = 100
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
 include = ["src/cala/**/*.py", "tests/**/*.py", "pyproject.toml"]
 exclude = ["docs"]
+line-length = 100
 
 [tool.ruff.format]
 quote-style = "double"
@@ -207,6 +201,8 @@ select = [
     "S608", "S701",
 ]
 ignore = [
+    # needing to annotate `self` is ridiculous
+    "ANN101",
     #"special" methods like `__init__` don't need to be annotated
     "ANN204",
     # any types are semantically valid actually sometimes
@@ -215,8 +211,6 @@ ignore = [
     "B905",
     # docstrings for __init__
     "D107",
-    # i'm using black anyway lemme have long comment lines
-    "E501",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -227,7 +221,7 @@ ignore = [
     "F403",
 ]
 "tests/**/test_*" = [
-    # don't require annotating fixture types in test functions
+    # don't require annotating fixtures types in test functions
     "ANN001", "ANN201",
     # allow unused variables, also normal in tests
     "F841",

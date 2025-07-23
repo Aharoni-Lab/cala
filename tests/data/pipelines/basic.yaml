@@ -1,0 +1,50 @@
+noob_id: cala-basic
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev43+g5636955
+buff:
+  size: 100
+prep:
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value
+init:
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value
+iter:
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value

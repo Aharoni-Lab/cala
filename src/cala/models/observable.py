@@ -52,7 +52,7 @@ class Frame(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="frame",
-            dims=(Dims.width.value, Dims.height.value, Dims.frame.value),
+            dims=(Dims.width.value, Dims.height.value),
             dtype=float,
             checks=[is_non_negative],
         )
@@ -89,6 +89,7 @@ class Movie(Observable):
         Group(
             name="movie",
             entity=Frame.entity(),
+            group_by=Dims.frame.value,
             checks=[is_non_negative],
         )
     )

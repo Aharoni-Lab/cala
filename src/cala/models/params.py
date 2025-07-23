@@ -8,7 +8,7 @@ from cala.models.axis import Axis
 
 
 @dataclass
-class Parameters(ABC, Axis):
+class Params(ABC, Axis):
     """Parameter management and validation"""
 
     def __post_init__(self) -> None:
@@ -32,21 +32,21 @@ class Parameters(ABC, Axis):
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Parameters":
+    def from_dict(cls, data: dict) -> "Params":
         """Create parameters from dictionary"""
         return cls(**data)
 
     @classmethod
-    def load(cls, filename: str) -> "Parameters":
+    def load(cls, filename: str) -> "Params":
         """Load parameters from file"""
         with open(filename) as f:
             return cls.from_dict(json.load(f))
 
-    def copy(self) -> "Parameters":
+    def copy(self) -> "Params":
         """Create a deep copy of parameters"""
         return deepcopy(self)
 
-    def update(self, **kwargs: Any) -> "Parameters":
+    def update(self, **kwargs: Any) -> "Params":
         """Create new parameters with updated values"""
         return replace(self, **kwargs)
 
