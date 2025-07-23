@@ -7,7 +7,7 @@ import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.models import Footprints, Frame, Traces
+from cala.models import Footprints, Frame, Traces, Movie
 from cala.models.axis import AXIS
 
 
@@ -164,9 +164,9 @@ class Toy:
         movie += (footprints @ traces).transpose(AXIS.frames_dim, *AXIS.spatial_dims)
         return movie
 
-    def make_movie(self) -> xr.DataArray:
+    def make_movie(self) -> Movie:
         movie = self._build_movie(self.footprints_, self.traces_)
-        return movie
+        return Movie(array=movie)
 
     def add_cell(
         self, position: Position, radius: int, trace: np.ndarray, id_: str, confidence: float = 0.0
