@@ -1,5 +1,4 @@
-from collections.abc import Generator
-from typing import Annotated as A
+from typing import Annotated as A, Generator
 
 import numpy as np
 from noob import Name
@@ -25,20 +24,24 @@ class NodeB(Node):
         return {self.d: left**right}
 
 
-class SingleCell(Node):
-    frame_dims: FrameDims = FrameDims(width=512, height=512)
-    positions: list[Position] = [Position(width=256, height=256)]
-    traces: list[np.ndarray] = [np.array(range(0, 500))]
+def single_cell_source(
+    n_frames: int = 500,
+    frame_dims: FrameDims = FrameDims(width=512, height=512),
+    cell_radii: int = 30,
+    positions: list[Position] = None,
+    traces: list[np.ndarray] = None,
+) -> Generator[A[Frame, Name("frame")]]:
+    if traces is None:
+        traces = [np.array(range(0, 500))]
+    if positions is None:
+        positions = [Position(width=256, height=256)]
 
-    def __post_init__(self) -> None:
-        self.toy = Toy(
-            n_frames=500,
-            frame_dims=self.frame_dims,
-            cell_radii=30,
-            cell_positions=self.positions,
-            cell_traces=self.traces,
-            confidences=[],
-        )
-
-    def process(self) -> A[Generator[Frame], Name("frame")]:
-        return self.toy.iter_frame()
+    toy = Toy(
+        n_frames=n_frames,
+        frame_dims=frame_dims,
+        cell_radii=cell_radii,
+        cell_positions=positions,
+        cell_traces=traces,
+        confidences=[],
+    )
+    return toy.movie_gen()

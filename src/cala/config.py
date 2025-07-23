@@ -3,7 +3,7 @@ from typing import Literal
 
 from noob.yaml import YAMLMixin
 from platformdirs import PlatformDirs
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -92,21 +92,6 @@ class Config(BaseSettings, YAMLMixin):
         value.mkdir(parents=True, exist_ok=True)
         return value
 
-    @model_validator(mode="after")
-    def paths_relative_to_basedir(self) -> "Config":
-        """
-        If path is relative, make it absolute underneath user_dir
-        """
-        paths = ["output_dir"]
-        for path_name in paths:
-            path = getattr(self, path_name)
-            if not path.is_absolute():
-                if not path.exists():
-                    path = self.user_dir / path
-                    path.mkdir(parents=True, exist_ok=True)
-                setattr(self, path_name, path.resolve())
-
-        return self
 
     @classmethod
     def settings_customise_sources(

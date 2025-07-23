@@ -1,3 +1,3 @@
-from .nodes import NodeA, NodeB
+from .nodes import NodeA, NodeB, single_cell_source
 
-__all__ = [NodeA, NodeB]
+__all__ = [NodeA, NodeB, single_cell_source]

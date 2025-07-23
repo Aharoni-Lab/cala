@@ -209,7 +209,7 @@ class Toy:
         else:
             raise ValueError("No traces available")
 
-    def iter_frame(self) -> Generator[Frame]:
+    def movie_gen(self) -> Generator[Frame]:
         for i in range(self.traces_.sizes[AXIS.frames_dim]):
             trace = self.traces_.isel({AXIS.frames_dim: i})
             yield Frame(array=trace @ self.footprints_)

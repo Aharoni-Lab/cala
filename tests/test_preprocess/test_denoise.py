@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.nodes.preprocess.denoise import Denoiser, DenoiserParams
+from cala.nodes.prep.denoise import Denoiser
 
 
 class TestStreamingDenoiser:
@@ -41,7 +41,7 @@ class TestStreamingDenoiser:
         denoiser = Denoiser(default_params)
         assert denoiser.params.method == default_params.method
         assert denoiser.params.kwargs == default_params.kwargs
-        assert denoiser.func == cv2.GaussianBlur
+        assert denoiser._func == cv2.GaussianBlur
 
     def test_parameter_validation(self) -> None:
         """Test parameter validation"""

@@ -1,6 +1,4 @@
-user_dir: "."  # relative to this file
-input_files: [ ]
-output_dir: "output"
+noob_id: cala-full
 
 gui:
   prep_movie:

@@ -4,7 +4,6 @@ from typing import Self
 import cv2
 import numpy as np
 import xarray as xr
-from river import base
 from skimage.registration import phase_cross_correlation
 
 from cala.models.params import Params
@@ -22,7 +21,7 @@ class RigidStabilizerParams(Params):
 
 
 @dataclass
-class RigidStabilizer(base.Transformer):
+class RigidStabilizer:
     """Handles motion_stabilization correction
     it first registers anchor frame. and then a reference frame.
     the target frame is corrected to reference frame.

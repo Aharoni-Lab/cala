@@ -3,7 +3,6 @@ from typing import Literal, Self
 
 import numpy as np
 import xarray as xr
-from river import base
 
 from cala.models.params import Params
 
@@ -31,7 +30,7 @@ class DownsamplerParams(Params):
 
 
 @dataclass
-class Downsampler(base.Transformer):
+class Downsampler:
     """Streaming downsampler for calcium imaging data.
 
     This transformer applies downsample to each frame using:

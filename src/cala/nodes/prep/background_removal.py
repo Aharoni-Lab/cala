@@ -4,7 +4,6 @@ from typing import Literal
 import cv2
 import numpy as np
 import xarray as xr
-from river import base
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
@@ -33,7 +32,7 @@ class BackgroundEraserParams(Params):
 
 
 @dataclass
-class BackgroundEraser(base.Transformer):
+class BackgroundEraser:
     """Streaming transformer that removes background from video frames.
 
     This transformer implements online background removal using either:

@@ -3,11 +3,10 @@ from typing import Self
 
 import numpy as np
 import xarray as xr
-from river import base
 
 
 @dataclass
-class GlowRemover(base.Transformer):
+class GlowRemover:
     learning_rate: float = 0.1
     base_brightness_: np.ndarray = field(init=False)
     _learn_count: int = 0

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, get_type_hints
 
 import xarray as xr
+from noob import SynchronousRunner
 
 from cala.core.distro import Distro
 
@@ -17,7 +18,7 @@ from cala.core.distro import Distro
 #     FrameStreamerParams,
 # )
 from cala.logging import init_logger
-from cala.models.spec import Node, Pipe
+from cala.models.spec import Pipe
 from cala.util.buffer import Buffer
 
 logger = init_logger(__name__)
@@ -65,31 +66,15 @@ class Executor:
             buffer_size=self.pipe.buff["size"],
         )
 
-    def traverse(self, nodes: dict[str, Node], frame: xr.DataArray) -> Any:
-        graph = self.pipe.graph(nodes)
-        graph.prepare()
-
-        while graph.is_active():
-            ready = graph.get_ready()
-            for node_id in ready:
-                node = nodes[node_id]
-                result = self.process(node=node, frame=frame)
-                result_type = get_type_hints(node.transform_one, include_extras=True)["return"]
-
-                self.store.update(result, result_type)
-
-        return result
-
-    def preprocess(self, frame: xr.DataArray) -> xr.DataArray:
-        """Execute preprocessing steps on a single frame.
-
-        Args:
-            frame: Input frame to preprocess.
+    def preprocess(self) -> xr.DataArray:
+        """
+        Execute preprocessing steps on a single frame.
 
         Returns:
-            Dictionary containing preprocessed results.
+            Preprocessed frame.
         """
-        frame = self.traverse(self.pipe.prep, frame)
+        runner = SynchronousRunner(self.pipe.prep)
+        frame = runner.process()
 
         # if self.pipeline.gui:
         #     self.frame_counter.learn_one(frame=frame)
@@ -102,7 +87,7 @@ class Executor:
 
         return frame
 
-    def initialize(self, frame: xr.DataArray) -> None:
+    def initialize(self) -> None:
         """Initialize pipeline transformers in dependency order.
 
         Executes initialization steps that may require multiple frames. Steps are executed
@@ -111,7 +96,7 @@ class Executor:
         Args:
             frame: New frame to use for initialization.
         """
-        self._buffer.add_frame(frame)
+        # self._buffer.add_frame(frame)
 
         if not self.execution_order or not self._init_statuses:
             self.execution_order = self._create_dependency_graph(self.pipe.init)
@@ -141,13 +126,12 @@ class Executor:
         if all(self._init_statuses):
             self.is_initialized = True
 
-    def iterate(self, frame: xr.DataArray) -> None:
+    def iterate(self) -> None:
         """Execute iterate steps on a single frame.
 
         Args:
             frame: Input frame to process for component iterate.
         """
-        self.traverse(self.pipe.iter, frame)
 
         # if getattr(self._state, "footprintstore", None):
         #     self.component_counter.learn_one(self._state.footprintstore)
