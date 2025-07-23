@@ -1,6 +1,6 @@
 from collections.abc import Callable
-from typing import Annotated as A, Any
-from typing import ClassVar, Literal
+from typing import Annotated as A
+from typing import Any, ClassVar, Literal
 
 import cv2
 import numpy as np

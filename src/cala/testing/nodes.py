@@ -1,4 +1,5 @@
-from typing import Annotated as A, Generator
+from collections.abc import Generator
+from typing import Annotated as A
 
 import numpy as np
 from noob import Name
@@ -26,15 +27,18 @@ class NodeB(Node):
 
 def single_cell_source(
     n_frames: int = 500,
-    frame_dims: FrameDims = FrameDims(width=512, height=512),
+    frame_dims: dict = None,
     cell_radii: int = 30,
-    positions: list[Position] = None,
+    positions: list[dict] = None,
     traces: list[np.ndarray] = None,
 ) -> Generator[A[Frame, Name("frame")]]:
+    frame_dims = FrameDims(width=512, height=512) if frame_dims is None else FrameDims(**frame_dims)
     if traces is None:
         traces = [np.array(range(0, 500))]
     if positions is None:
         positions = [Position(width=256, height=256)]
+    else:
+        positions = [Position(**position) for position in positions]
 
     toy = Toy(
         n_frames=n_frames,
