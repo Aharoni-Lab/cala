@@ -2,7 +2,7 @@ import asyncio
 
 from cala.config import Config
 from cala.core.execute import Executor
-from cala.io import IO
+from cala.nodes.io import IO
 from cala.util.new import package_frame
 
 

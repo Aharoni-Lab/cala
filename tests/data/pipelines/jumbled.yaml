@@ -1,0 +1,28 @@
+cala_id: cala-jumbled
+cala_model: cala.models.spec.PipeSpec
+cala_version: 0.0.1.dev780+g8c5e3b1.d20250718
+buff:
+  size: 100
+init:
+  d:
+    type: cala.testing.nodes.NodeB
+    params:
+      c: 3
+    requires:
+    - c
+  b:
+    type: cala.testing.nodes.NodeB
+    params:
+      c: 3
+    requires:
+    - a
+  a:
+    type: cala.testing.nodes.NodeA
+    params:
+      a: 5
+  c:
+    type: cala.testing.nodes.NodeA
+    params:
+      a: 5
+    requires:
+    - b

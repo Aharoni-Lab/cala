@@ -87,8 +87,6 @@ class Config(BaseSettings, YAMLMixin):
         description="Directory where config yaml files are stored",
     )
 
-    input_files: list[Path] = Field(default_factory=list)
-
     output_dir: Path = Field(
         default=Path(_dirs.user_data_dir) / "output",
         description="Location of output data. "
@@ -115,23 +113,6 @@ class Config(BaseSettings, YAMLMixin):
                     path = self.user_dir / path
                     path.mkdir(parents=True, exist_ok=True)
                 setattr(self, path_name, path.resolve())
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_input_files(self) -> "Config":
-        inputs_relative_to_user_dir = []
-        missing_files = []
-        for filepath in self.input_files:
-            resolved_path = (self.user_dir / filepath).resolve()
-            if resolved_path.exists():
-                inputs_relative_to_user_dir.append(resolved_path)
-            else:
-                missing_files.append(str(resolved_path))
-        if missing_files:
-            raise ValueError(f"The following files do not exist: {', '.join(missing_files)}")
-
-        self.input_files = inputs_relative_to_user_dir
 
         return self
 

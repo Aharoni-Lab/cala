@@ -18,7 +18,7 @@ from cala.models.config import (
 class NodeSpec(BaseModel):
     id: str
     type_: AbsoluteIdentifier = Field(..., alias="type")
-    params: dict[str, Any]
+    params: dict[str, Any] = Field(default_factory=dict)
     n_frames: int = 1
     requires: Sequence[str] = Field(default_factory=list)
 
@@ -82,7 +82,14 @@ class Pipe(BaseModel):
     init: dict[str, Node] = Field(default_factory=dict)
     iter: dict[str, Node] = Field(default_factory=dict)
 
-    def graph(self) -> TopologicalSorter: ...
+    @staticmethod
+    def graph(nodes: dict[str, Node]) -> TopologicalSorter:
+        graph: dict[str, set[str]] = {}
+
+        for name, node in nodes.items():
+            graph[name] = set(getattr(node.spec, "requires", []))
+
+        return TopologicalSorter(graph)
 
     @classmethod
     def from_specification(cls, spec: PipeSpec | ConfigSource) -> "Pipe":

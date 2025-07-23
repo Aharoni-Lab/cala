@@ -1,6 +1,17 @@
-user_dir: "."  # relative to this file
-input_files: [ ]
-output_dir: "output"
+cala
+
+
+gui:
+  prep_movie:
+    stream_url: /prep_movie/stream.m3u8
+
+  metric_plot:
+    width: 500
+    height: 200
+    max_points: 100
+
+  footprint_movie:
+    stream_url: /footprint_movie/stream.m3u8
 
 pipeline:
   general:

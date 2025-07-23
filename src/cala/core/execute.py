@@ -1,23 +1,23 @@
 import importlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from graphlib import TopologicalSorter
 from typing import Any, Literal, get_type_hints
 
 import xarray as xr
 from river import compose
 
 from cala.core.distribute import Distributor
-from cala.gui.nodes import (
-    ComponentCounter,
-    ComponentCounterParams,
-    ComponentStreamer,
-    ComponentStreamerParams,
-    FrameCounter,
-    FrameCounterParams,
-    FrameStreamer,
-    FrameStreamerParams,
-)
+
+# from cala.gui.nodes import (
+#     ComponentCounter,
+#     ComponentCounterParams,
+#     ComponentStreamer,
+#     ComponentStreamerParams,
+#     FrameCounter,
+#     FrameCounterParams,
+#     FrameStreamer,
+#     FrameStreamerParams,
+# )
 from cala.logging import init_logger
 from cala.models.params import Params
 from cala.models.spec import NodeSpec, Pipe
@@ -52,22 +52,22 @@ class Executor:
 
     def __post_init__(self) -> None:
         """Initialize the frame buffer after instance creation."""
-        self.prep_movie_streamer = FrameStreamer(
-            FrameStreamerParams(
-                frame_rate=30,
-                stream_dir=self.pipeline.output_dir / "prep_movie",
-                segment_filename="stream%d.ts",
-            )
-        )
-        self.frame_counter = FrameCounter(FrameCounterParams())
-        self.component_counter = ComponentCounter(ComponentCounterParams())
-        self.component_streamer = ComponentStreamer(
-            ComponentStreamerParams(
-                frame_rate=30,
-                stream_dir=self.pipeline.output_dir / "components",
-                segment_filename="stream%d.ts",
-            )
-        )
+        # self.prep_movie_streamer = FrameStreamer(
+        #     FrameStreamerParams(
+        #         frame_rate=30,
+        #         stream_dir=self.pipeline.output_dir / "prep_movie",
+        #         segment_filename="stream%d.ts",
+        #     )
+        # )
+        # self.frame_counter = FrameCounter(FrameCounterParams())
+        # self.component_counter = ComponentCounter(ComponentCounterParams())
+        # self.component_streamer = ComponentStreamer(
+        #     ComponentStreamerParams(
+        #         frame_rate=30,
+        #         stream_dir=self.pipeline.output_dir / "components",
+        #         segment_filename="stream%d.ts",
+        #     )
+        # )
 
         self._buffer = Buffer(
             buffer_size=self.pipeline.pipeline.buff["buffer_size"],
@@ -86,9 +86,9 @@ class Executor:
 
         pipeline = compose.Pipeline()
 
-        if self.pipeline.gui:
-            self.frame_counter.learn_one(frame=frame)
-            self.frame_counter.transform_one(_=frame)
+        # if self.pipeline.gui:
+        #     self.frame_counter.learn_one(frame=frame)
+        #     self.frame_counter.transform_one(_=frame)
 
         for step in execution_order:
             transformer = self._build_transformer(process="preprocess", step=step)
@@ -98,10 +98,10 @@ class Executor:
         pipeline.learn_one(x=frame)
         result = pipeline.transform_one(x=frame)
 
-        if self.pipeline.gui:
-            # plug in prep_movie_display
-            self.prep_movie_streamer.learn_one(frame=frame)
-            self.prep_movie_streamer.transform_one(frame=result)
+        # if self.pipeline.gui:
+        #     # plug in prep_movie_display
+        #     self.prep_movie_streamer.learn_one(frame=frame)
+        #     self.prep_movie_streamer.transform_one(frame=result)
 
         frame = result
 
@@ -250,51 +250,10 @@ class Executor:
 
         return matches
 
-    @staticmethod
-    def _create_dependency_graph(steps: dict[str, NodeSpec]) -> list[str]:
-        """Create and validate a dependency graph for execution ordering.
-
-        Args:
-            steps: Dictionary of pipeline steps and their configurations.
-
-        Returns:
-            List of steps in topological order.
-
-        Raises:
-            ValueError: If dependencies contain cycles.
-        """
-        graph: dict[str, set[str]] = {}
-        for step in steps:
-            graph[step] = set()
-
-        for name, step in steps.items():
-            graph[name] = set(getattr(step, "requires", []))
-
-        # Create and prepare the sorter
-        ts = TopologicalSorter(graph)
-        return list(ts.static_order())
-
     def cleanup(self) -> None:
-        """Perform cleanup operations at the end of processing."""
-        logger.info("Starting runner cleanup...")
-
-        # store cleanup (e.g., closing Zarr files)
-        try:
-            self._state.cleanup()
-            logger.info("Distributor state cleaned up.")
-        except Exception as e:
-            logger.error(f"Error during distributor cleanup: {e}", exc_info=True)
-
-        # Clear internal buffer to release memory
-        try:
-            self._buffer.cleanup()
-            logger.info("Internal frame buffer cleared.")
-        except Exception as e:
-            logger.error(f"Error during buffer cleanup: {e}", exc_info=True)
-
-        # clear state variables
-        self.execution_order = None
-        self._init_statuses = None
-        self.is_initialized = False
-
-        logger.info("Runner cleanup finished.")
+        """
+        1. Store cleanup (e.g., closing Zarr files)
+        2. Clear internal buffer to release memory
+        3. Clear state variables
+        """
+        ...

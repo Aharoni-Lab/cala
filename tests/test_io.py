@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from cala.io import IO, TiffStream
+from cala.nodes.io import IO, TiffStream
 
 
 @pytest.fixture
