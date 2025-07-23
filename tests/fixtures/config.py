@@ -6,8 +6,7 @@ import pytest
 import tomli_w
 import yaml
 from _pytest.monkeypatch import MonkeyPatch
-
-from cala.config.yaml import ConfigYAMLMixin, YamlDumper
+from noob.yaml import ConfigYAMLMixin, YamlDumper
 
 
 @pytest.fixture()

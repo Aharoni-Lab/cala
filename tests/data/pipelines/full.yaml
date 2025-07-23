@@ -1,5 +1,6 @@
-cala
-
+user_dir: "."  # relative to this file
+input_files: [ ]
+output_dir: "output"
 
 gui:
   prep_movie:

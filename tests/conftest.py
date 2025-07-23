@@ -12,7 +12,7 @@ MOCK_DIR = Path(__file__).parent / "mock"
 
 @pytest.fixture(scope="session", autouse=True)
 def patch_config_source(monkeypatch_session: MonkeyPatch) -> None:
-    from cala.config.yaml import ConfigYAMLMixin
+    from noob.yaml import ConfigYAMLMixin
 
     current_sources = ConfigYAMLMixin.config_sources()
 

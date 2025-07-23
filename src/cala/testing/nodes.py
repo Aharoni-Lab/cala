@@ -1,17 +1,20 @@
-from cala.models import Node
+from typing import Annotated as A
+
+from noob import Name
+from noob.node import Node
 
 
 class NodeA(Node):
     a: int
     b: str = "C"
 
-    def process(self, m: float, n: list[str]) -> dict[str, float]:
-        return {n[0]: m}
+    def process(self, up: float, down: list[str]) -> A[float, Name("hoy")]:
+        return self.a * up
 
 
 class NodeB(Node):
-    c: int
-    d: str = "D"
+    c: int = 3
+    d: str
 
-    def process(self, o: float, p: float) -> float:
-        return o**p
+    def process(self, left: float, right: float = 1.2) -> dict[str, float]:
+        return {self.d: left**right}

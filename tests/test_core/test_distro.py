@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.core.distribute import Distributor
+from cala.core.distro import Distro
 from cala.models.entity import Component
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import PixelStats
@@ -14,9 +14,9 @@ class TestDistributor:
     """Test suite for the Distributor class."""
 
     @pytest.fixture
-    def sample_distributor(self) -> Distributor:
+    def sample_distributor(self) -> Distro:
         """Create a sample distributor with default parameters."""
-        return Distributor()
+        return Distro()
 
     @pytest.fixture
     def sample_data(self) -> dict[str, Any]:
@@ -69,7 +69,7 @@ class TestDistributor:
         }
 
     def test_init_single(
-        self, sample_distributor: Distributor, sample_data: dict[str, Any], tmp_path
+        self, sample_distributor: Distro, sample_data: dict[str, Any], tmp_path
     ) -> None:
         """Test collecting single DataArray results."""
         # Test collecting each type of Observable
@@ -91,5 +91,5 @@ class TestDistributor:
         )
 
     def test_init_multiple(
-        self, sample_distributor: Distributor, sample_data: dict[str, Any]
+        self, sample_distributor: Distro, sample_data: dict[str, Any]
     ) -> None: ...

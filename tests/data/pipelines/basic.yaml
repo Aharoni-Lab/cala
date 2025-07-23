@@ -1,33 +1,50 @@
-cala_id: cala-basic
-cala_model: cala.config.pipe.Pipeline
-cala_version: 0.0.1.dev780+g8c5e3b1.d20250718
-
+noob_id: cala-basic
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev43+g5636955
 buff:
   size: 100
-
 prep:
-  prep-step1:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 0
-      b: ABC
-    n_frames: 3
-    requires: []
-
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value
 init:
-  init-step1:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 1
-      b: DEF
-    n_frames: 4
-    requires: []
-
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value
 iter:
-  iter-step1:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 2
-      b: GHI
-    n_frames: 5
-    requires: []
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value

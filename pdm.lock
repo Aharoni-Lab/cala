@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:e2b1a387ca7f0758a6c6fcb46574278b7537b81967d06684080d3f92e5a42157"
+content_hash = "sha256:7efdd3070a05475fa7e3ddf5b75aff367b26572a156b4d38c5c6ed09410f5e97"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1810,6 +1810,22 @@ files = [
 ]
 
 [[package]]
+name = "noob"
+version = "0.1.1.dev73"
+requires_python = ">=3.11"
+git = "https://github.com/miniscope/noob.git"
+ref = "20-fix-computation-of-tubegraph"
+revision = "bdab3f862d87cd7a86d5ccea981fcf60e801769f"
+summary = "Default template for PDM package"
+dependencies = [
+    "PyYAML>=6.0.2",
+    "platformdirs>=4.3.7",
+    "pydantic-settings>=2.8.1",
+    "pydantic>=2.10.6",
+    "rich>=13.9.4",
+]
+
+[[package]]
 name = "numba"
 version = "0.61.2"
 requires_python = ">=3.10"
@@ -2745,47 +2761,6 @@ dependencies = [
 files = [
     {file = "rich_toolkit-0.14.7-py3-none-any.whl", hash = "sha256:def05cc6e0f1176d6263b6a26648f16a62c4563b277ca2f8538683acdba1e0da"},
     {file = "rich_toolkit-0.14.7.tar.gz", hash = "sha256:6cca5a68850cc5778915f528eb785662c27ba3b4b2624612cce8340fa9701c5e"},
-]
-
-[[package]]
-name = "river"
-version = "0.22.0"
-requires_python = ">=3.10,<4.0"
-summary = "Online machine learning in Python"
-dependencies = [
-    "numpy>=1.23.0",
-    "pandas<3.0.0,>=2.2.3",
-    "scipy<2.0.0,>=1.14.1",
-]
-files = [
-    {file = "river-0.22.0-cp311-cp311-macosx_10_13_universal2.whl", hash = "sha256:8857fb02207e80ad268eeda4ccb7d4959f18a247d248d953cc4c848a1ba70bce"},
-    {file = "river-0.22.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:a3eb447ac6b9887845f92f6e3dac962ac10eaf6f61ef61d46c11c7df5778c01b"},
-    {file = "river-0.22.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e0ff19fd615d35e787a2b02a68ed6d1b45d61e7f708fcb595f0c43dffaf24886"},
-    {file = "river-0.22.0-cp311-cp311-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:d0bb0bcefea1ac2b96d5e036254b11956196503f552e0767b8fd5b1f66b7126a"},
-    {file = "river-0.22.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c982d614db62d9f67ef1c4a0259fe2063aef60df70f728dde9dfa50370d29720"},
-    {file = "river-0.22.0-cp311-cp311-musllinux_1_1_aarch64.whl", hash = "sha256:3ff729ad0b573bfe7ca8f600a4376f4eecfef03feb9a8f9ad1d11401697ba4cb"},
-    {file = "river-0.22.0-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:eeaa9b3c28c6bb84a0d816e6d6c8d1fd19ef81fb6c91d3f0f62782e505dc8603"},
-    {file = "river-0.22.0-cp311-cp311-win32.whl", hash = "sha256:cffc9a361c1b1281014373e9853fff8d0d9588f1ddb479225f29618d6586826d"},
-    {file = "river-0.22.0-cp311-cp311-win_amd64.whl", hash = "sha256:f5ab3a8b4764de4c22efdb94e94a53f38c47a0ab90854950191ca13badb84021"},
-    {file = "river-0.22.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:23af8856bfd6839c28dc777e980500e4d89ca6cf986391a8da6b1557b651077e"},
-    {file = "river-0.22.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:46c52b5e2e727aba83b51df2832d2e6d75ae58960c297320356e3e23746cd479"},
-    {file = "river-0.22.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:86d2af4f1ae7294db1cfbe5d587f759f1d2398b20f7dae73301d7e12db56d579"},
-    {file = "river-0.22.0-cp312-cp312-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:f7ce7e6f5d64432f7b4ae73530e7b22313582c1f3c2a1ef2f8bca604569d9db7"},
-    {file = "river-0.22.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0fb478839a3ea59efaac93f106c3078979dcaa142f678a7ce8b249a2d0487573"},
-    {file = "river-0.22.0-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:4f1028fdf13aea37602bc169462779a34499e24e19ba01e21ac9d90f32a5bcfd"},
-    {file = "river-0.22.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:29b3522ee06a2e26c51da94b99d0dc4771f8d70c4277c93516b16a090aea6d19"},
-    {file = "river-0.22.0-cp312-cp312-win32.whl", hash = "sha256:2a62ee46fcf70a96c56ad8c30b04cf48c2fa1b09eaa45935ebeb394d45edae0a"},
-    {file = "river-0.22.0-cp312-cp312-win_amd64.whl", hash = "sha256:673bb7ba229a6a8043e7ce6c1fc9451b0e22a0094676f20a4903cd612d087715"},
-    {file = "river-0.22.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:1adc5f71241cabe7effff41088b9360798bb405b0c5c47f899b6b324512c7424"},
-    {file = "river-0.22.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:5615fef7e08985b7e041ee8d3913fe22364ffe3270df63a7a76da564376a0375"},
-    {file = "river-0.22.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:016de2e7e88ef33b4c4c802c96260ad0f1891cb8da8a501ce7c61995d36f0001"},
-    {file = "river-0.22.0-cp313-cp313-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:f7cdc40b2b0e47f22411e0cf81ef08f0938f804cd32b6e3544ccf61b59fba995"},
-    {file = "river-0.22.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f830f6459db13743fb20fcce83a73f9172e5bea5208d64b826e318f19ff946a7"},
-    {file = "river-0.22.0-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:3484021d0047c523ddc7e54b3daa5d2460920765f0f994398bc590360be14d94"},
-    {file = "river-0.22.0-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:8674fdd8c72cdf69d0a334bc1f93fda7e069ba9890562b0fd8095b180198fdc0"},
-    {file = "river-0.22.0-cp313-cp313-win32.whl", hash = "sha256:fa7ad2edbedd711fca0e34950ee6fe5140fbf83525778818016c1646b21ca3e8"},
-    {file = "river-0.22.0-cp313-cp313-win_amd64.whl", hash = "sha256:467b4120e8e36d375fcc4a01ce380e1b5effc63a9414d723cabaf393d9bb02c4"},
-    {file = "river-0.22.0.tar.gz", hash = "sha256:8b06840e0d832dbd1064145e56e3f75492402716f5eb733753da3099194a3a68"},
 ]
 
 [[package]]

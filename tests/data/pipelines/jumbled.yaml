@@ -1,28 +1,29 @@
-cala_id: cala-jumbled
-cala_model: cala.models.spec.PipeSpec
-cala_version: 0.0.1.dev780+g8c5e3b1.d20250718
+noob_id: cala-jumbled
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev43+g5636955
 buff:
   size: 100
 init:
-  d:
-    type: cala.testing.nodes.NodeB
-    params:
-      c: 3
-    requires:
-    - c
-  b:
-    type: cala.testing.nodes.NodeB
-    params:
-      c: 3
-    requires:
-    - a
-  a:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 5
-  c:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 5
-    requires:
-    - b
+  nodes:
+    D:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: C.hoy
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+    C:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+      depends:
+        - up: B.value
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy

@@ -1,18 +1,22 @@
-cala_id: cala-cyclic
-cala_model: cala.models.spec.PipeSpec
-cala_version: 0.0.1.dev780+g8c5e3b1.d20250718
+noob_id: cala-cyclic
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev43+g5636955
 buff:
   size: 100
 init:
-  step1:
-    type: cala.testing.nodes.NodeA
-    params:
-      a: 5
-    requires:
-    - step2
-  step2:
-    type: cala.testing.nodes.NodeB
-    params:
-      c: 3
-    requires:
-    - step1
+  nodes:
+    A:
+      type: cala.testing.NodeA
+      params:
+        a: 5
+      depends:
+        - up: B.value
+    B:
+      type: cala.testing.NodeB
+      params:
+        d: ABC
+      depends:
+        - left: A.hoy
+    C:
+      type: return
+      depends: B.value

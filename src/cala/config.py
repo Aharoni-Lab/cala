@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from noob.yaml import YAMLMixin
 from platformdirs import PlatformDirs
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import (
@@ -10,8 +11,6 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
-
-from cala.config.yaml import YAMLMixin
 
 _default_userdir = Path().home() / ".config" / "cala"
 _dirs = PlatformDirs("cala", "cala")
@@ -85,13 +84,6 @@ class Config(BaseSettings, YAMLMixin):
     config_dir: Path = Field(
         default=Path(_dirs.user_data_dir) / "config",
         description="Directory where config yaml files are stored",
-    )
-
-    output_dir: Path = Field(
-        default=Path(_dirs.user_data_dir) / "output",
-        description="Location of output data. "
-        "If a relative path that doesn't exist relative to cwd, "
-        "interpreted as a relative to ``user_dir``",
     )
 
     @field_validator("user_dir", "config_dir", mode="after")

@@ -8,8 +8,8 @@ from cala.models.store import Store
 
 
 @dataclass
-class Distributor:
-    """Manages a collection of fluorescent components (neurons and background).
+class Distro:
+    """Manages a collection of fluorescent components.
 
     This class serves as a central manager for different storages,
     including spatial footprints, temporal traces, and various statistics.

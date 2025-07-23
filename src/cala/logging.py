@@ -10,7 +10,7 @@ from typing import Any
 
 from rich.logging import RichHandler
 
-from cala.config.general import LOG_LEVELS, config
+from cala.config import LOG_LEVELS, config
 
 
 def init_logger(
