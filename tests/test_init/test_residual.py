@@ -6,7 +6,7 @@ import xarray as xr
 
 from cala.gui.plots import Plotter
 from cala.models.entity import Component
-from cala.nodes.init.odl.residuals import (
+from cala.nodes.iter.residuals import (
     ResidualInitializer,
     ResidualInitializerParams,
 )

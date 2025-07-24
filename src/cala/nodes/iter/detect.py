@@ -273,27 +273,6 @@ class Detector(SupervisedTransformer):
         patches = self.sampler.transform(residuals)
         return float(estimate_sigma(patches))
 
-    def _update_residual_buffer(
-        self,
-        frame: xr.DataArray,
-        footprints: Footprints,
-        traces: Traces,
-        residuals: Residuals,
-    ) -> Residuals:
-        """Update residual buffer with new frame."""
-        prediction = footprints @ traces.isel({self.params.frames_dim: -1})
-        new_residual = frame - prediction
-        if len(residuals) >= self.params.num_nmf_residual_frames:
-            n_frames_discard = len(residuals) - self.params.num_nmf_residual_frames + 1
-            residual_slice = residuals.isel({self.params.frames_dim: slice(n_frames_discard, None)})
-        else:
-            residual_slice = residuals
-        residuals = xr.concat(
-            [residual_slice, new_residual],
-            dim=self.params.frames_dim,
-        )
-        return residuals
-
     def _process_residuals(self) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
         # Center residuals: why median and not mean?
