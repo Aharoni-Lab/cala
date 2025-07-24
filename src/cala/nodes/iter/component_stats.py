@@ -1,116 +1,71 @@
-from dataclasses import dataclass
-from typing import Self
-
 import xarray as xr
-from river.base import SupervisedTransformer
-from sklearn.exceptions import NotFittedError
+from noob.node import Node
 
-from cala.models.params import Params
-from cala.stores.common import Traces
-from cala.stores.odl import ComponentStats
+from cala.models import AXIS, CompStat, Frame, Traces
 
 
-@dataclass
-class ComponentStatsUpdaterParams(Params):
-    """Parameters for component statistics updates.
+class ComponentStats(Node):
+    component_stats_: CompStat = None
 
-    This class defines the configuration parameters needed for updating
-    component-wise statistics matrices.
-    """
-
-    def validate(self) -> None:
-        """Validate parameter configurations.
-
-        This implementation has no parameters to validate, but the method
-        is included for consistency with the Parameters interface.
+    def initialize(self, traces: Traces) -> CompStat:
         """
-        pass
+        calculates the correlation matrix between temporal components
+        using their activity traces. The correlation is computed as a normalized
+        outer product of the temporal components.
 
+            The computation follows the equation:  M = C @ C.T / t'
+            where:
+            - C is the temporal components matrix (components × time)
+            - t' is the current timestep
+            - M is the resulting correlation matrix (components × components)
+        """
+        # Get temporal components C
+        # components x time
+        C = traces.array
 
-@dataclass
-class ComponentStatsUpdater(SupervisedTransformer):
-    """Updates component statistics matrices using current frame.
+        frame_idx = C.sizes[self.params.frames_dim]
 
-    This transformer implements the component statistics update equation:
+        # Compute M = C * C.T / t'
+        M = C @ C.rename({self.params.component_dim: f"{self.params.component_dim}'"}) / frame_idx
 
-    M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
+        self.component_stats_ = CompStat(array=M.assign_coords(C.coords))
+        return self.component_stats_
 
-    where:
-    - M_t is the component-wise sufficient statistics at time t
-    - y_t is the current frame
-    - c_t is the current temporal component
-    - t is the current timestep
-    """
+    def ingest_frame(self, frame: Frame, traces: Traces) -> CompStat:
+        """
+        Update component statistics using current frame and component.
 
-    params: ComponentStatsUpdaterParams
-    """Configuration parameters for the update process."""
+            M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
 
-    component_stats_: ComponentStats = None
-    """Updated component-wise sufficient statistics M."""
-
-    is_fitted_: bool = False
-    """Indicator whether the transformer has been fitted."""
-
-    def learn_one(
-        self,
-        frame: xr.DataArray,
-        traces: Traces,
-        component_stats: ComponentStats,
-    ) -> Self:
-        """Update component statistics using current frame and component.
-
-        This method implements the update equations for component-wise
-        statistics matrices. The updates incorporate the temporal component
-        with appropriate time-based scaling.
+            where:
+            - M_t is the component-wise sufficient statistics at time t
+            - y_t is the current frame
+            - c_t is the current temporal component
+            - t is the current timestep
 
         Args:
             frame (Frame): Current frame y_t.
                 Shape: (height × width)
             traces (Traces): Current temporal component c_t.
                 Shape: (components)
-            component_stats (ComponentStats): Current component-wise statistics M_{t-1}.
-                Shape: (components × components)
-
-        Returns:
-            Self: The transformer instance for method chaining.
+        Return:
+            component_stats (ComponentStats): Updated component-statistics.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[self.params.frame_coord].item() + 1
-        prev_scale = (frame_idx - 1) / frame_idx
-        new_scale = 1 / frame_idx
+        frame_idx = frame.array.coords[AXIS.frame_coord].item()
+        prev_scale = frame_idx / (frame_idx + 1)
+        new_scale = 1 / (frame_idx + 1)
 
         # New frame traces
-        c_t = traces.isel({self.params.frames_dim: -1})
+        c_t = traces.array.isel({AXIS.frames_dim: -1})
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
-        new_corr = c_t @ c_t.rename({self.params.component_dim: f"{self.params.component_dim}'"})
-        M_update = prev_scale * component_stats + new_scale * new_corr
-
-        # Create updated xarray DataArrays with same coordinates/dimensions
-        self.component_stats_ = M_update
-
-        self.is_fitted_ = True
-        return self
-
-    def transform_one(self, _: None = None) -> ComponentStats:
-        """Return the updated sufficient statistics matrices.
-
-        This method returns both updated statistics matrices after the
-        update process has completed.
-
-        Args:
-            _: Unused parameter maintained for API compatibility.
-
-        Returns:
-            tuple:
-                - PixelStats: Updated pixel-wise sufficient statistics W_t
-                - ComponentStats: Updated component-wise sufficient statistics M_t
-
-        Raises:
-            NotFittedError: If the transformer hasn't been fitted yet.
-        """
-        if not self.is_fitted_:
-            raise NotFittedError
+        new_corr = c_t @ c_t.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        self.component_stats_.array = (
+            prev_scale * self.component_stats_.array + new_scale * new_corr
+        )
 
         return self.component_stats_
+
+    def ingest_component(self, traces: Traces) -> CompStat: ...

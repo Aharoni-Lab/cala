@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import ClassVar
 
 import xarray as xr
@@ -91,5 +92,23 @@ class Movie(Observable):
             entity=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative],
+        )
+    )
+
+
+comp_dims = (Dims.component.value, deepcopy(Dims.component.value))
+comp_dims[1].name += "'"
+for coord in comp_dims[1].coords:
+    coord.name += "'"
+
+
+class CompStat(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="comp-stat",
+            dims=comp_dims,
+            dtype=float,
+            checks=[],
         )
     )
