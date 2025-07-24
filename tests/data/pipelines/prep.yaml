@@ -16,6 +16,10 @@ prep:
         sigmaX: 1.5
       depends:
         - frame: source.frame
+    glow:
+      type: cala.nodes.prep.GlowRemover
+      depends:
+        - frame: denoise.frame
     out:
       type: return
-      depends: denoise.frame
+      depends: glow.frame
