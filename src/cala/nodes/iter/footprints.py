@@ -1,25 +1,12 @@
-from dataclasses import dataclass
-from typing import Self
-
 import cv2
 import numpy as np
 import xarray as xr
-from river.base import SupervisedTransformer
-from sklearn.exceptions import NotFittedError
+from noob.node import Node
 
-from cala.models.params import Params
-from cala.stores.common import Footprints
-from cala.stores.odl import ComponentStats, PixelStats
+from cala.models import Footprints
 
 
-@dataclass
-class FootprintsUpdaterParams(Params):
-    """
-    Parameters for spatial footprint updates.
-
-    This class defines the configuration parameters needed for updating
-    spatial footprints of components, including axis names and iteration limits.
-    """
+class Footprinter(Node):
 
     boundary_expansion_pixels: int | None = None
     """
@@ -28,57 +15,21 @@ class FootprintsUpdaterParams(Params):
 
     tolerance: float = 1e-7
 
-    def validate(self) -> None:
+    footprints_: Footprints = None
+
+    def ingest_frame(
+        self, footprints: Footprints, pixel_stats: xr.DataArray, component_stats: xr.DataArray
+    ) -> Footprints:
         """
-        Validate parameter configurations.
+        Update spatial footprints using sufficient statistics.
 
-        Raises:
-            ValueError: If max_iterations is not positive.
-        """
-        if self.tolerance <= 0:
-            raise ValueError("tolerance must be positive")
+            Ã[p, i] = max(Ã[p, i] + (W[p, i] - Ã[p, :]M[i, :])/M[i, i], 0)
 
-
-@dataclass
-class FootprintsUpdater(SupervisedTransformer):
-    """
-    Updates spatial footprints using sufficient statistics.
-
-    This transformer implements Algorithm 6 (UpdateShapes) which updates
-    the spatial footprints of components using pixel-wise and component-wise
-    sufficient statistics. The update follows the equation:
-
-    Ã[p, i] = max(Ã[p, i] + (W[p, i] - Ã[p, :]M[i, :])/M[i, i], 0)
-
-    where:
-    - Ã is the spatial footprints matrix
-    - W is the pixel-wise sufficient statistics
-    - M is the component-wise sufficient statistics
-    - p are the pixels where component i can be non-zero
-    """
-
-    params: FootprintsUpdaterParams
-    """Configuration parameters for the update process."""
-
-    footprints_: xr.DataArray = None
-    """Updated spatial footprints matrix."""
-
-    is_fitted_: bool = False
-    """Indicator whether the transformer has been fitted."""
-
-    def learn_one(
-        self,
-        footprints: Footprints,
-        pixel_stats: PixelStats,
-        component_stats: ComponentStats,
-        frame: xr.DataArray = None,
-    ) -> Self:
-        """Update spatial footprints using sufficient statistics.
-
-        This method implements the iterative update of spatial footprints
-        for specified components. The update process maintains non-negativity
-        constraints while optimizing the footprint shapes based on accumulated
-        statistics.
+        where:
+            - Ã is the spatial footprints matrix
+            - W is the pixel-wise sufficient statistics
+            - M is the component-wise sufficient statistics
+            - p are the pixels where component i can be non-zero
 
         Args:
             footprints (Footprints): Current spatial footprints Ã = [A, b].
@@ -87,10 +38,6 @@ class FootprintsUpdater(SupervisedTransformer):
                 Shape: (pixels × components)
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components)
-            frame (Frame): Streaming frame (Unused).
-
-        Returns:
-            Self: The transformer instance for method chaining.
         """
         A = footprints
         M = component_stats
@@ -146,26 +93,5 @@ class FootprintsUpdater(SupervisedTransformer):
             else:
                 A = A_new
 
-        self.footprints_ = A
-        self.is_fitted_ = True
-        return self
-
-    def transform_one(self, _: None = None) -> Footprints:
-        """Return the updated spatial footprints.
-
-        This method returns the updated footprints after the shape optimization
-        process has completed.
-
-        Args:
-            _: Unused parameter maintained for API compatibility.
-
-        Returns:
-            Footprints: Updated spatial footprints with optimized shapes.
-
-        Raises:
-            NotFittedError: If the transformer hasn't been fitted yet.
-        """
-        if not self.is_fitted_:
-            raise NotFittedError
-
+        self.footprints_.array = A
         return self.footprints_
