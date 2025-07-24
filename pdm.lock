@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:5d00f088d74870e80476b5dc65e190df351e57e8f829f0be78cc0af57a3422a2"
+content_hash = "sha256:9779d5492136c7106e2c5ee547e616d9ce66c75a33911c9ad4697cb8d4451ed1"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1811,11 +1811,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev73"
+version = "0.1.1.dev78"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "20-fix-computation-of-tubegraph"
-revision = "bdab3f862d87cd7a86d5ccea981fcf60e801769f"
+ref = "34-extend-node-initialization-capabilities-to-classes"
+revision = "a9a2748231c9d91a9eea023a6725709bbb6b74e0"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
