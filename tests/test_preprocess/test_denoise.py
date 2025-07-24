@@ -1,4 +1,5 @@
-from typing import Literal, Callable, Any
+from collections.abc import Callable
+from typing import Any, Literal
 
 import cv2
 import numpy as np
@@ -7,7 +8,7 @@ import xarray as xr
 
 from cala.models import AXIS
 from cala.nodes.prep.denoise import denoise
-from cala.testing.toy import Toy, Position, FrameDims
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.mark.parametrize(

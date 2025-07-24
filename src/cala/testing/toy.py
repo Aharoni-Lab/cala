@@ -7,7 +7,7 @@ import xarray as xr
 from pydantic import BaseModel
 from skimage.morphology import disk
 
-from cala.models import Footprints, Frame, Traces, Movie
+from cala.models import Footprints, Frame, Movie, Traces
 from cala.models.axis import AXIS
 
 

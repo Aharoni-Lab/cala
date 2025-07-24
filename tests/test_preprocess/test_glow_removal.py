@@ -2,7 +2,7 @@ import numpy as np
 
 from cala.models import AXIS
 from cala.nodes.prep.glow_removal import GlowRemover
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 def test_glow_removal():
