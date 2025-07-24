@@ -23,10 +23,10 @@ class ComponentStats(Node):
         # components x time
         C = traces.array
 
-        frame_idx = C.sizes[self.params.frames_dim]
+        frame_idx = C.sizes[AXIS.frames_dim]
 
         # Compute M = C * C.T / t'
-        M = C @ C.rename({self.params.component_dim: f"{self.params.component_dim}'"}) / frame_idx
+        M = C @ C.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / frame_idx
 
         self.component_stats_ = CompStat(array=M.assign_coords(C.coords))
         return self.component_stats_
@@ -68,4 +68,56 @@ class ComponentStats(Node):
 
         return self.component_stats_
 
-    def ingest_component(self, traces: Traces) -> CompStat: ...
+    def ingest_component(self, traces: Traces, new_traces: Traces = None) -> CompStat:
+        """
+        Update component statistics with new components.
+
+        Updates M_t according to the equation:
+        M_t = (1/t) [ tM_t,         C_buf^T c_new  ]
+                 [ c_new C_buf^T, ||c_new||^2   ]
+        where:
+        - t is the current frame index
+        - M_t is the existing component statistics
+        - C_buf are the traces in the buffer
+        - c_new are the new component traces
+
+        Args:
+            traces (Traces): Current temporal traces in buffer
+            new_traces (Traces): Newly detected temporal components
+        """
+        if new_traces is None:
+            return self.component_stats_
+
+        # Get current frame index (1-based)
+        t = new_traces.array[AXIS.frame_coord].item() + 1
+
+        M = self.component_stats_.array
+        c_new = new_traces.array
+        c_buf = traces.array
+
+        # Compute cross-correlation between buffer and new components
+        # C_buf^T c_new
+        # C_buf has to be the same number of frames as c_new
+        bottom_left_corr = (
+            c_buf @ c_new.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / t
+        ).assign_coords(c_buf.coords)
+
+        top_right_corr = xr.DataArray(
+            bottom_left_corr.values, dims=bottom_left_corr.dims[::-1], coords=c_new.coords
+        )
+
+        # Compute auto-correlation of new components
+        # ||c_new||^2
+        auto_corr = (
+            c_new @ c_new.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / t
+        ).assign_coords(c_new.coords)
+
+        # Create the block matrix structure
+        # Top block: [M_scaled, cross_corr]
+        top_block = xr.concat([M, top_right_corr], dim=AXIS.component_dim)
+
+        # Bottom block: [cross_corr.T, auto_corr]
+        bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=AXIS.component_dim)
+
+        # Combine blocks
+        return CompStat(array=xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'"))
