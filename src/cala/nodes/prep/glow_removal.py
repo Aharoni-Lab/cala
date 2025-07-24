@@ -1,20 +1,20 @@
-from dataclasses import dataclass, field
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
+from noob import Name
 
 from cala.models import Frame
 
 
-@dataclass
 class GlowRemover:
-    base_brightness_: np.ndarray = field(init=False)
+    base_brightness_: np.ndarray = None
     _learn_count: int = 0
 
-    def process(self, frame: Frame) -> Frame:
+    def process(self, frame: Frame) -> A[Frame, Name("frame")]:
         frame = frame.array
 
-        if not hasattr(self, "base_brightness_"):
+        if self.base_brightness_ is None:
             self.base_brightness_ = frame.values
 
         self.base_brightness_ = np.minimum(frame.values, self.base_brightness_)
