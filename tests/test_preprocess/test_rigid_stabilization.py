@@ -4,7 +4,7 @@ from noob.node import NodeSpecification
 
 from cala.models import AXIS
 from cala.nodes.prep.rigid_stabilization import RigidStabilizer, Shift
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.mark.parametrize("params", [{"drift_speed": 1, "kwargs": {"upsample_factor": 100}}])

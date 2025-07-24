@@ -1,13 +1,13 @@
+from typing import Annotated as A
 from typing import Literal
 
-from typing import Annotated as A
 import cv2
 import numpy as np
 import xarray as xr
+from noob import Name
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from noob import Name
 from cala.models import Frame
 
 

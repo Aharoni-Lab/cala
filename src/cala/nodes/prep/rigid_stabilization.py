@@ -8,7 +8,7 @@ from noob.node import Node
 from pydantic import BaseModel, Field
 from skimage.registration import phase_cross_correlation
 
-from cala.models import Frame, AXIS
+from cala.models import AXIS, Frame
 
 
 class Shift(BaseModel):
