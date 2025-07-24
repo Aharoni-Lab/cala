@@ -1,107 +1,46 @@
-from dataclasses import dataclass, field
 from typing import Literal
 
+from typing import Annotated as A
 import cv2
 import numpy as np
 import xarray as xr
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.models.params import Params
+from noob import Name
+from cala.models import Frame
 
 
-@dataclass
-class BackgroundEraserParams(Params):
-    """Parameters for background eraser."""
-
-    method: Literal["uniform", "tophat"] = "uniform"
-    """Method to use for background removal.
-
-    Options:
-        - "uniform": Use uniform filtering to estimate background
-        - "tophat": Use morphological tophat operation to estimate background
-    """
-    kernel_size: int = 3
-    """Size of the kernel for background removal."""
-
-    def validate(self) -> None:
-        if self.method not in ["uniform", "tophat"]:
-            raise ValueError("method must be one of ['uniform', 'tophat']")
-        if self.kernel_size <= 0:
-            raise ValueError("kernel_size must be greater than zero")
-
-
-@dataclass
-class BackgroundEraser:
+def remove_background(
+    frame: Frame, method: Literal["uniform", "tophat"] = "uniform", kernel_size: int = 3
+) -> A[Frame, Name("frame")]:
     """Streaming transformer that removes background from video frames.
 
     This transformer implements online background removal using either:
     1. Uniform filtering - Background is estimated by convolving each frame with a uniform kernel
     2. Tophat - Morphological tophat operation using a disk-shaped kernel
+
+    method:
+        - "uniform": Use uniform filtering to estimate background
+        - "tophat": Use morphological tophat operation to estimate background
+    kernel_size:
+        Size of the kernel for background removal.
+        for "uniform", bigger kernel_size removes more background.
+        for "tophat", bigger kernel_size preserves more background.
     """
+    frame = frame.array.astype(np.float32)
 
-    params: BackgroundEraserParams = field(default_factory=BackgroundEraserParams)
+    if method == "uniform":
+        # Estimate background using uniform filter
+        background = uniform_filter(frame.values, size=kernel_size)
+        result = frame.where(frame <= background, other=0).values
+    elif method == "tophat":
+        # Apply morphological tophat operation
+        kernel = disk(kernel_size)
+        result = cv2.morphologyEx(frame.values, cv2.MORPH_TOPHAT, kernel.astype(np.uint8))
+    else:
+        raise NotImplementedError(f"Unknown method {method}")
 
-    def __post_init__(self) -> None:
-        """Initialize the background eraser with given parameters."""
-
-        # Pre-compute kernel for tophat method
-        if self.params.method == "tophat":
-            self.kernel = disk(self.params.kernel_size)
-
-    def learn_one(self, frame: xr.DataArray) -> "BackgroundEraser":
-        """Update any learning parameters with new frame.
-
-        This transformer doesn't need to learn from the data, so this is a no-op.
-
-        Parameters
-        ----------
-        frame : np.ndarray
-            Input frame
-
-        Returns
-        -------
-        self : BackgroundEraser
-            The transformer instance
-        """
-        return self
-
-    def transform_one(self, frame: xr.DataArray) -> xr.DataArray:
-        """Remove background from a single frame.
-
-        Parameters
-        ----------
-        frame : xr.DataArray
-            Input frame to process
-
-        Returns
-        -------
-        xr.DataArray
-            Frame with background removed
-        """
-        frame = frame.astype(np.float32)
-
-        if self.params.method == "uniform":
-            # Estimate background using uniform filter
-            background = uniform_filter(frame.values, size=self.params.kernel_size)
-            result = frame.values - background
-        else:  # tophat
-            # Apply morphological tophat operation
-            result = cv2.morphologyEx(frame.values, cv2.MORPH_TOPHAT, self.kernel.astype(np.uint8))
-
-        result[result < 0] = 0
-
-        return xr.DataArray(result, dims=frame.dims, coords=frame.coords)
-
-    def get_info(self) -> dict:
-        """Get information about the current state.
-
-        Returns
-        -------
-        dict
-            Dictionary containing current parameters
-        """
-        return {
-            "method": self.params.method,
-            "kernel_size": self.params.kernel_size,
-        }
+    return Frame(
+        array=xr.DataArray(result.astype(np.float64), dims=frame.dims, coords=frame.coords)
+    )
