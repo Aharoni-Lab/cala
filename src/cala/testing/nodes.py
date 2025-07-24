@@ -26,7 +26,7 @@ class NodeB(Node):
 
 
 def single_cell_source(
-    n_frames: int = 500,
+    n_frames: int = 30,
     frame_dims: dict = None,
     cell_radii: int = 30,
     positions: list[dict] = None,
@@ -34,7 +34,7 @@ def single_cell_source(
 ) -> Generator[A[Frame, Name("frame")]]:
     frame_dims = FrameDims(width=512, height=512) if frame_dims is None else FrameDims(**frame_dims)
     if traces is None:
-        traces = [np.array(range(0, 500))]
+        traces = [np.array(range(0, n_frames))]
     if positions is None:
         positions = [Position(width=256, height=256)]
     else:
