@@ -34,7 +34,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typer>=0.15.3",
     "xarray-validate>=0.0.2",
-    "noob @ git+https://github.com/miniscope/noob.git@20-fix-computation-of-tubegraph",
+    "noob @ git+https://github.com/miniscope/noob.git@34-extend-node-initialization-capabilities-to-classes",
 ]
 keywords = [
     "pipeline",
@@ -89,10 +89,10 @@ docs = [
     "sphinx-design>=0.6.1",
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-nb>=1.2.0",
+    "sphinx-autobuild>=2024.10.3",
 ]
 dev = [
     "cala[tests, docs, gui]",
-    "sphinx-autobuild>=2024.10.3",
     "ruff>=0.11.0",
     "black>=24.10.0",
     "mypy>=1.15.0",
@@ -102,6 +102,7 @@ dev = [
     "types-requests>=2.32.0.20250328",
     "twine>=6.1.0",
     "pooch>=1.8.2",
+    "scipy-stubs>=1.16.0.2",
 ]
 
 

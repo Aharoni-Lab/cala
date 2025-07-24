@@ -18,6 +18,7 @@ from cala.core.distro import Distro
 #     FrameStreamerParams,
 # )
 from cala.logging import init_logger
+from cala.models import Frame
 from cala.models.spec import Pipe
 from cala.util.buffer import Buffer
 
@@ -66,7 +67,7 @@ class Executor:
             buffer_size=self.pipe.buff["size"],
         )
 
-    def preprocess(self) -> xr.DataArray:
+    def preprocess(self) -> Frame:
         """
         Execute preprocessing steps on a single frame.
 

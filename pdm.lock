@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:7efdd3070a05475fa7e3ddf5b75aff367b26572a156b4d38c5c6ed09410f5e97"
+content_hash = "sha256:9779d5492136c7106e2c5ee547e616d9ce66c75a33911c9ad4697cb8d4451ed1"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1811,11 +1811,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev73"
+version = "0.1.1.dev81"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "20-fix-computation-of-tubegraph"
-revision = "bdab3f862d87cd7a86d5ccea981fcf60e801769f"
+ref = "34-extend-node-initialization-capabilities-to-classes"
+revision = "c8b6cfd2e3b4a9d7a7dc35c81941e4e72a99183d"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
@@ -1999,6 +1999,19 @@ files = [
     {file = "opencv_python-4.11.0.86-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6b02611523803495003bd87362db3e1d2a0454a6a63025dc6658a9830570aa0d"},
     {file = "opencv_python-4.11.0.86-cp37-abi3-win32.whl", hash = "sha256:810549cb2a4aedaa84ad9a1c92fbfdfc14090e2749cedf2c1589ad8359aa169b"},
     {file = "opencv_python-4.11.0.86-cp37-abi3-win_amd64.whl", hash = "sha256:085ad9b77c18853ea66283e98affefe2de8cc4c1f43eda4c100cf9b2721142ec"},
+]
+
+[[package]]
+name = "optype"
+version = "0.12.2"
+requires_python = ">=3.11"
+summary = "Building blocks for precise & flexible type hints"
+dependencies = [
+    "typing-extensions>=4.10; python_full_version < \"3.13\"",
+]
+files = [
+    {file = "optype-0.12.2-py3-none-any.whl", hash = "sha256:e38966fcd5ae9dec1c1bdecccdd8fdc7cfb8f21686f45ce3669a3a566c7cc110"},
+    {file = "optype-0.12.2.tar.gz", hash = "sha256:3f53a89f56f0ea23be4d212611dce0f3a2a8946543a9a72783e349c49b232934"},
 ]
 
 [[package]]
@@ -2989,6 +3002,19 @@ files = [
     {file = "scipy-1.15.3-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:5e721fed53187e71d0ccf382b6bf977644c533e506c4d33c3fb24de89f5c3ed5"},
     {file = "scipy-1.15.3-cp313-cp313t-win_amd64.whl", hash = "sha256:76ad1fb5f8752eabf0fa02e4cc0336b4e8f021e2d5f061ed37d6d264db35e3ca"},
     {file = "scipy-1.15.3.tar.gz", hash = "sha256:eae3cf522bc7df64b42cad3925c876e1b0b6c35c1337c93e12c0f366f55b0eaf"},
+]
+
+[[package]]
+name = "scipy-stubs"
+version = "1.16.0.2"
+requires_python = ">=3.11"
+summary = "Type annotations for SciPy"
+dependencies = [
+    "optype<1,>=0.10.0",
+]
+files = [
+    {file = "scipy_stubs-1.16.0.2-py3-none-any.whl", hash = "sha256:dc364d24a3accd1663e7576480bdb720533f94de8a05590354ff6d4a83d765c7"},
+    {file = "scipy_stubs-1.16.0.2.tar.gz", hash = "sha256:f83aacaf2e899d044de6483e6112bf7a1942d683304077bc9e78cf6f21353acd"},
 ]
 
 [[package]]

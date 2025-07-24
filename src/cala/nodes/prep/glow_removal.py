@@ -1,35 +1,28 @@
-from dataclasses import dataclass, field
-from typing import Self
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
+from noob import Name
+
+from cala.models import Frame
 
 
-@dataclass
 class GlowRemover:
-    learning_rate: float = 0.1
-    base_brightness_: np.ndarray = field(init=False)
+    base_brightness_: np.ndarray = None
     _learn_count: int = 0
 
-    def __post_init__(self) -> None:
-        if not (0 < self.learning_rate <= 1):
-            raise ValueError(
-                f"Parameter learning_rate must be between 0 and 1. Provided: {self.learning_rate}"
-            )
+    def process(self, frame: Frame) -> A[Frame, Name("frame")]:
+        frame = frame.array
 
-    def learn_one(self, frame: xr.DataArray, y: None = None) -> Self:
-        if not hasattr(self, "base_brightness_"):
-            self.base_brightness_ = np.zeros_like(frame.values)
+        if self.base_brightness_ is None:
+            self.base_brightness_ = frame.values
 
-        else:
-            self.base_brightness_ = np.minimum(frame.values, self.base_brightness_) * min(
-                self.learning_rate * self._learn_count, 1
-            )
+        self.base_brightness_ = np.minimum(frame.values, self.base_brightness_)
         self._learn_count += 1
-        return self
 
-    def transform_one(self, frame: xr.DataArray, y: None = None) -> xr.DataArray:
-        return xr.DataArray(frame - self.base_brightness_, dims=frame.dims, coords=frame.coords)
+        return Frame(
+            array=xr.DataArray(frame - self.base_brightness_, dims=frame.dims, coords=frame.coords)
+        )
 
     def get_info(self) -> dict:
         """Get information about the current state.
