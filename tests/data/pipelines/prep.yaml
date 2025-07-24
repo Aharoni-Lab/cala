@@ -20,6 +20,10 @@ prep:
       type: cala.nodes.prep.GlowRemover
       depends:
         - frame: denoise.frame
+    background:
+      type: cala.nodes.prep.remove_background
+      depends:
+        - frame: glow.frame
     out:
       type: return
-      depends: glow.frame
+      depends: background.frame
