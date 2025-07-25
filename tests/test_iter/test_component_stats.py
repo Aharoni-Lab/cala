@@ -4,72 +4,64 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.gui.plots import Plotter
-from cala.nodes.init.odl.component_stats import (
-    ComponentStatsInitializer,
-    ComponentStatsInitializerParams,
-)
-from cala.nodes.iter.component_stats import ComponentStatsUpdater, ComponentStatsUpdaterParams
+from cala.nodes.iter.component_stats import ComponentStats
 from cala.util.new import package_frame
 
 
-class TestCompStatsUpdater:
-    """need to simulate:
-    frame: Frame,
-    traces: Traces,
-    component_stats: ComponentStats,
-    """
+def test_init(
+    initializer,
+    sample_data: dict[str, Any],
+) -> None:
+    """Test the correctness of the component correlation computation."""
+    # Prepare data
+    traces = sample_data["traces"]
+    frames = sample_data["frames"]
 
-    @pytest.fixture(scope="class")
-    def updater(self) -> ComponentStatsUpdater:
-        return ComponentStatsUpdater(ComponentStatsUpdaterParams())
+    # Run computation
+    initializer.learn_one(traces, frames)
+    result = initializer.transform_one()
 
-    @pytest.fixture(scope="class")
-    def initializer(self) -> ComponentStatsInitializer:
-        return ComponentStatsInitializer(ComponentStatsInitializerParams())
+    # Manual computation for verification
+    C = traces.values
+    expected_M = C @ C.T / frames.shape[0]
 
-    @pytest.fixture
-    def prev_comp_stats(
-        self, initializer: ComponentStatsInitializer, mini_traces: xr.DataArray, mini_params: Any
-    ) -> xr.DataArray:
-        """this should look like it was last update before the current frame.
-        (so before the most recent frame index in mini_traces)
-        """
-        traces_to_use = mini_traces.isel(frame=slice(None, -1))
+    # Compare results
+    assert np.allclose(result.values, expected_M)
 
-        # doesn't matter we're only using it for the frame count
-        initializer.learn_one(traces=traces_to_use, frame=traces_to_use)
-        return initializer.transform_one()
+    # Check specific correlation patterns from our constructed data
+    assert np.allclose(result.values[0, 1], 0.5)  # Perfect correlation
+    assert np.allclose(result.values[0, 2], -0.5)  # Perfect anti-correlation
+    assert np.allclose(np.diag(result.values), 0.5)  # Self-correlation
 
-    @pytest.mark.viz
-    def test_sanity_check(
-        self,
-        plotter: Plotter,
-        updater: ComponentStatsUpdater,
-        mini_footprints: xr.DataArray,
-        mini_traces: xr.DataArray,
-        prev_comp_stats: xr.DataArray,
-        mini_denoised: xr.DataArray,
-        initializer: ComponentStatsInitializer,
-    ) -> None:
-        plotter.plot_footprints(mini_footprints, subdir="iter/comp_stats")
-        plotter.plot_traces(mini_traces, subdir="iter/comp_stats")
-        plotter.plot_trace_correlations(mini_traces, subdir="iter/comp_stats")
-        plotter.save_video_frames(mini_denoised, subdir="iter/comp_stats")
-        plotter.plot_component_stats(prev_comp_stats, subdir="iter/comp_stats", name="prev_cs")
-        updater.learn_one(
-            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
-            traces=mini_traces,
-            component_stats=prev_comp_stats,
-        )
-        new_comp_stats = updater.transform_one()
-        plotter.plot_component_stats(new_comp_stats, subdir="iter/comp_stats", name="new_cs")
+    # Test symmetry
+    assert np.allclose(result.values, result.values.T)
 
-        late_init_cs = initializer.learn_one(
-            mini_traces,
-            frame=mini_denoised,
-        ).transform_one()
+    # Test diagonal elements
+    assert np.allclose(np.diag(result.values), 0.5)
 
-        plotter.plot_component_stats(late_init_cs, subdir="iter/comp_stats", name="late_cs")
 
-        assert np.allclose(late_init_cs, new_comp_stats)
+def test_ingest_frame(
+    updater,
+    mini_footprints: xr.DataArray,
+    mini_traces: xr.DataArray,
+    prev_comp_stats: xr.DataArray,
+    mini_denoised: xr.DataArray,
+    initializer,
+) -> None:
+
+    updater.learn_one(
+        frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
+        traces=mini_traces,
+        component_stats=prev_comp_stats,
+    )
+    new_comp_stats = updater.transform_one()
+
+    late_init_cs = initializer.learn_one(
+        mini_traces,
+        frame=mini_denoised,
+    ).transform_one()
+
+    assert np.allclose(late_init_cs, new_comp_stats)
+
+
+def test_ingest_component(): ...

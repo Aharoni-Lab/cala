@@ -2,47 +2,68 @@ import sparse
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints
+from cala.models import AXIS, Footprints, Overlap
 
 
 class Overlaps(Node):
-    overlaps_: xr.DataArray = None
+    overlaps_: Overlap = None
+
+    def process(self, footprints: Footprints, new_footprints: Footprints = None):
+        """
+        A jenky ass temporary process method to circumvent Resource not yet being implemented.
+        """
+        if new_footprints is None:
+            return self.initialize(footprints)
+        else:
+            return self.ingest_component(footprints=footprints, new_footprints=new_footprints)
 
     def initialize(
         self,
         footprints: Footprints,
-    ) -> xr.DataArray:
+    ) -> Overlap:
         """
         Sparse matrix of component footprint overlaps.
 
         Args:
             footprints (Footprints): Current temporal component c_t.
         """
+        A = footprints.array
 
         # Use matrix multiplication with broadcasting to compute overlaps
         data = (
-            footprints.dot(footprints.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})) > 0
+            A.dot(
+                A.rename(
+                    {
+                        AXIS.component_dim: f"{AXIS.component_dim}'",
+                        AXIS.id_coord: f"{AXIS.id_coord}'",
+                        AXIS.confidence_coord: f"{AXIS.confidence_coord}'",
+                    }
+                )
+            )
+            > 0
         ).astype(int)
 
         # Create xarray DataArray with sparse data
         data.values = sparse.COO(data.values)
-        self.overlaps_ = data.assign_coords(
-            {
-                AXIS.id_coord: (AXIS.component_dim, footprints.coords[AXIS.id_coord].values),
-                AXIS.type_coord: (AXIS.component_dim, footprints.coords[AXIS.type_coord].values),
-            }
+        self.overlaps_ = Overlap(
+            array=data.assign_coords(
+                {
+                    AXIS.id_coord: (AXIS.component_dim, A[AXIS.id_coord].values),
+                    AXIS.confidence_coord: (AXIS.component_dim, A[AXIS.confidence_coord].values),
+                }
+            )
         )
 
         return self.overlaps_
 
-    def ingest_frame(self, footprints: Footprints) -> xr.DataArray:
+    def ingest_frame(self, footprints: Footprints) -> Overlap:
         return self.initialize(footprints)
 
     def ingest_component(
         self,
         footprints: Footprints,
-        new_footprints: Footprints = None,
-    ) -> xr.DataArray:
+        new_footprints: Footprints,
+    ) -> Overlap:
         """Update component overlap matrix with new components.
 
         Updates the binary adjacency matrix that represents component overlaps.
@@ -52,8 +73,6 @@ class Overlaps(Node):
             footprints (Footprints): Current spatial footprints [A, b]
             new_footprints (Footprints): Newly detected spatial components
         """
-        if new_footprints is None:
-            return self.overlaps_
 
         A = footprints.array
         a_new = new_footprints.array
@@ -100,4 +119,4 @@ class Overlaps(Node):
         # Finally combine top and bottom blocks
         updated_overlaps = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
 
-        return updated_overlaps
+        return Overlap(array=updated_overlaps)
