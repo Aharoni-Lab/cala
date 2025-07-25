@@ -17,6 +17,9 @@ class Observable(BaseModel):
         arbitrary_types_allowed = True
         validate_assignment = True
 
+    def __eq__(self, other: "Observable") -> bool:
+        return self.array.equals(other.array)
+
     @classmethod
     def entity(cls) -> Entity:
         return cls._entity
