@@ -1,47 +1,66 @@
-from typing import Any
-
 import numpy as np
 import pytest
-import xarray as xr
+from noob.node import NodeSpecification
 
-from cala.gui.plots import Plotter
-from cala.models.entity import Component
-from cala.nodes.iter.residuals import Residuals
+from cala.models import AXIS, Frame, Movie, Traces
+from cala.nodes.iter.residual import Resident
+from cala.testing.toy import FrameDims, Position, Toy
 
 
-def test_init(sample_data: dict[str, Any], plotter: Plotter) -> None:
-    """Test the correctness of the residual computation."""
-    # Prepare data
-    sample_movie = sample_data["movie"]
-    sample_denoised = sample_data["denoised"]
-    sample_footprints = sample_data["footprints"]
-    sample_traces = sample_data["traces"]
-    sample_residual = sample_data["residual"]
+@pytest.fixture(scope="function")
+def resident() -> Resident:
+    return Resident.from_specification(
+        spec=NodeSpecification(id="resident-test", type="cala.nodes.iter.residual.Resident")
+    )
 
-    isitclean = sample_movie - sample_denoised - sample_residual
 
-    plotter.plot_footprints(sample_footprints, subdir="init/resid")
-    plotter.plot_traces(sample_traces, subdir="init/resid")
-    plotter.save_video_frames(
-        [
-            (sample_movie, "movie"),
-            (sample_denoised, "denoised"),
-            (sample_residual, "residual"),
-            (isitclean, "isitclean"),
+@pytest.fixture
+def separate_cells() -> Toy:
+    n_frames = 50
+
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=3,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
         ],
-        subdir="init/resid",
-    )
-
-    initializer = Residuals()
-
-    # Run computation
-    initializer.learn_one(sample_footprints, sample_traces, sample_movie)
-    result = initializer.transform_one()
-
-    assert np.array_equal(
-        sample_residual.transpose("frame", "height", "width"),
-        result.transpose("frame", "height", "width"),
+        cell_traces=[
+            np.zeros(n_frames, dtype=float),
+            np.ones(n_frames, dtype=float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
     )
 
 
-def test_update() -> None: ...
+def test_init(resident, separate_cells) -> None:
+    result = resident.initialize(
+        footprints=separate_cells.footprints,
+        traces=separate_cells.traces,
+        frames=separate_cells.make_movie(),
+    )
+
+    assert np.all(result.array == 0)
+
+
+def test_update(resident, separate_cells) -> None:
+
+    resident.initialize(
+        footprints=separate_cells.footprints,
+        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})),
+        frames=Movie(
+            array=separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
+        ),
+    )
+
+    residual = resident.update(
+        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        footprints=separate_cells.footprints,
+        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: [-1]})),
+    )
+
+    assert np.all(residual.array == 0)

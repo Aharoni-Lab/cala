@@ -1,10 +1,10 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Frame, Traces
+from cala.models import AXIS, Footprints, Frame, Movie, Residual, Traces
 
 
-class Residuals(Node):
+class Resident(Node):
     """
     Computes and maintains a buffer of residual signals.
 
@@ -16,14 +16,18 @@ class Residuals(Node):
     in the data after accounting for known components.
     """
 
-    buffer_length: int
-
-    residual_: xr.DataArray = None
+    residual_: Residual = None
     """Computed residual buffer containing recent unexplained signals."""
 
-    def initialize(
-        self, footprints: Footprints, traces: Traces, frame: xr.DataArray
-    ) -> xr.DataArray:
+    def process(
+        self, footprints: Footprints, traces: Traces, frames: Movie = None, frame: Frame = None
+    ) -> Residual:
+        if frame is None:
+            return self.initialize(footprints=footprints, traces=traces, frames=frames)
+        else:
+            return self.update(footprints=footprints, traces=traces, frame=frame)
+
+    def initialize(self, frames: Movie, footprints: Footprints, traces: Traces) -> Residual:
         """
         The computation follows the equation:
             R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
@@ -40,46 +44,30 @@ class Residuals(Node):
                 Shape: (components × height × width)
             traces (Traces): Temporal traces of all components.
                 Shape: (components × time)
-            frame (xr.DataArray): Stack of frames up to current timestep.
+            frames (Movie): Stack of frames up to current timestep.
                 Shape: (frames × height × width)
         """
-        # Get current timestep
-        t_prime = frame.sizes[AXIS.frames_dim]
-
         # Reshape frames to pixels x time
-        Y = frame.stack({"pixels": AXIS.spatial_dims})
+        Y = frames.array
 
         # Get temporal components [C; f]
-        C = traces  # components x time
+        C = traces.array  # components x time
 
         # Reshape footprints to (pixels x components)
-        A = footprints.stack({"pixels": AXIS.spatial_dims})
+        A = footprints.array
 
         # Compute residual R = Y - [A,b][C;f]
         R = Y - (A @ C)
 
-        # Only keep the last l_b frames
-        start_idx = max(0, t_prime - self.params.buffer_length)
-        R = R.isel({AXIS.frames_dim: slice(start_idx, None)})
-
-        self.residual_ = R.unstack("pixels")
+        self.residual_ = Residual(array=R)
         return self.residual_
 
-    def update(self, frame: Frame, footprints: Footprints, traces: Traces) -> xr.DataArray:
+    def update(self, frame: Frame, footprints: Footprints, traces: Traces) -> Residual:
         """
-        Update residual buffer with new frame, footprints, and traces..
-
-        :param frame:
-        :param footprints:
-        :param traces:
-        :return:
+        Update residual buffer with new frame, footprints, and traces
         """
-        new_R = frame.array - footprints.array @ traces.array.sel(
-            {AXIS.frames_coord: frame.array[AXIS.frames_coord]}
-        )
+        new_R = frame.array - footprints.array @ traces.array
 
-        self.residual_ = xr.concat([self.residual_, new_R], dim=AXIS.frames_dim).isel(
-            {AXIS.frames_dim: slice(-self.buffer_length, None)}
-        )
+        self.residual_.array = xr.concat([self.residual_.array, new_R], dim=AXIS.frames_dim)
 
         return self.residual_
