@@ -1,25 +1,18 @@
-from dataclasses import dataclass, field
+from pydantic import Field
 
 import xarray as xr
 from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import Node, Params
+from noob.node import Node
 from cala.stores.odl import Residuals
 
 
-@dataclass
-class EnergyParams(Params):
+class Energy(Node):
     gaussian_std: float
 
-    def validate(self) -> None: ...
-
-
-@dataclass
-class Energy(Node):
-    params: EnergyParams
-    noise_level_: float = field(init=False)
+    noise_level_: float = Field(init=False)
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
     def process(self, residuals: Residuals) -> xr.DataArray | None:

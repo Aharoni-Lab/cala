@@ -1,25 +1,14 @@
-from dataclasses import dataclass
-
 import numpy as np
 import xarray as xr
+from noob.node import Node
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
-from cala.models import Node
 from cala.models.observable import Footprint, Footprints, Movie, Trace, Traces
-from cala.models.params import Params
 from cala.util.new import create_id
 
 
-@dataclass
-class CatalogerParams(Params):
-
-    def validate(self) -> bool: ...
-
-
-@dataclass
 class Cataloger(Node):
-    params: CatalogerParams
 
     def process(
         self,

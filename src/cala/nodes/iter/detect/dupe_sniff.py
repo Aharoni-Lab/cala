@@ -1,24 +1,14 @@
-from dataclasses import dataclass
 from operator import itemgetter
 
 import numpy as np
 import xarray as xr
 
-from cala.models import Node, Params
+from noob.node import Node
 from cala.stores.common import Footprints, Traces
 
 
-@dataclass
-class DupeSnifferParams(Params):
-    merge_threshold: float  # this should get later replaced by confidence level
-
-    def validate(self) -> None:
-        assert 0 <= self.merge_threshold <= 1, "merge_threshold must be between 0 and 1."
-
-
-@dataclass
 class DupeSniffer(Node):
-    params: DupeSnifferParams
+    merge_threshold: float  # this should get later replaced by confidence level
 
     def process(
         self,

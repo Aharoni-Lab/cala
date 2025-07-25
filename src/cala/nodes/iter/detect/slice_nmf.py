@@ -1,27 +1,17 @@
 from collections.abc import Hashable, Mapping
-from dataclasses import dataclass
 
 import numpy as np
 import xarray as xr
+from noob.node import Node
 from sklearn.decomposition import NMF
 
-from cala.models import Node
-from cala.models.params import Params
 from cala.stores.common import Footprints, Traces
 from cala.stores.odl import Residuals
 
 
-@dataclass
-class SliceNMFParams(Params):
+class SliceNMF(Node):
     cell_radius: int
     validity_threshold: float
-
-    def validate(self) -> None: ...
-
-
-@dataclass
-class SliceNMF(Node):
-    params: SliceNMFParams
 
     def process(
         self, residuals: Residuals, energy: xr.DataArray

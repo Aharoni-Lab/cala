@@ -4,7 +4,6 @@ from typing import Self
 
 import sparse
 import xarray as xr
-from river.base import SupervisedTransformer
 from sklearn.feature_extraction.image import PatchExtractor
 
 from cala.models import Params
@@ -53,7 +52,7 @@ class ColdStarterParams(Params):
 
 
 @dataclass
-class ColdStarter(SupervisedTransformer):
+class ColdStarter:
     """Detects new components from residual signals.
 
     This transformer implements Algorithm 5 (DetectNewComponents) which identifies
