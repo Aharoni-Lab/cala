@@ -8,7 +8,7 @@ from cala.models import AXIS, Footprints, Overlap
 class Overlaps(Node):
     overlaps_: Overlap = None
 
-    def process(self, footprints: Footprints, new_footprints: Footprints = None):
+    def process(self, footprints: Footprints, new_footprints: Footprints = None) -> Overlap:
         """
         A jenky ass temporary process method to circumvent Resource not yet being implemented.
         """

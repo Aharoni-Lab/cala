@@ -4,7 +4,7 @@ from noob.node import NodeSpecification
 
 from cala.models import AXIS, Frame, Traces
 from cala.nodes.iter.component_stats import CompStats
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
