@@ -1,11 +1,10 @@
-from pydantic import Field
-
 import xarray as xr
+from noob.node import Node
+from pydantic import Field
 from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from noob.node import Node
 from cala.stores.odl import Residuals
 
 

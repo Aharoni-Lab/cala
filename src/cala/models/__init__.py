@@ -5,11 +5,11 @@ from .observable import (
     Footprints,
     Frame,
     Movie,
+    Overlap,
+    PixStat,
+    Residual,
     Trace,
     Traces,
-    PixStat,
-    Overlap,
-    Residual,
 )
 from .params import Params
 from .spec import Pipe

@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Traces, Frame
+from cala.models import AXIS, Footprints, Frame, Traces
 
 
 class Residuals(Node):

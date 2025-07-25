@@ -2,8 +2,8 @@ from operator import itemgetter
 
 import numpy as np
 import xarray as xr
-
 from noob.node import Node
+
 from cala.stores.common import Footprints, Traces
 
 

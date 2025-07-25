@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.models import AXIS, Movie, Traces, Frame
+from cala.models import AXIS, Frame, Movie, Traces
 
 
 class PixelStats:
