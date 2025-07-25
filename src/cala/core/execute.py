@@ -64,7 +64,7 @@ class Executor:
         # )
 
         self._buffer = Buffer(
-            buffer_size=self.pipe.buff["size"],
+            size=self.pipe.buff["size"],
         )
 
     def preprocess(self) -> Frame:
