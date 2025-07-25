@@ -24,9 +24,7 @@ class Tracer(Node):
         A jenky ass temporary process method to circumvent Resource not yet being implemented.
         """
         if movie is None:
-            return self.ingest_frame(
-                footprints=footprints, frame=frame, traces=traces, overlaps=overlaps
-            )
+            return self.ingest_frame(footprints=footprints, frame=frame, overlaps=overlaps)
         else:
             return self.initialize(footprints=footprints, movie=movie)
 
@@ -65,9 +63,7 @@ class Tracer(Node):
 
         return self.traces_
 
-    def ingest_frame(
-        self, footprints: Footprints, frame: Frame, traces: Traces, overlaps: Overlap
-    ) -> Traces:
+    def ingest_frame(self, footprints: Footprints, frame: Frame, overlaps: Overlap) -> Traces:
         """
         Update temporal traces using current spatial footprints and frame data.
 
@@ -92,8 +88,6 @@ class Tracer(Node):
                 Shape: (components × height × width)
             frame (xr.DataArray): Current frame data.
                 Shape: (height × width)
-            traces (Traces): Current temporal traces to be updated.
-                Shape: (components × time)
             overlaps (Overlaps): Sparse matrix indicating component overlaps.
                 Shape: (components × components), where entry (i,j) is 1 if
                 components i and j overlap, and 0 otherwise.
@@ -101,14 +95,16 @@ class Tracer(Node):
         # Prepare inputs for the update algorithm
         A = footprints.array.stack({"pixels": AXIS.spatial_dims})
         y = frame.array.stack({"pixels": AXIS.spatial_dims})
-        c = traces.array.isel({AXIS.frames_dim: [-1]})
+        c = self.traces_.array.isel({AXIS.frames_dim: -1})
 
-        _, labels = connected_components(csgraph=overlaps.data, directed=False, return_labels=True)
+        _, labels = connected_components(
+            csgraph=overlaps.array.data, directed=False, return_labels=True
+        )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
         updated_traces = self.update_traces(A, y, c.copy(), clusters, self.tolerance)
 
-        self.traces_.array = updated_traces
+        self.traces_.array = xr.concat([self.traces_.array, updated_traces], dim=AXIS.frames_dim)
 
         return self.traces_
 
@@ -166,12 +162,13 @@ class Tracer(Node):
                 ).rename({f"{AXIS.component_dim}'": AXIS.component_dim})
 
                 c.loc[{AXIS.component_dim: cluster}] = np.maximum(
-                    c.isel({AXIS.component_dim: cluster})
-                    + numerator / np.array([V_diag[cluster]]).T,
+                    c.isel({AXIS.component_dim: cluster}) + numerator / V_diag[cluster].T,
                     0,
                 )
 
-        return c
+        return xr.DataArray(
+            c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
+        ).assign_coords(y[AXIS.frames_dim].coords)
 
     @staticmethod
     def solve_all_component_traces(
