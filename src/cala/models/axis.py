@@ -32,6 +32,14 @@ class Axis:
         """Names of the dimensions representing 2-d spatial coordinates Default: (height, width)."""
         return self.height_coord, self.width_coord
 
+    @property
+    def component_rename(self) -> dict[str, str]:
+        return {
+            AXIS.component_dim: f"{AXIS.component_dim}'",
+            AXIS.id_coord: f"{AXIS.id_coord}'",
+            AXIS.confidence_coord: f"{AXIS.confidence_coord}'",
+        }
+
 
 AXIS = Axis()
 

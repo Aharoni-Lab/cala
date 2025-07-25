@@ -30,18 +30,7 @@ class Overlaps(Node):
         A = footprints.array
 
         # Use matrix multiplication with broadcasting to compute overlaps
-        data = (
-            A.dot(
-                A.rename(
-                    {
-                        AXIS.component_dim: f"{AXIS.component_dim}'",
-                        AXIS.id_coord: f"{AXIS.id_coord}'",
-                        AXIS.confidence_coord: f"{AXIS.confidence_coord}'",
-                    }
-                )
-            )
-            > 0
-        ).astype(int)
+        data = (A.dot(A.rename(AXIS.component_rename)) > 0).astype(int)
 
         # Create xarray DataArray with sparse data
         data.values = sparse.COO(data.values)
