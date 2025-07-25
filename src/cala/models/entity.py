@@ -73,20 +73,19 @@ class Group(Entity):
     an xarray dataarray entity that is also a group of entities.
     """
 
-    entity: Entity
+    member: Entity
     group_by: Dims | None = None
     dims: tuple[Dim, ...] = Field(default=tuple())
     dtype: type = Field(default=Any)
 
     def model_post_init(self, __context__: None = None) -> None:
-        self.dims = self.entity.dims
-        self.coords = self.entity.coords
+        self.dims = self.member.dims
+        self.coords = self.member.coords
 
         if self.group_by:
             self.dims += (self.group_by.value,)
             self.coords += self.group_by.value.coords
 
-        self.dtype = self.entity.dtype
-        self.checks = list(set(self.checks + self.entity.checks))
+        self.dtype = self.member.dtype
 
         self._model = self.to_schema()

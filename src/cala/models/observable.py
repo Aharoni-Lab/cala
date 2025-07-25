@@ -65,7 +65,7 @@ class Footprints(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="footprint-group",
-            entity=Footprint.entity(),
+            member=Footprint.entity(),
             group_by=Dims.component,
             checks=[is_non_negative],
         )
@@ -77,7 +77,7 @@ class Traces(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
-            entity=Trace.entity(),
+            member=Trace.entity(),
             group_by=Dims.component,
             checks=[is_non_negative],
         )
@@ -89,7 +89,7 @@ class Movie(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="movie",
-            entity=Frame.entity(),
+            member=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative],
         )
@@ -110,5 +110,41 @@ class CompStat(Observable):
             dims=comp_dims,
             dtype=float,
             checks=[],
+        )
+    )
+
+
+class PixStat(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="pix-stat",
+            dims=(Dims.width.value, Dims.height.value, Dims.component.value),
+            dtype=float,
+            checks=[],
+        )
+    )
+
+
+class Overlap(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="overlap",
+            dims=comp_dims,
+            dtype=int,
+            checks=[],
+        )
+    )
+
+
+class Residual(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Group(
+            name="frame",
+            member=Frame.entity(),
+            group_by=Dims.frame.value,
+            checks=[is_non_negative],
         )
     )
