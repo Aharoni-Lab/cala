@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.models import AXIS, Movie, Traces
+from cala.models import AXIS, Movie, Traces, Frame
 
 
 class PixelStats:
@@ -44,7 +44,7 @@ class PixelStats:
         self.pixel_stats_ = W
         return self.pixel_stats_
 
-    def ingest_frame(self, frame: xr.DataArray, traces: Traces) -> xr.DataArray:
+    def ingest_frame(self, frame: Frame, traces: Traces) -> xr.DataArray:
         """
         Update pixel statistics using current frame and component.
 
@@ -67,13 +67,13 @@ class PixelStats:
                 Shape: (components)
         """
         # Compute scaling factors
-        frame_idx = frame.coords[AXIS.frame_coord].item()
+        frame_idx = frame.array.coords[AXIS.frame_coord].item()
         prev_scale = frame_idx / (frame_idx + 1)
         new_scale = 1 / (frame_idx + 1)
 
-        y_t = frame
+        y_t = frame.array
         W = self.pixel_stats_
-        c_t = traces  # New frame traces
+        c_t = traces.array  # New frame traces
 
         # Update pixel-component statistics W_t
         # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
