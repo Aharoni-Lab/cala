@@ -55,7 +55,7 @@ class TestFootprintsInitializer:
         default_initializer.learn_one(frame=first_frame)
 
         assert default_initializer.markers_.shape == first_frame.shape
-        assert default_initializer.num_markers_ == len(default_initializer.footprints_)
+        assert default_initializer.num_markers_ == len(default_initializer._footprints)
 
     @pytest.mark.viz
     def test_transform_one_output_shapes(

@@ -38,10 +38,7 @@ def test_add_frame(buffer, sample_frame):
     buffer.add(sample_frame)
     assert len(buffer.frames) == 1
     # Check that the frame in the buffer equals the sample frame
-    assert np.array_equal(
-        buffer.get_latest().values,
-        sample_frame.values.reshape(*sample_frame.shape),
-    )
+    assert np.array_equal(buffer.get_latest(), sample_frame)
 
 
 def test_add_multiple_frames(buffer, sample_frame, buffer_size):

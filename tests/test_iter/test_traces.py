@@ -29,3 +29,6 @@ def test_init() -> None:
     traces = tracer.initialize(footprints=toy.footprints, movie=toy.make_movie())
 
     np.testing.assert_array_equal(traces.array, toy.traces.array)
+
+
+def test_ingest_frame() -> None: ...

@@ -153,7 +153,7 @@ class Toy(BaseModel):
                     AXIS.frames_dim,
                     [
                         (datetime.now() + i * timedelta(microseconds=20)).strftime("%H:%M:%S.%f")
-                        for i in range(trace.size)
+                        for i in range(self.n_frames)
                     ],
                 )
             }
