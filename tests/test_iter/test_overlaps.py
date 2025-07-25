@@ -4,11 +4,11 @@ import sparse
 import xarray as xr
 
 from cala.gui.plots import Plotter
-from cala.nodes.iter.overlaps import Overlaps
+from cala.nodes.iter.overlap import Overlapper
 
 
 def test_init(
-    initializer: Overlaps,
+    initializer: Overlapper,
     mini_footprints: xr.DataArray,
     plotter: Plotter,
 ) -> None:

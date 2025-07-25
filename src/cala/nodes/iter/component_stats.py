@@ -4,7 +4,7 @@ from noob.node import Node
 from cala.models import AXIS, CompStat, Frame, Traces
 
 
-class CompStats(Node):
+class CompStater(Node):
     component_stats_: CompStat = None
 
     def process(self, traces: Traces, frame: Frame = None, new_traces: Traces = None) -> CompStat:

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.nodes.iter.pixel_stats import PixelStats
+from cala.nodes.iter.pixel_stats import PixelStater
 
 
 def test_init() -> None:

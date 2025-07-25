@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS, Frame, Traces
-from cala.nodes.iter.overlaps import Overlaps
+from cala.nodes.iter.overlap import Overlapper
 from cala.nodes.iter.traces import Tracer
 from cala.testing.toy import FrameDims, Position, Toy
 
@@ -46,7 +46,7 @@ def test_init(tracer, toy, request) -> None:
 def test_ingest_frame(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    xray = Overlaps.from_specification(
+    xray = Overlapper.from_specification(
         spec=NodeSpecification(id="test", type="cala.nodes.iter.overlaps.Overlaps")
     )
 

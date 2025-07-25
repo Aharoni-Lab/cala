@@ -3,15 +3,15 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS, Frame, Traces
-from cala.nodes.iter.component_stats import CompStats
+from cala.nodes.iter.component_stats import CompStater
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
-def comp_stats() -> CompStats:
-    return CompStats.from_specification(
+def comp_stats() -> CompStater:
+    return CompStater.from_specification(
         spec=NodeSpecification(
-            id="comp-stat-test", type="cala.nodes.iter.component_stats.CompStats"
+            id="comp-stat-test", type="cala.nodes.iter.component_stats.CompStater"
         )
     )
 

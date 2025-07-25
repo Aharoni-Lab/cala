@@ -3,7 +3,7 @@ import xarray as xr
 from cala.models import AXIS, Frame, Movie, Traces
 
 
-class PixelStats:
+class PixelStater:
     pixel_stats_: xr.DataArray = None
     """Updated pixel-component sufficient statistics W."""
 
@@ -98,7 +98,7 @@ class PixelStats:
             new_traces (Traces): Newly detected components' traces
 
         Returns:
-            PixelStats: Updated pixel statistics matrix
+            PixelStater: Updated pixel statistics matrix
         """
         if new_traces is None:
             return self.pixel_stats_

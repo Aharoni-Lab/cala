@@ -5,7 +5,7 @@ from noob.node import Node
 from cala.models import AXIS, Footprints, Overlap
 
 
-class Overlaps(Node):
+class Overlapper(Node):
     overlaps_: Overlap = None
 
     def process(self, footprints: Footprints, new_footprints: Footprints = None) -> Overlap:
