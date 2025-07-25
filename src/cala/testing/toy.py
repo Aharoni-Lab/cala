@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import xarray as xr
-from pydantic import BaseModel, Field, ConfigDict, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from skimage.morphology import disk
 
 from cala.models import Footprints, Frame, Movie, Traces

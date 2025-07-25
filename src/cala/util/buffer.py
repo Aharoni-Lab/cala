@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field
 from collections import deque
 
 import xarray as xr
+from pydantic import BaseModel, ConfigDict, Field
 
 from cala.models import AXIS
 

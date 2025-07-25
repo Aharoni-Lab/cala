@@ -1,10 +1,10 @@
 import numpy as np
 import xarray as xr
 from noob.node import Node
-from numba import jit, prange
+from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.models import AXIS, Footprints, Frame, Movie, Traces, Overlap
+from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Traces
 
 
 class Tracer(Node):

@@ -2,7 +2,7 @@ import numpy as np
 from noob.node import NodeSpecification
 
 from cala.nodes.iter.traces import Tracer
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 def test_init() -> None:
