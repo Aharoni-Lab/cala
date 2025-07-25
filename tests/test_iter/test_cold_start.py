@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from noob.node import NodeSpecification
 
 from cala.models.observable import Footprint, Footprints, Trace, Traces
-from cala.nodes.init.cold.catalog import Cataloger, CatalogerParams
-from cala.nodes.init.cold.dupe_sniff import DupeSniffer, DupeSnifferParams
-from cala.nodes.init.cold.energy import Energy, EnergyParams
-from cala.nodes.init.cold.slice_nmf import SliceNMF, SliceNMFParams
+from cala.nodes.iter.detect.catalog import Cataloger
+from cala.nodes.iter.detect.dupe_sniff import DupeSniffer
+from cala.nodes.iter.detect.energy import Energy
+from cala.nodes.iter.detect.slice_nmf import SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -38,7 +39,11 @@ def single_cell_video(simulator):
 class TestEnergy:
     @pytest.fixture(scope="class")
     def energy(self):
-        return Energy(EnergyParams(gaussian_std=1.0))
+        return Energy.from_specification(
+            spec=NodeSpecification(
+                id="test", type="cala.nodes.iter.detect.energy.Energy", params={"gaussian_std": 1.0}
+            )
+        )
 
     def test_estimate_gaussian_noise(self, energy, single_cell_video):
         noise_level = energy._estimate_gaussian_noise(single_cell_video, single_cell_video.shape)
@@ -59,12 +64,20 @@ class TestEnergy:
 class TestSliceNMF:
     @pytest.fixture(scope="module")
     def energy_shape(self, single_cell_video):
-        return Energy(EnergyParams(gaussian_std=1.0)).process(single_cell_video)
+        return Energy.from_specification(
+            spec=NodeSpecification(
+                id="test", type="cala.nodes.iter.detect.energy.Energy", params={"gaussian_std": 1.0}
+            )
+        ).process(single_cell_video)
 
     @pytest.fixture(scope="class")
     def slice_nmf(self, simulator):
-        return SliceNMF(
-            SliceNMFParams(cell_radius=2 * simulator.cell_radii[0], validity_threshold=0.8)
+        return SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test",
+                type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
+                params={"cell_radius": 2 * simulator.cell_radii[0], "validity_threshold": 0.8},
+            )
         )
 
     def test_get_max_energy_slice(self, slice_nmf, single_cell_video, energy_shape):
@@ -173,7 +186,9 @@ class TestCataloger:
 
     @pytest.fixture(scope="class")
     def cataloger(self):
-        return Cataloger(params=CatalogerParams())
+        return Cataloger.from_specification(
+            spec=NodeSpecification(id="test", type="cala.nodes.iter.detect.catalogue.cataloger")
+        )
 
     def test_init_with(self, cataloger, new_component):
         fp, tr = cataloger._init_with(*new_component)

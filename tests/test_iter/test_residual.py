@@ -32,7 +32,7 @@ def test_init(sample_data: dict[str, Any], plotter: Plotter) -> None:
         subdir="init/resid",
     )
 
-    initializer = ResidualInitializer(ResidualInitializerParams(buffer_length=len(sample_movie)))
+    initializer = Residuals()
 
     # Run computation
     initializer.learn_one(sample_footprints, sample_traces, sample_movie)

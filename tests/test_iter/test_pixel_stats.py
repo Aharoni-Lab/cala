@@ -14,9 +14,6 @@ def test_init() -> None:
 
     label = (video @ traces).transpose("component", "width", "height") / video.sizes["frame"]
 
-    plotter.plot_traces(traces, subdir="init/pixel_stats/sanity_check")
-    plotter.plot_pixel_stats(result, subdir="init/pixel_stats/sanity_check")
-
     assert np.array_equal(result, label)
 
 
