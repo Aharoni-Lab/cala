@@ -16,7 +16,6 @@ class Axis:
     """Name of the dimension representing individual components."""
 
     id_coord: str = "id_"
-    type_coord: str = "type_"
     timestamp_coord: str = "timestamp"
     confidence_coord: str = "confidence"
     frame_coord: str = "frame"
