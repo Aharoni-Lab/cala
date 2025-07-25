@@ -4,8 +4,16 @@ from noob.node import Node
 from cala.models import AXIS, CompStat, Frame, Traces
 
 
-class ComponentStats(Node):
+class CompStats(Node):
     component_stats_: CompStat = None
+
+    def process(self, traces: Traces, frame: Frame = None, new_traces: Traces = None) -> CompStat:
+        if frame is not None:
+            return self.ingest_frame(frame=frame, new_traces=new_traces)
+        elif new_traces is None:
+            return self.initialize(traces=traces)
+        else:
+            return self.ingest_component(new_traces=new_traces, traces=traces)
 
     def initialize(self, traces: Traces) -> CompStat:
         """
@@ -26,12 +34,12 @@ class ComponentStats(Node):
         frame_idx = C.sizes[AXIS.frames_dim]
 
         # Compute M = C * C.T / t'
-        M = C @ C.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / frame_idx
+        M = C @ C.rename(AXIS.component_rename) / frame_idx
 
-        self.component_stats_ = CompStat(array=M.assign_coords(C.coords))
+        self.component_stats_ = CompStat(array=M)
         return self.component_stats_
 
-    def ingest_frame(self, frame: Frame, traces: Traces) -> CompStat:
+    def ingest_frame(self, frame: Frame, new_traces: Traces) -> CompStat:
         """
         Update component statistics using current frame and component.
 
@@ -46,7 +54,7 @@ class ComponentStats(Node):
         Args:
             frame (Frame): Current frame y_t.
                 Shape: (height × width)
-            traces (Traces): Current temporal component c_t.
+            new_traces (Traces): Current temporal component c_t.
                 Shape: (components)
         Return:
             component_stats (ComponentStats): Updated component-statistics.
@@ -57,18 +65,18 @@ class ComponentStats(Node):
         new_scale = 1 / (frame_idx + 1)
 
         # New frame traces
-        c_t = traces.array.isel({AXIS.frames_dim: -1})
+        c_t = new_traces.array.isel({AXIS.frames_dim: -1})
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
-        new_corr = c_t @ c_t.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        new_corr = c_t @ c_t.rename(AXIS.component_rename)
         self.component_stats_.array = (
             prev_scale * self.component_stats_.array + new_scale * new_corr
-        )
+        ).reset_coords([AXIS.timestamp_coord, AXIS.frame_coord], drop=True)
 
         return self.component_stats_
 
-    def ingest_component(self, traces: Traces, new_traces: Traces = None) -> CompStat:
+    def ingest_component(self, traces: Traces, new_traces: Traces) -> CompStat:
         """
         Update component statistics with new components.
 
@@ -85,11 +93,8 @@ class ComponentStats(Node):
             traces (Traces): Current temporal traces in buffer
             new_traces (Traces): Newly detected temporal components
         """
-        if new_traces is None:
-            return self.component_stats_
-
         # Get current frame index (1-based)
-        t = new_traces.array[AXIS.frame_coord].item() + 1
+        t = new_traces.array[AXIS.frame_coord].max().item() + 1
 
         M = self.component_stats_.array
         c_new = new_traces.array
@@ -98,19 +103,12 @@ class ComponentStats(Node):
         # Compute cross-correlation between buffer and new components
         # C_buf^T c_new
         # C_buf has to be the same number of frames as c_new
-        bottom_left_corr = (
-            c_buf @ c_new.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / t
-        ).assign_coords(c_buf.coords)
-
-        top_right_corr = xr.DataArray(
-            bottom_left_corr.values, dims=bottom_left_corr.dims[::-1], coords=c_new.coords
-        )
+        bottom_left_corr = c_buf @ c_new.rename(AXIS.component_rename) / t
+        top_right_corr = c_buf.rename(AXIS.component_rename) @ c_new / t
 
         # Compute auto-correlation of new components
         # ||c_new||^2
-        auto_corr = (
-            c_new @ c_new.rename({AXIS.component_dim: f"{AXIS.component_dim}'"}) / t
-        ).assign_coords(c_new.coords)
+        auto_corr = c_new @ c_new.rename(AXIS.component_rename) / t
 
         # Create the block matrix structure
         # Top block: [M_scaled, cross_corr]

@@ -1,67 +1,95 @@
-from typing import Any
-
 import numpy as np
 import pytest
-import xarray as xr
+from noob.node import NodeSpecification
 
-from cala.nodes.iter.component_stats import ComponentStats
-from cala.util.new import package_frame
+from cala.models import AXIS, Frame, Traces
+from cala.nodes.iter.component_stats import CompStats
+from cala.testing.toy import Toy, FrameDims, Position
 
 
-def test_init(
-    initializer,
-    sample_data: dict[str, Any],
-) -> None:
+@pytest.fixture(scope="function")
+def comp_stats() -> CompStats:
+    return CompStats.from_specification(
+        spec=NodeSpecification(
+            id="comp-stat-test", type="cala.nodes.iter.component_stats.CompStats"
+        )
+    )
+
+
+@pytest.fixture
+def separate_cells() -> Toy:
+    n_frames = 50
+
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=3,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+        ],
+        cell_traces=[
+            np.zeros(n_frames, dtype=float),
+            np.ones(n_frames, dtype=float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
+    )
+
+
+def test_init(comp_stats, separate_cells) -> None:
     """Test the correctness of the component correlation computation."""
-    # Prepare data
-    traces = sample_data["traces"]
-    frames = sample_data["frames"]
+    result = comp_stats.initialize(separate_cells.traces)
 
-    # Run computation
-    initializer.learn_one(traces, frames)
-    result = initializer.transform_one()
-
-    # Manual computation for verification
-    C = traces.values
-    expected_M = C @ C.T / frames.shape[0]
-
-    # Compare results
-    assert np.allclose(result.values, expected_M)
-
-    # Check specific correlation patterns from our constructed data
-    assert np.allclose(result.values[0, 1], 0.5)  # Perfect correlation
-    assert np.allclose(result.values[0, 2], -0.5)  # Perfect anti-correlation
-    assert np.allclose(np.diag(result.values), 0.5)  # Self-correlation
+    for id1, trace1 in zip(
+        separate_cells.cell_ids, separate_cells.traces.array.transpose(AXIS.component_dim, ...)
+    ):
+        for id2, trace2 in zip(
+            separate_cells.cell_ids, separate_cells.traces.array.transpose(AXIS.component_dim, ...)
+        ):
+            assert (
+                result.array.set_xindex(AXIS.id_coord)
+                .sel({AXIS.id_coord: id1})
+                .set_xindex(f"{AXIS.id_coord}'")
+                .sel({f"{AXIS.id_coord}'": id2})
+                .item()
+                == (trace1 @ trace2).item() / separate_cells.n_frames
+            )
 
     # Test symmetry
-    assert np.allclose(result.values, result.values.T)
-
-    # Test diagonal elements
-    assert np.allclose(np.diag(result.values), 0.5)
+    np.testing.assert_array_equal(result.array, result.array.T)
 
 
-def test_ingest_frame(
-    updater,
-    mini_footprints: xr.DataArray,
-    mini_traces: xr.DataArray,
-    prev_comp_stats: xr.DataArray,
-    mini_denoised: xr.DataArray,
-    initializer,
-) -> None:
+def test_ingest_frame(comp_stats, separate_cells) -> None:
 
-    updater.learn_one(
-        frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
-        traces=mini_traces,
-        component_stats=prev_comp_stats,
+    comp_stats.initialize(
+        Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
     )
-    new_comp_stats = updater.transform_one()
 
-    late_init_cs = initializer.learn_one(
-        mini_traces,
-        frame=mini_denoised,
-    ).transform_one()
+    result = comp_stats.ingest_frame(
+        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        new_traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: [-1]})),
+    )
 
-    assert np.allclose(late_init_cs, new_comp_stats)
+    expected = comp_stats.initialize(separate_cells.traces)
+
+    assert expected == result
 
 
-def test_ingest_component(): ...
+def test_ingest_component(comp_stats, separate_cells):
+    comp_stats.initialize(
+        Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
+    )
+
+    result = comp_stats.ingest_component(
+        traces=Traces(
+            array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+        ),
+        new_traces=Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+    )
+
+    expected = comp_stats.initialize(separate_cells.traces)
+
+    assert expected == result
