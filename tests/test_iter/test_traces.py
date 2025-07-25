@@ -1,68 +1,31 @@
-from typing import Any
-
 import numpy as np
-import pytest
-import xarray as xr
+from noob.node import NodeSpecification
 
-from cala.gui.plots import Plotter
-from cala.nodes.init.odl.overlaps import OverlapsInitializer, OverlapsInitializerParams
-from cala.nodes.iter.traces import TracesUpdater, TracesUpdaterParams
-from cala.util.new import package_frame
+from cala.nodes.iter.traces import Tracer
+from cala.testing.toy import Toy, FrameDims, Position
 
 
-class TestTraceUpdater:
-    """need to simulate:
-    footprints: Footprints,
-    traces: Traces,
-    frame: Frame,
-    overlaps: Overlaps
-    """
+def test_init() -> None:
 
-    @pytest.fixture(scope="class")
-    def updater(self) -> TracesUpdater:
-        return TracesUpdater(TracesUpdaterParams(tolerance=1e-3))
+    n_frames = 50
 
-    @pytest.fixture
-    def mini_overlap(self, mini_footprints: xr.DataArray) -> xr.DataArray:
-        overlapper = OverlapsInitializer(OverlapsInitializerParams())
+    toy = Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=3,
+        cell_positions=[Position(width=15, height=15), Position(width=35, height=35)],
+        cell_traces=[
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames, 0, -1), dtype=float),
+        ],
+    )
 
-        overlap = overlapper.learn_one(mini_footprints).transform_one()
-        overlap.values = overlap.data.todense()
-        return overlap
-
-    @pytest.mark.viz
-    def test_sanity_check(
-        self,
-        mini_params: Any,
-        updater: TracesUpdater,
-        mini_footprints: xr.DataArray,
-        mini_traces: xr.DataArray,
-        mini_overlap: xr.DataArray,
-        mini_denoised: xr.DataArray,
-        plotter: Plotter,
-    ) -> None:
-        plotter.plot_footprints(mini_footprints, subdir="iter/trace")
-        plotter.plot_traces(mini_traces, subdir="iter/trace")
-        plotter.save_video_frames(mini_denoised, subdir="iter/trace")
-        plotter.plot_overlaps(mini_overlap, footprints=mini_footprints, subdir="iter/trace")
-        updater.learn_one(
-            footprints=mini_footprints,
-            traces=mini_traces.isel(frame=slice(None, -1)),
-            overlaps=mini_overlap,
-            frame=package_frame(
-                mini_denoised[-1].values,
-                mini_params.n_frames - 1,
-                mini_denoised[-1].coords["time_"].item(),
-            ),
+    tracer = Tracer.from_specification(
+        spec=NodeSpecification(
+            id="test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
         )
-        new_traces = updater.transform_one()
+    )
 
-        plotter.plot_comparison(
-            mini_footprints @ new_traces,
-            mini_footprints @ mini_traces.isel(frame=-1),
-            subdir="iter/trace",
-        )
+    traces = tracer.initialize(footprints=toy.footprints, movie=toy.make_movie())
 
-        assert np.allclose(
-            new_traces, mini_traces.isel(frame=[-1]), atol=1e-3 * mini_params.n_components
-        )
+    np.testing.assert_array_equal(traces.array, toy.traces.array)

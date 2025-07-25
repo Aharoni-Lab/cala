@@ -4,7 +4,7 @@ from noob.node import Node
 from numba import jit, prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.models import AXIS, Footprints, Frame, Movie, Traces
+from cala.models import AXIS, Footprints, Frame, Movie, Traces, Overlap
 
 
 class Tracer(Node):
@@ -12,36 +12,61 @@ class Tracer(Node):
 
     traces_: Traces = None
 
+    def process(
+        self,
+        footprints: Footprints,
+        movie: Movie = None,
+        frame: Frame = None,
+        traces: Traces = None,
+        overlaps: Overlap = None,
+    ) -> Traces:
+        """
+        A jenky ass temporary process method to circumvent Resource not yet being implemented.
+        """
+        if movie is None:
+            return self.ingest_frame(
+                footprints=footprints, frame=frame, traces=traces, overlaps=overlaps
+            )
+        else:
+            return self.initialize(footprints=footprints, movie=movie)
+
     def initialize(self, footprints: Footprints, movie: Movie) -> Traces:
         """Learn temporal traces from footprints and frames."""
-        if footprints.isel({AXIS.component_dim: 0}).shape != movie[0].shape:
-            raise ValueError("Footprint and frame dimensions must be identical.")
+        A = footprints.array
+        Y = movie.array
 
         # Get frames to use and flatten them
-        n_frames = movie.sizes[AXIS.frames_dim]
-        flattened_frames = movie[:n_frames].stack({"pixels": AXIS.spatial_dims})
-        flattened_footprints = footprints.stack({"pixels": AXIS.spatial_dims})
+        n_frames = Y.sizes[AXIS.frames_dim]
+        flattened_frames = Y[:n_frames].stack({"pixels": AXIS.spatial_dims})
+        flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
 
         # Process all components
-        temporal_traces = solve_all_component_traces(
+        temporal_traces = self.solve_all_component_traces(
             flattened_footprints.values,
             flattened_frames.values,
             flattened_footprints.sizes[AXIS.component_dim],
             flattened_frames.sizes[AXIS.frames_dim],
         )
 
+        trace_coords = [
+            AXIS.id_coord,
+            AXIS.confidence_coord,
+            AXIS.frame_coord,
+            AXIS.timestamp_coord,
+        ]
+        coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
         self.traces_ = Traces(
             array=xr.DataArray(
                 temporal_traces,
                 dims=(AXIS.component_dim, AXIS.frames_dim),
-                coords={**footprints.coords, **movie.coords},
+                coords=coords,
             )
         )
 
         return self.traces_
 
     def ingest_frame(
-        self, footprints: Footprints, frame: Frame, traces: Traces, overlaps: xr.DataArray
+        self, footprints: Footprints, frame: Frame, traces: Traces, overlaps: Overlap
     ) -> Traces:
         """
         Update temporal traces using current spatial footprints and frame data.
@@ -98,9 +123,9 @@ class Tracer(Node):
         """
         Implementation of the temporal traces update algorithm.
 
-        This function implements the core update logic of Algorithm 4 (UpdateTraces).
-        It uses block coordinate descent to update temporal traces for overlapping
-        components together while maintaining non-negativity constraints.
+        This function implements the core update logic. It uses block coordinate descent
+        to update temporal traces for overlapping components together while maintaining
+        non-negativity constraints.
 
         Args:
             A (xr.DataArray): Spatial footprints matrix [A, b].
@@ -148,45 +173,43 @@ class Tracer(Node):
 
         return c
 
+    @staticmethod
+    def solve_all_component_traces(
+        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
+    ) -> np.ndarray:
+        """Solve temporal traces for all components in parallel
 
-@jit(nopython=True, cache=True, parallel=True)
-def solve_all_component_traces(
-    footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
-) -> np.ndarray:
-    """Solve temporal traces for all components in parallel
+        Args:
+            footprints: Array of shape (n_components, height*width)
+            frames: Array of shape (n_frames, height*width)
+        Returns:
+            Array of shape (n_components, n_frames)
+        """
+        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
 
-    Args:
-        footprints: Array of shape (n_components, height*width)
-        frames: Array of shape (n_frames, height*width)
-    Returns:
-        Array of shape (n_components, n_frames)
-    """
-    results = np.zeros((n_components, n_frames), dtype=frames.dtype)
+        # Parallel loop over components
+        for i in prange(n_components):
+            footprint = footprints[i]
+            active_pixels = footprint > 0
 
-    # Parallel loop over components
-    for i in prange(n_components):
-        footprint = footprints[i]
-        active_pixels = footprint > 0
+            if np.any(active_pixels):
+                footprint_active = footprint[active_pixels]
+                frames_active = frames[:, active_pixels]
+                results[i] = Tracer.fast_nnls_vector(footprint_active, frames_active)
 
-        if np.any(active_pixels):
-            footprint_active = footprint[active_pixels]
-            frames_active = frames[:, active_pixels]
-            results[i] = fast_nnls_vector(footprint_active, frames_active)
+        return results
 
-    return results
+    @staticmethod
+    def fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+        """Specialized NNLS for single-variable case across multiple frames
+        A: footprint values (n_pixels,)
+        B: frame data matrix (n_frames, n_pixels)
+        Returns: brightness values for each frame (n_frames,)
+        """
+        ata = (A * A).sum()  # Compute once for all frames
+        if ata <= 0:
+            return np.zeros(B.shape[0], dtype=B.dtype)
 
-
-@jit(nopython=True, cache=True, fastmath=True)
-def fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-    """Specialized NNLS for single-variable case across multiple frames
-    A: footprint values (n_pixels,)
-    B: frame data matrix (n_frames, n_pixels)
-    Returns: brightness values for each frame (n_frames,)
-    """
-    ata = (A * A).sum()  # Compute once for all frames
-    if ata <= 0:
-        return np.zeros(B.shape[0], dtype=B.dtype)
-
-    # Vectorized computation for all frames
-    atb = A @ B.T  # dot product with each frame
-    return np.maximum(0, atb / ata)
+        # Vectorized computation for all frames
+        atb = A @ B.T  # dot product with each frame
+        return np.maximum(0, atb / ata)
