@@ -1,9 +1,10 @@
+from copy import deepcopy
 from typing import ClassVar
 
 import xarray as xr
 from pydantic import BaseModel, PrivateAttr, field_validator
 
-from cala.models.axis import Dims
+from cala.models.axis import Coords, Dims
 from cala.models.checks import is_non_negative
 from cala.models.entity import Entity, Group
 
@@ -15,6 +16,9 @@ class Observable(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         validate_assignment = True
+
+    def __eq__(self, other: "Observable") -> bool:
+        return self.array.equals(other.array)
 
     @classmethod
     def entity(cls) -> Entity:
@@ -64,7 +68,7 @@ class Footprints(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="footprint-group",
-            entity=Footprint.entity(),
+            member=Footprint.entity(),
             group_by=Dims.component,
             checks=[is_non_negative],
         )
@@ -76,7 +80,7 @@ class Traces(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
-            entity=Trace.entity(),
+            member=Trace.entity(),
             group_by=Dims.component,
             checks=[is_non_negative],
         )
@@ -88,7 +92,79 @@ class Movie(Observable):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="movie",
-            entity=Frame.entity(),
+            member=Frame.entity(),
+            group_by=Dims.frame.value,
+            checks=[is_non_negative],
+        )
+    )
+
+
+class PopSnap(Observable):
+    """
+    A snapshot of a population trait.
+
+    Mainly used for Traces that only has one frame.
+    """
+
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="pop-snap",
+            dims=(Dims.component.value,),
+            dtype=float,
+            coords=[Coords.frame.value, Coords.timestamp.value],
+        )
+    )
+
+
+comp_dims = (Dims.component.value, deepcopy(Dims.component.value))
+comp_dims[1].name += "'"
+for coord in comp_dims[1].coords:
+    coord.name += "'"
+
+
+class CompStat(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="comp-stat",
+            dims=comp_dims,
+            dtype=float,
+            checks=[],
+        )
+    )
+
+
+class PixStat(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="pix-stat",
+            dims=(Dims.width.value, Dims.height.value, Dims.component.value),
+            dtype=float,
+            checks=[],
+        )
+    )
+
+
+class Overlap(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="overlap",
+            dims=comp_dims,
+            dtype=bool,
+            checks=[],
+        )
+    )
+
+
+class Residual(Observable):
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Group(
+            name="frame",
+            member=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative],
         )

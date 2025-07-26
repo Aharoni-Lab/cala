@@ -1,120 +1,73 @@
-import os
+from glob import glob
 from pathlib import Path
 
+import cv2
 import numpy as np
-import pytest
+import xarray as xr
+from skimage import io
 
-from cala.nodes.io import IO, TiffStream
-
-
-@pytest.fixture
-def sample_tiff_dir() -> Path:
-    """Fixture providing path to sample TIFF files."""
-    base_dir = Path(__file__).resolve().parent
-    return base_dir / "fixtures/sample_movies/neurofinder.00.00/images"
+from cala.nodes.io import stream
 
 
-@pytest.fixture
-def sample_tiff_files(sample_tiff_dir: Path) -> list[Path]:
-    """Fixture providing sorted list of sample TIFF files."""
-    return sorted(list(sample_tiff_dir.glob("*.tiff")))
+def generate_text_image(
+    text: str,
+    frame_dims: tuple[int, int] = (256, 256),
+    org: tuple[int, int] = (50, 50),
+    color: tuple[int, int, int] = (255, 255, 255),
+    thickness: int = 2,
+    font_scale: int = 1,
+) -> np.ndarray:
+    image = np.zeros(frame_dims, np.uint8)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    return cv2.putText(image, text, org, font, font_scale, color, thickness, cv2.LINE_AA)
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
-def test_tiff_stream_initialization(sample_tiff_files):
-    """Test TiffStream initialization with sample files."""
-    stream = TiffStream(sample_tiff_files)
-    assert stream is not None
-
-    # Should raise error for empty list
-    with pytest.raises(ValueError, match="No TIFF files provided"):
-        TiffStream([])
+def save_tiff(filename: Path, frame: np.ndarray) -> None:
+    io.imsave(filename, frame)
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
-def test_tiff_stream_frame_properties(sample_tiff_files):
-    """Test frame properties without loading all frames."""
-    stream = TiffStream(sample_tiff_files)
+def save_movie(filename: Path, frames: xr.DataArray) -> None:
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(
+        str(filename),
+        fourcc,
+        24.0,
+        (frames.sizes["x"], frames.sizes["y"]),
+    )
 
-    # Get first frame to check properties
-    first_frame = next(iter(stream))
+    for frame in frames:
+        # grayscale, so convert to BGR color:
+        frame_8bit = cv2.cvtColor(frame.astype(np.uint8).values, cv2.COLOR_GRAY2BGR)
+        out.write(frame_8bit)
 
-    # Check frame properties
-    assert isinstance(first_frame, np.ndarray)
-    assert first_frame.dtype == np.uint16  # Assuming 16-bit grayscale
-    assert len(first_frame.shape) == 2  # Ensure grayscale
-    assert not np.any(np.isnan(first_frame))  # No NaN values
-    assert np.min(first_frame) >= 0  # Valid pixel values
-
-    # Store shape for comparison
-    expected_shape = first_frame.shape
-
-    # Check a few more frames (e.g., every 1000th frame)
-    for i, frame in enumerate(stream):
-        if i % 1000 == 0:
-            assert frame.shape == expected_shape
-            assert len(frame.shape) == 2
-            assert frame.dtype == np.uint16
-            assert not np.any(np.isnan(frame))
+    out.release()
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
-def test_io_tiff_handling(sample_tiff_files):
-    """Test IO class handles TIFF files correctly."""
-    io = IO()
+def test_tiff_stream(tmp_path):
+    for i in range(10):
+        image = generate_text_image(str(i))
+        save_tiff(tmp_path / f"{i}.tif", image)
 
-    # Test with TIFF files
-    stream = io.stream(sample_tiff_files)
-    assert isinstance(stream, TiffStream)
+    media = sorted(glob(str(tmp_path / "*.tif")))
+    s = iter(stream(media))
 
-    # Get first frame and verify it's grayscale
-    first_frame = next(iter(stream))
-    assert len(first_frame.shape) == 2
-
-    # Count frames
-    frame_count = 0
-    for _ in stream:
-        frame_count += 1
-
-    assert frame_count == len(sample_tiff_files)
+    for idx, res in enumerate(s):
+        np.testing.assert_array_equal(res, generate_text_image(str(idx)))
 
 
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
-def test_tiff_stream_cleanup(sample_tiff_files):
-    """Test TiffStream cleanup."""
-    stream = TiffStream(sample_tiff_files)
+def test_video_stream(tmp_path):
+    frames = []
+    for i in range(10):
+        frames.append(xr.DataArray(generate_text_image(str(i)), dims=["x", "y"]))
 
-    # Stream just one frame
-    next(iter(stream))
+    video = xr.concat(frames, dim="t")
+    save_movie(tmp_path / "video.mp4", video)
 
-    # Close should work without errors
-    stream.close()
+    media = sorted(glob(str(tmp_path / "*.mp4")))
+    s = iter(stream(media))
 
-
-def test_io_mixed_files_error():
-    """Test IO raises error for mixed file types."""
-    io = IO()
-
-    with pytest.raises(ValueError, match="Cannot mix video and TIFF files"):
-        io.stream(["video.mp4", "image.tiff"])
-
-
-def test_tiff_stream_invalid_file():
-    """Test TiffStream handles invalid files appropriately."""
-    with pytest.raises(ValueError):
-        TiffStream([Path("nonexistent.tiff")])
-
-
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="TIFFs unavailable on CI")
-def test_tiff_stream_random_access(sample_tiff_files):
-    """Test accessing random frames in the sequence."""
-    # Test a few random frames without loading everything
-    test_indices = [0, 100, 1000, 2000]  # Adjust based on your dataset
-
-    for idx in test_indices:
-        if idx < len(sample_tiff_files):
-            stream = TiffStream([sample_tiff_files[idx]])
-            frame = next(iter(stream))
-            assert isinstance(frame, np.ndarray)
-            assert len(frame.shape) == 2
-            stream.close()
+    for idx, res in enumerate(s):
+        np.testing.assert_allclose(
+            res.astype(np.int16), generate_text_image(str(idx)).astype(np.int16), atol=32
+        )

@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from copy import deepcopy
 from enum import Enum
 from typing import Any
 
@@ -40,9 +41,13 @@ class Entity(BaseModel):
 
     def model_post_init(self, __context__: None = None) -> None:
         for dim in self.dims:
+            coords = []
             for coord in dim.coords:
-                coord.dim = dim.name
-            self.coords.extend(dim.coords)
+                c = deepcopy(coord)
+                c.dim = dim.name
+                coords.append(c)
+            dim.coords = coords
+            self.coords.extend(coords)
 
         self._model = self.to_schema()
 
@@ -58,14 +63,13 @@ class Entity(BaseModel):
 
     @staticmethod
     def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:
-        return CoordsSchema(
-            {
-                c.name: DataArraySchema(
-                    dims=DimsSchema((c.dim,)), dtype=DTypeSchema(c.dtype), checks=c.checks
-                )
-                for c in coords
-            }
-        )
+        spec = dict()
+
+        for c in coords:
+            dim = DimsSchema((c.dim,)) if c.dim else None
+            spec[c.name] = DataArraySchema(dims=dim, dtype=DTypeSchema(c.dtype), checks=c.checks)
+
+        return CoordsSchema(spec)
 
 
 class Group(Entity):
@@ -73,20 +77,19 @@ class Group(Entity):
     an xarray dataarray entity that is also a group of entities.
     """
 
-    entity: Entity
+    member: Entity
     group_by: Dims | None = None
     dims: tuple[Dim, ...] = Field(default=tuple())
     dtype: type = Field(default=Any)
 
     def model_post_init(self, __context__: None = None) -> None:
-        self.dims = self.entity.dims
-        self.coords = self.entity.coords
+        self.dims = self.member.dims
+        self.coords = self.member.coords
 
         if self.group_by:
             self.dims += (self.group_by.value,)
             self.coords += self.group_by.value.coords
 
-        self.dtype = self.entity.dtype
-        self.checks = list(set(self.checks + self.entity.checks))
+        self.dtype = self.member.dtype
 
         self._model = self.to_schema()

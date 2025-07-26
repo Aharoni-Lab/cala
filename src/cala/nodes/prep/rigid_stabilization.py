@@ -131,7 +131,7 @@ class RigidStabilizer(Node):
     def update_anchor(self, frame: xr.DataArray) -> xr.DataArray:
         curr_index = frame[AXIS.frame_coord].item()
 
-        return (self.anchor_frame_.array * (curr_index - 1) + frame) / curr_index
+        return (self.anchor_frame_.array * curr_index + frame) / curr_index + 1
 
     def process(self, frame: Frame) -> A[Frame, Name("frame")]:
         if self.is_first_frame(frame):

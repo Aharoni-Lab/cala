@@ -1,10 +1,9 @@
 from collections.abc import Generator, Iterable
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import numpy as np
 import xarray as xr
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from skimage.morphology import disk
 
 from cala.models import Footprints, Frame, Movie, Traces
@@ -21,8 +20,7 @@ class Position(BaseModel):
     height: int
 
 
-@dataclass
-class Toy:
+class Toy(BaseModel):
     """
     Ex:
 
@@ -54,14 +52,15 @@ class Toy:
     cell_positions: list[Position]
     cell_traces: list[np.ndarray]
     cell_ids: list[str] | None = None
-    confidences: list[float] = field(default_factory=list)
-
-    footprints_: xr.DataArray = field(init=False)
-    traces_: xr.DataArray = field(init=False)
-
     """If none, auto populated as cell_{idx}."""
+    confidences: list[float] = Field(default_factory=list)
 
-    def __post_init__(self):
+    _footprints: xr.DataArray = PrivateAttr(init=False)
+    _traces: xr.DataArray = PrivateAttr(init=False)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
+
+    def model_post_init(self, __context: None = None) -> None:
         assert self.n_frames > 0
 
         self.cell_radii = (
@@ -86,8 +85,8 @@ class Toy:
         if not self.confidences:
             self.confidences = [0.0] * len(self.cell_ids)
 
-        self.footprints_ = self._build_footprints()
-        self.traces_ = self._build_traces()
+        self._footprints = self._build_footprints()
+        self._traces = self._build_traces()
 
     def _build_movie_template(self) -> xr.DataArray:
         return xr.DataArray(
@@ -139,15 +138,6 @@ class Toy:
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
                     AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
                     AXIS.frames_dim: range(trace.size),
-                    AXIS.timestamp_coord: (
-                        AXIS.frames_dim,
-                        [
-                            (datetime.now() + i * timedelta(microseconds=20)).strftime(
-                                "%H:%M:%S.%f"
-                            )
-                            for i in range(trace.size)
-                        ],
-                    ),
                 }
             )
         )
@@ -157,7 +147,17 @@ class Toy:
         for trace, id_, confid in zip(self.cell_traces, self.cell_ids, self.confidences):
             traces.append(self._format_trace(trace, id_, confid))
 
-        return xr.concat(traces, dim=AXIS.component_dim)
+        return xr.concat(traces, dim=AXIS.component_dim).assign_coords(
+            {
+                AXIS.timestamp_coord: (
+                    AXIS.frames_dim,
+                    [
+                        (datetime.now() + i * timedelta(microseconds=20)).strftime("%H:%M:%S.%f")
+                        for i in range(self.n_frames)
+                    ],
+                )
+            }
+        )
 
     def _build_movie(self, footprints: xr.DataArray, traces: xr.DataArray) -> xr.DataArray:
         movie = self._build_movie_template()
@@ -165,51 +165,51 @@ class Toy:
         return movie
 
     def make_movie(self) -> Movie:
-        movie = self._build_movie(self.footprints_, self.traces_)
+        movie = self._build_movie(self._footprints, self._traces)
         return Movie(array=movie)
 
     def add_cell(
         self, position: Position, radius: int, trace: np.ndarray, id_: str, confidence: float = 0.0
     ) -> None:
         new_footprint = self._generate_footprint(radius, position, id_, confidence)
-        self.footprints_ = xr.concat([self.footprints_, new_footprint], dim=AXIS.component_dim)
+        self._footprints = xr.concat([self._footprints, new_footprint], dim=AXIS.component_dim)
 
         new_trace = self._format_trace(trace, id_, confidence)
-        self.traces_ = xr.concat([self.traces_, new_trace], dim=AXIS.component_dim)
+        self._traces = xr.concat([self._traces, new_trace], dim=AXIS.component_dim)
 
     def drop_cell(self, id_: str | Iterable[str]) -> None:
         id_ = {id_} if isinstance(id_, str) else set(id_)
 
-        id_coords = set(self.footprints_.coords[AXIS.id_coord].values.tolist())
+        id_coords = set(self._footprints.coords[AXIS.id_coord].values.tolist())
 
         keep_ids = list(id_coords - id_)
 
-        self.footprints_ = (
-            self.footprints_.set_xindex(AXIS.id_coord)
+        self._footprints = (
+            self._footprints.set_xindex(AXIS.id_coord)
             .sel({AXIS.id_coord: keep_ids})
             .reset_index(AXIS.id_coord)
         )
-        self.traces_ = (
-            self.traces_.set_xindex(AXIS.id_coord)
+        self._traces = (
+            self._traces.set_xindex(AXIS.id_coord)
             .sel({AXIS.id_coord: keep_ids})
             .reset_index(AXIS.id_coord)
         )
 
     @property
     def footprints(self) -> Footprints:
-        if self.footprints_.any():
-            return Footprints(array=self.footprints_)
+        if self._footprints.any():
+            return Footprints(array=self._footprints)
         else:
             raise ValueError("No footprints available")
 
     @property
     def traces(self) -> Traces:
-        if self.traces_.any():
-            return Traces(array=self.traces_)
+        if self._traces.any():
+            return Traces(array=self._traces)
         else:
             raise ValueError("No traces available")
 
     def movie_gen(self) -> Generator[Frame]:
-        for i in range(self.traces_.sizes[AXIS.frames_dim]):
-            trace = self.traces_.isel({AXIS.frames_dim: i})
-            yield Frame(array=trace @ self.footprints_)
+        for i in range(self._traces.sizes[AXIS.frames_dim]):
+            trace = self._traces.isel({AXIS.frames_dim: i})
+            yield Frame(array=trace @ self._footprints)

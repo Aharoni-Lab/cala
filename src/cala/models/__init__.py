@@ -1,5 +1,17 @@
 from .axis import AXIS
-from .observable import Footprint, Footprints, Frame, Movie, Trace, Traces
+from .observable import (
+    CompStat,
+    Footprint,
+    Footprints,
+    Frame,
+    Movie,
+    Overlap,
+    PixStat,
+    PopSnap,
+    Residual,
+    Trace,
+    Traces,
+)
 from .params import Params
 from .spec import Pipe
 from .store import Store
@@ -15,4 +27,9 @@ __all__ = [
     Movie,
     Params,
     Store,
+    CompStat,
+    PixStat,
+    Overlap,
+    Residual,
+    PopSnap,
 ]

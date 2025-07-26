@@ -1,85 +1,91 @@
 import numpy as np
 import pytest
+from noob.node import NodeSpecification
 
-from cala.nodes.init.odl.pixel_stats import PixelStatsInitializer, PixelStatsInitializerParams
-from cala.nodes.iter.pixel_stats import PixelStatsUpdater, PixelStatsUpdaterParams
-from cala.util.new import package_frame
+from cala.models import AXIS, Frame, Movie, PopSnap, Traces
+from cala.nodes.iter.pixel_stats import PixelStater
+from cala.testing.toy import FrameDims, Position, Toy
 
 
-class TestPixelStatsUpdater:
-    """need to simulate:
-    frame: Frame,
-    traces: Traces,
-    component_stats: ComponentStats,
-    """
+@pytest.fixture(scope="function")
+def pix_stats() -> PixelStater:
+    return PixelStater.from_specification(
+        spec=NodeSpecification(id="pix-stat-test", type="cala.nodes.iter.pixel_stats.PixelStater")
+    )
 
-    @pytest.fixture(scope="class")
-    def updater(self):
-        return PixelStatsUpdater(PixelStatsUpdaterParams())
 
-    @pytest.fixture(scope="class")
-    def initializer(self):
-        return PixelStatsInitializer(PixelStatsInitializerParams())
+@pytest.fixture
+def separate_cells() -> Toy:
+    n_frames = 50
 
-    @pytest.fixture
-    def prev_pixel_stats(self, initializer, mini_traces, mini_denoised):
-        """this should look like it was last update before the current frame.
-        (so before the most recent frame index in mini_traces)
-        """
-        traces_to_use = mini_traces.isel(frame=slice(None, -1))
-        frames_to_use = mini_denoised.isel(frame=slice(None, -1))
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=3,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+        ],
+        cell_traces=[
+            np.zeros(n_frames, dtype=float),
+            np.ones(n_frames, dtype=float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
+    )
 
-        # doesn't matter we're only using it for the frame count
-        initializer.learn_one(traces=traces_to_use, frame=frames_to_use)
-        return initializer.transform_one()
 
-    @pytest.mark.viz
-    def test_sanity_check(
-        self,
-        plotter,
-        updater,
-        mini_footprints,
-        mini_traces,
-        prev_pixel_stats,
-        mini_denoised,
-        initializer,
+def test_init(pix_stats, separate_cells) -> None:
+    result = pix_stats.initialize(traces=separate_cells.traces, frames=separate_cells.make_movie())
+
+    movie = separate_cells.make_movie()
+
+    for id_, trace in zip(
+        separate_cells.cell_ids, separate_cells.traces.array.transpose(AXIS.component_dim, ...)
     ):
-        plotter.plot_footprints(mini_footprints, subdir="iter/pixel_stats")
-        plotter.plot_traces(mini_traces, subdir="iter/pixel_stats")
-        plotter.plot_trace_correlations(mini_traces, subdir="iter/pixel_stats")
-        plotter.save_video_frames(mini_denoised, subdir="iter/pixel_stats")
-        plotter.plot_pixel_stats(
-            prev_pixel_stats.transpose(*mini_footprints.dims),
-            mini_footprints,
-            subdir="iter/pixel_stats",
-            name="prev_ps",
-        )
-        updater.learn_one(
-            frame=package_frame(mini_denoised[-1].values, len(mini_denoised) - 1),
-            traces=mini_traces,
-            pixel_stats=prev_pixel_stats,
-        )
-        new_pixel_stats = updater.transform_one()
-        plotter.plot_pixel_stats(
-            new_pixel_stats.transpose(*mini_footprints.dims),
-            mini_footprints,
-            subdir="iter/pixel_stats",
-            name="new_ps",
+        assert np.all(
+            result.array.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: id_})
+            == (trace @ movie.array) / separate_cells.n_frames
         )
 
-        late_init_ps = initializer.learn_one(
-            mini_traces,
-            frame=mini_denoised,
-        ).transform_one()
 
-        plotter.plot_pixel_stats(
-            late_init_ps.transpose(*mini_footprints.dims),
-            mini_footprints,
-            subdir="iter/pixel_stats",
-            name="late_ps",
-        )
+def test_ingest_frame(pix_stats, separate_cells) -> None:
 
-        assert np.allclose(
-            new_pixel_stats.transpose(*mini_footprints.dims),
-            late_init_ps.transpose(*mini_footprints.dims),
-        )
+    pix_stats.initialize(
+        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})),
+        frames=Movie(
+            array=separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
+        ),
+    )
+
+    result = pix_stats.ingest_frame(
+        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        traces=PopSnap(array=separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+    )
+
+    expected = pix_stats.initialize(
+        traces=separate_cells.traces, frames=separate_cells.make_movie()
+    )
+    assert expected == result
+
+
+def test_ingest_component(pix_stats, separate_cells):
+    pix_stats.initialize(
+        traces=Traces(
+            array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+        ),
+        frames=separate_cells.make_movie(),
+    )
+
+    result = pix_stats.ingest_component(
+        frames=separate_cells.make_movie(),
+        new_traces=Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+    )
+
+    expected = pix_stats.initialize(
+        traces=separate_cells.traces, frames=separate_cells.make_movie()
+    )
+
+    assert expected == result
