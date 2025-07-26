@@ -153,7 +153,7 @@ class Overlap(Observable):
         Entity(
             name="overlap",
             dims=comp_dims,
-            dtype=int,
+            dtype=bool,
             checks=[],
         )
     )

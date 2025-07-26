@@ -1,35 +1,87 @@
 import numpy as np
 import pytest
-import sparse
-import xarray as xr
+from noob.node import NodeSpecification
 
-from cala.gui.plots import Plotter
+from cala.models import Footprints, AXIS
 from cala.nodes.iter.overlap import Overlapper
+from cala.testing.toy import Toy, FrameDims, Position
 
 
-def test_init(
-    initializer: Overlapper,
-    mini_footprints: xr.DataArray,
-    plotter: Plotter,
-) -> None:
-    """Test the correctness of overlap detection."""
-    plotter.plot_footprints(mini_footprints, subdir="init/overlap")
+@pytest.fixture(scope="function")
+def overlapper() -> Overlapper:
+    return Overlapper.from_specification(
+        spec=NodeSpecification(id="overlap-test", type="cala.nodes.iter.overlap.Overlapper")
+    )
 
-    initializer.learn_one(mini_footprints)
-    result = initializer.transform_one()
 
-    result.values = result.data.todense()
-    plotter.plot_overlaps(result, mini_footprints, subdir="init/overlap")
-    # Convert to dense for testing
+@pytest.fixture
+def separate_cells() -> Toy:
+    n_frames = 50
 
-    # Test expected overlap patterns
-    assert result[0, 1] == 1  # Components 0 and 1 overlap
-    assert result[1, 0] == 1  # Symmetric
-    assert np.sum(result[2]) == 1  # Component 2 only overlaps with itself
-    assert result[1, 4] == 1  # Components 3 and 4 overlap
-    assert result[4, 1] == 1  # Components 3 and 4 overlap
-    assert result[3, 4] == 1  # Components 3 and 4 overlap
-    assert result[4, 3] == 1  # Symmetric
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=3,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+        ],
+        cell_traces=[
+            np.zeros(n_frames, dtype=float),
+            np.ones(n_frames, dtype=float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
+    )
 
-    assert np.allclose(dense_matrix, dense_matrix.T)
-    assert np.allclose(np.diag(dense_matrix), 1)
+
+@pytest.fixture
+def connected_cells() -> Toy:
+    n_frames = 50
+
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=8,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+        ],
+        cell_traces=[
+            np.zeros(n_frames, dtype=float),
+            np.ones(n_frames, dtype=float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
+    )
+
+
+def test_init(overlapper, separate_cells, connected_cells) -> None:
+    overlap = overlapper.initialize(footprints=separate_cells.footprints)
+
+    assert np.trace(overlap.array.data.todense()) == len(separate_cells.cell_ids)
+    assert np.all(np.triu(overlap.array.data.todense(), k=1) == 0)
+
+    result = overlapper.initialize(footprints=connected_cells.footprints)
+
+    expected = np.array([[1, 0, 1, 0], [0, 1, 1, 0], [1, 1, 1, 1], [0, 0, 1, 1]])
+
+    np.testing.assert_array_equal(result.array.data.todense(), expected)
+
+
+@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
+def test_ingest_component(overlapper, toy, request) -> None:
+    toy = request.getfixturevalue(toy)
+    base = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
+    new = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: [-1]}))
+
+    overlapper.initialize(footprints=base)
+
+    result = overlapper.ingest_component(footprints=base, new_footprints=new)
+    expected = overlapper.initialize(footprints=toy.footprints)
+
+    assert result == expected
