@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Frame, Movie, Residual, Traces
+from cala.models import AXIS, Footprints, Frame, Movie, Residual, Traces, PopSnap
 
 
 class Resident(Node):
@@ -25,7 +25,7 @@ class Resident(Node):
         if frame is None:
             return self.initialize(footprints=footprints, traces=traces, frames=frames)
         else:
-            return self.update(footprints=footprints, traces=traces, frame=frame)
+            return self.ingest_frame(footprints=footprints, traces=traces, frame=frame)
 
     def initialize(self, frames: Movie, footprints: Footprints, traces: Traces) -> Residual:
         """
@@ -62,7 +62,7 @@ class Resident(Node):
         self.residual_ = Residual(array=R)
         return self.residual_
 
-    def update(self, frame: Frame, footprints: Footprints, traces: Traces) -> Residual:
+    def ingest_frame(self, frame: Frame, footprints: Footprints, traces: PopSnap) -> Residual:
         """
         Update residual buffer with new frame, footprints, and traces
         """

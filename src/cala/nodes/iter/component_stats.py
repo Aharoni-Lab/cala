@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, CompStat, Frame, Traces
+from cala.models import AXIS, CompStat, Frame, Traces, PopSnap
 
 
 class CompStater(Node):
@@ -31,15 +31,15 @@ class CompStater(Node):
         # components x time
         C = traces.array
 
-        frame_idx = C.sizes[AXIS.frames_dim]
+        frame_idx = C[AXIS.frame_coord].max().item()
 
         # Compute M = C * C.T / t'
-        M = C @ C.rename(AXIS.component_rename) / frame_idx
+        M = C @ C.rename(AXIS.component_rename) / (frame_idx + 1)
 
         self.component_stats_ = CompStat(array=M)
         return self.component_stats_
 
-    def ingest_frame(self, frame: Frame, new_traces: Traces) -> CompStat:
+    def ingest_frame(self, frame: Frame, new_traces: PopSnap) -> CompStat:
         """
         Update component statistics using current frame and component.
 
@@ -65,7 +65,7 @@ class CompStater(Node):
         new_scale = 1 / (frame_idx + 1)
 
         # New frame traces
-        c_t = new_traces.array.isel({AXIS.frames_dim: -1})
+        c_t = new_traces.array
 
         # Update component-wise statistics M_t
         # M_t = ((t-1)/t)M_{t-1} + (1/t)c_t c_t^T
@@ -93,7 +93,7 @@ class CompStater(Node):
             traces (Traces): Current temporal traces in buffer
             new_traces (Traces): Newly detected temporal components
         """
-        # Get current frame index (1-based)
+        # Get current frame index (starting with 1)
         t = new_traces.array[AXIS.frame_coord].max().item() + 1
 
         M = self.component_stats_.array

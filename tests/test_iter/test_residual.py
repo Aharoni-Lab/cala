@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Frame, Movie, Traces
+from cala.models import AXIS, Frame, Movie, Traces, PopSnap
 from cala.nodes.iter.residual import Resident
 from cala.testing.toy import FrameDims, Position, Toy
 
@@ -47,7 +47,7 @@ def test_init(resident, separate_cells) -> None:
     assert np.all(result.array == 0)
 
 
-def test_update(resident, separate_cells) -> None:
+def test_ingest_frame(resident, separate_cells) -> None:
 
     resident.initialize(
         footprints=separate_cells.footprints,
@@ -57,10 +57,10 @@ def test_update(resident, separate_cells) -> None:
         ),
     )
 
-    residual = resident.update(
+    residual = resident.ingest_frame(
         frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
         footprints=separate_cells.footprints,
-        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: [-1]})),
+        traces=PopSnap(array=separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
     )
 
     assert np.all(residual.array == 0)
