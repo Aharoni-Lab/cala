@@ -15,27 +15,25 @@ class Tracer(Node):
     def process(
         self,
         footprints: Footprints,
-        movie: Movie = None,
+        frames: Movie = None,
         frame: Frame = None,
-        traces: Traces = None,
         overlaps: Overlap = None,
     ) -> Traces:
         """
         A jenky ass temporary process method to circumvent Resource not yet being implemented.
         """
-        if movie is None:
+        if frames is None:
             return self.ingest_frame(footprints=footprints, frame=frame, overlaps=overlaps)
         else:
-            return self.initialize(footprints=footprints, movie=movie)
+            return self.initialize(footprints=footprints, frames=frames)
 
-    def initialize(self, footprints: Footprints, movie: Movie) -> Traces:
+    def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
         """Learn temporal traces from footprints and frames."""
         A = footprints.array
-        Y = movie.array
+        Y = frames.array
 
         # Get frames to use and flatten them
-        n_frames = Y.sizes[AXIS.frames_dim]
-        flattened_frames = Y[:n_frames].stack({"pixels": AXIS.spatial_dims})
+        flattened_frames = Y.stack({"pixels": AXIS.spatial_dims})
         flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
 
         # Process all components
@@ -107,6 +105,10 @@ class Tracer(Node):
         self.traces_.array = xr.concat([self.traces_.array, updated_traces], dim=AXIS.frames_dim)
 
         return self.traces_
+
+    def ingest_component(self, new_traces: Traces) -> Traces:
+        """refer to TraceStore"""
+        ...
 
     def update_traces(
         self,

@@ -28,7 +28,7 @@ def separate_cells() -> Toy:
 def tracer() -> Tracer:
     return Tracer.from_specification(
         spec=NodeSpecification(
-            id="test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
+            id="tracer-test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
         )
     )
 
@@ -37,7 +37,7 @@ def tracer() -> Tracer:
 def test_init(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    traces = tracer.initialize(footprints=toy.footprints, movie=toy.make_movie())
+    traces = tracer.initialize(footprints=toy.footprints, frames=toy.make_movie())
 
     np.testing.assert_array_equal(traces.array, toy.traces.array)
 
@@ -63,3 +63,10 @@ def test_ingest_frame(tracer, toy, request) -> None:
     )
 
     assert result.array.equals(toy.traces.array)
+
+
+@pytest.mark.parametrize("toy", ["separate_cells"])
+def test_ingest_component(tracer, toy, request) -> None:
+    toy = request.getfixturevalue(toy)
+
+    assert False
