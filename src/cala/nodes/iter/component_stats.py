@@ -7,7 +7,9 @@ from cala.models import AXIS, CompStat, Frame, PopSnap, Traces
 class CompStater(Node):
     component_stats_: CompStat = None
 
-    def process(self, traces: Traces, frame: Frame = None, new_traces: Traces = None) -> CompStat:
+    def process(
+        self, traces: Traces, frame: Frame = None, new_traces: Traces | PopSnap = None
+    ) -> CompStat:
         if frame is not None:
             return self.ingest_frame(frame=frame, new_traces=new_traces)
         elif new_traces is None:

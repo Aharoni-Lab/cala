@@ -20,7 +20,11 @@ class Resident(Node):
     """Computed residual buffer containing recent unexplained signals."""
 
     def process(
-        self, footprints: Footprints, traces: Traces, frames: Movie = None, frame: Frame = None
+        self,
+        footprints: Footprints,
+        traces: Traces | PopSnap,
+        frames: Movie = None,
+        frame: Frame = None,
     ) -> Residual:
         if frame is None:
             return self.initialize(footprints=footprints, traces=traces, frames=frames)
