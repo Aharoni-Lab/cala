@@ -10,6 +10,7 @@ from .observable import (
     Residual,
     Trace,
     Traces,
+    PopSnap,
 )
 from .params import Params
 from .spec import Pipe
@@ -30,4 +31,5 @@ __all__ = [
     PixStat,
     Overlap,
     Residual,
+    PopSnap,
 ]

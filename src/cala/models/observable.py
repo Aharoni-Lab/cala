@@ -4,7 +4,7 @@ from typing import ClassVar
 import xarray as xr
 from pydantic import BaseModel, PrivateAttr, field_validator
 
-from cala.models.axis import Dims
+from cala.models.axis import Dims, Coords
 from cala.models.checks import is_non_negative
 from cala.models.entity import Entity, Group
 
@@ -95,6 +95,24 @@ class Movie(Observable):
             member=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative],
+        )
+    )
+
+
+class PopSnap(Observable):
+    """
+    A snapshot of a population trait.
+
+    Mainly used for Traces that only has one frame.
+    """
+
+    array: xr.DataArray
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="pop-snap",
+            dims=(Dims.component.value,),
+            dtype=float,
+            coords=[Coords.frame.value, Coords.timestamp.value],
         )
     )
 
