@@ -4,7 +4,7 @@ from typing import ClassVar
 import xarray as xr
 from pydantic import BaseModel, PrivateAttr, field_validator
 
-from cala.models.axis import Dims, Coords
+from cala.models.axis import Coords, Dims
 from cala.models.checks import is_non_negative
 from cala.models.entity import Entity, Group
 

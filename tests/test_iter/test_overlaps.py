@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import Footprints, AXIS
+from cala.models import AXIS, Footprints
 from cala.nodes.iter.overlap import Overlapper
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")

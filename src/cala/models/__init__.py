@@ -7,10 +7,10 @@ from .observable import (
     Movie,
     Overlap,
     PixStat,
+    PopSnap,
     Residual,
     Trace,
     Traces,
-    PopSnap,
 )
 from .params import Params
 from .spec import Pipe

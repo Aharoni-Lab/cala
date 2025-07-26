@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Frame, Movie, Residual, Traces, PopSnap
+from cala.models import AXIS, Footprints, Frame, Movie, PopSnap, Residual, Traces
 
 
 class Resident(Node):

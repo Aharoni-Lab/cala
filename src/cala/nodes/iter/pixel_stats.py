@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Frame, Movie, Traces, PixStat, PopSnap
+from cala.models import AXIS, Frame, Movie, PixStat, PopSnap, Traces
 
 
 class PixelStater(Node):

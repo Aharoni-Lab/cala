@@ -1,7 +1,7 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, CompStat, Frame, Traces, PopSnap
+from cala.models import AXIS, CompStat, Frame, PopSnap, Traces
 
 
 class CompStater(Node):
