@@ -47,7 +47,7 @@ def test_ingest_frame(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
     xray = Overlapper.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.iter.overlaps.Overlaps")
+        spec=NodeSpecification(id="test", type="cala.nodes.iter.overlap.Overlapper")
     )
 
     traces = Traces(array=toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))

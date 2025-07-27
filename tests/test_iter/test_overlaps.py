@@ -63,14 +63,14 @@ def connected_cells() -> Toy:
 def test_init(overlapper, separate_cells, connected_cells) -> None:
     overlap = overlapper.initialize(footprints=separate_cells.footprints)
 
-    assert np.trace(overlap.array.data.todense()) == len(separate_cells.cell_ids)
-    assert np.all(np.triu(overlap.array.data.todense(), k=1) == 0)
+    assert np.trace(overlap.array) == len(separate_cells.cell_ids)
+    assert np.all(np.triu(overlap.array, k=1) == 0)
 
     result = overlapper.initialize(footprints=connected_cells.footprints)
 
     expected = np.array([[1, 0, 1, 0], [0, 1, 1, 0], [1, 1, 1, 1], [0, 0, 1, 1]])
 
-    np.testing.assert_array_equal(result.array.data.todense(), expected)
+    np.testing.assert_array_equal(result.array, expected)
 
 
 @pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
