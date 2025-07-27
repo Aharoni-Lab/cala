@@ -4,7 +4,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS, Residual
-from cala.models.observable import Footprint, Footprints, Trace, Traces
+from cala.models.observable import Footprint, Trace
 from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
@@ -131,7 +131,7 @@ class TestSliceNMF:
             raise AssertionError("Failed to detect a new component")
 
         for new, old in zip([new_fp, new_tr], [toy.footprints, toy.traces]):
-            assert_scalar_multiple_arrays(new, old.array)
+            assert_scalar_multiple_arrays(new.array, old.array)
 
 
 class TestSniffer:

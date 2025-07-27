@@ -5,16 +5,14 @@ import xarray as xr
 from noob.node import Node
 from sklearn.decomposition import NMF
 
-from cala.models import AXIS, Footprints, Residual, Traces
+from cala.models import AXIS, Footprint, Residual, Trace
 
 
 class SliceNMF(Node):
     cell_radius: int
     validity_threshold: float
 
-    def process(
-        self, residuals: Residual, energy: xr.DataArray
-    ) -> tuple[Footprints, Traces] | None:
+    def process(self, residuals: Residual, energy: xr.DataArray) -> tuple[Footprint, Trace] | None:
         # Find and analyze neighborhood of maximum variance
         residuals = residuals.array
 
@@ -28,7 +26,7 @@ class SliceNMF(Node):
         # eventually we should just log this value instead of throwing out the component
         # otherwise we keep coming back to this energy max point
         if self._check_validity(a_new, residuals):
-            return a_new, c_new
+            return Footprint(array=a_new), Trace(array=c_new)
         else:
             return None
 
