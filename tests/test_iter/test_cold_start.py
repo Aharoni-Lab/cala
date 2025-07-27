@@ -4,7 +4,6 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS, Residual
-from cala.models.observable import Footprint, Trace
 from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
@@ -149,14 +148,14 @@ class TestSniffer:
             id_="cell_1",
         )
 
-        ids = sniffer._find_overlap_ids(new_fp, toy.footprints.array)
+        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
         assert np.all(ids == ["cell_0", "cell_1"])
 
         toy.drop_cell("cell_1")
 
     def test_get_overlapped_traces(self, toy, new_component, sniffer):
         new_fp, _ = new_component
-        ids = sniffer._find_overlap_ids(new_fp, toy.footprints.array)
+        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
 
         trace = sniffer._get_overlapped_traces(ids, toy.traces.array)
 
@@ -167,9 +166,9 @@ class TestSniffer:
         toy.add_cell(
             Position(width=260, height=260), 30, np.array(range(toy.n_frames, 0, -1)), "cell_1"
         )
-        ids = sniffer._find_overlap_ids(new_fp, toy.footprints.array)
+        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
         traces = sniffer._get_overlapped_traces(ids, toy.traces.array)
-        dupe = sniffer._get_synced_traces(new_tr, traces)
+        dupe = sniffer._get_synced_traces(new_tr.array, traces)
 
         assert len(dupe) == 1
         assert dupe[0][0] == "cell_0"
@@ -190,7 +189,7 @@ class TestCataloger:
         ).process(Residual(array=single_cell_video.array), energy_shape)
 
     def test_init_with(self, cataloger, new_component):
-        new_fp, new_tr = (sch(array=arr) for sch, arr in zip([Footprint, Trace], new_component))
+        new_fp, new_tr = new_component
         fp, tr = cataloger._init_with(new_fp=new_fp, new_tr=new_tr)
 
         assert np.array_equal(fp.array.values[0], new_fp.array.values)
@@ -199,14 +198,14 @@ class TestCataloger:
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
-            new_fp=Footprint(array=new_fp),
-            new_tr=Trace(array=new_tr),
+            new_fp=new_fp,
+            new_tr=new_tr,
             existing_fp=toy.footprints,
             existing_tr=toy.traces,
         )
 
-        assert np.array_equal(fp.array.values[-1], new_component[0].values)
-        assert np.array_equal(tr.array.values[-1], new_component[1].values)
+        assert np.array_equal(fp.array[-1], new_fp.array)
+        assert np.array_equal(tr.array[-1], new_tr.array)
 
     def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
@@ -219,15 +218,11 @@ class TestCataloger:
 
         new_fp, new_tr = new_component
         fp, tr = cataloger._merge(
-            Footprint(array=new_fp),
-            Trace(array=new_tr),
-            toy.footprints,
-            toy.traces,
-            duplicates=[("cell_0", 1.0)],
+            new_fp, new_tr, toy.footprints, toy.traces, duplicates=[("cell_0", 1.0)]
         )
 
         movie_recon = fp.array @ tr.array
-        movie_new_comp = new_fp @ new_tr
+        movie_new_comp = new_fp.array @ new_tr.array
         movie_expected = single_cell_video.array + movie_new_comp
 
         np.testing.assert_allclose(movie_recon, movie_expected.transpose(*movie_recon.dims))

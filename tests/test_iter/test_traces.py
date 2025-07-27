@@ -69,4 +69,4 @@ def test_ingest_frame(tracer, toy, request) -> None:
 def test_ingest_component(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    assert False
+    raise AssertionError()
