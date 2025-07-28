@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 from noob.node import Node
 
-from cala.models import Footprints
+from cala.models import PixStat, Footprints, CompStat, AXIS
 
 
 class Footprinter(Node):
@@ -17,9 +17,10 @@ class Footprinter(Node):
 
     footprints_: Footprints = None
 
-    def ingest_frame(
-        self, footprints: Footprints, pixel_stats: xr.DataArray, component_stats: xr.DataArray
-    ) -> Footprints:
+    def process(self, pixel_stats: PixStat, component_stats: CompStat) -> Footprints:
+        return self.ingest(pixel_stats, component_stats)
+
+    def ingest_frame(self, pixel_stats: PixStat, component_stats: CompStat) -> Footprints:
         """
         Update spatial footprints using sufficient statistics.
 
@@ -39,55 +40,42 @@ class Footprinter(Node):
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components)
         """
-        A = footprints
-        M = component_stats
-        side_length = min(
-            footprints.sizes[self.params.spatial_dims[0]],
-            footprints.sizes[self.params.spatial_dims[1]],
-        )
-        if self.params.boundary_expansion_pixels:
-            kernel = cv2.getStructuringElement(
-                cv2.MORPH_CROSS,
-                (
-                    self.params.boundary_expansion_pixels * 2 + 1,
-                    self.params.boundary_expansion_pixels * 2 + 1,
-                ),
-            )  # faster than np.ones
+        A = self.footprints_.array
+        M = component_stats.array
+        W = pixel_stats.array
 
         converged = False
-        count = 0
-        while not converged:
-            count += 1
-            mask = A > 0
-            if self.params.boundary_expansion_pixels and count < side_length:
-                mask = xr.apply_ufunc(
-                    lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
-                    mask.astype(np.uint8),
-                    input_core_dims=[[*self.params.spatial_dims]],
-                    output_core_dims=[[*self.params.spatial_dims]],
-                    vectorize=True,
-                    dask="parallelized",
-                )
-            # Compute AM product using xarray operations
-            # Reshape M to align dimensions for broadcasting
-            AM = (A @ M).rename({f"{self.params.component_dim}'": f"{self.params.component_dim}"})
-            numerator = pixel_stats - AM
+        expanded = False
+        kernel = None, None
 
-            # Compute update using vectorized operations
+        while not converged:
+            mask = A > 0
+
+            if self.boundary_expansion_pixels:
+                kernel = self.expansion_kernel() if not kernel else kernel
+
+                if not expanded:
+                    mask = self.expand_boundary(kernel, mask)
+                    expanded = True
+
+            AM = A.rename(AXIS.component_rename) @ M
+            numerator = W - AM
+
             # Expand M diagonal for broadcasting
             M_diag = xr.apply_ufunc(
                 np.diag,
-                component_stats,
-                input_core_dims=[component_stats.dims],
-                output_core_dims=[[self.params.component_dim]],
+                M,
+                input_core_dims=[M.dims],
+                output_core_dims=[[AXIS.component_dim]],
                 dask="allowed",
             )
 
             # Apply update equation with masking
             update = numerator / M_diag
-            A_new = xr.where(mask, A + update, A)
+            A_new = mask * (A + update)
             A_new = xr.where(A_new > 0, A_new, 0)
-            if abs((A - A_new).sum() / np.prod(A.shape)) < self.params.tolerance:
+
+            if abs((A - A_new).sum() / np.prod(A.shape)) < self.tolerance:
                 A = A_new
                 converged = True
             else:
@@ -95,3 +83,22 @@ class Footprinter(Node):
 
         self.footprints_.array = A
         return self.footprints_
+
+    def expansion_kernel(self) -> np.ndarray:
+        return cv2.getStructuringElement(
+            cv2.MORPH_CROSS,
+            (
+                self.boundary_expansion_pixels * 2 + 1,
+                self.boundary_expansion_pixels * 2 + 1,
+            ),
+        )  # faster than np.ones
+
+    def expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
+        return xr.apply_ufunc(
+            lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
+            mask.astype(np.uint8),
+            input_core_dims=[[*AXIS.spatial_dims]],
+            output_core_dims=[[*AXIS.spatial_dims]],
+            vectorize=True,
+            dask="parallelized",
+        )
