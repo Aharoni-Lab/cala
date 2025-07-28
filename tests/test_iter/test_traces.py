@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Frame, Traces
+from cala.models import AXIS, Frame, Traces, Trace
 from cala.nodes.iter.overlap import Overlapper
 from cala.nodes.iter.traces import Tracer
 from cala.testing.toy import FrameDims, Position, Toy
@@ -69,4 +69,11 @@ def test_ingest_frame(tracer, toy, request) -> None:
 def test_ingest_component(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    raise AssertionError()
+    traces = Traces(array=toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
+    tracer.traces_ = traces
+
+    trace = Trace(array=toy.traces.array.isel({AXIS.component_dim: -1}))
+
+    expected = tracer.ingest_component(trace)
+
+    assert expected == toy.traces

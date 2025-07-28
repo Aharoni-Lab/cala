@@ -4,7 +4,7 @@ from noob.node import Node
 from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Traces
+from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Traces, Trace
 
 
 class Tracer(Node):
@@ -18,14 +18,17 @@ class Tracer(Node):
         frames: Movie = None,
         frame: Frame = None,
         overlaps: Overlap = None,
+        new_trace: Trace = None,
     ) -> Traces:
         """
         A jenky ass temporary process method to circumvent Resource not yet being implemented.
         """
         if frames is None:
             return self.ingest_frame(footprints=footprints, frame=frame, overlaps=overlaps)
-        else:
+        elif new_trace is None:
             return self.initialize(footprints=footprints, frames=frames)
+        else:
+            return self.ingest_component(new_trace=new_trace)
 
     def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
         """Learn temporal traces from footprints and frames."""
@@ -37,7 +40,7 @@ class Tracer(Node):
         flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
 
         # Process all components
-        temporal_traces = self.solve_all_component_traces(
+        temporal_traces = self._solve_all_component_traces(
             flattened_footprints.values,
             flattened_frames.values,
             flattened_footprints.sizes[AXIS.component_dim],
@@ -100,17 +103,28 @@ class Tracer(Node):
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
-        updated_traces = self.update_traces(A, y, c.copy(), clusters, self.tolerance)
+        updated_traces = self._update_traces(A, y, c.copy(), clusters, self.tolerance)
 
         self.traces_.array = xr.concat([self.traces_.array, updated_traces], dim=AXIS.frames_dim)
 
         return self.traces_
 
-    def ingest_component(self, new_traces: Traces) -> Traces:
-        """refer to TraceStore"""
-        ...
+    def ingest_component(self, new_trace: Trace) -> Traces:
+        c = self.traces_.array
+        c_det = new_trace.array
 
-    def update_traces(
+        if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
+            c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
+            c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
+            c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
+
+            c_new.loc[c_det[AXIS.frame_coord]] = c_det
+        else:
+            c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
+
+        return Traces(array=xr.concat([c, c_new], dim=AXIS.component_dim))
+
+    def _update_traces(
         self,
         A: xr.DataArray,
         y: xr.DataArray,
@@ -173,7 +187,7 @@ class Tracer(Node):
         ).assign_coords(y[AXIS.frames_dim].coords)
 
     @staticmethod
-    def solve_all_component_traces(
+    def _solve_all_component_traces(
         footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
     ) -> np.ndarray:
         """Solve temporal traces for all components in parallel
@@ -194,12 +208,12 @@ class Tracer(Node):
             if np.any(active_pixels):
                 footprint_active = footprint[active_pixels]
                 frames_active = frames[:, active_pixels]
-                results[i] = Tracer.fast_nnls_vector(footprint_active, frames_active)
+                results[i] = Tracer._fast_nnls_vector(footprint_active, frames_active)
 
         return results
 
     @staticmethod
-    def fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
         """Specialized NNLS for single-variable case across multiple frames
         A: footprint values (n_pixels,)
         B: frame data matrix (n_frames, n_pixels)

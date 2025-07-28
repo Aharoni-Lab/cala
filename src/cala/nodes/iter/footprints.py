@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 from noob.node import Node
 
-from cala.models import PixStat, Footprints, CompStat, AXIS
+from cala.models import PixStat, Footprints, CompStat, AXIS, Footprint
 
 
 class Footprinter(Node):
@@ -33,8 +33,6 @@ class Footprinter(Node):
             - p are the pixels where component i can be non-zero
 
         Args:
-            footprints (Footprints): Current spatial footprints Ã = [A, b].
-                Shape: (pixels × components)
             pixel_stats (PixelStats): Sufficient statistics W.
                 Shape: (pixels × components)
             component_stats (ComponentStats): Sufficient statistics M.
@@ -102,3 +100,9 @@ class Footprinter(Node):
             vectorize=True,
             dask="parallelized",
         )
+
+    def ingest_component(self, new_footprint: Footprint | Footprints) -> Footprints:
+        self.footprints_.array = xr.concat(
+            [self.footprints_.array, new_footprint.array], dim=AXIS.component_dim
+        )
+        return self.footprints_
