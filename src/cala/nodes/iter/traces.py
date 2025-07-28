@@ -4,7 +4,7 @@ from noob.node import Node
 from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Traces, Trace
+from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Trace, Traces
 
 
 class Tracer(Node):

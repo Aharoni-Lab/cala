@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Frame, Traces, Trace
+from cala.models import AXIS, Frame, Trace, Traces
 from cala.nodes.iter.overlap import Overlapper
 from cala.nodes.iter.traces import Tracer
 from cala.testing.toy import FrameDims, Position, Toy

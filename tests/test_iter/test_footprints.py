@@ -5,7 +5,7 @@ from noob.node import NodeSpecification
 from cala.nodes.iter.component_stats import CompStater
 from cala.nodes.iter.footprints import Footprinter
 from cala.nodes.iter.pixel_stats import PixelStater
-from cala.testing.toy import Toy, FrameDims, Position
+from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture

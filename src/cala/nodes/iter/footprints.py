@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 from noob.node import Node
 
-from cala.models import PixStat, Footprints, CompStat, AXIS, Footprint
+from cala.models import AXIS, CompStat, Footprint, Footprints, PixStat
 
 
 class Footprinter(Node):
@@ -50,7 +50,7 @@ class Footprinter(Node):
             mask = A > 0
 
             if self.boundary_expansion_pixels:
-                kernel = self.expansion_kernel() if not kernel else kernel
+                kernel = kernel if kernel else self.expansion_kernel()
 
                 if not expanded:
                     mask = self.expand_boundary(kernel, mask)
