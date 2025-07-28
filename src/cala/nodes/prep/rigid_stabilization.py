@@ -18,7 +18,6 @@ class Shift(BaseModel):
 
 class RigidStabilizer(Node):
     drift_speed: float = 1.0
-    anchor_frame_index: int = 0
     kwargs: dict = Field(default_factory=dict)
 
     _anchor_last_applied_on: int = None

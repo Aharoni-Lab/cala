@@ -1,0 +1,56 @@
+noob_id: cala-full
+
+gui:
+  prep_movie:
+    stream_url: /prep_movie/stream.m3u8
+
+  metric_plot:
+    width: 500
+    height: 200
+    max_points: 100
+
+  footprint_movie:
+    stream_url: /footprint_movie/stream.m3u8
+
+prep:
+  nodes:
+    source:
+      type: cala.testing.single_cell_source
+    denoise:
+      type: cala.nodes.prep.denoise
+      params:
+        method: gaussian
+        ksize:
+          - 3
+          - 3
+        sigmaX: 1.5
+      depends:
+        - frame: source.frame
+    glow:
+      type: cala.nodes.prep.GlowRemover
+      depends:
+        - frame: denoise.frame
+    motion:
+      type: cala.nodes.prep.RigidStabilizer
+      params:
+        - drift_speed: 1.0
+      depends:
+        - frame: glow.frame
+    out:
+      type: return
+      depends: motion.frame
+
+iter:
+  nodes:
+    traces:
+      ...
+    detect:
+      ...
+    pix_stats:
+      ...
+    comp_stats:
+      ...
+    footprints:
+      ...
+    overlap:
+      ...

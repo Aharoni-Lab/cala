@@ -1,0 +1,50 @@
+noob_id: cala-prep
+noob_model: cala.models.spec.PipeSpec
+noob_version: 0.1.1.dev73+gbdab3f8
+buff:
+  size: 100
+prep:
+  nodes:
+    source:
+      type: cala.testing.single_cell_source
+    denoise:
+      type: cala.nodes.prep.denoise
+      params:
+        ksize:
+          - 3
+          - 3
+        sigmaX: 1.5
+      depends:
+        - frame: source.frame
+    glow:
+      type: cala.nodes.prep.GlowRemover
+      depends:
+        - frame: denoise.frame
+    background:
+      type: cala.nodes.prep.remove_background
+      depends:
+        - frame: glow.frame
+    motion:
+      type: cala.nodes.prep.RigidStabilizer
+      params:
+        - drift_speed: float = 1.0
+      depends:
+        - frame: background.frame
+    out:
+      type: return
+      depends: motion.frame
+
+iter:
+  nodes:
+    traces:
+      ...
+    detect:
+      ...
+    pix_stats:
+      ...
+    comp_stats:
+      ...
+    footprints:
+      ...
+    overlap:
+      ...
