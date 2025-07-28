@@ -1,118 +1,133 @@
-from dataclasses import dataclass
-from typing import Self
-
 import xarray as xr
-from river.base import SupervisedTransformer
-from sklearn.exceptions import NotFittedError
+from noob.node import Node
 
-from cala.models.params import Params
-from cala.stores.common import Traces
-from cala.stores.odl import PixelStats
+from cala.models import AXIS, Frame, Movie, PixStat, PopSnap, Traces
 
 
-@dataclass
-class PixelStatsUpdaterParams(Params):
-    """Parameters for sufficient statistics updates.
-
-    This class defines the configuration parameters needed for updating
-    pixel-wise and component-wise sufficient statistics matrices.
-    """
-
-    def validate(self) -> None:
-        """Validate parameter configurations.
-
-        This implementation has no parameters to validate, but the method
-        is included for consistency with the Parameters interface.
-        """
-        pass
-
-
-@dataclass
-class PixelStatsUpdater(SupervisedTransformer):
-    """Updates pixel statistics matrices using current frame.
-
-    This transformer implements the pixel statistics update equation:
-
-    W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
-
-    where:
-    - W_t is the pixel-wise sufficient statistics at time t
-    - y_t is the current frame
-    - c_t is the current temporal component
-    - t is the current timestep
-    """
-
-    params: PixelStatsUpdaterParams
-    """Configuration parameters for the update process."""
-
-    pixel_stats_: PixelStats = None
+class PixelStater(Node):
+    pixel_stats_: PixStat = None
     """Updated pixel-component sufficient statistics W."""
 
-    is_fitted_: bool = False
-    """Indicator whether the transformer has been fitted."""
-
-    def learn_one(
+    def process(
         self,
-        frame: xr.DataArray,
-        traces: Traces,
-        pixel_stats: PixelStats,
-    ) -> Self:
-        """Update pixel statistics using current frame and component.
+        traces: Traces | PopSnap = None,
+        frames: Movie = None,
+        new_traces: Traces = None,
+        frame: Frame = None,
+    ) -> PixStat:
+        if frames is None:
+            return self.ingest_frame(frame=frame, traces=traces)
+        elif new_traces is None:
+            return self.initialize(frames=frames, traces=traces)
+        else:
+            return self.ingest_components(frames=frames, new_traces=new_traces)
+
+    def initialize(self, traces: Traces, frames: Movie) -> PixStat:
+        """
+        This transformer calculates the correlation between each pixel's temporal trace
+        and each component's temporal activity. The computation provides a measure of
+        how well each pixel's activity aligns with each component.
+
+        The computation follows the equation:
+
+            W = Y[:, 1:t']C^T/t'
+
+            where:
+            - Y is the data matrix (pixels × time)
+            - C is the temporal components matrix (components × time)
+            - t' is the current timestep
+            - W is the resulting pixel statistics (pixels × components)
+
+        The result W represents the temporal correlation between each pixel
+        and each component, normalized by the number of timepoints.
+
+        Args:
+            traces (Traces): Temporal traces of all detected fluorescent components.
+                Shape: (components × time)
+            frames (Movie): Stack of frames up to current timestep.
+                Shape: (frames × height × width)
+        """
+        Y = frames.array
+
+        t_prime = Y[AXIS.frame_coord].max().item() + 1
+
+        C = traces.array  # components x time
+
+        # Compute W = Y[:, 1:t']C^T/t'
+        W = Y @ C.T / t_prime
+
+        self.pixel_stats_ = PixStat(array=W)
+        return self.pixel_stats_
+
+    def ingest_frame(self, frame: Frame, traces: PopSnap) -> PixStat:
+        """
+        Update pixel statistics using current frame and component.
 
         This method implements the update equations for pixel-component wise
         statistics matrices. The updates incorporate the current frame and
         temporal component with appropriate time-based scaling.
 
+            W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
+
+            where:
+            - W_t is the pixel-wise sufficient statistics at time t
+            - y_t is the current frame
+            - c_t is the current temporal component
+            - t is the current timestep
+
         Args:
             frame (Frame): Current frame y_t.
                 Shape: (height × width)
-            traces (Traces): Current temporal component c_t.
+            traces (PopSnap): Current temporal component c_t.
                 Shape: (components)
-            pixel_stats (PixelStats): Current pixel-wise statistics W_{t-1}.
-                Shape: (pixels × components)
-
-        Returns:
-            Self: The transformer instance for method chaining.
         """
         # Compute scaling factors
-        frame_idx = frame.coords[self.params.frame_coord].item() + 1
-        prev_scale = (frame_idx - 1) / frame_idx
-        new_scale = 1 / frame_idx
+        frame_idx = frame.array.coords[AXIS.frame_coord].item()
+        prev_scale = frame_idx / (frame_idx + 1)
+        new_scale = 1 / (frame_idx + 1)
 
-        # Flatten spatial dimensions of frame
-        y_t = frame  # .stack({"pixels": self.params.spatial_axes})
-        W = pixel_stats  # .stack({"pixels": self.params.spatial_axes})
-        # New frame traces
-        c_t = traces.isel({self.params.frames_dim: -1})
+        y_t = frame.array
+        W = self.pixel_stats_.array
+        c_t = traces.array  # New frame traces
 
         # Update pixel-component statistics W_t
         # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
         W_update = prev_scale * W + new_scale * y_t @ c_t
 
-        # Create updated xarray DataArrays with same coordinates/dimensions
-        self.pixel_stats_ = W_update  # .unstack("pixels")
+        self.pixel_stats_.array = W_update.reset_coords(
+            [AXIS.timestamp_coord, AXIS.frame_coord], drop=True
+        )
 
-        self.is_fitted_ = True
-        return self
+        return self.pixel_stats_
 
-    def transform_one(self, _: None = None) -> PixelStats:
-        """Return the updated sufficient statistics matrices.
+    def ingest_component(self, frames: Movie, new_traces: Traces) -> PixStat:
+        """Update pixel statistics with new components.
 
-        This method returns both updated statistics matrices after the
-        update process has completed.
+        Updates W_t according to the equation:
+
+            W_t = [W_t, (1/t)Y_buf c_new^T]
+
+        where:
+            t is the current frame index.
 
         Args:
-            _: Unused parameter maintained for API compatibility.
+            frames (Movie): Stack of frames up to current timestep.
+            new_traces (Traces): Newly detected components' traces
 
         Returns:
-            tuple:
-                - PixelStats: Updated pixel-wise sufficient statistics W_t
-                - ComponentStats: Updated component-wise sufficient statistics M_t
-
-        Raises:
-            NotFittedError: If the transformer hasn't been fitted yet.
+            PixelStater: Updated pixel statistics matrix
         """
-        if not self.is_fitted_:
-            raise NotFittedError
+        # Compute scaling factor (1/t)
+        frame_idx = new_traces.array[AXIS.frame_coord].max().item()
+        scale = 1 / (frame_idx + 1)
+
+        # Compute outer product of frame and new traces
+        # (1/t)Y_buf c_new^T
+        new_stats = scale * (frames.array @ new_traces.array)
+
+        # Concatenate with existing pixel stats along component axis
+        self.pixel_stats_.array = xr.concat(
+            [self.pixel_stats_.array, new_stats], dim=AXIS.component_dim
+        )
 
         return self.pixel_stats_

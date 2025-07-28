@@ -16,7 +16,6 @@ class Axis:
     """Name of the dimension representing individual components."""
 
     id_coord: str = "id_"
-    type_coord: str = "type_"
     timestamp_coord: str = "timestamp"
     confidence_coord: str = "confidence"
     frame_coord: str = "frame"
@@ -32,6 +31,14 @@ class Axis:
     def spatial_coords(self) -> tuple[str, str]:
         """Names of the dimensions representing 2-d spatial coordinates Default: (height, width)."""
         return self.height_coord, self.width_coord
+
+    @property
+    def component_rename(self) -> dict[str, str]:
+        return {
+            AXIS.component_dim: f"{AXIS.component_dim}'",
+            AXIS.id_coord: f"{AXIS.id_coord}'",
+            AXIS.confidence_coord: f"{AXIS.confidence_coord}'",
+        }
 
 
 AXIS = Axis()

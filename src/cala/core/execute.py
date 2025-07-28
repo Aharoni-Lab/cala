@@ -64,7 +64,7 @@ class Executor:
         # )
 
         self._buffer = Buffer(
-            buffer_size=self.pipe.buff["size"],
+            size=self.pipe.buff["size"],
         )
 
     def preprocess(self) -> Frame:
@@ -89,13 +89,11 @@ class Executor:
         return frame
 
     def initialize(self) -> None:
-        """Initialize pipeline transformers in dependency order.
+        """
+        Initialize pipeline transformers in dependency order.
 
         Executes initialization steps that may require multiple frames. Steps are executed
         in topological order based on their dependencies.
-
-        Args:
-            frame: New frame to use for initialization.
         """
         # self._buffer.add_frame(frame)
 
@@ -128,11 +126,7 @@ class Executor:
             self.is_initialized = True
 
     def iterate(self) -> None:
-        """Execute iterate steps on a single frame.
-
-        Args:
-            frame: Input frame to process for component iterate.
-        """
+        """Execute iterate steps on a single frame."""
 
         # if getattr(self._state, "footprintstore", None):
         #     self.component_counter.learn_one(self._state.footprintstore)

@@ -1,138 +1,130 @@
-from dataclasses import dataclass, field
-from typing import Self
-
 import numpy as np
 import xarray as xr
-from river.base import SupervisedTransformer
+from noob.node import Node
+from numba import prange
 from scipy.sparse.csgraph import connected_components
-from sklearn.exceptions import NotFittedError
 
-from cala.models.params import Params
-from cala.stores.common import Footprints, Traces
-from cala.stores.odl import Overlaps
+from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Trace, Traces
 
 
-@dataclass
-class TracesUpdaterParams(Params):
-    """Parameters for temporal trace updates.
-
-    This class defines the configuration parameters needed for updating temporal
-    traces of components, including axis names and convergence criteria.
-    """
-
+class Tracer(Node):
     tolerance: float = 1e-3
-    """Convergence tolerance level (ε) for the iterative update process."""
 
-    def validate(self) -> None:
-        """Validate parameter configurations.
+    traces_: Traces = None
 
-        Raises:
-            ValueError: If tolerance is not positive.
-        """
-        if self.tolerance <= 0:
-            raise ValueError("tolerance must be positive")
-
-
-@dataclass
-class TracesUpdater(SupervisedTransformer):
-    """Updates temporal traces using an iterative block coordinate descent approach.
-
-    This transformer implements Algorithm 4 (UpdateTraces) which updates temporal
-    components using spatial footprints and current frame data. The update process
-    uses block coordinate descent with guaranteed convergence under non-negativity
-    constraints.
-
-    The update follows the iterative formula:
-    c[G_i] = max(c[G_i] + (u[G_i] - V[G_i,:]c)/v[G_i], 0)
-    where:
-    - c is the temporal traces vector
-    - G_i represents component groups
-    - u = Ã^T y (projection of current frame)
-    - V = Ã^T Ã (gram matrix of spatial components)
-    - v = diag{V} (diagonal elements for normalization)
-    """
-
-    params: TracesUpdaterParams
-    """Configuration parameters for the update process."""
-
-    traces_: xr.DataArray = field(init=False, repr=False)
-    """Updated temporal traces for all components."""
-
-    is_fitted_: bool = False
-    """Indicator whether the transformer has been fitted."""
-
-    def learn_one(
+    def process(
         self,
         footprints: Footprints,
-        frame: xr.DataArray,
-        traces: Traces,
-        overlaps: Overlaps,
-    ) -> Self:
-        """Update temporal traces using current spatial footprints and frame data.
+        frames: Movie = None,
+        frame: Frame = None,
+        overlaps: Overlap = None,
+        new_trace: Trace = None,
+    ) -> Traces:
+        """
+        A jenky ass temporary process method to circumvent Resource not yet being implemented.
+        """
+        if frames is None:
+            return self.ingest_frame(footprints=footprints, frame=frame, overlaps=overlaps)
+        elif new_trace is None:
+            return self.initialize(footprints=footprints, frames=frames)
+        else:
+            return self.ingest_component(new_trace=new_trace)
 
-        This method implements the block coordinate descent update of temporal
-        traces. It processes components based on their overlap relationships,
-        ensuring that overlapping components are updated together for proper
-        convergence.
+    def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
+        """Learn temporal traces from footprints and frames."""
+        A = footprints.array
+        Y = frames.array
+
+        # Get frames to use and flatten them
+        flattened_frames = Y.stack({"pixels": AXIS.spatial_dims})
+        flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
+
+        # Process all components
+        temporal_traces = self._solve_all_component_traces(
+            flattened_footprints.values,
+            flattened_frames.values,
+            flattened_footprints.sizes[AXIS.component_dim],
+            flattened_frames.sizes[AXIS.frames_dim],
+        )
+
+        trace_coords = [
+            AXIS.id_coord,
+            AXIS.confidence_coord,
+            AXIS.frame_coord,
+            AXIS.timestamp_coord,
+        ]
+        coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
+        self.traces_ = Traces(
+            array=xr.DataArray(
+                temporal_traces,
+                dims=(AXIS.component_dim, AXIS.frames_dim),
+                coords=coords,
+            )
+        )
+
+        return self.traces_
+
+    def ingest_frame(self, footprints: Footprints, frame: Frame, overlaps: Overlap) -> Traces:
+        """
+        Update temporal traces using current spatial footprints and frame data.
+
+        This method implements the iterative block coordinate descent update of temporal
+        traces with guaranteed convergence under non-negativity constraints. It processes
+        components based on their overlap relationships, ensuring that overlapping components
+        are updated together for proper convergence.
+
+        Follows the iterative formula:
+
+            c[G_i] = max(c[G_i] + (u[G_i] - V[G_i,:]c)/v[G_i], 0)
+
+        where:
+            - c is the temporal traces vector
+            - G_i represents component groups
+            - u = Ã^T y (projection of current frame)
+            - V = Ã^T Ã (gram matrix of spatial components)
+            - v = diag{V} (diagonal elements for normalization)
 
         Args:
             footprints (Footprints): Spatial footprints of all components.
                 Shape: (components × height × width)
             frame (xr.DataArray): Current frame data.
                 Shape: (height × width)
-            traces (Traces): Current temporal traces to be updated.
-                Shape: (components × time)
             overlaps (Overlaps): Sparse matrix indicating component overlaps.
                 Shape: (components × components), where entry (i,j) is 1 if
                 components i and j overlap, and 0 otherwise.
-
-        Returns:
-            Self: The transformer instance for method chaining.
         """
         # Prepare inputs for the update algorithm
-        A = footprints.stack({"pixels": self.params.spatial_dims})
-        y = frame.stack({"pixels": self.params.spatial_dims})
-        c = xr.DataArray(
-            traces.isel({self.params.frames_dim: [-1]}),
-            coords={
-                **traces.coords[self.params.component_dim].coords,
-                **{k: (self.params.frames_dim, [v.item()]) for k, v in frame.coords.items()},
-            },
-        )
+        A = footprints.array.stack({"pixels": AXIS.spatial_dims})
+        y = frame.array.stack({"pixels": AXIS.spatial_dims})
+        c = self.traces_.array.isel({AXIS.frames_dim: -1})
 
-        _, labels = connected_components(csgraph=overlaps.data, directed=False, return_labels=True)
+        _, labels = connected_components(
+            csgraph=overlaps.array.data, directed=False, return_labels=True
+        )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
-        # Run the update algorithm
-        updated_traces = self.update_traces(A, y, c.copy(), clusters, self.params.tolerance)
+        updated_traces = self._update_traces(A, y, c.copy(), clusters, self.tolerance)
 
-        # store result with proper coordinates
-        self.traces_ = updated_traces
-
-        self.is_fitted_ = True
-        return self
-
-    def transform_one(self, _: None = None) -> Traces:
-        """Transform the updated traces into the expected format.
-
-        This method wraps the updated temporal traces in a Traces object
-        for consistent typing in the pipeline.
-
-        Args:
-            _: Unused parameter maintained for API compatibility.
-
-        Returns:
-            TraceStore: Wrapped updated temporal traces.
-
-        Raises:
-            NotFittedError: If the transformer hasn't been fitted yet.
-        """
-        if not self.is_fitted_:
-            raise NotFittedError
+        self.traces_.array = xr.concat([self.traces_.array, updated_traces], dim=AXIS.frames_dim)
 
         return self.traces_
 
-    def update_traces(
+    def ingest_component(self, new_trace: Trace) -> Traces:
+        c = self.traces_.array
+        c_det = new_trace.array
+
+        if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
+            c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
+            c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
+            c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
+
+            c_new.loc[c_det[AXIS.frame_coord]] = c_det
+        else:
+            c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
+
+        return Traces(array=xr.concat([c, c_new], dim=AXIS.component_dim))
+
+    def _update_traces(
         self,
         A: xr.DataArray,
         y: xr.DataArray,
@@ -140,11 +132,12 @@ class TracesUpdater(SupervisedTransformer):
         clusters: list[np.ndarray],
         eps: float,
     ) -> xr.DataArray:
-        """Implementation of the temporal traces update algorithm.
+        """
+        Implementation of the temporal traces update algorithm.
 
-        This function implements the core update logic of Algorithm 4 (UpdateTraces).
-        It uses block coordinate descent to update temporal traces for overlapping
-        components together while maintaining non-negativity constraints.
+        This function implements the core update logic. It uses block coordinate descent
+        to update temporal traces for overlapping components together while maintaining
+        non-negativity constraints.
 
         Args:
             A (xr.DataArray): Spatial footprints matrix [A, b].
@@ -165,7 +158,7 @@ class TracesUpdater(SupervisedTransformer):
         u = A @ y
 
         # Step 2: Compute gram matrix of spatial components
-        V = A @ A.rename({self.params.component_dim: f"{self.params.component_dim}'"})
+        V = A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
 
         # Step 3: Extract diagonal elements for normalization
         V_diag = np.diag(V)
@@ -180,14 +173,56 @@ class TracesUpdater(SupervisedTransformer):
             # Steps 7-9: Update each group using block coordinate descent
             for cluster in clusters:
                 # Update traces for current group (division is pointwise)
-                numerator = u.isel({self.params.component_dim: cluster}) - (
-                    V.isel({f"{self.params.component_dim}'": cluster}) @ c
-                ).rename({f"{self.params.component_dim}'": self.params.component_dim})
+                numerator = u.isel({AXIS.component_dim: cluster}) - (
+                    V.isel({f"{AXIS.component_dim}'": cluster}) @ c
+                ).rename({f"{AXIS.component_dim}'": AXIS.component_dim})
 
-                c.loc[{self.params.component_dim: cluster}] = np.maximum(
-                    c.isel({self.params.component_dim: cluster})
-                    + numerator / np.array([V_diag[cluster]]).T,
+                c.loc[{AXIS.component_dim: cluster}] = np.maximum(
+                    c.isel({AXIS.component_dim: cluster}) + numerator / V_diag[cluster].T,
                     0,
                 )
 
-        return c
+        return xr.DataArray(
+            c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
+        ).assign_coords(y[AXIS.frames_dim].coords)
+
+    @staticmethod
+    def _solve_all_component_traces(
+        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
+    ) -> np.ndarray:
+        """Solve temporal traces for all components in parallel
+
+        Args:
+            footprints: Array of shape (n_components, height*width)
+            frames: Array of shape (n_frames, height*width)
+        Returns:
+            Array of shape (n_components, n_frames)
+        """
+        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
+
+        # Parallel loop over components
+        for i in prange(n_components):
+            footprint = footprints[i]
+            active_pixels = footprint > 0
+
+            if np.any(active_pixels):
+                footprint_active = footprint[active_pixels]
+                frames_active = frames[:, active_pixels]
+                results[i] = Tracer._fast_nnls_vector(footprint_active, frames_active)
+
+        return results
+
+    @staticmethod
+    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+        """Specialized NNLS for single-variable case across multiple frames
+        A: footprint values (n_pixels,)
+        B: frame data matrix (n_frames, n_pixels)
+        Returns: brightness values for each frame (n_frames,)
+        """
+        ata = (A * A).sum()  # Compute once for all frames
+        if ata <= 0:
+            return np.zeros(B.shape[0], dtype=B.dtype)
+
+        # Vectorized computation for all frames
+        atb = A @ B.T  # dot product with each frame
+        return np.maximum(0, atb / ata)

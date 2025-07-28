@@ -1,45 +1,32 @@
 from collections.abc import Hashable, Mapping
-from dataclasses import dataclass
 
 import numpy as np
 import xarray as xr
+from noob.node import Node
 from sklearn.decomposition import NMF
 
-from cala.models import Node
-from cala.models.params import Params
-from cala.stores.common import Footprints, Traces
-from cala.stores.odl import Residuals
+from cala.models import AXIS, Footprint, Residual, Trace
 
 
-@dataclass
-class SliceNMFParams(Params):
+class SliceNMF(Node):
     cell_radius: int
     validity_threshold: float
 
-    def validate(self) -> None: ...
-
-
-@dataclass
-class SliceNMF(Node):
-    params: SliceNMFParams
-
-    def process(
-        self, residuals: Residuals, energy: xr.DataArray
-    ) -> tuple[Footprints, Traces] | None:
+    def process(self, residuals: Residual, energy: xr.DataArray) -> tuple[Footprint, Trace] | None:
         # Find and analyze neighborhood of maximum variance
+        residuals = residuals.array
+
         slice_ = self._get_max_energy_slice(arr=residuals, energy_landscape=energy)
 
         a_new, c_new = self._local_nmf(
             slice_=slice_,
-            spatial_sizes={
-                k: v for k, v in residuals.sizes.items() if k in self.params.spatial_dims
-            },
+            spatial_sizes={k: v for k, v in residuals.sizes.items() if k in AXIS.spatial_dims},
         )
 
         # eventually we should just log this value instead of throwing out the component
         # otherwise we keep coming back to this energy max point
         if self._check_validity(a_new, residuals):
-            return a_new, c_new
+            return Footprint(array=a_new), Trace(array=c_new)
         else:
             return None
 
@@ -50,10 +37,10 @@ class SliceNMF(Node):
     ) -> xr.DataArray:
         """Find neighborhood around point of maximum variance."""
         # Find maximum point
-        max_coords = energy_landscape.argmax(dim=self.params.spatial_dims)
+        max_coords = energy_landscape.argmax(dim=AXIS.spatial_dims)
 
         # Define neighborhood
-        radius = int(np.round(self.params.cell_radius))
+        radius = int(np.round(self.cell_radius))
         window = {
             ax: slice(
                 max(0, pos.values - radius),
@@ -89,7 +76,7 @@ class SliceNMF(Node):
                 - Temporal component c_new (frames)
         """
         # Reshape neighborhood to 2D matrix (time × space)
-        R = slice_.stack(space=self.params.spatial_dims).transpose(self.params.frames_dim, "space")
+        R = slice_.stack(space=AXIS.spatial_dims).transpose(AXIS.frames_dim, "space")
 
         # Apply NMF (check how long nndsvd takes vs random)
         model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
@@ -101,8 +88,8 @@ class SliceNMF(Node):
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
             c.squeeze(),
-            dims=[self.params.frames_dim],
-            coords=slice_.coords[self.params.frames_dim].coords,
+            dims=[AXIS.frames_dim],
+            coords=slice_[AXIS.frames_dim].coords,
         )
 
         # Create full-frame zero array with proper coordinates
@@ -113,10 +100,10 @@ class SliceNMF(Node):
         )
 
         # Place the NMF result in the correct location
-        a_new.loc[{ax: slice_.coords[ax] for ax in self.params.spatial_dims}] = xr.DataArray(
-            a.squeeze().reshape(tuple(slice_.sizes[ax] for ax in self.params.spatial_dims)),
-            dims=self.params.spatial_dims,
-            coords={ax: slice_.coords[ax] for ax in self.params.spatial_dims},
+        a_new.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = xr.DataArray(
+            a.squeeze().reshape(tuple(slice_.sizes[ax] for ax in AXIS.spatial_dims)),
+            dims=AXIS.spatial_dims,
+            coords={ax: slice_.coords[ax] for ax in AXIS.spatial_dims},
         )
 
         # normalize against the original video (as in whatever the residual used at the time)
@@ -126,7 +113,7 @@ class SliceNMF(Node):
 
         return a_new, c_new
 
-    def _check_validity(self, a_new: xr.DataArray, residuals: Residuals) -> bool:
+    def _check_validity(self, a_new: xr.DataArray, residuals: xr.DataArray) -> bool:
         # not sure if this step is necessary or even makes sense
         # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
         # and if the error is big, maybe it just means it's partially overlapping with another
@@ -156,7 +143,7 @@ class SliceNMF(Node):
         # but i think we should only get correlation from within the new footprint perimeter,
         # since otherwise the correlation will get drowned out by the mismatch
         # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=self.params.frames_dim).isel(nonzero_ax_to_idx)
+        mean_residual = residuals.mean(dim=AXIS.frames_dim).isel(nonzero_ax_to_idx)
 
         a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
         res_norm = mean_residual / mean_residual.sum()
@@ -168,4 +155,4 @@ class SliceNMF(Node):
         # what if the first cell is bad? we just keep trying?)
         r_spatial = xr.corr(a_norm, res_norm)
 
-        return not r_spatial <= self.params.validity_threshold
+        return not r_spatial <= self.validity_threshold

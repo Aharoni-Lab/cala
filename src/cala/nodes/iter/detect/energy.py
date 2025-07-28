@@ -1,28 +1,23 @@
-from dataclasses import dataclass, field
-
 import xarray as xr
+from noob.node import Node
+from pydantic import ConfigDict
 from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import Node, Params
-from cala.stores.odl import Residuals
+from cala.models import AXIS, Residual
 
 
-@dataclass
-class EnergyParams(Params):
+class Energy(Node):
     gaussian_std: float
 
-    def validate(self) -> None: ...
-
-
-@dataclass
-class Energy(Node):
-    params: EnergyParams
-    noise_level_: float = field(init=False)
+    noise_level_: float = None
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
-    def process(self, residuals: Residuals) -> xr.DataArray | None:
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def process(self, residuals: Residual) -> xr.DataArray | None:
+        residuals = residuals.array
         frame_shape = residuals[0].shape
         self.noise_level_ = self._estimate_gaussian_noise(residuals, frame_shape)
 
@@ -32,11 +27,13 @@ class Energy(Node):
             return None
 
         # Compute energy (variance)  -- why are we giving real value to below median? floor it?
-        E = (V**2).sum(dim=self.params.frames_dim)
+        E = (V**2).sum(dim=AXIS.frames_dim)
 
         return E
 
-    def _estimate_gaussian_noise(self, residuals: Residuals, frame_shape: tuple[int, ...]) -> float:
+    def _estimate_gaussian_noise(
+        self, residuals: xr.DataArray, frame_shape: tuple[int, ...]
+    ) -> float:
         self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
         patches = self.sampler.transform(residuals)
         return float(estimate_sigma(patches))
@@ -44,15 +41,15 @@ class Energy(Node):
     def _center_to_median(self, arr: xr.DataArray) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
         # Center residuals: why median and not mean?
-        pixels_median = arr.median(dim=self.params.frames_dim)
+        pixels_median = arr.median(dim=AXIS.frames_dim)
         arr_centered = arr - pixels_median
 
         # Apply spatial filter -- why are we doing this??
         V = xr.apply_ufunc(
-            lambda x: gaussian_filter(x, self.params.gaussian_std),
+            lambda x: gaussian_filter(x, self.gaussian_std),
             arr_centered,
-            input_core_dims=[[*self.params.spatial_dims]],
-            output_core_dims=[[*self.params.spatial_dims]],
+            input_core_dims=[[*AXIS.spatial_dims]],
+            output_core_dims=[[*AXIS.spatial_dims]],
             vectorize=True,
             dask="allowed",
         )

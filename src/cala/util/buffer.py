@@ -1,28 +1,32 @@
 from collections import deque
 
 import xarray as xr
+from pydantic import BaseModel, ConfigDict, Field
+
+from cala.models import AXIS
 
 
-class Buffer:
-    def __init__(self, buffer_size: int) -> None:
-        """
-        Initialize the ring buffer with:
-          - buffer_size: number of frames to store
-          - dtype: data type of the frames (e.g. np.uint8 for typical video data)
-        """
-        self.buffer_size = buffer_size
-        self.frame_axis = "frame"
+class Buffer(BaseModel):
+    size: int
+    frames: deque[xr.DataArray] = Field(default_factory=deque)
 
-        self.buffer: deque[xr.DataArray] = deque()
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    def add_frame(self, frame: xr.DataArray) -> None:
+    def add(self, frames: xr.DataArray) -> None:
         """
         Add a new frame to the ring buffer.
         """
+        frames = (
+            [frame for frame in frames.transpose(AXIS.frames_dim, ...)]
+            if frames.ndim == 3
+            else [frames]
+        )
 
-        self.buffer.append(frame)
-        if len(self.buffer) > self.buffer_size:
-            self.buffer.popleft()
+        for frame in frames:
+            self.frames.append(frame)
+
+            if len(self.frames) > self.size:
+                self.frames.popleft()
 
     def get_latest(self, n: int = 1) -> xr.DataArray:
         """Get n most recent frames.
@@ -34,9 +38,9 @@ class Buffer:
             raise ValueError("Buffer does not have enough frames.")
 
         if n == 1:
-            return self.buffer[-1]
+            return self.frames[-1]
 
-        return xr.concat(list(self.buffer)[-n:], dim="frame")
+        return xr.concat(list(self.frames)[-n:], dim=AXIS.frames_dim)
 
     def get_earliest(self, n: int = 1) -> xr.DataArray:
         """Get n earliest frames.
@@ -48,14 +52,14 @@ class Buffer:
             raise ValueError("Buffer does not have enough frames.")
 
         if n == 1:
-            return self.buffer[0]
+            return self.frames[0]
 
-        return xr.concat(list(self.buffer)[:n], dim="frame")
+        return xr.concat(list(self.frames)[:n], dim=AXIS.frames_dim)
 
     def is_ready(self, num_frames: int) -> bool:
         """Check if buffer has enough frames."""
-        return len(self.buffer) >= num_frames
+        return len(self.frames) >= num_frames
 
-    def cleanup(self) -> None:
-        self.buffer.clear()
+    def clear(self) -> None:
+        self.frames.clear()
         return None
