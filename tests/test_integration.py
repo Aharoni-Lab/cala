@@ -5,9 +5,14 @@ from noob import Tube, Cube, SynchronousRunner
 
 def test_imperfect_condition() -> None:
     """Start with noisy suff stats"""
-    tube = Tube.from_specification()
-    cube = Cube.from_specification()
+    cube = Cube.from_specification("cala-odl")
+    tube = Tube.from_specification("cala-odl")
     runner = SynchronousRunner(tube=tube, cube=cube)
+
+    runner.init()
+    runner.process()
+
+    assert cube.assets["buffer"].obj.array.size > 0
 
 
 @pytest.mark.xfail

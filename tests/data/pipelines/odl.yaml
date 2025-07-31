@@ -1,62 +1,73 @@
 noob_id: cala-odl
-
+noob_model: noob.cube.CubeSpecification
+noob_version: 0.1.1.dev118+g64d81b7
 assets:
   buffer:
-
+    type: cala.assets.buffer
+    scope: session
+    depends:
+      - cache.buffer
   footprints:
-
+    type: cala.assets.footprints
+    scope: session
   traces:
-
+    type: cala.assets.traces
+    scope: session
   pix_stats:
-
+    type: cala.assets.pixel_stats
+    scope: session
   comp_stats:
-
-  overlap_mat:
-
+    type: cala.assets.comp_stats
+    scope: session
+  overlaps:
+    type: cala.assets.overlaps
+    scope: session
+  residuals:
+    type: cala.assets.residuals
+    scope: session
 
 nodes:
   source:
     type: cala.testing.single_cell_source
-  cache:
-    type:
-    params:
-      size: 100
-    depends:
-      buffer: assets.buffer
-      frame: source.frame
   denoise:
     type: cala.nodes.prep.denoise
     params:
       ksize:
-        - 3
-        - 3
+      - 3
+      - 3
       sigmaX: 1.5
     depends:
-      - frame: source.frame
+    - frame: source.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: denoise.frame
-  background:
-    type: cala.nodes.prep.remove_background
-    depends:
-      - frame: glow.frame
+    - frame: denoise.frame
   motion:
     type: cala.nodes.prep.RigidStabilizer
     params:
-      - drift_speed: 1.0
+      drift_speed: 1.0
     depends:
-      - frame: background.frame
-
-  traces:
-    ...
-  detect:
-    ...
-  pix_stats:
-    ...
-  comp_stats:
-    ...
-  footprints:
-    ...
-  overlap:
-    ...
+    - frame: glow.frame
+  cache:
+    type: cala.nodes.buffer.fill_buffer
+    params:
+      size: 100
+    depends:
+      - buffer: assets.buffer
+      - frame: motion.frame
+#  trace_ingest_frame:
+#    type:
+#  detect:
+#    type:
+#  trace_ingest_component:
+#
+#  footprint_ingest_component:
+#
+#  pix_stats_ingest_component:
+#    type:
+#  comp_stats_ingest_component:
+#    type:
+#  footprints_ingest_frame:
+#    type:
+#  overlap:
+#    type:
