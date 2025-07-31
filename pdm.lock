@@ -1811,11 +1811,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev117"
+version = "0.1.1.dev118"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
 ref = "37-tube-resources-for-data-shared-between-nodes"
-revision = "66725578b8eb067a61706c7175214fb995344343"
+revision = "64d81b7c1434341d4de14dfb03d27d1f274b6b52"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
