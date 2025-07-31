@@ -4,7 +4,7 @@ from cala.models.spec import Pipe
 
 def test_prep():
     tube = Pipe.from_specification("cala-prep")
-    runner = Executor(tube)
+    runner = Executor(pipe=tube)
     while True:
         try:
             runner.preprocess()

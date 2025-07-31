@@ -3,8 +3,7 @@ from dataclasses import dataclass
 import xarray as xr
 
 from cala.gui.nodes.util import send_through
-from cala.models import Params
-from cala.stores.common import Footprints
+from cala.models import Params, Footprints
 
 
 @dataclass

@@ -14,7 +14,6 @@ from .observable import (
 )
 from .params import Params
 from .spec import Pipe
-from .store import Store
 
 __all__ = [
     AXIS,
@@ -26,7 +25,6 @@ __all__ = [
     Frame,
     Movie,
     Params,
-    Store,
     CompStat,
     PixStat,
     Overlap,
