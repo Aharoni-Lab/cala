@@ -1,10 +1,11 @@
 from copy import deepcopy
+from pathlib import Path
 from typing import ClassVar
 
 import xarray as xr
-from pydantic import BaseModel, PrivateAttr, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator
 
-from cala.models.axis import Coords, Dims
+from cala.models.axis import AXIS, Coords, Dims
 from cala.models.checks import is_non_negative
 from cala.models.entity import Entity, Group
 
@@ -20,7 +21,7 @@ class Asset(BaseModel):
         return self.array_
 
     @array.setter
-    def array(self, value: xr.DataArray):
+    def array(self, value: xr.DataArray) -> None:
         self.array_ = value
 
     @classmethod
@@ -82,29 +83,42 @@ class Footprints(Asset):
 
 
 class Traces(Asset):
+    zarr_path: Path | str | None = None
+    peek_size: int | None = None
     """
-    traces(path: str | Path | None = None, peek_size: int = 999)
-
     Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
     untouched in nodes.)
     Traces.array -> loads from zarr
-
-    _array: xr.DataArray
+    """
 
     @property
-    def array():
-        return (
-            xr.open_zarr(self.store_path)
-            .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
-            .to_dataarray()
-            .isel({"variable": 0})  # not sure why it automatically makes this coordinate
-            .reset_coords("variable", drop=True)
-        )
+    def array(self) -> xr.DataArray:
+        if self.zarr_path:
+            return (
+                xr.open_zarr(self.zarr_path)
+                .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+                .to_dataarray()
+                .isel({"variable": 0})  # not sure why it automatically makes this coordinate
+                .reset_coords("variable", drop=True)
+            )
+        else:
+            return self.array_
 
     @array.setter
-    def setter():
-        value.to_zarr(self.store_path, mode="w")  # need to make sure it can overwrite
-    """
+    def array(self, array: xr.DataArray) -> None:
+        if self.zarr_path:
+            array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
+        else:
+            self.array_ = array
+
+    def append(self, array: xr.DataArray, dim: str | list[str]) -> None:
+        array.to_zarr(self.zarr_path, append_dim=dim)
+
+    @classmethod
+    def from_array(
+        cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
+    ) -> "Traces":
+        return cls(array_=array, zarr_path=zarr_path, peek_size=peek_size)
 
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
