@@ -28,7 +28,7 @@ def separate_cells() -> Toy:
 def tracer() -> Tracer:
     return Tracer.from_specification(
         spec=NodeSpecification(
-            id="tracer-test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
+            id="tracer_test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
         )
     )
 

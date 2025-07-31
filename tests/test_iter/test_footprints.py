@@ -11,7 +11,7 @@ from cala.testing.toy import FrameDims, Position, Toy
 @pytest.fixture
 def fpter() -> Footprinter:
     return Footprinter.from_specification(
-        NodeSpecification(id="test-footprinter", type="cala.nodes.iter.footprints.Footprinter")
+        NodeSpecification(id="test_footprinter", type="cala.nodes.iter.footprints.Footprinter")
     )
 
 
@@ -43,10 +43,10 @@ def test_ingest_frame(fpter, toy, request):
     toy = request.getfixturevalue(toy)
 
     pixstats = PixelStater.from_specification(
-        NodeSpecification(id="test-pixstats", type="cala.nodes.iter.pixel_stats.PixelStater")
+        NodeSpecification(id="test_pixstats", type="cala.nodes.iter.pixel_stats.PixelStater")
     ).process(traces=toy.traces, frames=toy.make_movie())
     compstats = CompStater.from_specification(
-        NodeSpecification(id="test-compstats", type="cala.nodes.iter.component_stats.CompStater")
+        NodeSpecification(id="test_compstats", type="cala.nodes.iter.component_stats.CompStater")
     ).process(traces=toy.traces)
     fpter.footprints_ = toy.footprints
 

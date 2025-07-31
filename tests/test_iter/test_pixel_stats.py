@@ -10,7 +10,7 @@ from cala.testing.toy import FrameDims, Position, Toy
 @pytest.fixture(scope="function")
 def pix_stats() -> PixelStater:
     return PixelStater.from_specification(
-        spec=NodeSpecification(id="pix-stat-test", type="cala.nodes.iter.pixel_stats.PixelStater")
+        spec=NodeSpecification(id="pix_stat_test", type="cala.nodes.iter.pixel_stats.PixelStater")
     )
 
 

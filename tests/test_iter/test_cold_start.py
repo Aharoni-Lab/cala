@@ -37,7 +37,7 @@ def single_cell_video(toy):
 def energy():
     return Energy.from_specification(
         spec=NodeSpecification(
-            id="test-energy",
+            id="test_energy",
             type="cala.nodes.iter.detect.Energy",
             params={"gaussian_std": 1.0},
         )
@@ -53,7 +53,7 @@ def energy_shape(energy, single_cell_video):
 def slice_nmf(toy):
     return SliceNMF.from_specification(
         spec=NodeSpecification(
-            id="test-slice-nmf",
+            id="test_slice_nmf",
             type="cala.nodes.iter.detect.SliceNMF",
             params={"cell_radius": 2 * toy.cell_radii[0], "validity_threshold": 0.8},
         )
@@ -64,7 +64,7 @@ def slice_nmf(toy):
 def sniffer():
     return DupeSniffer.from_specification(
         spec=NodeSpecification(
-            id="test-dupe-sniffer",
+            id="test_dupe_sniffer",
             type="cala.nodes.iter.detect.DupeSniffer",
             params={"merge_threshold": 0.8},
         )
@@ -182,7 +182,7 @@ class TestCataloger:
     def new_component(self, single_cell_video, energy_shape):
         return SliceNMF.from_specification(
             spec=NodeSpecification(
-                id="test-slice-nmf",
+                id="test_slice_nmf",
                 type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 60, "validity_threshold": 0.8},
             )
@@ -210,7 +210,7 @@ class TestCataloger:
     def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
             spec=NodeSpecification(
-                id="test-slice-nmf",
+                id="test_slice_nmf",
                 type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 10, "validity_threshold": 0.8},
             )

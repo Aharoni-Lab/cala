@@ -10,7 +10,7 @@ from cala.testing.toy import FrameDims, Position, Toy
 @pytest.fixture(scope="function")
 def overlapper() -> Overlapper:
     return Overlapper.from_specification(
-        spec=NodeSpecification(id="overlap-test", type="cala.nodes.iter.overlap.Overlapper")
+        spec=NodeSpecification(id="overlap_test", type="cala.nodes.iter.overlap.Overlapper")
     )
 
 
