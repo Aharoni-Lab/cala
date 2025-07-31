@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:9779d5492136c7106e2c5ee547e616d9ce66c75a33911c9ad4697cb8d4451ed1"
+content_hash = "sha256:12e60b24cb50e4800f7985def144f9dd98512e90777a9a77474713335b360bf1"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1811,11 +1811,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev81"
+version = "0.1.1.dev117"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "34-extend-node-initialization-capabilities-to-classes"
-revision = "c8b6cfd2e3b4a9d7a7dc35c81941e4e72a99183d"
+ref = "37-tube-resources-for-data-shared-between-nodes"
+revision = "66725578b8eb067a61706c7175214fb995344343"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
