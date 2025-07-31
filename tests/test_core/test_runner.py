@@ -1,4 +1,4 @@
-from cala.core.execute import Executor
+from cala.execute import Executor
 from cala.models.spec import Pipe
 
 
