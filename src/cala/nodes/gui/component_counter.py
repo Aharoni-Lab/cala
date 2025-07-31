@@ -1,24 +1,13 @@
 from dataclasses import dataclass
 
 import xarray as xr
-from river.base import Transformer
 
-from cala.gui.nodes.util import send_through
-from cala.models import Params
-from cala.stores.common import Footprints
+from cala.assets import Footprints
+from cala.gui.util import send_through
 
 
 @dataclass
-class ComponentCounterParams(Params):
-    pass
-
-    def validate(self) -> None:
-        pass
-
-
-@dataclass
-class ComponentCounter(Transformer):
-    params: ComponentCounterParams
+class ComponentCounter:
     component_count_: int = 0
 
     def learn_one(self, footprints: Footprints) -> "ComponentCounter":

@@ -34,7 +34,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typer>=0.15.3",
     "xarray-validate>=0.0.2",
-    "noob @ git+https://github.com/miniscope/noob.git@34-extend-node-initialization-capabilities-to-classes",
+    "noob @ git+https://github.com/miniscope/noob.git@37-tube-resources-for-data-shared-between-nodes",
 ]
 keywords = [
     "pipeline",

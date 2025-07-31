@@ -5,13 +5,10 @@ from pathlib import Path
 import av
 import numpy as np
 import xarray as xr
-from river.base import Transformer
-
-from cala.models.params import Params
 
 
 @dataclass
-class FrameStreamerParams(Params):
+class FrameStreamerParams:
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"
@@ -29,7 +26,7 @@ class FrameStreamerParams(Params):
 
 
 @dataclass
-class FrameStreamer(Transformer):
+class FrameStreamer:
     params: FrameStreamerParams
     _comparison_frame: xr.DataArray | None = None
     _container: av.container.OutputContainer | None = None

@@ -6,7 +6,7 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from skimage.morphology import disk
 
-from cala.models import Footprints, Frame, Movie, Traces
+from cala.assets import Footprints, Frame, Movie, Traces
 from cala.models.axis import AXIS
 
 
@@ -166,7 +166,7 @@ class Toy(BaseModel):
 
     def make_movie(self) -> Movie:
         movie = self._build_movie(self._footprints, self._traces)
-        return Movie(array=movie)
+        return Movie.from_array(movie)
 
     def add_cell(
         self, position: Position, radius: int, trace: np.ndarray, id_: str, confidence: float = 0.0
@@ -198,18 +198,18 @@ class Toy(BaseModel):
     @property
     def footprints(self) -> Footprints:
         if self._footprints.any():
-            return Footprints(array=self._footprints)
+            return Footprints.from_array(self._footprints)
         else:
             raise ValueError("No footprints available")
 
     @property
     def traces(self) -> Traces:
         if self._traces.any():
-            return Traces(array=self._traces)
+            return Traces.from_array(self._traces)
         else:
             raise ValueError("No traces available")
 
     def movie_gen(self) -> Generator[Frame]:
         for i in range(self._traces.sizes[AXIS.frames_dim]):
             trace = self._traces.isel({AXIS.frames_dim: i})
-            yield Frame(array=trace @ self._footprints)
+            yield Frame.from_array(trace @ self._footprints)

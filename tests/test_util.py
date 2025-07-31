@@ -2,8 +2,8 @@ from datetime import datetime
 
 import numpy as np
 
-from cala.models import Frame
-from cala.util.new import package_frame
+from cala.assets import Frame
+from cala.util import package_frame
 
 
 def test_package_frame():
@@ -15,4 +15,4 @@ def test_package_frame():
     # Transform the frame
     dataarray = package_frame(frame, index, timestamp)
 
-    assert Frame(array=dataarray)
+    assert Frame.from_array(dataarray)

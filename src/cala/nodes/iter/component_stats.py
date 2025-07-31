@@ -1,15 +1,16 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, CompStat, Frame, PopSnap, Traces
+from cala.assets import CompStats, Frame, PopSnap, Traces
+from cala.models import AXIS
 
 
 class CompStater(Node):
-    component_stats_: CompStat = None
+    component_stats_: CompStats = None
 
     def process(
         self, traces: Traces, frame: Frame = None, new_traces: Traces | PopSnap = None
-    ) -> CompStat:
+    ) -> CompStats:
         if frame is not None:
             return self.ingest_frame(frame=frame, new_traces=new_traces)
         elif new_traces is None:
@@ -17,7 +18,7 @@ class CompStater(Node):
         else:
             return self.ingest_component(new_traces=new_traces, traces=traces)
 
-    def initialize(self, traces: Traces) -> CompStat:
+    def initialize(self, traces: Traces) -> CompStats:
         """
         calculates the correlation matrix between temporal components
         using their activity traces. The correlation is computed as a normalized
@@ -38,10 +39,10 @@ class CompStater(Node):
         # Compute M = C * C.T / t'
         M = C @ C.rename(AXIS.component_rename) / (frame_idx + 1)
 
-        self.component_stats_ = CompStat(array=M)
+        self.component_stats_ = CompStats.from_array(M)
         return self.component_stats_
 
-    def ingest_frame(self, frame: Frame, new_traces: PopSnap) -> CompStat:
+    def ingest_frame(self, frame: Frame, new_traces: PopSnap) -> CompStats:
         """
         Update component statistics using current frame and component.
 
@@ -78,7 +79,7 @@ class CompStater(Node):
 
         return self.component_stats_
 
-    def ingest_component(self, traces: Traces, new_traces: Traces) -> CompStat:
+    def ingest_component(self, traces: Traces, new_traces: Traces) -> CompStats:
         """
         Update component statistics with new components.
 
@@ -120,4 +121,6 @@ class CompStater(Node):
         bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=AXIS.component_dim)
 
         # Combine blocks
-        return CompStat(array=xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'"))
+        return CompStats.from_array(
+            xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
+        )

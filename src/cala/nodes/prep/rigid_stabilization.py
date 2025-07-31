@@ -8,7 +8,8 @@ from noob.node import Node
 from pydantic import BaseModel, Field
 from skimage.registration import phase_cross_correlation
 
-from cala.models import AXIS, Frame
+from cala.assets import Frame
+from cala.models import AXIS
 
 
 class Shift(BaseModel):
@@ -18,7 +19,6 @@ class Shift(BaseModel):
 
 class RigidStabilizer(Node):
     drift_speed: float = 1.0
-    anchor_frame_index: int = 0
     kwargs: dict = Field(default_factory=dict)
 
     _anchor_last_applied_on: int = None
@@ -142,15 +142,15 @@ class RigidStabilizer(Node):
         shift = self.compute_shift(curr_frame)
         shifted_frame = self.apply_shift(curr_frame, shift)
 
-        self.previous_frame_ = Frame(array=shifted_frame)
+        self.previous_frame_ = Frame.from_array(shifted_frame)
 
         if self._anchor_last_applied_on == shifted_frame[AXIS.frame_coord].item():
             self.anchor_frame_.array = self.update_anchor(shifted_frame)
 
         self.motions_.append(shift)
 
-        return Frame(
-            array=xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
+        return Frame.from_array(
+            xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
         )
 
     def get_info(self) -> dict:

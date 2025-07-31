@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 
 import cv2
 import numpy as np
@@ -7,8 +6,6 @@ import pytest
 import xarray as xr
 from scipy.ndimage import gaussian_filter
 from scipy.stats.qmc import PoissonDisk
-
-from cala.models.entity import Component
 
 
 @dataclass
@@ -63,11 +60,6 @@ def ids(params: CalciumVideoParams) -> list[str]:
 
 
 @pytest.fixture(scope="session")
-def types(params: CalciumVideoParams) -> list[str]:
-    return [Component.NEURON.value] * params.num_neurons
-
-
-@pytest.fixture(scope="session")
 def radii(params: CalciumVideoParams) -> np.ndarray:
     return np.random.uniform(*params.neuron_size_range, params.num_neurons)
 
@@ -104,7 +96,6 @@ def positions(params: CalciumVideoParams, radii: np.ndarray) -> np.ndarray:
 def footprints(
     params: CalciumVideoParams,
     ids: list[str],
-    types: list[Enum],
     radii: np.ndarray,
     positions: np.ndarray,
 ) -> xr.DataArray:
@@ -121,7 +112,6 @@ def footprints(
         dims=["component", "height", "width"],
         coords={
             "id_": ("component", ids),
-            "type_": ("component", types),
         },
     )
 
@@ -136,9 +126,7 @@ def footprints(
 
 
 @pytest.fixture(scope="session")
-def spikes(
-    params: CalciumVideoParams, ids: list[str], types: list[str], frame_coords: dict
-) -> xr.DataArray:
+def spikes(params: CalciumVideoParams, ids: list[str], frame_coords: dict) -> xr.DataArray:
     """Generate spike times for neurons."""
     firing_rates = np.random.uniform(*params.firing_rate_range, params.num_neurons)
     spikes = np.random.rand(params.num_neurons, params.frames) < firing_rates[:, None]
@@ -148,13 +136,12 @@ def spikes(
         dims=["component", "frame"],
         coords={
             "id_": ("component", ids),
-            "type_": ("component", types),
         },
     ).assign_coords(frame_coords)
 
 
 @pytest.fixture(scope="session")
-def traces(params: CalciumVideoParams, spikes: np.ndarray) -> xr.DataArray:
+def traces(params: CalciumVideoParams, spikes: xr.DataArray) -> xr.DataArray:
     """Generate calcium traces from spikes."""
     decay_times = np.random.uniform(*params.decay_time_range, params.num_neurons)
     amplitudes = np.random.uniform(*params.amplitude_range, params.num_neurons)

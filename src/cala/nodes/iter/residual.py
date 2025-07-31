@@ -1,7 +1,8 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Frame, Movie, PopSnap, Residual, Traces
+from cala.assets import Footprints, Frame, Movie, PopSnap, Residual, Traces
+from cala.models import AXIS
 
 
 class Resident(Node):
@@ -63,7 +64,7 @@ class Resident(Node):
         # Compute residual R = Y - [A,b][C;f]
         R = Y - (A @ C)
 
-        self.residual_ = Residual(array=R)
+        self.residual_ = Residual.from_array(R)
         return self.residual_
 
     def ingest_frame(self, frame: Frame, footprints: Footprints, traces: PopSnap) -> Residual:

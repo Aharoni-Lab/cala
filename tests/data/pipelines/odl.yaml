@@ -1,0 +1,96 @@
+noob_id: cala-odl
+noob_model: noob.cube.CubeSpecification
+noob_version: 0.1.1.dev118+g64d81b7
+
+# Add GUI server in assets
+
+assets:
+  buffer:
+    type: cala.assets.Movie
+    scope: session
+    depends:
+      - cache.buffer
+  footprints:
+    type: cala.assets.Footprints
+    scope: session
+  traces:
+    type: cala.assets.Traces
+    scope: session
+  pix_stats:
+    type: cala.assets.PixStats
+    scope: session
+  comp_stats:
+    type: cala.assets.CompStats
+    scope: session
+  overlaps:
+    type: cala.assets.Overlaps
+    scope: session
+  residuals:
+    type: cala.assets.Residual
+    scope: session
+
+# Add refiners in nodes
+
+nodes:
+  source:
+    type: cala.testing.single_cell_source
+  denoise:
+    type: cala.nodes.prep.denoise
+    params:
+      ksize:
+      - 3
+      - 3
+      sigmaX: 1.5
+    depends:
+    - frame: source.frame
+  glow:
+    type: cala.nodes.prep.GlowRemover
+    depends:
+    - frame: denoise.frame
+  motion:
+    type: cala.nodes.prep.RigidStabilizer
+    params:
+      drift_speed: 1.0
+    depends:
+    - frame: glow.frame
+  cache:
+    type: cala.nodes.iter.buffer.fill_buffer
+    params:
+      size: 100
+    depends:
+      - buffer: assets.buffer
+      - frame: motion.frame
+#  trace_ingest_frame:
+#    type:
+
+#  pix_ingest_frame:
+#    type:
+
+#  comp_ingest_frame:
+#    type:
+
+# DETECT BEGINS
+#  detect:
+#    type:
+
+#  trace_ingest_component:
+#    type:
+
+#  footprint_ingest_component:
+#    type:
+
+#  residual_update:
+#    type:
+
+#  pix_stats_ingest_component:
+#    type:
+
+#  comp_stats_ingest_component:
+#    type:
+
+#  overlaps_update:
+#    type:
+# DETECT ENDS
+
+#  footprints_ingest_frame:
+#    type:

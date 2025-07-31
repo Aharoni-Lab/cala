@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Frame, Trace, Traces
+from cala.assets import Frame, Trace, Traces
+from cala.models import AXIS
 from cala.nodes.iter.overlap import Overlapper
 from cala.nodes.iter.traces import Tracer
 from cala.testing.toy import FrameDims, Position, Toy
@@ -28,7 +29,7 @@ def separate_cells() -> Toy:
 def tracer() -> Tracer:
     return Tracer.from_specification(
         spec=NodeSpecification(
-            id="tracer-test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
+            id="tracer_test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
         )
     )
 
@@ -50,10 +51,10 @@ def test_ingest_frame(tracer, toy, request) -> None:
         spec=NodeSpecification(id="test", type="cala.nodes.iter.overlap.Overlapper")
     )
 
-    traces = Traces(array=toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
+    traces = Traces.from_array(toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
     tracer.traces_ = traces
 
-    frame = Frame(array=toy.make_movie().array.isel({AXIS.frames_dim: -1}))
+    frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frames_dim: -1}))
     overlap = xray.initialize(footprints=toy.footprints)
 
     result = tracer.ingest_frame(
@@ -69,10 +70,10 @@ def test_ingest_frame(tracer, toy, request) -> None:
 def test_ingest_component(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    traces = Traces(array=toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
+    traces = Traces.from_array(toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
     tracer.traces_ = traces
 
-    trace = Trace(array=toy.traces.array.isel({AXIS.component_dim: -1}))
+    trace = Trace.from_array(toy.traces.array.isel({AXIS.component_dim: -1}))
 
     expected = tracer.ingest_component(trace)
 

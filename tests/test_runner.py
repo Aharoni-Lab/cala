@@ -1,10 +1,10 @@
-from cala.core.execute import Executor
 from cala.models.spec import Pipe
+from cala.runner import Runner
 
 
 def test_prep():
     tube = Pipe.from_specification("cala-prep")
-    runner = Executor(tube)
+    runner = Runner(pipe=tube)
     while True:
         try:
             runner.preprocess()

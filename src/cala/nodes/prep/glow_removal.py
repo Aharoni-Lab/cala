@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.models import Frame
+from cala.assets import Frame
 
 
 class GlowRemover:
@@ -20,8 +20,8 @@ class GlowRemover:
         self.base_brightness_ = np.minimum(frame.values, self.base_brightness_)
         self._learn_count += 1
 
-        return Frame(
-            array=xr.DataArray(frame - self.base_brightness_, dims=frame.dims, coords=frame.coords)
+        return Frame.from_array(
+            xr.DataArray(frame - self.base_brightness_, dims=frame.dims, coords=frame.coords)
         )
 
     def get_info(self) -> dict:

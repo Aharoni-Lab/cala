@@ -1,13 +1,14 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprints, Overlap
+from cala.assets import Footprints, Overlaps
+from cala.models import AXIS
 
 
 class Overlapper(Node):
-    overlaps_: Overlap = None
+    overlaps_: Overlaps = None
 
-    def process(self, footprints: Footprints, new_footprints: Footprints = None) -> Overlap:
+    def process(self, footprints: Footprints, new_footprints: Footprints = None) -> Overlaps:
         """
         A jenky ass temporary process method to circumvent Resource not yet being implemented.
         """
@@ -19,7 +20,7 @@ class Overlapper(Node):
     def initialize(
         self,
         footprints: Footprints,
-    ) -> Overlap:
+    ) -> Overlaps:
         """
         Sparse matrix of component footprint overlaps.
 
@@ -32,14 +33,14 @@ class Overlapper(Node):
         data = (A @ A.rename(AXIS.component_rename)) > 0
 
         # Create xarray DataArray with sparse data
-        self.overlaps_ = Overlap(array=data)
+        self.overlaps_ = Overlaps.from_array(data)
 
         return self.overlaps_
 
-    def ingest_frame(self, footprints: Footprints) -> Overlap:
+    def ingest_frame(self, footprints: Footprints) -> Overlaps:
         return self.initialize(footprints)
 
-    def ingest_component(self, footprints: Footprints, new_footprints: Footprints) -> Overlap:
+    def ingest_component(self, footprints: Footprints, new_footprints: Footprints) -> Overlaps:
         """Update component overlap matrix with new components.
 
         Updates the binary adjacency matrix that represents component overlaps.
@@ -75,4 +76,4 @@ class Overlapper(Node):
         # Finally combine top and bottom blocks
         updated_overlaps = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
 
-        return Overlap(array=updated_overlaps > 0)
+        return Overlaps.from_array(updated_overlaps > 0)

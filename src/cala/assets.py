@@ -1,30 +1,41 @@
 from copy import deepcopy
+from pathlib import Path
 from typing import ClassVar
 
 import xarray as xr
-from pydantic import BaseModel, PrivateAttr, field_validator
+from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator
 
-from cala.models.axis import Coords, Dims
+from cala.models.axis import AXIS, Coords, Dims
 from cala.models.checks import is_non_negative
 from cala.models.entity import Entity, Group
 
 
-class Observable(BaseModel):
-    array: xr.DataArray
+class Asset(BaseModel):
+    array_: xr.DataArray | None = None
     _entity: ClassVar[Entity]
 
-    class Config:
-        arbitrary_types_allowed = True
-        validate_assignment = True
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    def __eq__(self, other: "Observable") -> bool:
+    @property
+    def array(self) -> xr.DataArray | None:
+        return self.array_
+
+    @array.setter
+    def array(self, value: xr.DataArray) -> None:
+        self.array_ = value
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Asset":
+        return cls(array_=array)
+
+    def __eq__(self, other: "Asset") -> bool:
         return self.array.equals(other.array)
 
     @classmethod
     def entity(cls) -> Entity:
         return cls._entity
 
-    @field_validator("array", mode="after")
+    @field_validator("array_", mode="after")
     @classmethod
     def validate_array_schema(cls, value: xr.DataArray) -> xr.DataArray:
         value.validate.against_schema(cls._entity.model)
@@ -32,8 +43,7 @@ class Observable(BaseModel):
         return value
 
 
-class Footprint(Observable):
-    array: xr.DataArray
+class Footprint(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="footprint",
@@ -44,15 +54,13 @@ class Footprint(Observable):
     )
 
 
-class Trace(Observable):
-    array: xr.DataArray
+class Trace(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(name="trace", dims=(Dims.frame.value,), dtype=float, checks=[is_non_negative])
     )
 
 
-class Frame(Observable):
-    array: xr.DataArray
+class Frame(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="frame",
@@ -63,8 +71,7 @@ class Frame(Observable):
     )
 
 
-class Footprints(Observable):
-    array: xr.DataArray
+class Footprints(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="footprint-group",
@@ -75,8 +82,44 @@ class Footprints(Observable):
     )
 
 
-class Traces(Observable):
-    array: xr.DataArray
+class Traces(Asset):
+    zarr_path: Path | str | None = None
+    peek_size: int | None = None
+    """
+    Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
+    untouched in nodes.)
+    Traces.array -> loads from zarr
+    """
+
+    @property
+    def array(self) -> xr.DataArray:
+        if self.zarr_path:
+            return (
+                xr.open_zarr(self.zarr_path)
+                .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+                .to_dataarray()
+                .isel({"variable": 0})  # not sure why it automatically makes this coordinate
+                .reset_coords("variable", drop=True)
+            )
+        else:
+            return self.array_
+
+    @array.setter
+    def array(self, array: xr.DataArray) -> None:
+        if self.zarr_path:
+            array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
+        else:
+            self.array_ = array
+
+    def append(self, array: xr.DataArray, dim: str | list[str]) -> None:
+        array.to_zarr(self.zarr_path, append_dim=dim)
+
+    @classmethod
+    def from_array(
+        cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
+    ) -> "Traces":
+        return cls(array_=array, zarr_path=zarr_path, peek_size=peek_size)
+
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
@@ -87,8 +130,7 @@ class Traces(Observable):
     )
 
 
-class Movie(Observable):
-    array: xr.DataArray
+class Movie(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="movie",
@@ -99,14 +141,13 @@ class Movie(Observable):
     )
 
 
-class PopSnap(Observable):
+class PopSnap(Asset):
     """
     A snapshot of a population trait.
 
     Mainly used for Traces that only has one frame.
     """
 
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="pop-snap",
@@ -123,8 +164,7 @@ for coord in comp_dims[1].coords:
     coord.name += "'"
 
 
-class CompStat(Observable):
-    array: xr.DataArray
+class CompStats(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="comp-stat",
@@ -135,8 +175,7 @@ class CompStat(Observable):
     )
 
 
-class PixStat(Observable):
-    array: xr.DataArray
+class PixStats(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="pix-stat",
@@ -147,8 +186,7 @@ class PixStat(Observable):
     )
 
 
-class Overlap(Observable):
-    array: xr.DataArray
+class Overlaps(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="overlap",
@@ -159,8 +197,7 @@ class Overlap(Observable):
     )
 
 
-class Residual(Observable):
-    array: xr.DataArray
+class Residual(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="frame",

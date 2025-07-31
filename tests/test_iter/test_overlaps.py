@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Footprints
+from cala.assets import Footprints
+from cala.models import AXIS
 from cala.nodes.iter.overlap import Overlapper
 from cala.testing.toy import FrameDims, Position, Toy
 
@@ -10,7 +11,7 @@ from cala.testing.toy import FrameDims, Position, Toy
 @pytest.fixture(scope="function")
 def overlapper() -> Overlapper:
     return Overlapper.from_specification(
-        spec=NodeSpecification(id="overlap-test", type="cala.nodes.iter.overlap.Overlapper")
+        spec=NodeSpecification(id="overlap_test", type="cala.nodes.iter.overlap.Overlapper")
     )
 
 
@@ -76,8 +77,8 @@ def test_init(overlapper, separate_cells, connected_cells) -> None:
 @pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
 def test_ingest_component(overlapper, toy, request) -> None:
     toy = request.getfixturevalue(toy)
-    base = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
-    new = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: [-1]}))
+    base = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
+    new = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: [-1]}))
 
     overlapper.initialize(footprints=base)
 

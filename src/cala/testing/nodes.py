@@ -5,7 +5,7 @@ import numpy as np
 from noob import Name
 from noob.node import Node
 
-from cala.models import Frame
+from cala.assets import Frame
 from cala.testing.toy import FrameDims, Position, Toy
 
 

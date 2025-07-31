@@ -8,7 +8,7 @@ from noob import Name
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.models import Frame
+from cala.assets import Frame
 
 
 def remove_background(
@@ -41,6 +41,6 @@ def remove_background(
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
-    return Frame(
-        array=xr.DataArray(result.astype(np.float64), dims=frame.dims, coords=frame.coords)
+    return Frame.from_array(
+        xr.DataArray(result.astype(np.float64), dims=frame.dims, coords=frame.coords)
     )

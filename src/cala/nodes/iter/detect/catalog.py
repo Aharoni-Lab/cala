@@ -4,9 +4,9 @@ from noob.node import Node
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
+from cala.assets import Footprint, Footprints, Movie, Trace, Traces
 from cala.models import AXIS
-from cala.models.observable import Footprint, Footprints, Movie, Trace, Traces
-from cala.util.new import create_id
+from cala.util import create_id
 
 
 class Cataloger(Node):
@@ -41,7 +41,7 @@ class Cataloger(Node):
             footprint = xr.concat([existing_fp.array, footprint.array], dim=AXIS.component_dim)
             trace = xr.concat([existing_tr.array, trace.array], dim=AXIS.component_dim)
 
-        return Footprints(array=footprint), Traces(array=trace)
+        return Footprints.from_array(footprint), Traces.from_array(trace)
 
     def _init_with(
         self, new_fp: Footprint, new_tr: Trace, confidence: float = 0.0
@@ -62,7 +62,7 @@ class Cataloger(Node):
             }
         )
 
-        return Footprints(array=footprints), Traces(array=traces)
+        return Footprints.from_array(footprints), Traces.from_array(traces)
 
     def _merge(
         self,
@@ -90,7 +90,7 @@ class Cataloger(Node):
         shape = xr.DataArray(combined_movie.sum(dim=AXIS.frames_dim) > 0).reset_coords(
             [AXIS.id_coord, AXIS.confidence_coord], drop=True
         )
-        slice_ = Movie(array=combined_movie.where(shape, 0, drop=True))
+        slice_ = Movie.from_array(combined_movie.where(shape, 0, drop=True))
 
         a, c = self._nmf(slice_)
 
@@ -108,7 +108,7 @@ class Cataloger(Node):
 
         footprints.set_xindex(AXIS.id_coord).loc[{AXIS.id_coord: most_similar[0]}] = a_new.array
 
-        return Footprints(array=footprints), Traces(array=traces)
+        return Footprints.from_array(footprints), Traces.from_array(traces)
 
     def _combine_component_movies(
         self,
@@ -129,8 +129,8 @@ class Cataloger(Node):
         new_movie = new_fp.array @ new_tr.array
         combined_movie = most_similar_movie + new_movie
 
-        return Movie(
-            array=combined_movie.assign_coords({ax: combined_movie[ax] for ax in AXIS.spatial_dims})
+        return Movie.from_array(
+            combined_movie.assign_coords({ax: combined_movie[ax] for ax in AXIS.spatial_dims})
         )
 
     def _nmf(self, movie: Movie) -> tuple[np.ndarray, np.ndarray]:
@@ -174,4 +174,4 @@ class Cataloger(Node):
             coords=slice_coords,
         )
 
-        return Footprint(array=a_new), Trace(array=c_new)
+        return Footprint.from_array(a_new), Trace.from_array(c_new)

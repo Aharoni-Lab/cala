@@ -1,11 +1,12 @@
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Frame, Movie, PixStat, PopSnap, Traces
+from cala.assets import Frame, Movie, PixStats, PopSnap, Traces
+from cala.models import AXIS
 
 
 class PixelStater(Node):
-    pixel_stats_: PixStat = None
+    pixel_stats_: PixStats = None
     """Updated pixel-component sufficient statistics W."""
 
     def process(
@@ -14,7 +15,7 @@ class PixelStater(Node):
         frames: Movie = None,
         new_traces: Traces = None,
         frame: Frame = None,
-    ) -> PixStat:
+    ) -> PixStats:
         if frames is None:
             return self.ingest_frame(frame=frame, traces=traces)
         elif new_traces is None:
@@ -22,7 +23,7 @@ class PixelStater(Node):
         else:
             return self.ingest_components(frames=frames, new_traces=new_traces)
 
-    def initialize(self, traces: Traces, frames: Movie) -> PixStat:
+    def initialize(self, traces: Traces, frames: Movie) -> PixStats:
         """
         This transformer calculates the correlation between each pixel's temporal trace
         and each component's temporal activity. The computation provides a measure of
@@ -56,10 +57,10 @@ class PixelStater(Node):
         # Compute W = Y[:, 1:t']C^T/t'
         W = Y @ C.T / t_prime
 
-        self.pixel_stats_ = PixStat(array=W)
+        self.pixel_stats_ = PixStats.from_array(W)
         return self.pixel_stats_
 
-    def ingest_frame(self, frame: Frame, traces: PopSnap) -> PixStat:
+    def ingest_frame(self, frame: Frame, traces: PopSnap) -> PixStats:
         """
         Update pixel statistics using current frame and component.
 
@@ -100,7 +101,7 @@ class PixelStater(Node):
 
         return self.pixel_stats_
 
-    def ingest_component(self, frames: Movie, new_traces: Traces) -> PixStat:
+    def ingest_component(self, frames: Movie, new_traces: Traces) -> PixStats:
         """Update pixel statistics with new components.
 
         Updates W_t according to the equation:
