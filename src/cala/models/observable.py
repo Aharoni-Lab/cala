@@ -10,7 +10,7 @@ from cala.models.entity import Entity, Group
 
 
 class Observable(BaseModel):
-    array: xr.DataArray
+    array: xr.DataArray | None = None
     _entity: ClassVar[Entity]
 
     class Config:
@@ -33,7 +33,6 @@ class Observable(BaseModel):
 
 
 class Footprint(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="footprint",
@@ -45,14 +44,12 @@ class Footprint(Observable):
 
 
 class Trace(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(name="trace", dims=(Dims.frame.value,), dtype=float, checks=[is_non_negative])
     )
 
 
 class Frame(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="frame",
@@ -64,7 +61,6 @@ class Frame(Observable):
 
 
 class Footprints(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="footprint-group",
@@ -76,7 +72,6 @@ class Footprints(Observable):
 
 
 class Traces(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
@@ -88,7 +83,6 @@ class Traces(Observable):
 
 
 class Movie(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="movie",
@@ -106,7 +100,6 @@ class PopSnap(Observable):
     Mainly used for Traces that only has one frame.
     """
 
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="pop-snap",
@@ -124,7 +117,6 @@ for coord in comp_dims[1].coords:
 
 
 class CompStat(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="comp-stat",
@@ -136,7 +128,6 @@ class CompStat(Observable):
 
 
 class PixStat(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="pix-stat",
@@ -148,7 +139,6 @@ class PixStat(Observable):
 
 
 class Overlap(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Entity(
             name="overlap",
@@ -160,7 +150,6 @@ class Overlap(Observable):
 
 
 class Residual(Observable):
-    array: xr.DataArray
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="frame",
