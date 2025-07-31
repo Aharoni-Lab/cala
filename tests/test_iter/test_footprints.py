@@ -2,16 +2,16 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.nodes.iter.component_stats import CompStater
-from cala.nodes.iter.footprints import Footprinter
-from cala.nodes.iter.pixel_stats import PixelStater
+from cala.nodes.component_stats import CompStater
+from cala.nodes.footprints import Footprinter
+from cala.nodes.pixel_stats import PixelStater
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture
 def fpter() -> Footprinter:
     return Footprinter.from_specification(
-        NodeSpecification(id="test_footprinter", type="cala.nodes.iter.footprints.Footprinter")
+        NodeSpecification(id="test_footprinter", type="cala.nodes.footprints.Footprinter")
     )
 
 
@@ -43,10 +43,10 @@ def test_ingest_frame(fpter, toy, request):
     toy = request.getfixturevalue(toy)
 
     pixstats = PixelStater.from_specification(
-        NodeSpecification(id="test_pixstats", type="cala.nodes.iter.pixel_stats.PixelStater")
+        NodeSpecification(id="test_pixstats", type="cala.nodes.pixel_stats.PixelStater")
     ).process(traces=toy.traces, frames=toy.make_movie())
     compstats = CompStater.from_specification(
-        NodeSpecification(id="test_compstats", type="cala.nodes.iter.component_stats.CompStater")
+        NodeSpecification(id="test_compstats", type="cala.nodes.component_stats.CompStater")
     ).process(traces=toy.traces)
     fpter.footprints_ = toy.footprints
 

@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.assets import Residual
-from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
+from cala.nodes.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -37,7 +37,7 @@ def energy():
     return Energy.from_specification(
         spec=NodeSpecification(
             id="test_energy",
-            type="cala.nodes.iter.detect.Energy",
+            type="cala.nodes.detect.Energy",
             params={"gaussian_std": 1.0},
         )
     )
@@ -53,7 +53,7 @@ def slice_nmf(toy):
     return SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
-            type="cala.nodes.iter.detect.SliceNMF",
+            type="cala.nodes.detect.SliceNMF",
             params={"cell_radius": 2 * toy.cell_radii[0], "validity_threshold": 0.8},
         )
     )
@@ -64,7 +64,7 @@ def sniffer():
     return DupeSniffer.from_specification(
         spec=NodeSpecification(
             id="test_dupe_sniffer",
-            type="cala.nodes.iter.detect.DupeSniffer",
+            type="cala.nodes.detect.DupeSniffer",
             params={"merge_threshold": 0.8},
         )
     )
@@ -73,7 +73,7 @@ def sniffer():
 @pytest.fixture(scope="class")
 def cataloger():
     return Cataloger.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.iter.detect.Cataloger")
+        spec=NodeSpecification(id="test", type="cala.nodes.detect.Cataloger")
     )
 
 
@@ -182,7 +182,7 @@ class TestCataloger:
         return SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
-                type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 60, "validity_threshold": 0.8},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
@@ -210,7 +210,7 @@ class TestCataloger:
         new_component = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
-                type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 10, "validity_threshold": 0.8},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)

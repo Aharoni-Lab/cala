@@ -4,14 +4,14 @@ from noob.node import NodeSpecification
 
 from cala.assets import Frame, Movie, PopSnap, Traces
 from cala.models import AXIS
-from cala.nodes.iter.residual import Resident
+from cala.nodes.residual import Resident
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
 def resident() -> Resident:
     return Resident.from_specification(
-        spec=NodeSpecification(id="resident_test", type="cala.nodes.iter.residual.Resident")
+        spec=NodeSpecification(id="resident_test", type="cala.nodes.residual.Resident")
     )
 
 

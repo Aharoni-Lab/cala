@@ -4,16 +4,14 @@ from noob.node import NodeSpecification
 
 from cala.assets import Frame, PopSnap, Traces
 from cala.models import AXIS
-from cala.nodes.iter.component_stats import CompStater
+from cala.nodes.component_stats import CompStater
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
 def comp_stats() -> CompStater:
     return CompStater.from_specification(
-        spec=NodeSpecification(
-            id="comp_stat_test", type="cala.nodes.iter.component_stats.CompStater"
-        )
+        spec=NodeSpecification(id="comp_stat_test", type="cala.nodes.component_stats.CompStater")
     )
 
 

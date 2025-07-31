@@ -4,14 +4,14 @@ from noob.node import NodeSpecification
 
 from cala.assets import Footprints
 from cala.models import AXIS
-from cala.nodes.iter.overlap import Overlapper
+from cala.nodes.overlap import Overlapper
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
 def overlapper() -> Overlapper:
     return Overlapper.from_specification(
-        spec=NodeSpecification(id="overlap_test", type="cala.nodes.iter.overlap.Overlapper")
+        spec=NodeSpecification(id="overlap_test", type="cala.nodes.overlap.Overlapper")
     )
 
 

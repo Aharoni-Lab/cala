@@ -4,14 +4,14 @@ from noob.node import NodeSpecification
 
 from cala.assets import Frame, Movie, PopSnap, Traces
 from cala.models import AXIS
-from cala.nodes.iter.pixel_stats import PixelStater
+from cala.nodes.pixel_stats import PixelStater
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.fixture(scope="function")
 def pix_stats() -> PixelStater:
     return PixelStater.from_specification(
-        spec=NodeSpecification(id="pix_stat_test", type="cala.nodes.iter.pixel_stats.PixelStater")
+        spec=NodeSpecification(id="pix_stat_test", type="cala.nodes.pixel_stats.PixelStater")
     )
 
 

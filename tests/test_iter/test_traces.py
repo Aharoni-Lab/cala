@@ -4,8 +4,8 @@ from noob.node import NodeSpecification
 
 from cala.assets import Frame, Trace, Traces
 from cala.models import AXIS
-from cala.nodes.iter.overlap import Overlapper
-from cala.nodes.iter.traces import Tracer
+from cala.nodes.overlap import Overlapper
+from cala.nodes.traces import Tracer
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -29,7 +29,7 @@ def separate_cells() -> Toy:
 def tracer() -> Tracer:
     return Tracer.from_specification(
         spec=NodeSpecification(
-            id="tracer_test", type="cala.nodes.iter.traces.Tracer", params={"tolerance": 1e-3}
+            id="tracer_test", type="cala.nodes.traces.Tracer", params={"tolerance": 1e-3}
         )
     )
 
@@ -48,7 +48,7 @@ def test_ingest_frame(tracer, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
     xray = Overlapper.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.iter.overlap.Overlapper")
+        spec=NodeSpecification(id="test", type="cala.nodes.overlap.Overlapper")
     )
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))

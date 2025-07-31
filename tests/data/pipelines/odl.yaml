@@ -54,14 +54,14 @@ nodes:
     depends:
     - frame: glow.frame
   cache:
-    type: cala.nodes.iter.buffer.fill_buffer
+    type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
       - frame: motion.frame
 #  trace_ingest_frame:
-#    type:
+#    type: cala.nodes.traces.ingest_frame
 
 #  pix_ingest_frame:
 #    type:
