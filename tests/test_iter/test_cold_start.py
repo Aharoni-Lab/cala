@@ -1,9 +1,8 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Residual
+from cala.models import Residual
 from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
@@ -91,8 +90,6 @@ class TestEnergy:
 
     def test_process(self, energy, single_cell_video):
         energy_landscape = energy.process(Residual(array=single_cell_video.array))
-        plt.imsave("mean_video.png", single_cell_video.array.mean(dim=AXIS.frames_dim))
-        plt.imsave("energy.png", energy_landscape)
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
 
