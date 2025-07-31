@@ -1,30 +1,35 @@
 noob_id: cala-odl
 noob_model: noob.cube.CubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
+
+# Add GUI server in assets
+
 assets:
   buffer:
-    type: cala.assets.buffer
+    type: cala.assets.Movie
     scope: session
     depends:
       - cache.buffer
   footprints:
-    type: cala.assets.footprints
+    type: cala.assets.Footprints
     scope: session
   traces:
-    type: cala.assets.traces
+    type: cala.assets.Traces
     scope: session
   pix_stats:
-    type: cala.assets.pixel_stats
+    type: cala.assets.PixStats
     scope: session
   comp_stats:
-    type: cala.assets.comp_stats
+    type: cala.assets.CompStats
     scope: session
   overlaps:
-    type: cala.assets.overlaps
+    type: cala.assets.Overlaps
     scope: session
   residuals:
-    type: cala.assets.residuals
+    type: cala.assets.Residual
     scope: session
+
+# Add refiners in nodes
 
 nodes:
   source:
@@ -57,17 +62,35 @@ nodes:
       - frame: motion.frame
 #  trace_ingest_frame:
 #    type:
+
+#  pix_ingest_frame:
+#    type:
+
+#  comp_ingest_frame:
+#    type:
+
+# DETECT BEGINS
 #  detect:
 #    type:
+
 #  trace_ingest_component:
-#
+#    type:
+
 #  footprint_ingest_component:
-#
+#    type:
+
+#  residual_update:
+#    type:
+
 #  pix_stats_ingest_component:
 #    type:
+
 #  comp_stats_ingest_component:
 #    type:
-#  footprints_ingest_frame:
+
+#  overlaps_update:
 #    type:
-#  overlap:
+# DETECT ENDS
+
+#  footprints_ingest_frame:
 #    type:
