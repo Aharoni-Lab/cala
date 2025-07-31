@@ -69,5 +69,5 @@ def test_video_stream(tmp_path):
 
     for idx, res in enumerate(s):
         np.testing.assert_allclose(
-            res.astype(np.int16), generate_text_image(str(idx)).astype(np.int16), atol=32
-        )
+            res.astype(np.int16), generate_text_image(str(idx)).astype(np.int16), atol=37
+        )  # error is 32 on macos and 37 on ubuntu and win

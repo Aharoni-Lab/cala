@@ -54,7 +54,7 @@ nodes:
     depends:
     - frame: glow.frame
   cache:
-    type: cala.nodes.buffer.fill_buffer
+    type: cala.nodes.iter.buffer.fill_buffer
     params:
       size: 100
     depends:
