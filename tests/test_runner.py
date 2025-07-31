@@ -1,5 +1,5 @@
-from cala.runner import Runner
 from cala.models.spec import Pipe
+from cala.runner import Runner
 
 
 def test_prep():
