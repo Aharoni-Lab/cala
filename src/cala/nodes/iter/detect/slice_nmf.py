@@ -27,7 +27,7 @@ class SliceNMF(Node):
         # eventually we should just log this value instead of throwing out the component
         # otherwise we keep coming back to this energy max point
         if self._check_validity(a_new, residuals):
-            return Footprint(array=a_new), Trace(array=c_new)
+            return Footprint.from_array(a_new), Trace.from_array(c_new)
         else:
             return None
 

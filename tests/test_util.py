@@ -15,4 +15,4 @@ def test_package_frame():
     # Transform the frame
     dataarray = package_frame(frame, index, timestamp)
 
-    assert Frame(array=dataarray)
+    assert Frame.from_array(dataarray)

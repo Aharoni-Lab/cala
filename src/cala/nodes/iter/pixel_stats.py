@@ -57,7 +57,7 @@ class PixelStater(Node):
         # Compute W = Y[:, 1:t']C^T/t'
         W = Y @ C.T / t_prime
 
-        self.pixel_stats_ = PixStats(array=W)
+        self.pixel_stats_ = PixStats.from_array(W)
         return self.pixel_stats_
 
     def ingest_frame(self, frame: Frame, traces: PopSnap) -> PixStats:

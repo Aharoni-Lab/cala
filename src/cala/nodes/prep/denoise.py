@@ -25,4 +25,4 @@ def denoise(
 
     denoised = _func(frame.values.astype(np.float32), **kwargs).astype(np.float64)
 
-    return Frame(array=xr.DataArray(denoised, dims=frame.dims, coords=frame.coords))
+    return Frame.from_array(xr.DataArray(denoised, dims=frame.dims, coords=frame.coords))

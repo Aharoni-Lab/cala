@@ -55,15 +55,17 @@ def test_init(pix_stats, separate_cells) -> None:
 def test_ingest_frame(pix_stats, separate_cells) -> None:
 
     pix_stats.initialize(
-        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})),
-        frames=Movie(
-            array=separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
+        traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
+        ),
+        frames=Movie.from_array(
+            separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
         ),
     )
 
     result = pix_stats.ingest_frame(
-        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        traces=PopSnap(array=separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+        frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
     )
 
     expected = pix_stats.initialize(
@@ -74,15 +76,15 @@ def test_ingest_frame(pix_stats, separate_cells) -> None:
 
 def test_ingest_component(pix_stats, separate_cells):
     pix_stats.initialize(
-        traces=Traces(
-            array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+        traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
         ),
         frames=separate_cells.make_movie(),
     )
 
     result = pix_stats.ingest_component(
         frames=separate_cells.make_movie(),
-        new_traces=Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        new_traces=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
     )
 
     expected = pix_stats.initialize(

@@ -33,7 +33,7 @@ class Overlapper(Node):
         data = (A @ A.rename(AXIS.component_rename)) > 0
 
         # Create xarray DataArray with sparse data
-        self.overlaps_ = Overlaps(array=data)
+        self.overlaps_ = Overlaps.from_array(data)
 
         return self.overlaps_
 
@@ -76,4 +76,4 @@ class Overlapper(Node):
         # Finally combine top and bottom blocks
         updated_overlaps = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
 
-        return Overlaps(array=updated_overlaps > 0)
+        return Overlaps.from_array(updated_overlaps > 0)

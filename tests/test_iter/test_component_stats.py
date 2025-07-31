@@ -66,12 +66,12 @@ def test_init(comp_stats, separate_cells) -> None:
 def test_ingest_frame(comp_stats, separate_cells) -> None:
 
     comp_stats.initialize(
-        Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
+        Traces.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
     )
 
     result = comp_stats.ingest_frame(
-        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        new_traces=PopSnap(array=separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+        frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        new_traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
     )
 
     expected = comp_stats.initialize(separate_cells.traces)
@@ -81,14 +81,14 @@ def test_ingest_frame(comp_stats, separate_cells) -> None:
 
 def test_ingest_component(comp_stats, separate_cells):
     comp_stats.initialize(
-        Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
+        Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
     )
 
     result = comp_stats.ingest_component(
-        traces=Traces(
-            array=separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+        traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
         ),
-        new_traces=Traces(array=separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        new_traces=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
     )
 
     expected = comp_stats.initialize(separate_cells.traces)

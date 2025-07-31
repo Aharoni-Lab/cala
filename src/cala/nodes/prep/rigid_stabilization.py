@@ -142,15 +142,15 @@ class RigidStabilizer(Node):
         shift = self.compute_shift(curr_frame)
         shifted_frame = self.apply_shift(curr_frame, shift)
 
-        self.previous_frame_ = Frame(array=shifted_frame)
+        self.previous_frame_ = Frame.from_array(shifted_frame)
 
         if self._anchor_last_applied_on == shifted_frame[AXIS.frame_coord].item():
             self.anchor_frame_.array = self.update_anchor(shifted_frame)
 
         self.motions_.append(shift)
 
-        return Frame(
-            array=xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
+        return Frame.from_array(
+            xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
         )
 
     def get_info(self) -> dict:

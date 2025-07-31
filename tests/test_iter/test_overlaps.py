@@ -77,8 +77,8 @@ def test_init(overlapper, separate_cells, connected_cells) -> None:
 @pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
 def test_ingest_component(overlapper, toy, request) -> None:
     toy = request.getfixturevalue(toy)
-    base = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
-    new = Footprints(array=toy.footprints.array.isel({AXIS.component_dim: [-1]}))
+    base = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
+    new = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: [-1]}))
 
     overlapper.initialize(footprints=base)
 

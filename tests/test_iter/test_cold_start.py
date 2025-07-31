@@ -45,7 +45,7 @@ def energy():
 
 @pytest.fixture(scope="class")
 def energy_shape(energy, single_cell_video):
-    return energy.process(Residual(array=single_cell_video.array))
+    return energy.process(Residual.from_array(single_cell_video.array))
 
 
 @pytest.fixture(scope="class")
@@ -89,7 +89,7 @@ class TestEnergy:
         assert centered_video.max() < single_cell_video.array.max()
 
     def test_process(self, energy, single_cell_video):
-        energy_landscape = energy.process(Residual(array=single_cell_video.array))
+        energy_landscape = energy.process(Residual.from_array(single_cell_video.array))
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
 
@@ -120,7 +120,9 @@ class TestSliceNMF:
         assert slice_nmf._check_validity(footprint, single_cell_video.array)
 
     def test_process(self, slice_nmf, single_cell_video, energy_shape, toy):
-        new_component = slice_nmf.process(Residual(array=single_cell_video.array), energy_shape)
+        new_component = slice_nmf.process(
+            Residual.from_array(single_cell_video.array), energy_shape
+        )
         if new_component:
             new_fp, new_tr = new_component
         else:
@@ -133,7 +135,7 @@ class TestSliceNMF:
 class TestSniffer:
     @pytest.fixture(scope="class")
     def new_component(self, slice_nmf, single_cell_video, energy_shape):
-        return slice_nmf.process(Residual(array=single_cell_video.array), energy_shape)
+        return slice_nmf.process(Residual.from_array(single_cell_video.array), energy_shape)
 
     def test_find_overlap_ids(self, toy, new_component, sniffer):
         new_fp, new_tr = new_component
@@ -183,7 +185,7 @@ class TestCataloger:
                 type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 60, "validity_threshold": 0.8},
             )
-        ).process(Residual(array=single_cell_video.array), energy_shape)
+        ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
     def test_init_with(self, cataloger, new_component):
         new_fp, new_tr = new_component
@@ -211,7 +213,7 @@ class TestCataloger:
                 type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 10, "validity_threshold": 0.8},
             )
-        ).process(Residual(array=single_cell_video.array), energy_shape)
+        ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
         new_fp, new_tr = new_component
         fp, tr = cataloger._merge(

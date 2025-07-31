@@ -52,16 +52,18 @@ def test_ingest_frame(resident, separate_cells) -> None:
 
     resident.initialize(
         footprints=separate_cells.footprints,
-        traces=Traces(array=separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})),
-        frames=Movie(
-            array=separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
+        traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
+        ),
+        frames=Movie.from_array(
+            separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
         ),
     )
 
     residual = resident.ingest_frame(
-        frame=Frame(array=separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
+        frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
         footprints=separate_cells.footprints,
-        traces=PopSnap(array=separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+        traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
     )
 
     assert np.all(residual.array == 0)

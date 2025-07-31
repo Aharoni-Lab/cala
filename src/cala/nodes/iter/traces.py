@@ -55,8 +55,8 @@ class Tracer(Node):
             AXIS.timestamp_coord,
         ]
         coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
-        self.traces_ = Traces(
-            array=xr.DataArray(
+        self.traces_ = Traces.from_array(
+            xr.DataArray(
                 temporal_traces,
                 dims=(AXIS.component_dim, AXIS.frames_dim),
                 coords=coords,
@@ -123,7 +123,7 @@ class Tracer(Node):
         else:
             c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
 
-        return Traces(array=xr.concat([c, c_new], dim=AXIS.component_dim))
+        return Traces.from_array(xr.concat([c, c_new], dim=AXIS.component_dim))
 
     def _update_traces(
         self,

@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import ClassVar
 
 import xarray as xr
-from pydantic import BaseModel, PrivateAttr, field_validator
+from pydantic import BaseModel, PrivateAttr, field_validator, ConfigDict
 
 from cala.models.axis import Coords, Dims
 from cala.models.checks import is_non_negative
@@ -10,12 +10,22 @@ from cala.models.entity import Entity, Group
 
 
 class Asset(BaseModel):
-    array: xr.DataArray | None = None
+    array_: xr.DataArray | None = None
     _entity: ClassVar[Entity]
 
-    class Config:
-        arbitrary_types_allowed = True
-        validate_assignment = True
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
+
+    @property
+    def array(self) -> xr.DataArray | None:
+        return self.array_
+
+    @array.setter
+    def array(self, value: xr.DataArray):
+        self.array_ = value
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Asset":
+        return cls(array_=array)
 
     def __eq__(self, other: "Asset") -> bool:
         return self.array.equals(other.array)
@@ -24,7 +34,7 @@ class Asset(BaseModel):
     def entity(cls) -> Entity:
         return cls._entity
 
-    @field_validator("array", mode="after")
+    @field_validator("array_", mode="after")
     @classmethod
     def validate_array_schema(cls, value: xr.DataArray) -> xr.DataArray:
         value.validate.against_schema(cls._entity.model)

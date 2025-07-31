@@ -64,7 +64,7 @@ class Resident(Node):
         # Compute residual R = Y - [A,b][C;f]
         R = Y - (A @ C)
 
-        self.residual_ = Residual(array=R)
+        self.residual_ = Residual.from_array(R)
         return self.residual_
 
     def ingest_frame(self, frame: Frame, footprints: Footprints, traces: PopSnap) -> Residual:

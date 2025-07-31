@@ -39,7 +39,7 @@ class CompStater(Node):
         # Compute M = C * C.T / t'
         M = C @ C.rename(AXIS.component_rename) / (frame_idx + 1)
 
-        self.component_stats_ = CompStats(array=M)
+        self.component_stats_ = CompStats.from_array(M)
         return self.component_stats_
 
     def ingest_frame(self, frame: Frame, new_traces: PopSnap) -> CompStats:
@@ -121,4 +121,6 @@ class CompStater(Node):
         bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=AXIS.component_dim)
 
         # Combine blocks
-        return CompStats(array=xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'"))
+        return CompStats.from_array(
+            xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
+        )
