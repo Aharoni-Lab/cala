@@ -1,24 +1,11 @@
 import asyncio
-import warnings
 from contextlib import asynccontextmanager
-
-from cala.gui.dependencies import get_config
-from cala.main import run_pipeline
-
-try:
-    from fastapi import FastAPI
-except ImportError:
-    warnings.warn("yall need fastapi if you want the gui; install cala[gui]", stacklevel=2)
-    FastAPI = None
+from fastapi import FastAPI
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
-    config = await get_config()
-
-    # Start the streamers in the background
-    # modify runner.run_streamers to not block the event loop or run it in a background task
-    asyncio.create_task(run_pipeline(config))
+    asyncio.create_task()
 
     yield
 
