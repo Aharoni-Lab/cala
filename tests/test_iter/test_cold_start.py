@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import Residual
+from cala.assets import Residual
 from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays

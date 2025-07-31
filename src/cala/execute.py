@@ -1,8 +1,8 @@
 from noob import SynchronousRunner
 from pydantic import BaseModel
 
+from cala.assets import Frame
 from cala.logging import init_logger
-from cala.models import Frame
 from cala.models.spec import Pipe
 
 logger = init_logger(__name__)

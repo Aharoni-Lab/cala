@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Footprints
+from cala.assets import Footprints
+from cala.models import AXIS
 from cala.nodes.iter.overlap import Overlapper
 from cala.testing.toy import FrameDims, Position, Toy
 

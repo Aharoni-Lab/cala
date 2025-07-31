@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 import xarray as xr
 
-from cala.gui.nodes.util import send_through
 from cala.assets import Footprints
+from cala.gui.nodes.util import send_through
 
 
 @dataclass

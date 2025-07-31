@@ -4,7 +4,8 @@ from noob.node import Node
 from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.models import AXIS, Footprints, Frame, Movie, Overlap, Trace, Traces
+from cala.assets import Footprints, Frame, Movie, Overlaps, Trace, Traces
+from cala.models import AXIS
 
 
 class Tracer(Node):
@@ -17,7 +18,7 @@ class Tracer(Node):
         footprints: Footprints,
         frames: Movie = None,
         frame: Frame = None,
-        overlaps: Overlap = None,
+        overlaps: Overlaps = None,
         new_trace: Trace = None,
     ) -> Traces:
         """
@@ -64,7 +65,7 @@ class Tracer(Node):
 
         return self.traces_
 
-    def ingest_frame(self, footprints: Footprints, frame: Frame, overlaps: Overlap) -> Traces:
+    def ingest_frame(self, footprints: Footprints, frame: Frame, overlaps: Overlaps) -> Traces:
         """
         Update temporal traces using current spatial footprints and frame data.
 

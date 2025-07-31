@@ -2,7 +2,7 @@ from datetime import datetime
 
 import numpy as np
 
-from cala.models import Frame
+from cala.assets import Frame
 from cala.util.new import package_frame
 
 

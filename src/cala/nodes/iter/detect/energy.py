@@ -5,7 +5,8 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.models import AXIS, Residual
+from cala.assets import Residual
+from cala.models import AXIS
 
 
 class Energy(Node):

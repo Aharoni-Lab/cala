@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from noob.node import NodeSpecification
 
-from cala.models import AXIS, Frame, Movie, PopSnap, Traces
+from cala.assets import Frame, Movie, PopSnap, Traces
+from cala.models import AXIS
 from cala.nodes.iter.pixel_stats import PixelStater
 from cala.testing.toy import FrameDims, Position, Toy
 

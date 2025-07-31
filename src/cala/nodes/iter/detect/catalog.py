@@ -4,8 +4,8 @@ from noob.node import Node
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
+from cala.assets import Footprint, Footprints, Movie, Trace, Traces
 from cala.models import AXIS
-from cala.models.observable import Footprint, Footprints, Movie, Trace, Traces
 from cala.util.new import create_id
 
 

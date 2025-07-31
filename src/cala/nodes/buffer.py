@@ -1,7 +1,10 @@
 from typing import Annotated as A
-from noob import Name
+
 import xarray as xr
-from cala.models import Movie, Frame, AXIS
+from noob import Name
+
+from cala.assets import Frame, Movie
+from cala.models import AXIS
 
 
 def fill_buffer(size: int, buffer: Movie, frame: Frame) -> A[Movie, Name("buffer")]:

@@ -5,7 +5,8 @@ import xarray as xr
 from noob.node import Node
 from sklearn.decomposition import NMF
 
-from cala.models import AXIS, Footprint, Residual, Trace
+from cala.assets import Footprint, Residual, Trace
+from cala.models import AXIS
 
 
 class SliceNMF(Node):

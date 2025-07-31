@@ -4,7 +4,8 @@ import numpy as np
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, Footprint, Footprints, Residual, Trace, Traces
+from cala.assets import Footprint, Footprints, Residual, Trace, Traces
+from cala.models import AXIS
 
 
 class DupeSniffer(Node):

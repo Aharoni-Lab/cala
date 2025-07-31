@@ -3,7 +3,8 @@ import numpy as np
 import xarray as xr
 from noob.node import Node
 
-from cala.models import AXIS, CompStat, Footprint, Footprints, PixStat
+from cala.assets import CompStats, Footprint, Footprints, PixStats
+from cala.models import AXIS
 
 
 class Footprinter(Node):
@@ -17,10 +18,10 @@ class Footprinter(Node):
 
     footprints_: Footprints = None
 
-    def process(self, pixel_stats: PixStat, component_stats: CompStat) -> Footprints:
+    def process(self, pixel_stats: PixStats, component_stats: CompStats) -> Footprints:
         return self.ingest(pixel_stats, component_stats)
 
-    def ingest_frame(self, pixel_stats: PixStat, component_stats: CompStat) -> Footprints:
+    def ingest_frame(self, pixel_stats: PixStats, component_stats: CompStats) -> Footprints:
         """
         Update spatial footprints using sufficient statistics.
 
