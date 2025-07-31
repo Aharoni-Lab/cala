@@ -6,11 +6,9 @@ import av
 import numpy as np
 import xarray as xr
 
-from cala.models.params import Params
-
 
 @dataclass
-class FrameStreamerParams(Params):
+class FrameStreamerParams:
     frame_rate: int
     stream_dir: Path
     playlist_name: str = "stream.m3u8"

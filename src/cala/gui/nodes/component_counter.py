@@ -3,20 +3,11 @@ from dataclasses import dataclass
 import xarray as xr
 
 from cala.gui.nodes.util import send_through
-from cala.models import Params, Footprints
-
-
-@dataclass
-class ComponentCounterParams(Params):
-    pass
-
-    def validate(self) -> None:
-        pass
+from cala.assets import Footprints
 
 
 @dataclass
 class ComponentCounter:
-    params: ComponentCounterParams
     component_count_: int = 0
 
     def learn_one(self, footprints: Footprints) -> "ComponentCounter":
