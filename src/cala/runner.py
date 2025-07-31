@@ -8,7 +8,7 @@ from cala.models.spec import Pipe
 logger = init_logger(__name__)
 
 
-class Executor(BaseModel):
+class Runner(BaseModel):
     """Manages the execution of streaming image analysis pipeline.
 
     This class orchestrates the steps of the imaging analysis pipeline
