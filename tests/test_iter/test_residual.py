@@ -1,18 +1,10 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification
+from noob.node import NodeSpecification, Node
 
 from cala.assets import Frame, Movie, PopSnap, Traces
 from cala.models import AXIS
-from cala.nodes.residual import Resident
 from cala.testing.toy import FrameDims, Position, Toy
-
-
-@pytest.fixture(scope="function")
-def resident() -> Resident:
-    return Resident.from_specification(
-        spec=NodeSpecification(id="resident_test", type="cala.nodes.residual.Resident")
-    )
 
 
 @pytest.fixture
@@ -38,8 +30,15 @@ def separate_cells() -> Toy:
     )
 
 
-def test_init(resident, separate_cells) -> None:
-    result = resident.initialize(
+@pytest.fixture(scope="function")
+def init() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="res_init_test", type="cala.nodes.residual.initialize")
+    )
+
+
+def test_init(init, separate_cells) -> None:
+    result = init.process(
         footprints=separate_cells.footprints,
         traces=separate_cells.traces,
         frames=separate_cells.make_movie(),
@@ -48,9 +47,16 @@ def test_init(resident, separate_cells) -> None:
     assert np.all(result.array == 0)
 
 
-def test_ingest_frame(resident, separate_cells) -> None:
+@pytest.fixture(scope="function")
+def frame_update() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="res_frame_test", type="cala.nodes.residual.ingest_frame")
+    )
 
-    resident.initialize(
+
+def test_ingest_frame(init, frame_update, separate_cells) -> None:
+
+    pre_ingest = init.process(
         footprints=separate_cells.footprints,
         traces=Traces.from_array(
             separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
@@ -60,7 +66,8 @@ def test_ingest_frame(resident, separate_cells) -> None:
         ),
     )
 
-    residual = resident.ingest_frame(
+    residual = frame_update.process(
+        residual=pre_ingest,
         frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
         footprints=separate_cells.footprints,
         traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
