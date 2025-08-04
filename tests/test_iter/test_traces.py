@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification
+from noob.node import NodeSpecification, Node
 
 from cala.assets import Frame, Trace, Traces
 from cala.models import AXIS
 from cala.nodes.overlap import Overlapper
-from cala.nodes.traces import Tracer
+from cala.nodes.traces import Init, FrameUpdate, ingest_component
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -26,25 +26,32 @@ def separate_cells() -> Toy:
 
 
 @pytest.fixture
-def tracer() -> Tracer:
-    return Tracer.from_specification(
+def init() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="init_test", type="cala.nodes.traces.Init")
+    )
+
+
+@pytest.mark.parametrize("toy", ["separate_cells"])
+def test_init(init, toy, request) -> None:
+    toy = request.getfixturevalue(toy)
+
+    traces = init.process(footprints=toy.footprints, frames=toy.make_movie())
+
+    np.testing.assert_array_equal(traces.array, toy.traces.array)
+
+
+@pytest.fixture
+def frame_update() -> Node:
+    return Node.from_specification(
         spec=NodeSpecification(
-            id="tracer_test", type="cala.nodes.traces.Tracer", params={"tolerance": 1e-3}
+            id="frame_test", type="cala.nodes.traces.FrameUpdate", params={"tolerance": 1e-3}
         )
     )
 
 
 @pytest.mark.parametrize("toy", ["separate_cells"])
-def test_init(tracer, toy, request) -> None:
-    toy = request.getfixturevalue(toy)
-
-    traces = tracer.initialize(footprints=toy.footprints, frames=toy.make_movie())
-
-    np.testing.assert_array_equal(traces.array, toy.traces.array)
-
-
-@pytest.mark.parametrize("toy", ["separate_cells"])
-def test_ingest_frame(tracer, toy, request) -> None:
+def test_ingest_frame(frame_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
     xray = Overlapper.from_specification(
@@ -52,29 +59,35 @@ def test_ingest_frame(tracer, toy, request) -> None:
     )
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
-    tracer.traces_ = traces
 
     frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frames_dim: -1}))
     overlap = xray.initialize(footprints=toy.footprints)
 
-    result = tracer.ingest_frame(
+    result = frame_update.process(
+        traces=traces,
         footprints=toy.footprints,
         frame=frame,
         overlaps=overlap,
     )
 
-    assert result.array.equals(toy.traces.array)
+    assert result.array.equals(toy.traces.array.isel({AXIS.frames_dim: -1}))
+
+
+@pytest.fixture
+def comp_update() -> Node:
+    return Node.from_specification(
+        NodeSpecification(id="comp_test", type="cala.nodes.traces.ingest_component")
+    )
 
 
 @pytest.mark.parametrize("toy", ["separate_cells"])
-def test_ingest_component(tracer, toy, request) -> None:
+def test_ingest_component(comp_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
-    tracer.traces_ = traces
 
     trace = Trace.from_array(toy.traces.array.isel({AXIS.component_dim: -1}))
 
-    expected = tracer.ingest_component(trace)
+    expected = comp_update.process(traces, trace)
 
     assert expected == toy.traces
