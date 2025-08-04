@@ -187,13 +187,6 @@ class TestCataloger:
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
-    def test_init_with(self, cataloger, new_component):
-        new_fp, new_tr = new_component
-        fp, tr = cataloger._init_with(new_fp=new_fp, new_tr=new_tr)
-
-        assert np.array_equal(fp.array.values[0], new_fp.array.values)
-        assert np.array_equal(tr.array.values[0], new_tr.array.values)
-
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(

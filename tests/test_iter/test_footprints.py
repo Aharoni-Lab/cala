@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification, Node
+from noob.node import Node, NodeSpecification
 
 from cala.testing.toy import FrameDims, Position, Toy
 

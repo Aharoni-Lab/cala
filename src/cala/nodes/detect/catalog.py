@@ -1,5 +1,8 @@
+from typing import Annotated as A
+
 import numpy as np
 import xarray as xr
+from noob import Name
 from noob.node import Node
 from sklearn.decomposition import NMF
 from xarray import Coordinates
@@ -18,51 +21,43 @@ class Cataloger(Node):
         existing_fp: Footprints = None,
         existing_tr: Traces = None,
         duplicates: list[tuple[str, float]] | None = None,
-    ) -> tuple[Footprints, Traces]:
+    ) -> tuple[A[Footprint | None, Name("new_footprint")], A[Trace | None, Name("new_trace")]]:
 
         if not duplicates:
-            footprints, traces = self._register(new_fp, new_tr, existing_fp, existing_tr)
-
+            footprint, trace = self._register(new_fp, new_tr)
         else:
-            footprints, traces = self._merge(new_fp, new_tr, existing_fp, existing_tr, duplicates)
+            footprint, trace = self._merge(new_fp, new_tr, existing_fp, existing_tr, duplicates)
 
-        return footprints, traces
+        return footprint, trace
 
     def _register(
-        self,
-        new_fp: Footprint,
-        new_tr: Trace,
-        existing_fp: Footprints | None = None,
-        existing_tr: Traces | None = None,
-    ) -> tuple[Footprints, Traces]:
-        footprint, trace = self._init_with(new_fp, new_tr)
-
-        if existing_fp is not None:
-            footprint = xr.concat([existing_fp.array, footprint.array], dim=AXIS.component_dim)
-            trace = xr.concat([existing_tr.array, trace.array], dim=AXIS.component_dim)
-
-        return Footprints.from_array(footprint), Traces.from_array(trace)
-
-    def _init_with(
         self, new_fp: Footprint, new_tr: Trace, confidence: float = 0.0
-    ) -> tuple[Footprints, Traces]:
+    ) -> tuple[Footprint, Trace]:
 
         new_id = create_id()
 
-        footprints = new_fp.array.expand_dims(AXIS.component_dim).assign_coords(
-            {
-                AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
-            }
+        footprint = (
+            new_fp.array.expand_dims(AXIS.component_dim)
+            .assign_coords(
+                {
+                    AXIS.id_coord: (AXIS.component_dim, [new_id]),
+                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                }
+            )
+            .isel({AXIS.component_dim: 0})
         )
-        traces = new_tr.array.expand_dims(AXIS.component_dim).assign_coords(
-            {
-                AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
-            }
+        trace = (
+            new_tr.array.expand_dims(AXIS.component_dim)
+            .assign_coords(
+                {
+                    AXIS.id_coord: (AXIS.component_dim, [new_id]),
+                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                }
+            )
+            .isel({AXIS.component_dim: 0})
         )
 
-        return Footprints.from_array(footprints), Traces.from_array(traces)
+        return Footprint.from_array(footprint), Trace.from_array(trace)
 
     def _merge(
         self,
@@ -71,7 +66,7 @@ class Cataloger(Node):
         existing_fp: Footprints,
         existing_tr: Traces,
         duplicates: list[tuple[str, float]],
-    ) -> tuple[Footprints, Traces]:
+    ) -> tuple[Footprint, Trace]:
         """
         # 1. get the "movie" of the og piece
         # 2. get the "movie" of the new piece
@@ -81,9 +76,15 @@ class Cataloger(Node):
         """
 
         most_similar = duplicates[0]
+        most_similar_fp = existing_fp.array.set_xindex(AXIS.id_coord).sel(
+            {AXIS.id_coord: most_similar[0]}
+        )
+        most_similar_tr = existing_tr.array.set_xindex(AXIS.id_coord).sel(
+            {AXIS.id_coord: most_similar[0]}
+        )
 
         combined_movie = self._combine_component_movies(
-            new_fp, new_tr, existing_fp, existing_tr, most_similar[0]
+            new_fp=new_fp, new_tr=new_tr, fp_to_merge=most_similar_fp, tr_to_merge=most_similar_tr
         ).array
 
         # Reshape neighborhood to 2D matrix (time × space)
@@ -94,40 +95,24 @@ class Cataloger(Node):
 
         a, c = self._nmf(slice_)
 
+        slice_coords = slice_.array.reset_index(AXIS.frames_dim).reset_coords(drop=True).coords
+
         a_new, c_new = self._reshape(
             footprint=a,
             trace=c,
-            template_coords=shape.coords,
-            frame_coords=existing_tr.array[AXIS.frames_dim].coords,
-            slice_coords=slice_.array.reset_index(AXIS.frames_dim).reset_coords(drop=True).coords,
+            fp_coords=most_similar_fp.coords,
+            tr_coords=most_similar_tr.coords,
+            slice_coords=slice_coords,
         )
 
-        footprints, traces = existing_fp.array.copy(), existing_tr.array.copy()
-
-        traces.set_xindex(AXIS.id_coord).loc[{AXIS.id_coord: most_similar[0]}] = c_new.array
-
-        footprints.set_xindex(AXIS.id_coord).loc[{AXIS.id_coord: most_similar[0]}] = a_new.array
-
-        return Footprints.from_array(footprints), Traces.from_array(traces)
+        return a_new, c_new
 
     def _combine_component_movies(
-        self,
-        new_fp: Footprint,
-        new_tr: Trace,
-        existing_fp: Footprints,
-        existing_tr: Traces,
-        most_similar_id: str,
+        self, new_fp: Footprint, new_tr: Trace, fp_to_merge: xr.DataArray, tr_to_merge: xr.DataArray
     ) -> Movie:
-        most_similar_fp = existing_fp.array.set_xindex(AXIS.id_coord).sel(
-            {AXIS.id_coord: most_similar_id}
-        )
-        most_similar_tr = existing_tr.array.set_xindex(AXIS.id_coord).sel(
-            {AXIS.id_coord: most_similar_id}
-        )
-
-        most_similar_movie = most_similar_fp @ most_similar_tr
+        recreated_movie = fp_to_merge @ tr_to_merge
         new_movie = new_fp.array @ new_tr.array
-        combined_movie = most_similar_movie + new_movie
+        combined_movie = recreated_movie + new_movie
 
         return Movie.from_array(
             combined_movie.assign_coords({ax: combined_movie[ax] for ax in AXIS.spatial_dims})
@@ -150,22 +135,18 @@ class Cataloger(Node):
         self,
         footprint: np.ndarray,
         trace: np.ndarray,
-        template_coords: Coordinates,
-        frame_coords: Coordinates,
+        fp_coords: Coordinates,
+        tr_coords: Coordinates,
         slice_coords: Coordinates,
     ) -> tuple[Footprint, Trace]:
         """Convert back to xarray with proper dimensions and coordinates"""
 
-        c_new = xr.DataArray(
-            trace.squeeze(),
-            dims=[AXIS.frames_dim],
-            coords=frame_coords,
-        )
+        c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
 
         a_new = xr.DataArray(
-            np.zeros(tuple(template_coords.sizes.values())),
-            dims=tuple(template_coords.sizes.keys()),
-            coords=template_coords,
+            np.zeros(tuple(fp_coords.sizes.values())),
+            dims=tuple(fp_coords.sizes.keys()),
+            coords=fp_coords,
         )
 
         a_new.loc[slice_coords] = xr.DataArray(

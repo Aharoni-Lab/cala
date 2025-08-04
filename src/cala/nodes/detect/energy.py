@@ -1,4 +1,7 @@
+from typing import Annotated as A
+
 import xarray as xr
+from noob import Name
 from noob.node import Node
 from pydantic import ConfigDict
 from scipy.ndimage import gaussian_filter
@@ -11,13 +14,14 @@ from cala.models import AXIS
 
 class Energy(Node):
     gaussian_std: float
+    """not sure why we're smoothing the residual...??"""
 
-    noise_level_: float = None
+    noise_level_: float | None = None
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def process(self, residuals: Residual) -> xr.DataArray | None:
+    def process(self, residuals: Residual) -> A[xr.DataArray | None, Name("energy")]:
         residuals = residuals.array
         frame_shape = residuals[0].shape
         self.noise_level_ = self._estimate_gaussian_noise(residuals, frame_shape)

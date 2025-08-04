@@ -1,7 +1,9 @@
 from collections.abc import Hashable, Mapping
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
+from noob import Name
 from noob.node import Node
 from sklearn.decomposition import NMF
 
@@ -13,7 +15,9 @@ class SliceNMF(Node):
     cell_radius: int
     validity_threshold: float
 
-    def process(self, residuals: Residual, energy: xr.DataArray) -> tuple[Footprint, Trace] | None:
+    def process(
+        self, residuals: Residual, energy: xr.DataArray
+    ) -> tuple[A[Footprint | None, Name("new_fp")], A[Trace | None, Name("new_tr")]]:
         # Find and analyze neighborhood of maximum variance
         residuals = residuals.array
 
@@ -29,7 +33,7 @@ class SliceNMF(Node):
         if self._check_validity(a_new, residuals):
             return Footprint.from_array(a_new), Trace.from_array(c_new)
         else:
-            return None
+            return None, None
 
     def _get_max_energy_slice(
         self,

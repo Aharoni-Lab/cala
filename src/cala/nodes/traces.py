@@ -2,11 +2,11 @@ from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
-from noob import process_method, Name
+from noob import Name, process_method
 from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import Footprints, Frame, Movie, Overlaps, Trace, Traces, PopSnap
+from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Trace, Traces
 from cala.models import AXIS
 
 

@@ -1,5 +1,4 @@
 import xarray as xr
-from noob.node import Node
 
 from cala.assets import Frame, Movie, PixStats, PopSnap, Traces
 from cala.models import AXIS

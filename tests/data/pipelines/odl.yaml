@@ -60,27 +60,64 @@ nodes:
     depends:
       - buffer: assets.buffer
       - frame: motion.frame
-#  trace_ingest_frame:
-#    type: cala.nodes.traces.ingest_frame
 
-#  pix_ingest_frame:
-#    type:
-
-#  comp_ingest_frame:
-#    type:
+  trace_frame:
+    type: cala.nodes.traces.FrameUpdate
+    params:
+      tolerance: 0.001
+    depends:
+      - traces: assets.traces
+      - footprints: assets.footprints
+      - frame: motion.frame
+      - overlaps: assets.overlaps
 
 # DETECT BEGINS
-#  detect:
-#    type:
+  energy:
+    type: cala.nodes.detect.Energy
+    params:
+      gaussian_std: 1.0
+    depends:
+      - residuals: assets.residuals
+  nmf:
+    type: cala.nodes.detect.SliceNMF
+    params:
+      cell_radius: 10
+      validity_threshold: 0.9
+    depends:
+      - residuals: assets.residuals
+      - energy: energy.energy
+  sniff:
+    type: cala.nodes.detect.DupeSniffer
+    params:
+      merge_threshold: 0.8
+    depends:
+      - new_fp: nmf.new_fp
+      - new_tr: nmf.new_tr
+      - existing_fp: assets.footprints
+      - existing_tr: assets.traces
+      - residuals: assets.residuals
+  catalog:
+    type: cala.nodes.detect.Catalog
+    depends:
+      - new_fp: nmf.new_fp
+      - new_tr: nmf.new_tr
+      - existing_fp: assets.footprints
+      - existing_tr: assets.traces
+      - duplicates: sniff.dupes
+  trace_component:
+    type: cala.nodes.traces.ingest_component
+    depends:
+      - traces: assets.traces
+      - new_trace: catalog.new_trace
 
-#  trace_ingest_component:
-#    type:
+
 
 #  footprint_ingest_component:
 #    type:
 
 #  residual_update:
 #    type:
+# DETECT ENDS
 
 #  pix_stats_ingest_component:
 #    type:
@@ -90,7 +127,19 @@ nodes:
 
 #  overlaps_update:
 #    type:
-# DETECT ENDS
+
+  pix_frame:
+    type: cala.nodes.pixel_stats.ingest_frame
+    depends:
+      - pixel_stats: assets.pix_stats
+      - frame: motion.frame
+      - new_traces: trace_frame.latest_trace
+  comp_frame:
+    type: cala.nodes.component_stats.ingest_frame
+    depends:
+      - component_stats: assets.comp_stats
+      - frame: motion.frame
+      - new_traces: trace_frame.latest_trace
 
 #  footprints_ingest_frame:
 #    type:

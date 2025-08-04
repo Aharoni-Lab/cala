@@ -1,7 +1,9 @@
 from operator import itemgetter
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
+from noob import Name
 from noob.node import Node
 
 from cala.assets import Footprint, Footprints, Residual, Trace, Traces
@@ -18,7 +20,7 @@ class DupeSniffer(Node):
         existing_fp: Footprints,
         existing_tr: Traces,
         residuals: Residual,
-    ) -> list[tuple[str, float]] | None:
+    ) -> A[list[tuple[str, float]] | None, Name("dupes")]:
         """
         determines whether the new component overlaps with an existing component.
         if novel, return None.
