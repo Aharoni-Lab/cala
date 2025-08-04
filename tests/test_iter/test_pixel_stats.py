@@ -1,18 +1,10 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification
+from noob.node import NodeSpecification, Node
 
 from cala.assets import Frame, Movie, PopSnap, Traces
 from cala.models import AXIS
-from cala.nodes.pixel_stats import PixelStater
 from cala.testing.toy import FrameDims, Position, Toy
-
-
-@pytest.fixture(scope="function")
-def pix_stats() -> PixelStater:
-    return PixelStater.from_specification(
-        spec=NodeSpecification(id="pix_stat_test", type="cala.nodes.pixel_stats.PixelStater")
-    )
 
 
 @pytest.fixture
@@ -38,8 +30,15 @@ def separate_cells() -> Toy:
     )
 
 
-def test_init(pix_stats, separate_cells) -> None:
-    result = pix_stats.initialize(traces=separate_cells.traces, frames=separate_cells.make_movie())
+@pytest.fixture(scope="function")
+def init() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="ps_init_test", type="cala.nodes.pixel_stats.initialize")
+    )
+
+
+def test_init(init, separate_cells) -> None:
+    result = init.process(traces=separate_cells.traces, frames=separate_cells.make_movie())
 
     movie = separate_cells.make_movie()
 
@@ -52,9 +51,16 @@ def test_init(pix_stats, separate_cells) -> None:
         )
 
 
-def test_ingest_frame(pix_stats, separate_cells) -> None:
+@pytest.fixture(scope="function")
+def frame_update() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="ps_frame_test", type="cala.nodes.pixel_stats.ingest_frame")
+    )
 
-    pix_stats.initialize(
+
+def test_ingest_frame(init, frame_update, separate_cells) -> None:
+
+    pre_ingest = init.process(
         traces=Traces.from_array(
             separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
         ),
@@ -63,32 +69,37 @@ def test_ingest_frame(pix_stats, separate_cells) -> None:
         ),
     )
 
-    result = pix_stats.ingest_frame(
+    result = frame_update.process(
+        pixel_stats=pre_ingest,
         frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+        new_traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
     )
 
-    expected = pix_stats.initialize(
-        traces=separate_cells.traces, frames=separate_cells.make_movie()
-    )
+    expected = init.process(traces=separate_cells.traces, frames=separate_cells.make_movie())
     assert expected == result
 
 
-def test_ingest_component(pix_stats, separate_cells):
-    pix_stats.initialize(
+@pytest.fixture(scope="function")
+def comp_update() -> Node:
+    return Node.from_specification(
+        spec=NodeSpecification(id="ps_comp_test", type="cala.nodes.pixel_stats.ingest_component")
+    )
+
+
+def test_ingest_component(init, comp_update, separate_cells):
+    pre_ingest = init.process(
         traces=Traces.from_array(
             separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
         ),
         frames=separate_cells.make_movie(),
     )
 
-    result = pix_stats.ingest_component(
+    result = comp_update.process(
+        pixel_stats=pre_ingest,
         frames=separate_cells.make_movie(),
         new_traces=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
     )
 
-    expected = pix_stats.initialize(
-        traces=separate_cells.traces, frames=separate_cells.make_movie()
-    )
+    expected = init.process(traces=separate_cells.traces, frames=separate_cells.make_movie())
 
     assert expected == result
