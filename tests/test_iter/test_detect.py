@@ -199,12 +199,10 @@ class TestCataloger:
         fp, tr = cataloger._register(
             new_fp=new_fp,
             new_tr=new_tr,
-            existing_fp=toy.footprints,
-            existing_tr=toy.traces,
         )
 
-        assert np.array_equal(fp.array[-1], new_fp.array)
-        assert np.array_equal(tr.array[-1], new_tr.array)
+        assert np.array_equal(fp.array, new_fp.array)
+        assert np.array_equal(tr.array, new_tr.array)
 
     def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
@@ -220,8 +218,9 @@ class TestCataloger:
             new_fp, new_tr, toy.footprints, toy.traces, duplicates=[("cell_0", 1.0)]
         )
 
-        movie_recon = fp.array @ tr.array
+        movie_result = fp.array @ tr.array
+
         movie_new_comp = new_fp.array @ new_tr.array
         movie_expected = single_cell_video.array + movie_new_comp
 
-        np.testing.assert_allclose(movie_recon, movie_expected.transpose(*movie_recon.dims))
+        np.testing.assert_allclose(movie_result, movie_expected.transpose(*movie_result.dims))
