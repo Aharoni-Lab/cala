@@ -4,8 +4,6 @@ from noob.node import NodeSpecification, Node
 
 from cala.assets import Frame, Trace, Traces
 from cala.models import AXIS
-from cala.nodes.overlap import Overlapper
-from cala.nodes.traces import Init, FrameUpdate, ingest_component
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -54,14 +52,14 @@ def frame_update() -> Node:
 def test_ingest_frame(frame_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
-    xray = Overlapper.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.overlap.Overlapper")
+    xray = Node.from_specification(
+        spec=NodeSpecification(id="test", type="cala.nodes.overlap.initialize")
     )
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
 
     frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frames_dim: -1}))
-    overlap = xray.initialize(footprints=toy.footprints)
+    overlap = xray.process(footprints=toy.footprints)
 
     result = frame_update.process(
         traces=traces,
