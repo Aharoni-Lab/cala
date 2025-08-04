@@ -1,27 +1,26 @@
 import cv2
 import numpy as np
 import xarray as xr
-from noob.node import Node
+from noob import process_method
 
 from cala.assets import CompStats, Footprint, Footprints, PixStats
 from cala.models import AXIS
 
 
-class Footprinter(Node):
+class Footprinter:
 
-    boundary_expansion_pixels: int | None = None
-    """
-    Number of pixels to explore the boundary of the footprint outside of the current footprint.
-    """
+    def __init__(self, boundary_expansion_pixels: int | None = None, tolerance: float = 1e-7):
+        self.bep = boundary_expansion_pixels
+        """
+        Number of pixels to explore the boundary of the footprint outside of the current footprint.
+        """
 
-    tolerance: float = 1e-7
+        self.tol = tolerance
 
-    footprints_: Footprints = None
-
-    def process(self, pixel_stats: PixStats, component_stats: CompStats) -> Footprints:
-        return self.ingest(pixel_stats, component_stats)
-
-    def ingest_frame(self, pixel_stats: PixStats, component_stats: CompStats) -> Footprints:
+    @process_method
+    def ingest_frame(
+        self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats
+    ) -> Footprints:
         """
         Update spatial footprints using sufficient statistics.
 
@@ -39,7 +38,7 @@ class Footprinter(Node):
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components)
         """
-        A = self.footprints_.array
+        A = footprints.array
         M = component_stats.array
         W = pixel_stats.array
 
@@ -50,11 +49,11 @@ class Footprinter(Node):
         while not converged:
             mask = A > 0
 
-            if self.boundary_expansion_pixels:
-                kernel = kernel if kernel else self.expansion_kernel()
+            if self.bep:
+                kernel = kernel if kernel else self._expansion_kernel()
 
                 if not expanded:
-                    mask = self.expand_boundary(kernel, mask)
+                    mask = self._expand_boundary(kernel, mask)
                     expanded = True
 
             AM = A.rename(AXIS.component_rename) @ M
@@ -74,25 +73,25 @@ class Footprinter(Node):
             A_new = mask * (A + update)
             A_new = xr.where(A_new > 0, A_new, 0)
 
-            if abs((A - A_new).sum() / np.prod(A.shape)) < self.tolerance:
+            if abs((A - A_new).sum() / np.prod(A.shape)) < self.tol:
                 A = A_new
                 converged = True
             else:
                 A = A_new
 
-        self.footprints_.array = A
-        return self.footprints_
+        footprints.array = A
+        return footprints
 
-    def expansion_kernel(self) -> np.ndarray:
+    def _expansion_kernel(self) -> np.ndarray:
         return cv2.getStructuringElement(
             cv2.MORPH_CROSS,
             (
-                self.boundary_expansion_pixels * 2 + 1,
-                self.boundary_expansion_pixels * 2 + 1,
+                self.bep * 2 + 1,
+                self.bep * 2 + 1,
             ),
         )  # faster than np.ones
 
-    def expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
+    def _expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
         return xr.apply_ufunc(
             lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
             mask.astype(np.uint8),
@@ -102,8 +101,7 @@ class Footprinter(Node):
             dask="parallelized",
         )
 
-    def ingest_component(self, new_footprint: Footprint | Footprints) -> Footprints:
-        self.footprints_.array = xr.concat(
-            [self.footprints_.array, new_footprint.array], dim=AXIS.component_dim
-        )
-        return self.footprints_
+
+def ingest_component(footprints: Footprints, new_footprint: Footprint | Footprints) -> Footprints:
+    footprints.array = xr.concat([footprints.array, new_footprint.array], dim=AXIS.component_dim)
+    return footprints
