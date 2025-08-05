@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.assets import Residual
+from cala.assets import Residual, Frame
 from cala.models import AXIS
 
 
@@ -21,10 +21,12 @@ class Energy(Node):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def process(self, residuals: Residual) -> A[xr.DataArray | None, Name("energy")]:
+    def process(self, residuals: Residual, frame: Frame) -> A[xr.DataArray | None, Name("energy")]:
+        if residuals.array is None:
+            return xr.DataArray()
+
         residuals = residuals.array
-        frame_shape = residuals[0].shape
-        self.noise_level_ = self._estimate_gaussian_noise(residuals, frame_shape)
+        self.noise_level_ = self._estimate_gaussian_noise(residuals)
 
         V = self._center_to_median(residuals)
 
@@ -36,10 +38,7 @@ class Energy(Node):
 
         return E
 
-    def _estimate_gaussian_noise(
-        self, residuals: xr.DataArray, frame_shape: tuple[int, ...]
-    ) -> float:
-        self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
+    def _estimate_gaussian_noise(self, residuals: xr.DataArray) -> float:
         patches = self.sampler.transform(residuals)
         return float(estimate_sigma(patches))
 

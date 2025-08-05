@@ -78,6 +78,7 @@ nodes:
       gaussian_std: 1.0
     depends:
       - residuals: assets.residuals
+      - frame: motion.frame
   nmf:
     type: cala.nodes.detect.SliceNMF
     params:
@@ -120,8 +121,8 @@ nodes:
     depends:
       - residual: assets.residuals
       - frame: motion.frame
-      - footprints: assets.footprints
-      - traces: assets.traces
+      - footprints: footprint_component.value
+      - traces: trace_component.value
   pix_stats_component:
     type: cala.nodes.pixel_stats.ingest_component
     depends:
@@ -145,13 +146,13 @@ nodes:
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
-      - pixel_stats: assets.pix_stats
+      - pixel_stats: pix_stats_component.value
       - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
-      - component_stats: assets.comp_stats
+      - component_stats: comp_stats_component.value
       - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   footprints_frame:
@@ -161,5 +162,5 @@ nodes:
       tolerance: 1e-7
     depends:
       - footprints: assets.footprints
-      - pixel_stats: assets.pix_stats
-      - component_stats: assets.comp_stats
+      - pixel_stats: pix_frame.value
+      - component_stats: comp_frame.value

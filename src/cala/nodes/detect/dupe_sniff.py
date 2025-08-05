@@ -20,17 +20,19 @@ class DupeSniffer(Node):
         existing_fp: Footprints,
         existing_tr: Traces,
         residuals: Residual,
-    ) -> A[list[tuple[str, float]] | None, Name("dupes")]:
+    ) -> A[list[tuple[str, float]], Name("dupes")]:
         """
         determines whether the new component overlaps with an existing component.
         if novel, return None.
         if similar to existing components (above threshold), return the component IDs.
         """
+        if new_fp.array is None or new_fp.array.size == 1:
+            return []
 
         overlapping_components = self._find_overlap_ids(new_fp.array, existing_fp.array)
 
         if not overlapping_components:
-            return None
+            return []
 
         overlapped_traces = self._get_overlapped_traces(overlapping_components, existing_tr.array)
 

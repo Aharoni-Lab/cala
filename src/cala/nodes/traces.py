@@ -118,6 +118,9 @@ class FrameUpdate:
                 Shape: (components × components), where entry (i,j) is 1 if
                 components i and j overlap, and 0 otherwise.
         """
+        if footprints.array is None:
+            return PopSnap()
+
         # Prepare inputs for the update algorithm
         A = footprints.array.stack({"pixels": AXIS.spatial_dims})
         y = frame.array.stack({"pixels": AXIS.spatial_dims})
@@ -222,9 +225,3 @@ def ingest_component(traces: Traces, new_trace: Trace) -> Traces:
         traces.array = xr.concat([c, c_new], dim=AXIS.component_dim)
 
     return traces
-
-    # footprints, traces = existing_fp.array.copy(), existing_tr.array.copy()
-    #
-    # footprints.set_xindex(AXIS.id_coord).loc[{AXIS.id_coord: most_similar[0]}] = a_new.array
-    #
-    # return Footprints.from_array(footprints), Traces.from_array(traces)

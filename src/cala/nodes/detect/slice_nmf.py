@@ -18,6 +18,9 @@ class SliceNMF(Node):
     def process(
         self, residuals: Residual, energy: xr.DataArray
     ) -> tuple[A[Footprint | None, Name("new_fp")], A[Trace | None, Name("new_tr")]]:
+        if energy.size == 1:
+            return Footprint(), Trace()
+
         # Find and analyze neighborhood of maximum variance
         residuals = residuals.array
 
