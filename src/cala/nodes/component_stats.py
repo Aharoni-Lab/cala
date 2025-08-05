@@ -48,6 +48,9 @@ def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) 
     Return:
         component_stats (ComponentStats): Updated component-statistics.
     """
+    if new_traces.array is None:
+        return component_stats
+
     # Compute scaling factors
     frame_idx = frame.array.coords[AXIS.frame_coord].item()
     prev_scale = frame_idx / (frame_idx + 1)
@@ -83,6 +86,9 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
         traces (Traces): Current temporal traces in buffer
         new_traces (Traces): Newly detected temporal components
     """
+    if new_traces.array is None:
+        return component_stats
+
     # Get current frame index (starting with 1)
     t = new_traces.array[AXIS.frame_coord].max().item() + 1
 

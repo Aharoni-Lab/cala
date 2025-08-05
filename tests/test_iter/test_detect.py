@@ -45,7 +45,7 @@ def energy():
 
 @pytest.fixture(scope="class")
 def energy_shape(energy, single_cell_video):
-    return energy.process(Residual.from_array(single_cell_video.array))
+    return energy.process(Residual.from_array(single_cell_video.array), trigger=single_cell_video)
 
 
 @pytest.fixture(scope="class")
@@ -79,9 +79,7 @@ def cataloger():
 
 class TestEnergy:
     def test_estimate_gaussian_noise(self, energy, single_cell_video):
-        noise_level = energy._estimate_gaussian_noise(
-            single_cell_video.array, single_cell_video.array.shape
-        )
+        noise_level = energy._estimate_gaussian_noise(single_cell_video.array)
         print(f"\nNoise Level: {noise_level}")
 
     def test_center_to_median(self, energy, single_cell_video):
@@ -89,7 +87,9 @@ class TestEnergy:
         assert centered_video.max() < single_cell_video.array.max()
 
     def test_process(self, energy, single_cell_video):
-        energy_landscape = energy.process(Residual.from_array(single_cell_video.array))
+        energy_landscape = energy.process(
+            residuals=Residual.from_array(single_cell_video.array), trigger=single_cell_video
+        )
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
 

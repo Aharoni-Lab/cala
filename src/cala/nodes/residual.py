@@ -45,8 +45,16 @@ def ingest_frame(
     """
     Update residual buffer with new frame, footprints, and traces
     """
-    new_R = frame.array - footprints.array @ traces.array
+    if footprints.array is None or traces.array is None:
+        new_R = frame.array
+    else:
+        new_R = frame.array - footprints.array @ traces.array
 
-    residual.array = xr.concat([residual.array, new_R], dim=AXIS.frames_dim)
+    if residual.array is None:
+        residual.array = new_R.expand_dims(AXIS.frames_dim).assign_coords(
+            {AXIS.timestamp_coord: (AXIS.frames_dim, [new_R[AXIS.timestamp_coord].values])}
+        )
+    else:
+        residual.array = xr.concat([residual.array, new_R], dim=AXIS.frames_dim)
 
     return residual

@@ -38,6 +38,9 @@ class Footprinter:
             component_stats (ComponentStats): Sufficient statistics M.
                 Shape: (components × components)
         """
+        if footprints.array is None:
+            return footprints
+
         A = footprints.array
         M = component_stats.array
         W = pixel_stats.array
@@ -103,5 +106,8 @@ class Footprinter:
 
 
 def ingest_component(footprints: Footprints, new_footprint: Footprint | Footprints) -> Footprints:
+    if new_footprint.array is None:
+        return footprints
+
     footprints.array = xr.concat([footprints.array, new_footprint.array], dim=AXIS.component_dim)
     return footprints

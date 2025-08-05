@@ -37,6 +37,8 @@ def ingest_component(
         footprints (Footprints): Current spatial footprints [A, b]
         new_footprints (Footprints): Newly detected spatial components
     """
+    if new_footprints.array is None:
+        return overlaps
 
     A = footprints.array
     a_new = new_footprints.array

@@ -78,7 +78,7 @@ nodes:
       gaussian_std: 1.0
     depends:
       - residuals: assets.residuals
-      - frame: motion.frame
+      - trigger: motion.f
   nmf:
     type: cala.nodes.detect.SliceNMF
     params:

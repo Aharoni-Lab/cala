@@ -64,6 +64,9 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
         new_traces (PopSnap): Current temporal component c_t.
             Shape: (components)
     """
+    if new_traces.array is None:
+        return pixel_stats
+
     # Compute scaling factors
     frame_idx = frame.array.coords[AXIS.frame_coord].item()
     prev_scale = frame_idx / (frame_idx + 1)
@@ -99,6 +102,9 @@ def ingest_component(pixel_stats: PixStats, frames: Movie, new_traces: Traces) -
     Returns:
         PixelStater: Updated pixel statistics matrix
     """
+    if new_traces.array is None:
+        return pixel_stats
+
     # Compute scaling factor (1/t)
     frame_idx = new_traces.array[AXIS.frame_coord].max().item()
     scale = 1 / (frame_idx + 1)

@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.assets import Residual, Frame
+from cala.assets import Frame, Residual
 from cala.models import AXIS
 
 
@@ -21,7 +21,9 @@ class Energy(Node):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def process(self, residuals: Residual, frame: Frame) -> A[xr.DataArray | None, Name("energy")]:
+    def process(
+        self, residuals: Residual, trigger: Frame
+    ) -> A[xr.DataArray | None, Name("energy")]:
         if residuals.array is None:
             return xr.DataArray()
 
