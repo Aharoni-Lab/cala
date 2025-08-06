@@ -85,6 +85,8 @@ nodes:
 
   residual:
     type: cala.nodes.residual.build
+    params:
+      clip_threshold: 0.001
     depends:
       - trigger: trace_frame.latest_trace
       - frames: assets.buffer
@@ -137,14 +139,14 @@ nodes:
     depends:
       - footprints:  assets.footprints
       - new_footprint: catalog.new_footprint
-  pix_stats_component:
+  pix_component:
     type: cala.nodes.pixel_stats.ingest_component
     depends:
       - pixel_stats: assets.pix_stats
       - frames: assets.buffer
       - new_trace: catalog.new_trace
       - traces: assets.traces
-  comp_stats_component:
+  comp_component:
     type: cala.nodes.component_stats.ingest_component
     depends:
       - component_stats: assets.comp_stats
@@ -165,5 +167,5 @@ nodes:
       tolerance: 1e-7
     depends:
       - footprints: assets.footprints
-      - pixel_stats: pix_frame.value
-      - component_stats: comp_frame.value
+      - pixel_stats: pix_component.value
+      - component_stats: comp_component.value
