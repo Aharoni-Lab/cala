@@ -38,7 +38,7 @@ def energy():
         spec=NodeSpecification(
             id="test_energy",
             type="cala.nodes.detect.Energy",
-            params={"gaussian_std": 1.0},
+            params={"gaussian_std": 1.0, "min_frames": 10},
         )
     )
 

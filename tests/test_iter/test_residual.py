@@ -33,7 +33,7 @@ def separate_cells() -> Toy:
 @pytest.fixture(scope="function")
 def init() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="res_init_test", type="cala.nodes.residual.initialize")
+        spec=NodeSpecification(id="res_init_test", type="cala.nodes.residual.build")
     )
 
 
@@ -42,35 +42,7 @@ def test_init(init, separate_cells) -> None:
         footprints=separate_cells.footprints,
         traces=separate_cells.traces,
         frames=separate_cells.make_movie(),
+        trigger=True,
     )
 
     assert np.all(result.array == 0)
-
-
-@pytest.fixture(scope="function")
-def frame_update() -> Node:
-    return Node.from_specification(
-        spec=NodeSpecification(id="res_frame_test", type="cala.nodes.residual.ingest_frame")
-    )
-
-
-def test_ingest_frame(init, frame_update, separate_cells) -> None:
-
-    pre_ingest = init.process(
-        footprints=separate_cells.footprints,
-        traces=Traces.from_array(
-            separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
-        ),
-        frames=Movie.from_array(
-            separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
-        ),
-    )
-
-    residual = frame_update.process(
-        residual=pre_ingest,
-        frame=Frame.from_array(separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        footprints=separate_cells.footprints,
-        traces=PopSnap.from_array(separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
-    )
-
-    assert np.all(residual.array == 0)

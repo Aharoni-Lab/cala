@@ -102,7 +102,7 @@ def test_ingest_component(init, comp_update, separate_cells):
         traces=Traces.from_array(
             separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
         ),
-        new_traces=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        new_trace=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
     )
 
     expected = init.process(separate_cells.traces)

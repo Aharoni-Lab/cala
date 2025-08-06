@@ -97,7 +97,8 @@ def test_ingest_component(init, comp_update, separate_cells):
     result = comp_update.process(
         pixel_stats=pre_ingest,
         frames=separate_cells.make_movie(),
-        new_traces=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        new_trace=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        traces=separate_cells.traces,
     )
 
     expected = init.process(traces=separate_cells.traces, frames=separate_cells.make_movie())
