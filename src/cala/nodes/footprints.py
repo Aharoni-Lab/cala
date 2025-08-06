@@ -47,7 +47,7 @@ class Footprinter:
 
         converged = False
         expanded = False
-        kernel = None, None
+        kernel = None
 
         while not converged:
             mask = A > 0
