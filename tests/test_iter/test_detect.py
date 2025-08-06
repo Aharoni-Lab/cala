@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.assets import Residual
-from cala.nodes.iter.detect import Cataloger, DupeSniffer, Energy, SliceNMF
+from cala.nodes.detect import Cataloger, DupeSniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -37,15 +37,15 @@ def energy():
     return Energy.from_specification(
         spec=NodeSpecification(
             id="test_energy",
-            type="cala.nodes.iter.detect.Energy",
-            params={"gaussian_std": 1.0},
+            type="cala.nodes.detect.Energy",
+            params={"gaussian_std": 1.0, "min_frames": 10},
         )
     )
 
 
 @pytest.fixture(scope="class")
 def energy_shape(energy, single_cell_video):
-    return energy.process(Residual.from_array(single_cell_video.array))
+    return energy.process(Residual.from_array(single_cell_video.array), trigger=single_cell_video)
 
 
 @pytest.fixture(scope="class")
@@ -53,7 +53,7 @@ def slice_nmf(toy):
     return SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
-            type="cala.nodes.iter.detect.SliceNMF",
+            type="cala.nodes.detect.SliceNMF",
             params={"cell_radius": 2 * toy.cell_radii[0], "validity_threshold": 0.8},
         )
     )
@@ -64,7 +64,7 @@ def sniffer():
     return DupeSniffer.from_specification(
         spec=NodeSpecification(
             id="test_dupe_sniffer",
-            type="cala.nodes.iter.detect.DupeSniffer",
+            type="cala.nodes.detect.DupeSniffer",
             params={"merge_threshold": 0.8},
         )
     )
@@ -73,15 +73,13 @@ def sniffer():
 @pytest.fixture(scope="class")
 def cataloger():
     return Cataloger.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.iter.detect.Cataloger")
+        spec=NodeSpecification(id="test", type="cala.nodes.detect.Cataloger")
     )
 
 
 class TestEnergy:
     def test_estimate_gaussian_noise(self, energy, single_cell_video):
-        noise_level = energy._estimate_gaussian_noise(
-            single_cell_video.array, single_cell_video.array.shape
-        )
+        noise_level = energy._estimate_gaussian_noise(single_cell_video.array)
         print(f"\nNoise Level: {noise_level}")
 
     def test_center_to_median(self, energy, single_cell_video):
@@ -89,7 +87,9 @@ class TestEnergy:
         assert centered_video.max() < single_cell_video.array.max()
 
     def test_process(self, energy, single_cell_video):
-        energy_landscape = energy.process(Residual.from_array(single_cell_video.array))
+        energy_landscape = energy.process(
+            residuals=Residual.from_array(single_cell_video.array), trigger=single_cell_video
+        )
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
 
@@ -182,35 +182,26 @@ class TestCataloger:
         return SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
-                type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 60, "validity_threshold": 0.8},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
-
-    def test_init_with(self, cataloger, new_component):
-        new_fp, new_tr = new_component
-        fp, tr = cataloger._init_with(new_fp=new_fp, new_tr=new_tr)
-
-        assert np.array_equal(fp.array.values[0], new_fp.array.values)
-        assert np.array_equal(tr.array.values[0], new_tr.array.values)
 
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
             new_fp=new_fp,
             new_tr=new_tr,
-            existing_fp=toy.footprints,
-            existing_tr=toy.traces,
         )
 
-        assert np.array_equal(fp.array[-1], new_fp.array)
-        assert np.array_equal(tr.array[-1], new_tr.array)
+        assert np.array_equal(fp.array, new_fp.array)
+        assert np.array_equal(tr.array, new_tr.array)
 
     def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
-                type="cala.nodes.iter.detect.slice_nmf.SliceNMF",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
                 params={"cell_radius": 10, "validity_threshold": 0.8},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
@@ -220,8 +211,9 @@ class TestCataloger:
             new_fp, new_tr, toy.footprints, toy.traces, duplicates=[("cell_0", 1.0)]
         )
 
-        movie_recon = fp.array @ tr.array
+        movie_result = fp.array @ tr.array
+
         movie_new_comp = new_fp.array @ new_tr.array
         movie_expected = single_cell_video.array + movie_new_comp
 
-        np.testing.assert_allclose(movie_recon, movie_expected.transpose(*movie_recon.dims))
+        np.testing.assert_allclose(movie_result, movie_expected.transpose(*movie_result.dims))

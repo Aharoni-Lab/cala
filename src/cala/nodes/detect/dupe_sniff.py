@@ -1,7 +1,9 @@
 from operator import itemgetter
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
+from noob import Name
 from noob.node import Node
 
 from cala.assets import Footprint, Footprints, Residual, Trace, Traces
@@ -18,31 +20,29 @@ class DupeSniffer(Node):
         existing_fp: Footprints,
         existing_tr: Traces,
         residuals: Residual,
-    ) -> list[tuple[str, float]] | None:
+    ) -> A[list[tuple[str, float]], Name("dupes")]:
         """
         determines whether the new component overlaps with an existing component.
         if novel, return None.
         if similar to existing components (above threshold), return the component IDs.
         """
+        if new_fp.array is None or new_fp.array.size == 1:
+            return []
 
         overlapping_components = self._find_overlap_ids(new_fp.array, existing_fp.array)
 
-        if not overlapping_components:
-            return None
+        if overlapping_components.size == 0:
+            return []
 
         overlapped_traces = self._get_overlapped_traces(overlapping_components, existing_tr.array)
-
         synced_traces = self._get_synced_traces(new_tr.array, overlapped_traces)
 
-        if synced_traces:
-            return synced_traces
-
-        return None
+        return synced_traces
 
     def _find_overlap_ids(
         self, new_footprints: xr.DataArray, existing_footprints: xr.DataArray
     ) -> np.ndarray:
-        if existing_footprints.size == 0:
+        if existing_footprints is None:
             return np.array([])
 
         overlaps = (new_footprints @ existing_footprints) > 0

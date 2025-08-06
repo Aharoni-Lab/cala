@@ -16,3 +16,14 @@ class DaValidator:
         schema.validate(self._obj)
 
         return True
+
+
+@xr.register_dataarray_accessor("volumize")
+class DaVolumizer:
+    def __init__(self, xarray_obj: xr.DataArray):
+        self._obj = xarray_obj
+
+    def dim_with_coords(self, dim: str, coords: list[str]) -> xr.DataArray:
+        return self._obj.expand_dims(dim).assign_coords(
+            {c: (dim, [self._obj[c].item()]) for c in coords}
+        )

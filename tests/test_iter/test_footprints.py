@@ -1,18 +1,8 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification
+from noob.node import Node, NodeSpecification
 
-from cala.nodes.iter.component_stats import CompStater
-from cala.nodes.iter.footprints import Footprinter
-from cala.nodes.iter.pixel_stats import PixelStater
 from cala.testing.toy import FrameDims, Position, Toy
-
-
-@pytest.fixture
-def fpter() -> Footprinter:
-    return Footprinter.from_specification(
-        NodeSpecification(id="test_footprinter", type="cala.nodes.iter.footprints.Footprinter")
-    )
 
 
 @pytest.fixture
@@ -38,19 +28,31 @@ def separate_cells() -> Toy:
     )
 
 
+@pytest.fixture
+def fpter() -> Node:
+    return Node.from_specification(
+        NodeSpecification(
+            id="test_footprinter",
+            type="cala.nodes.footprints.Footprinter",
+            params={"boundary_expansion_pixels": None, "tolerance": 1e-7},
+        )
+    )
+
+
 @pytest.mark.parametrize("toy", ["separate_cells"])
 def test_ingest_frame(fpter, toy, request):
     toy = request.getfixturevalue(toy)
 
-    pixstats = PixelStater.from_specification(
-        NodeSpecification(id="test_pixstats", type="cala.nodes.iter.pixel_stats.PixelStater")
+    pixstats = Node.from_specification(
+        NodeSpecification(id="test_pixstats", type="cala.nodes.pixel_stats.initialize")
     ).process(traces=toy.traces, frames=toy.make_movie())
-    compstats = CompStater.from_specification(
-        NodeSpecification(id="test_compstats", type="cala.nodes.iter.component_stats.CompStater")
+    compstats = Node.from_specification(
+        NodeSpecification(id="test_compstats", type="cala.nodes.component_stats.initialize")
     ).process(traces=toy.traces)
-    fpter.footprints_ = toy.footprints
 
-    result = fpter.ingest_frame(pixel_stats=pixstats, component_stats=compstats)
+    result = fpter.process(
+        footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats
+    )
 
     expected = toy.footprints.copy()
 

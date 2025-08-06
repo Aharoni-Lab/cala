@@ -1,36 +1,17 @@
+from typing import Annotated as A
+
 import numpy as np
 import xarray as xr
-from noob.node import Node
+from noob import Name, process_method
 from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import Footprints, Frame, Movie, Overlaps, Trace, Traces
+from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Trace, Traces
 from cala.models import AXIS
 
 
-class Tracer(Node):
-    tolerance: float = 1e-3
-
-    traces_: Traces = None
-
-    def process(
-        self,
-        footprints: Footprints,
-        frames: Movie = None,
-        frame: Frame = None,
-        overlaps: Overlaps = None,
-        new_trace: Trace = None,
-    ) -> Traces:
-        """
-        A jenky ass temporary process method to circumvent Resource not yet being implemented.
-        """
-        if frames is None:
-            return self.ingest_frame(footprints=footprints, frame=frame, overlaps=overlaps)
-        elif new_trace is None:
-            return self.initialize(footprints=footprints, frames=frames)
-        else:
-            return self.ingest_component(new_trace=new_trace)
-
+class Init:
+    @process_method
     def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
         """Learn temporal traces from footprints and frames."""
         A = footprints.array
@@ -55,17 +36,60 @@ class Tracer(Node):
             AXIS.timestamp_coord,
         ]
         coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
-        self.traces_ = Traces.from_array(
-            xr.DataArray(
-                temporal_traces,
-                dims=(AXIS.component_dim, AXIS.frames_dim),
-                coords=coords,
-            )
+        return Traces.from_array(
+            xr.DataArray(temporal_traces, dims=(AXIS.component_dim, AXIS.frames_dim), coords=coords)
         )
 
-        return self.traces_
+    @staticmethod
+    def _solve_all_component_traces(
+        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
+    ) -> np.ndarray:
+        """Solve temporal traces for all components in parallel
 
-    def ingest_frame(self, footprints: Footprints, frame: Frame, overlaps: Overlaps) -> Traces:
+        Args:
+            footprints: Array of shape (n_components, height*width)
+            frames: Array of shape (n_frames, height*width)
+        Returns:
+            Array of shape (n_components, n_frames)
+        """
+        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
+
+        # Parallel loop over components
+        for i in prange(n_components):
+            footprint = footprints[i]
+            active_pixels = footprint > 0
+
+            if np.any(active_pixels):
+                footprint_active = footprint[active_pixels]
+                frames_active = frames[:, active_pixels]
+                results[i] = Init._fast_nnls_vector(footprint_active, frames_active)
+
+        return results
+
+    @staticmethod
+    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+        """Specialized NNLS for single-variable case across multiple frames
+        A: footprint values (n_pixels,)
+        B: frame data matrix (n_frames, n_pixels)
+        Returns: brightness values for each frame (n_frames,)
+        """
+        ata = (A * A).sum()  # Compute once for all frames
+        if ata <= 0:
+            return np.zeros(B.shape[0], dtype=B.dtype)
+
+        # Vectorized computation for all frames
+        atb = A @ B.T  # dot product with each frame
+        return np.maximum(0, atb / ata)
+
+
+class FrameUpdate:
+    def __init__(self, tolerance: float = 1e-3) -> None:
+        self.tolerance = tolerance
+
+    @process_method
+    def ingest_frame(
+        self, traces: Traces, footprints: Footprints, frame: Frame, overlaps: Overlaps
+    ) -> A[PopSnap, Name("latest_trace")]:
         """
         Update temporal traces using current spatial footprints and frame data.
 
@@ -94,10 +118,13 @@ class Tracer(Node):
                 Shape: (components × components), where entry (i,j) is 1 if
                 components i and j overlap, and 0 otherwise.
         """
+        if footprints.array is None:
+            return PopSnap()
+
         # Prepare inputs for the update algorithm
         A = footprints.array.stack({"pixels": AXIS.spatial_dims})
         y = frame.array.stack({"pixels": AXIS.spatial_dims})
-        c = self.traces_.array.isel({AXIS.frames_dim: -1})
+        c = traces.array.isel({AXIS.frames_dim: -1})
 
         _, labels = connected_components(
             csgraph=overlaps.array.data, directed=False, return_labels=True
@@ -106,24 +133,9 @@ class Tracer(Node):
 
         updated_traces = self._update_traces(A, y, c.copy(), clusters, self.tolerance)
 
-        self.traces_.array = xr.concat([self.traces_.array, updated_traces], dim=AXIS.frames_dim)
+        traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
 
-        return self.traces_
-
-    def ingest_component(self, new_trace: Trace) -> Traces:
-        c = self.traces_.array
-        c_det = new_trace.array
-
-        if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
-            c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
-            c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
-            c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
-
-            c_new.loc[c_det[AXIS.frame_coord]] = c_det
-        else:
-            c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
-
-        return Traces.from_array(xr.concat([c, c_new], dim=AXIS.component_dim))
+        return PopSnap.from_array(updated_traces)
 
     def _update_traces(
         self,
@@ -187,43 +199,43 @@ class Tracer(Node):
             c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
         ).assign_coords(y[AXIS.frames_dim].coords)
 
-    @staticmethod
-    def _solve_all_component_traces(
-        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
-    ) -> np.ndarray:
-        """Solve temporal traces for all components in parallel
 
-        Args:
-            footprints: Array of shape (n_components, height*width)
-            frames: Array of shape (n_frames, height*width)
-        Returns:
-            Array of shape (n_components, n_frames)
-        """
-        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
+def ingest_component(traces: Traces, new_trace: Trace) -> Traces:
+    """
 
-        # Parallel loop over components
-        for i in prange(n_components):
-            footprint = footprints[i]
-            active_pixels = footprint > 0
+    :param traces:
+    :param new_trace: Can be either a newly registered trace or an updated existing one.
+    :return:
+    """
+    c = traces.array
+    c_det = new_trace.array
 
-            if np.any(active_pixels):
-                footprint_active = footprint[active_pixels]
-                frames_active = frames[:, active_pixels]
-                results[i] = Tracer._fast_nnls_vector(footprint_active, frames_active)
+    if c_det is None:
+        return traces
 
-        return results
+    if c is None:
+        traces.array = c_det.volumize.dim_with_coords(
+            dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+        )
+        return traces
 
-    @staticmethod
-    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-        """Specialized NNLS for single-variable case across multiple frames
-        A: footprint values (n_pixels,)
-        B: frame data matrix (n_frames, n_pixels)
-        Returns: brightness values for each frame (n_frames,)
-        """
-        ata = (A * A).sum()  # Compute once for all frames
-        if ata <= 0:
-            return np.zeros(B.shape[0], dtype=B.dtype)
+    if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
+        # if newly detected cell is truncated
+        c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
+        c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
+        c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
 
-        # Vectorized computation for all frames
-        atb = A @ B.T  # dot product with each frame
-        return np.maximum(0, atb / ata)
+        c_new.loc[c_det[AXIS.frame_coord]] = c_det
+    else:
+        c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
+
+    if c_new[AXIS.id_coord].item() in c[AXIS.id_coord].values:
+        # if merging
+        traces.array.set_xindex(AXIS.id_coord).loc[
+            {AXIS.id_coord: c_new[AXIS.id_coord].item()}
+        ] = c_new
+    else:
+        # if new
+        traces.array = xr.concat([c, c_new], dim=AXIS.component_dim)
+
+    return traces

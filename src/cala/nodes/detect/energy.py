@@ -1,26 +1,36 @@
+from typing import Annotated as A
+
 import xarray as xr
+from noob import Name
 from noob.node import Node
 from pydantic import ConfigDict
 from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.assets import Residual
+from cala.assets import Frame, Residual
 from cala.models import AXIS
 
 
 class Energy(Node):
     gaussian_std: float
+    """not sure why we're smoothing the residual...??"""
+    min_frames: int
+    """minimum number of frames to consider to begin detecting cells"""
 
-    noise_level_: float = None
+    noise_level_: float | None = None
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def process(self, residuals: Residual) -> xr.DataArray | None:
+    def process(
+        self, residuals: Residual, trigger: Frame
+    ) -> A[xr.DataArray | None, Name("energy")]:
+        if residuals.array is None or residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
+            return xr.DataArray()
+
         residuals = residuals.array
-        frame_shape = residuals[0].shape
-        self.noise_level_ = self._estimate_gaussian_noise(residuals, frame_shape)
+        self.noise_level_ = self._estimate_gaussian_noise(residuals)
 
         V = self._center_to_median(residuals)
 
@@ -32,10 +42,7 @@ class Energy(Node):
 
         return E
 
-    def _estimate_gaussian_noise(
-        self, residuals: xr.DataArray, frame_shape: tuple[int, ...]
-    ) -> float:
-        self.sampler.patch_size = min(self.sampler.patch_size, frame_shape)
+    def _estimate_gaussian_noise(self, residuals: xr.DataArray) -> float:
         patches = self.sampler.transform(residuals)
         return float(estimate_sigma(patches))
 
