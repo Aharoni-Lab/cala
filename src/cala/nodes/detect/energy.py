@@ -15,6 +15,8 @@ from cala.models import AXIS
 class Energy(Node):
     gaussian_std: float
     """not sure why we're smoothing the residual...??"""
+    min_frames: int
+    """minimum number of frames to consider to begin detecting cells"""
 
     noise_level_: float | None = None
     sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
@@ -24,7 +26,7 @@ class Energy(Node):
     def process(
         self, residuals: Residual, trigger: Frame
     ) -> A[xr.DataArray | None, Name("energy")]:
-        if residuals.array is None:
+        if residuals.array is None or residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return xr.DataArray()
 
         residuals = residuals.array

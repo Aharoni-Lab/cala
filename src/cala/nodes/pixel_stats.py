@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.assets import Frame, Movie, PixStats, PopSnap, Traces
+from cala.assets import Frame, Movie, PixStats, PopSnap, Trace, Traces
 from cala.models import AXIS
 
 
@@ -85,7 +85,9 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
     return pixel_stats
 
 
-def ingest_component(pixel_stats: PixStats, frames: Movie, new_traces: Traces) -> PixStats:
+def ingest_component(
+    pixel_stats: PixStats, frames: Movie, new_trace: Trace, traces: Traces
+) -> PixStats:
     """Update pixel statistics with new components.
 
     Updates W_t according to the equation:
@@ -97,21 +99,25 @@ def ingest_component(pixel_stats: PixStats, frames: Movie, new_traces: Traces) -
 
     Args:
         frames (Movie): Stack of frames up to current timestep.
-        new_traces (Traces): Newly detected components' traces
+        new_trace (Traces): Newly detected components' traces
 
     Returns:
         PixelStater: Updated pixel statistics matrix
     """
-    if new_traces.array is None:
+    if new_trace.array is None:
+        return pixel_stats
+
+    if pixel_stats.array is None:
+        pixel_stats.array = initialize(traces, frames).array
         return pixel_stats
 
     # Compute scaling factor (1/t)
-    frame_idx = new_traces.array[AXIS.frame_coord].max().item()
+    frame_idx = new_trace.array[AXIS.frame_coord].max().item()
     scale = 1 / (frame_idx + 1)
 
     # Compute outer product of frame and new traces
     # (1/t)Y_buf c_new^T
-    new_stats = scale * (frames.array @ new_traces.array)
+    new_stats = scale * (frames.array @ new_trace.array)
 
     # Concatenate with existing pixel stats along component axis
     pixel_stats.array = xr.concat([pixel_stats.array, new_stats], dim=AXIS.component_dim)

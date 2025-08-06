@@ -23,7 +23,7 @@ class Cataloger(Node):
         duplicates: list[tuple[str, float]] | None = None,
     ) -> tuple[A[Footprint | None, Name("new_footprint")], A[Trace | None, Name("new_trace")]]:
 
-        if not new_fp.array or new_fp.array.size == 1:
+        if new_fp.array is None or new_fp.array.size == 1:
             return Footprint(), Trace()
 
         if not duplicates:

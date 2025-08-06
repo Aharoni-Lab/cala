@@ -20,5 +20,5 @@ def fill_buffer(size: int, buffer: Movie, frame: Frame) -> A[Movie, Name("buffer
         else buffer.array
     )
 
-    buffer.array = xr.concat([buffered, frame], dim=AXIS.frames_dim)
+    buffer.array = xr.concat([buffered, frame.array], dim=AXIS.frames_dim)
     return buffer

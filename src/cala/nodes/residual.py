@@ -1,10 +1,14 @@
-import xarray as xr
+from typing import Annotated as A
 
-from cala.assets import Footprints, Frame, Movie, PopSnap, Residual, Traces
+from noob import Name
+
+from cala.assets import Footprints, Movie, Residual, Traces
 from cala.models import AXIS
 
 
-def initialize(frames: Movie, footprints: Footprints, traces: Traces) -> Residual:
+def build(
+    frames: Movie, footprints: Footprints, traces: Traces, trigger: bool
+) -> A[Residual, Name("movie")]:
     """
     The computation follows the equation:
         R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
@@ -24,11 +28,16 @@ def initialize(frames: Movie, footprints: Footprints, traces: Traces) -> Residua
         frames (Movie): Stack of frames up to current timestep.
             Shape: (frames × height × width)
     """
+    if footprints.array is None or traces.array is None:
+        return Residual.from_array(frames.array)
+
     # Reshape frames to pixels x time
     Y = frames.array
 
     # Get temporal components [C; f]
-    C = traces.array  # components x time
+    C = traces.array.sel(
+        {AXIS.frame_coord: Y[AXIS.frame_coord].values.tolist()}
+    )  # components x time
 
     # Reshape footprints to (pixels x components)
     A = footprints.array
@@ -37,24 +46,3 @@ def initialize(frames: Movie, footprints: Footprints, traces: Traces) -> Residua
     R = Y - (A @ C)
 
     return Residual.from_array(R)
-
-
-def ingest_frame(
-    residual: Residual, frame: Frame, footprints: Footprints, traces: PopSnap
-) -> Residual:
-    """
-    Update residual buffer with new frame, footprints, and traces
-    """
-    if footprints.array is None or traces.array is None:
-        new_R = frame.array
-    else:
-        new_R = frame.array - footprints.array @ traces.array
-
-    if residual.array is None:
-        residual.array = new_R.expand_dims(AXIS.frames_dim).assign_coords(
-            {AXIS.timestamp_coord: (AXIS.frames_dim, [new_R[AXIS.timestamp_coord].values])}
-        )
-    else:
-        residual.array = xr.concat([residual.array, new_R], dim=AXIS.frames_dim)
-
-    return residual

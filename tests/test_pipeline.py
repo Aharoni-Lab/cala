@@ -3,16 +3,42 @@ from noob import Cube, SynchronousRunner, Tube
 from scipy.ndimage import binary_dilation, binary_erosion
 
 
-def test_imperfect_condition() -> None:
+@pytest.fixture
+def odl_tube():
+    return Tube.from_specification("cala-odl")
+
+
+@pytest.fixture
+def odl_cube():
+    return Cube.from_specification("cala-odl")
+
+
+@pytest.fixture
+def odl_runner(odl_tube, odl_cube):
+    return SynchronousRunner(tube=odl_tube, cube=odl_cube)
+
+
+def test_process(odl_runner) -> None:
     """Start with noisy suff stats"""
-    cube = Cube.from_specification("cala-odl")
-    tube = Tube.from_specification("cala-odl")
-    runner = SynchronousRunner(tube=tube, cube=cube)
+    odl_runner.init()
+    odl_runner.process()
 
-    runner.init()
-    runner.process()
+    assert odl_runner.cube.assets["buffer"].obj.array.size > 0
+    assert odl_runner.cube.assets["residuals"].obj == odl_runner.cube.assets["buffer"].obj
 
-    assert cube.assets["buffer"].obj.array.size > 0
+
+def test_iter(odl_runner) -> None:
+    gen = odl_runner.iter()
+
+    result = next(gen)
+
+    assert result
+
+
+def test_run(odl_runner) -> None:
+    result = odl_runner.run(n=5)
+
+    assert result
 
 
 @pytest.mark.xfail

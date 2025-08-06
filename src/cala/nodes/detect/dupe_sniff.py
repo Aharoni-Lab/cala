@@ -31,22 +31,18 @@ class DupeSniffer(Node):
 
         overlapping_components = self._find_overlap_ids(new_fp.array, existing_fp.array)
 
-        if not overlapping_components:
+        if overlapping_components.size == 0:
             return []
 
         overlapped_traces = self._get_overlapped_traces(overlapping_components, existing_tr.array)
-
         synced_traces = self._get_synced_traces(new_tr.array, overlapped_traces)
 
-        if synced_traces:
-            return synced_traces
-
-        return None
+        return synced_traces
 
     def _find_overlap_ids(
         self, new_footprints: xr.DataArray, existing_footprints: xr.DataArray
     ) -> np.ndarray:
-        if existing_footprints.size == 0:
+        if existing_footprints is None:
             return np.array([])
 
         overlaps = (new_footprints @ existing_footprints) > 0

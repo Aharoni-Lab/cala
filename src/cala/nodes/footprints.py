@@ -109,5 +109,11 @@ def ingest_component(footprints: Footprints, new_footprint: Footprint | Footprin
     if new_footprint.array is None:
         return footprints
 
+    if footprints.array is None:
+        footprints.array = new_footprint.array.volumize.dim_with_coords(
+            dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+        )
+        return footprints
+
     footprints.array = xr.concat([footprints.array, new_footprint.array], dim=AXIS.component_dim)
     return footprints

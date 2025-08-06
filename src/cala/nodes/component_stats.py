@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.assets import CompStats, Frame, PopSnap, Traces
+from cala.assets import CompStats, Frame, PopSnap, Trace, Traces
 from cala.models import AXIS
 
 
@@ -69,7 +69,7 @@ def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) 
     return component_stats
 
 
-def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Traces) -> CompStats:
+def ingest_component(component_stats: CompStats, traces: Traces, new_trace: Trace) -> CompStats:
     """
     Update component statistics with new components.
 
@@ -84,16 +84,20 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
 
     Args:
         traces (Traces): Current temporal traces in buffer
-        new_traces (Traces): Newly detected temporal components
+        new_trace (Traces): Newly detected temporal components
     """
-    if new_traces.array is None:
+    if new_trace.array is None:
+        return component_stats
+
+    if component_stats.array is None:
+        component_stats.array = initialize(traces).array
         return component_stats
 
     # Get current frame index (starting with 1)
-    t = new_traces.array[AXIS.frame_coord].max().item() + 1
+    t = new_trace.array[AXIS.frame_coord].max().item() + 1
 
     M = component_stats.array
-    c_new = new_traces.array
+    c_new = new_trace.array
     c_buf = traces.array
 
     # Compute cross-correlation between buffer and new components

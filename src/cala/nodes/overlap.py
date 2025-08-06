@@ -40,6 +40,10 @@ def ingest_component(
     if new_footprints.array is None:
         return overlaps
 
+    elif overlaps.array is None:
+        overlaps.array = initialize(footprints).array
+        return overlaps
+
     A = footprints.array
     a_new = new_footprints.array
 

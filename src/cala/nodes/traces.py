@@ -213,7 +213,14 @@ def ingest_component(traces: Traces, new_trace: Trace) -> Traces:
     if c_det is None:
         return traces
 
+    if c is None:
+        traces.array = c_det.volumize.dim_with_coords(
+            dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+        )
+        return traces
+
     if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
+        # if newly detected cell is truncated
         c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
         c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
         c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
@@ -223,10 +230,12 @@ def ingest_component(traces: Traces, new_trace: Trace) -> Traces:
         c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
 
     if c_new[AXIS.id_coord].item() in c[AXIS.id_coord].values:
+        # if merging
         traces.array.set_xindex(AXIS.id_coord).loc[
             {AXIS.id_coord: c_new[AXIS.id_coord].item()}
         ] = c_new
     else:
+        # if new
         traces.array = xr.concat([c, c_new], dim=AXIS.component_dim)
 
     return traces
