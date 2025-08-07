@@ -1,6 +1,5 @@
 import pytest
 from noob import Cube, SynchronousRunner, Tube
-from scipy.ndimage import binary_dilation, binary_erosion
 
 
 @pytest.fixture
