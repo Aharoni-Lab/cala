@@ -6,7 +6,7 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator
 
 from cala.models.axis import AXIS, Coords, Dims
-from cala.models.checks import is_non_negative
+from cala.models.checks import has_no_nan, is_non_negative
 from cala.models.entity import Entity, Group
 
 
@@ -49,14 +49,19 @@ class Footprint(Asset):
             name="footprint",
             dims=(Dims.width.value, Dims.height.value),
             dtype=float,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
 
 class Trace(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(name="trace", dims=(Dims.frame.value,), dtype=float, checks=[is_non_negative])
+        Entity(
+            name="trace",
+            dims=(Dims.frame.value,),
+            dtype=float,
+            checks=[is_non_negative, has_no_nan],
+        )
     )
 
 
@@ -66,7 +71,7 @@ class Frame(Asset):
             name="frame",
             dims=(Dims.width.value, Dims.height.value),
             dtype=float,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -77,7 +82,7 @@ class Footprints(Asset):
             name="footprint-group",
             member=Footprint.entity(),
             group_by=Dims.component,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -125,7 +130,7 @@ class Traces(Asset):
             name="trace-group",
             member=Trace.entity(),
             group_by=Dims.component,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -136,7 +141,7 @@ class Movie(Asset):
             name="movie",
             member=Frame.entity(),
             group_by=Dims.frame.value,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -154,6 +159,7 @@ class PopSnap(Asset):
             dims=(Dims.component.value,),
             dtype=float,
             coords=[Coords.frame.value, Coords.timestamp.value],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -170,7 +176,7 @@ class CompStats(Asset):
             name="comp-stat",
             dims=comp_dims,
             dtype=float,
-            checks=[],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -181,7 +187,7 @@ class PixStats(Asset):
             name="pix-stat",
             dims=(Dims.width.value, Dims.height.value, Dims.component.value),
             dtype=float,
-            checks=[],
+            checks=[is_non_negative, has_no_nan],
         )
     )
 
@@ -192,7 +198,7 @@ class Overlaps(Asset):
             name="overlap",
             dims=comp_dims,
             dtype=bool,
-            checks=[],
+            checks=[has_no_nan],
         )
     )
 
@@ -214,6 +220,6 @@ class Residual(Asset):
             name="frame",
             member=Frame.entity(),
             group_by=Dims.frame.value,
-            checks=[is_non_negative],
+            checks=[is_non_negative, has_no_nan],
         )
     )

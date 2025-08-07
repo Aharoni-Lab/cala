@@ -44,22 +44,22 @@ def test_run(odl_runner) -> None:
 @pytest.mark.xfail
 def test_combined_footprint() -> None:
     """Start with two footprints combined"""
-    assert NotImplementedError()
+    raise AssertionError("Not implemented")
 
 
 @pytest.mark.xfail
 def test_dilating_footprint() -> None:
     """start with binary-eroded footprints"""
-    assert NotImplementedError()
+    raise AssertionError("Not implemented")
 
 
 @pytest.mark.xfail
 def test_eroding_footprint() -> None:
     """start with binary-dilated footprints"""
-    assert NotImplementedError()
+    raise AssertionError("Not implemented")
 
 
 @pytest.mark.xfail
 def test_redundant_footprint() -> None:
     """start with redundant footprints"""
-    assert NotImplementedError()
+    raise AssertionError("Not implemented")

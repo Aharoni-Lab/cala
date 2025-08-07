@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
-from scipy.ndimage import binary_dilation, generate_binary_structure, grey_erosion
+from scipy.ndimage import generate_binary_structure, grey_dilation, grey_erosion
 
 from cala.assets import Footprints
 from cala.models.axis import AXIS
@@ -33,6 +33,29 @@ def separate_cells() -> Toy:
 
 
 @pytest.fixture
+def connected_cells() -> Toy:
+    n_frames = 50
+
+    return Toy(
+        n_frames=n_frames,
+        frame_dims=FrameDims(width=50, height=50),
+        cell_radii=8,
+        cell_positions=[
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+        ],
+        cell_traces=[
+            np.random.randint(low=0, high=n_frames, size=n_frames).astype(float),
+            np.abs(np.sin(np.linspace(-np.pi, np.pi, n_frames)) * n_frames).astype(float),
+            np.array(range(n_frames), dtype=float),
+            np.array(range(n_frames - 1, -1, -1), dtype=float),
+        ],
+    )
+
+
+@pytest.fixture
 def fpter() -> Node:
     return Node.from_specification(
         NodeSpecification(
@@ -43,7 +66,7 @@ def fpter() -> Node:
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells"])
+@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
 def test_ingest_frame(fpter, toy, request):
     toy = request.getfixturevalue(toy)
 
@@ -60,7 +83,7 @@ def test_ingest_frame(fpter, toy, request):
 
     expected = toy.footprints.copy()
 
-    assert result == expected
+    xr.testing.assert_allclose(result.array, expected.array)
 
 
 @pytest.fixture
@@ -74,8 +97,9 @@ def xpander() -> Node:
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells"])
-def test_expand_boundary(xpander, toy, request):
+@pytest.mark.parametrize("defect", [grey_erosion, grey_dilation])
+@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
+def test_boundary_morph(xpander, defect, toy, request):
     """
     what would be the circumstances of needing boundary expansion:
     existing footprint is too small.
@@ -93,6 +117,11 @@ def test_expand_boundary(xpander, toy, request):
     so expansion is almost guaranteed every single loop.
     this means after the expansion, we need to rely on removal of "overexpanded" pixels.
     does that occur naturally at W - AM?
+    Not exactly.
+
+    W: width height comp, A: width height comp M: comp comp
+    M: avg dot product of traces
+    AM: footprint x how correlated other cells are
     """
     toy = request.getfixturevalue(toy)
 
@@ -105,8 +134,8 @@ def test_expand_boundary(xpander, toy, request):
 
     footprint = generate_binary_structure(2, 1)
 
-    eroded_fps = xr.apply_ufunc(
-        grey_erosion,
+    modded_fps = xr.apply_ufunc(
+        defect,
         toy.footprints.array,
         kwargs={"footprint": footprint},
         vectorize=True,
@@ -115,17 +144,11 @@ def test_expand_boundary(xpander, toy, request):
     )
 
     result = xpander.process(
-        footprints=Footprints.from_array(eroded_fps),
+        footprints=Footprints.from_array(modded_fps),
         pixel_stats=pixstats,
         component_stats=compstats,
     )
 
-    # import matplotlib.pyplot as plt
-    #
-    # for idx, fps in enumerate(zip(eroded_fps, toy.footprints.array, result.array)):
-    #     ero, exp, res = fps
-    #     plt.imsave(f"eroded_{idx}.png", ero)
-    #     plt.imsave(f"expect_{idx}.png", exp)
-    #     plt.imsave(f"result_{idx}.png", res)
-
-    assert result == toy.footprints
+    # expansion breaks when a trace is all-zero and overlaps with another component.
+    # we don't know why. all-zero trace is somewhat unlikely, but we probably need a solution.
+    xr.testing.assert_allclose(result.array, toy.footprints.array, rtol=1e-3)

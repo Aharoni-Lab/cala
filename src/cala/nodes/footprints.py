@@ -26,7 +26,7 @@ class Footprinter:
         """
         Update spatial footprints using sufficient statistics.
 
-            Ã[p, i] = max(Ã[p, i] + (W[p, i] - Ã[p, :]M[i, :])/M[i, i], 0)
+            Ã[p, i] = max(Ã[p, i] + (W[p, i] - Ã[p, :]M[:, i])/M[i, i], 0)
 
         where:
             - Ã is the spatial footprints matrix
@@ -67,20 +67,15 @@ class Footprinter:
                 dask="allowed",
             )
 
-            # Apply update equation with masking
-            update = numerator / M_diag
-            A_new = mask * (A + update)
-            A_new = xr.where(A_new > 0, A_new, 0)
+            update = numerator / (M_diag + np.finfo(float).tiny)
+            A_new = (mask * (A + update)).clip(min=0)
 
             if (np.abs(A - A_new).sum() / np.prod(A.shape)).item() < self.tol:
-                A = A_new
-                break
+                footprints.array = A_new
+                return footprints
             else:
                 A = A_new
                 mask = A > 0
-
-        footprints.array = A
-        return footprints
 
     def _expansion_kernel(self) -> np.ndarray:
         return cv2.getStructuringElement(cv2.MORPH_CROSS, (self.bep * 2 + 1, self.bep * 2 + 1))
