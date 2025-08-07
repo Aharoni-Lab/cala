@@ -163,8 +163,8 @@ nodes:
   footprints_frame:
     type: cala.nodes.footprints.Footprinter
     params:
-      bep: 1
-      tol: 1e-7
+      boundary_expansion_pixels: 1
+      tolerance: 1e-7
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_component.value

@@ -9,15 +9,13 @@ from cala.models import AXIS
 
 class Footprinter:
 
-    def __init__(self, tol: float, max_iter: int | None = None, bep: int | None = None):
-        self.bep = bep
+    def __init__(self, boundary_expansion_pixels: int | None = None, tolerance: float = 1e-7):
+        self.bep = boundary_expansion_pixels
         """
         Number of pixels to explore the boundary of the footprint outside of the current footprint.
         """
 
-        self.tol = tol
-
-        self.max_iter = max_iter
+        self.tol = tolerance
 
     @process_method
     def ingest_frame(
@@ -47,14 +45,20 @@ class Footprinter:
         M = component_stats.array
         W = pixel_stats.array
 
-        mask = A > 0
+        converged = False
+        expanded = False
+        kernel = None
 
-        if self.bep:
-            kernel = self._expansion_kernel()
-            mask = self._expand_boundary(kernel, mask)
+        while not converged:
+            mask = A > 0
 
-        # for _ in range(self.max_iter):
-        while True:
+            if self.bep:
+                kernel = kernel if kernel else self._expansion_kernel()
+
+                if not expanded:
+                    mask = self._expand_boundary(kernel, mask)
+                    expanded = True
+
             AM = A.rename(AXIS.component_rename) @ M
             numerator = W - AM
 
@@ -72,25 +76,30 @@ class Footprinter:
             A_new = mask * (A + update)
             A_new = xr.where(A_new > 0, A_new, 0)
 
-            if (np.abs(A - A_new).sum() / np.prod(A.shape)).item() < self.tol:
+            if abs((A - A_new).sum() / np.prod(A.shape)) < self.tol:
                 A = A_new
-                break
+                converged = True
             else:
                 A = A_new
-                mask = A > 0
 
         footprints.array = A
         return footprints
 
     def _expansion_kernel(self) -> np.ndarray:
-        return cv2.getStructuringElement(cv2.MORPH_CROSS, (self.bep * 2 + 1, self.bep * 2 + 1))
+        return cv2.getStructuringElement(
+            cv2.MORPH_CROSS,
+            (
+                self.bep * 2 + 1,
+                self.bep * 2 + 1,
+            ),
+        )  # faster than np.ones
 
     def _expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
         return xr.apply_ufunc(
             lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
             mask.astype(np.uint8),
-            input_core_dims=[AXIS.spatial_dims],
-            output_core_dims=[AXIS.spatial_dims],
+            input_core_dims=[[*AXIS.spatial_dims]],
+            output_core_dims=[[*AXIS.spatial_dims]],
             vectorize=True,
             dask="parallelized",
         )
