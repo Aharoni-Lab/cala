@@ -16,3 +16,8 @@ def is_unique(da: xr.DataArray) -> None:
 def is_unit_interval(da: xr.DataArray) -> None:
     if da.min() < 0 or da.max() > 1:
         raise ValueError("The values in DataArray are not unit interval.")
+
+
+def has_no_nan(da: xr.DataArray) -> None:
+    if np.isnan(da).any():
+        raise ValueError("The DataArray has nan values.")
