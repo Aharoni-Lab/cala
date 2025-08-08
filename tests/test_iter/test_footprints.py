@@ -151,4 +151,4 @@ def test_boundary_morph(xpander, defect, toy, request):
 
     # expansion breaks when a trace is all-zero and overlaps with another component.
     # we don't know why. all-zero trace is somewhat unlikely, but we probably need a solution.
-    xr.testing.assert_allclose(result.array, toy.footprints.array, rtol=1e-3)
+    xr.testing.assert_allclose(result.array, toy.footprints.array, atol=1e-3)

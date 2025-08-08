@@ -4,7 +4,7 @@ from typing import Self
 
 import numpy as np
 import xarray as xr
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 from skimage.morphology import disk
 
 from cala.assets import Footprints, Frame, Movie, Traces
@@ -64,7 +64,7 @@ class Toy(BaseModel):
     @field_validator("n_frames", mode="after")
     @classmethod
     def natural_num(cls, value: int) -> int:
-        assert 0 <= value, "n_frames must be positive."
+        assert value >= 0, "n_frames must be positive."
         return value
 
     @model_validator(mode="before")
