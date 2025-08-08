@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 
 from cala.assets import CompStats, Frame, PopSnap, Trace, Traces
@@ -89,16 +90,24 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_trace: Trac
     if new_trace.array is None:
         return component_stats
 
-    if component_stats.array is None:
-        component_stats.array = initialize(traces).array
-        return component_stats
-
     # Get current frame index (starting with 1)
     t = new_trace.array[AXIS.frame_coord].max().item() + 1
 
-    M = component_stats.array
-    c_new = new_trace.array
+    c_new = new_trace.array.volumize.dim_with_coords(
+        dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+    )
     c_buf = traces.array
+    M = component_stats.array
+
+    if M is None or M.size == 1:
+        component_stats.array = initialize(traces).array
+        return component_stats
+
+    if c_new[AXIS.id_coord].item() in M[AXIS.id_coord].values:
+        dim_idx = np.where(M[AXIS.id_coord].values == c_new[AXIS.id_coord].item())[0].tolist()
+        M = M.drop_sel({AXIS.component_dim: dim_idx, f"{AXIS.component_dim}": dim_idx})
+
+    # think i also have to remove the ID from c_buf?
 
     # Compute cross-correlation between buffer and new components
     # C_buf^T c_new

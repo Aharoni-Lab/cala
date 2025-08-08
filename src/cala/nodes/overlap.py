@@ -40,12 +40,14 @@ def ingest_component(
     if new_footprints.array is None:
         return overlaps
 
-    elif overlaps.array is None:
+    elif overlaps.array is None or overlaps.array.size == 1:
         overlaps.array = initialize(footprints).array
         return overlaps
 
     A = footprints.array
-    a_new = new_footprints.array
+    a_new = new_footprints.array.volumize.dim_with_coords(
+        dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+    )
 
     # Compute spatial overlaps between new and existing components
     bottom_left_overlap = A @ a_new.rename(AXIS.component_rename)

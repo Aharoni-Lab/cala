@@ -1,10 +1,12 @@
 from collections.abc import Hashable, Mapping
 from typing import Annotated as A
+from typing import Any
 
 import numpy as np
 import xarray as xr
 from noob import Name
 from noob.node import Node
+from pydantic import Field
 from sklearn.decomposition import NMF
 
 from cala.assets import Footprint, Residual, Trace
@@ -13,30 +15,34 @@ from cala.models import AXIS
 
 class SliceNMF(Node):
     cell_radius: int
+    nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
     validity_threshold: float
+
+    def model_post_init(self, context: Any, /) -> None:
+        self.nmf_kwargs.update({"n_components": 1, "init": "nndsvd"})
+        if not self.nmf_kwargs.get("tol", None):
+            self.nmf_kwargs["tol"] = 1e-4
 
     def process(
         self, residuals: Residual, energy: xr.DataArray
-    ) -> tuple[A[Footprint | None, Name("new_fp")], A[Trace | None, Name("new_tr")]]:
-        if energy.size == 1:
-            return Footprint(), Trace()
-
-        # Find and analyze neighborhood of maximum variance
+    ) -> tuple[A[Footprint, Name("new_fp")], A[Trace, Name("new_tr")]]:
         residuals = residuals.array
 
-        slice_ = self._get_max_energy_slice(arr=residuals, energy_landscape=energy)
+        if energy.size > 1 and residuals.max().item() > self.nmf_kwargs["tol"]:
+            # Find and analyze neighborhood of maximum variance
+            slice_ = self._get_max_energy_slice(arr=residuals, energy_landscape=energy)
 
-        a_new, c_new = self._local_nmf(
-            slice_=slice_,
-            spatial_sizes={k: v for k, v in residuals.sizes.items() if k in AXIS.spatial_dims},
-        )
+            a_new, c_new = self._local_nmf(
+                slice_=slice_,
+                spatial_sizes={k: v for k, v in residuals.sizes.items() if k in AXIS.spatial_dims},
+            )
 
-        # eventually we should just log this value instead of throwing out the component
-        # otherwise we keep coming back to this energy max point
-        if self._check_validity(a_new, residuals):
-            return Footprint.from_array(a_new), Trace.from_array(c_new)
-        else:
-            return None, None
+            # eventually we should just log this value instead of throwing out the component
+            # otherwise we keep coming back to this energy max point
+            if self._check_validity(a_new, residuals):
+                return Footprint.from_array(a_new), Trace.from_array(c_new)
+
+        return Footprint(), Trace()
 
     def _get_max_energy_slice(
         self,
@@ -87,10 +93,10 @@ class SliceNMF(Node):
         R = slice_.stack(space=AXIS.spatial_dims).transpose(AXIS.frames_dim, "space")
 
         # Apply NMF (check how long nndsvd takes vs random)
-        model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
+        model = NMF(**self.nmf_kwargs)
 
         # when residual is negative, the error becomes massive...
-        c = model.fit_transform(R.clip(0))  # temporal component
+        c = model.fit_transform(R)  # temporal component
         a = model.components_  # spatial component
 
         # Convert back to xarray with proper dimensions and coordinates
@@ -122,6 +128,10 @@ class SliceNMF(Node):
         return a_new, c_new
 
     def _check_validity(self, a_new: xr.DataArray, residuals: xr.DataArray) -> bool:
+        """
+        Think this is redundant with NMF.reconstruction_err_
+        """
+
         # not sure if this step is necessary or even makes sense
         # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
         # and if the error is big, maybe it just means it's partially overlapping with another

@@ -101,5 +101,14 @@ def ingest_component(footprints: Footprints, new_footprint: Footprint | Footprin
         )
         return footprints
 
-    footprints.array = xr.concat([footprints.array, new_footprint.array], dim=AXIS.component_dim)
+    if new_footprint.array[AXIS.id_coord].item() in footprints.array[AXIS.id_coord].values:
+        # if replacing (post-merging in catalog)
+        footprints.array.set_xindex(AXIS.id_coord).loc[
+            {AXIS.id_coord: new_footprint.array[AXIS.id_coord].item()}
+        ] = new_footprint.array
+    else:
+        # if new
+        footprints.array = xr.concat(
+            [footprints.array, new_footprint.array], dim=AXIS.component_dim
+        )
     return footprints
