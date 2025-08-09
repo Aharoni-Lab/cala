@@ -164,8 +164,13 @@ nodes:
     type: cala.nodes.footprints.Footprinter
     params:
       bep: 1
-      tol: 1e-7
+      tol: 0.0000001
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_component.value
       - component_stats: comp_component.value
+
+  return:
+    type: return
+    depends:
+      - motion.frame

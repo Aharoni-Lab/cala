@@ -1,9 +1,10 @@
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
+from typing import Self
 
 import numpy as np
 import xarray as xr
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 from skimage.morphology import disk
 
 from cala.assets import Footprints, Frame, Movie, Traces
@@ -51,40 +52,68 @@ class Toy(BaseModel):
     cell_radii: int | list[int]
     cell_positions: list[Position]
     cell_traces: list[np.ndarray]
-    cell_ids: list[str] | None = None
+    cell_ids: list[str]
     """If none, auto populated as cell_{idx}."""
-    confidences: list[float] = Field(default_factory=list)
+    confidences: list[float]
 
     _footprints: xr.DataArray = PrivateAttr(init=False)
     _traces: xr.DataArray = PrivateAttr(init=False)
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
-    def model_post_init(self, __context: None = None) -> None:
-        assert self.n_frames > 0
+    @field_validator("n_frames", mode="after")
+    @classmethod
+    def natural_num(cls, value: int) -> int:
+        assert value >= 0, "n_frames must be positive."
+        return value
 
-        self.cell_radii = (
-            [self.cell_radii] * len(self.cell_positions)
-            if isinstance(self.cell_radii, int)
-            else self.cell_radii
+    @model_validator(mode="before")
+    def fill_ids(self) -> Self:
+        if self.get("cell_ids", None) is None:
+            self["cell_ids"] = [f"cell_{idx}" for idx, _ in enumerate(self["cell_positions"])]
+        return self
+
+    @model_validator(mode="before")
+    def fill_confidences(self) -> Self:
+        if self.get("confidences", None) is None:
+            self["confidences"] = [0.0] * len(self["cell_positions"])
+        return self
+
+    @model_validator(mode="before")
+    def fill_radii(self) -> Self:
+        self["cell_radii"] = (
+            [self["cell_radii"]] * len(self["cell_positions"])
+            if isinstance(self["cell_radii"], int)
+            else self["cell_radii"]
         )
+        return self
+
+    @model_validator(mode="after")
+    def consistent_n_cells(self) -> Self:
+        for cell_trace in self.cell_traces:
+            assert self.n_frames == len(
+                cell_trace
+            ), "inconsistent n_frames between n_frames and cell_traces"
+        return self
+
+    @model_validator(mode="after")
+    def consistent_n_frames(self) -> Self:
+        assert len(self.cell_positions) == len(self.cell_traces), (
+            f"inconsistent cell counts. "
+            f"positions: {len(self.cell_positions)}, "
+            f"traces: {len(self.cell_traces)}"
+        )
+        return self
+
+    @model_validator(mode="after")
+    def cells_within_bounds(self) -> Self:
         for position, radius in zip(self.cell_positions, self.cell_radii):
             assert np.min([position.width, position.height]) - radius > 0
             assert position.width + radius < self.frame_dims.width
             assert position.height + radius < self.frame_dims.height
+        return self
 
-        assert len(self.cell_positions) == len(self.cell_traces)
-
-        for cell_trace in self.cell_traces:
-            assert self.n_frames == len(cell_trace)
-
-        if self.cell_ids is None:
-            self.cell_ids = [f"cell_{idx}" for idx, _ in enumerate(self.cell_positions)]
-        assert len(self.cell_ids) == len(self.cell_traces)
-
-        if not self.confidences:
-            self.confidences = [0.0] * len(self.cell_ids)
-
+    def model_post_init(self, __context: None = None) -> None:
         self._footprints = self._build_footprints()
         self._traces = self._build_traces()
 

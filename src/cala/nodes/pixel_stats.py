@@ -119,7 +119,12 @@ def ingest_component(
     # (1/t)Y_buf c_new^T
     new_stats = scale * (frames.array @ new_trace.array)
 
-    # Concatenate with existing pixel stats along component axis
-    pixel_stats.array = xr.concat([pixel_stats.array, new_stats], dim=AXIS.component_dim)
+    if new_stats[AXIS.id_coord].item() in pixel_stats.array[AXIS.id_coord].values:
+        pixel_stats.array.set_xindex(AXIS.id_coord).loc[
+            {AXIS.id_coord: new_stats[AXIS.id_coord].item()}
+        ] = new_stats
+    else:
+        # Concatenate with existing pixel stats along component axis
+        pixel_stats.array = xr.concat([pixel_stats.array, new_stats], dim=AXIS.component_dim)
 
     return pixel_stats

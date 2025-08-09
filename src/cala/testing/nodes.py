@@ -46,6 +46,5 @@ def single_cell_source(
         cell_radii=cell_radii,
         cell_positions=positions,
         cell_traces=traces,
-        confidences=[],
     )
     return toy.movie_gen()

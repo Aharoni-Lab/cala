@@ -1,5 +1,8 @@
 import pytest
+import xarray as xr
 from noob import Cube, SynchronousRunner, Tube
+
+from cala.models import AXIS
 
 
 @pytest.fixture
@@ -25,13 +28,19 @@ def test_process(odl_runner) -> None:
     assert odl_runner.cube.assets["buffer"].obj.array.size > 0
 
 
-@pytest.mark.xfail
 def test_iter(odl_runner) -> None:
-    gen = odl_runner.iter()
+    gen = odl_runner.iter(n=30)
 
-    result = next(gen)
+    movie = []
+    for _, exp in enumerate(gen):
+        movie.append(exp[0].array)
+        fps = odl_runner.cube.assets["footprints"].obj
+        trs = odl_runner.cube.assets["traces"].obj
 
-    assert result
+    expected = xr.concat(movie, dim=AXIS.frames_dim)
+    result = (fps.array @ trs.array).transpose(*expected.dims)
+
+    xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
 
 
 @pytest.mark.xfail
