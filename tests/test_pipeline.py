@@ -5,37 +5,37 @@ from noob import Cube, SynchronousRunner, Tube
 from cala.models import AXIS
 
 
-@pytest.fixture
-def odl_tube():
-    return Tube.from_specification("cala-odl")
+@pytest.fixture(params=["cala-single-cell"])
+def tube(request):
+    return Tube.from_specification(request.param)
 
 
 @pytest.fixture
-def odl_cube():
-    return Cube.from_specification("cala-odl")
+def cube():
+    return Cube.from_specification("cala-single-cell")
 
 
 @pytest.fixture
-def odl_runner(odl_tube, odl_cube):
-    return SynchronousRunner(tube=odl_tube, cube=odl_cube)
+def runner(tube, cube, request):
+    return SynchronousRunner(tube=tube, cube=cube)
 
 
-def test_process(odl_runner) -> None:
+def test_process(runner) -> None:
     """Start with noisy suff stats"""
-    odl_runner.init()
-    odl_runner.process()
+    runner.init()
+    runner.process()
 
-    assert odl_runner.cube.assets["buffer"].obj.array.size > 0
+    assert runner.cube.assets["buffer"].obj.array.size > 0
 
 
-def test_iter(odl_runner) -> None:
-    gen = odl_runner.iter(n=30)
+def test_iter(runner) -> None:
+    gen = runner.iter(n=30)
 
     movie = []
     for _, exp in enumerate(gen):
         movie.append(exp[0].array)
-        fps = odl_runner.cube.assets["footprints"].obj
-        trs = odl_runner.cube.assets["traces"].obj
+        fps = runner.cube.assets["footprints"].obj
+        trs = runner.cube.assets["traces"].obj
 
     expected = xr.concat(movie, dim=AXIS.frames_dim)
     result = (fps.array @ trs.array).transpose(*expected.dims)
@@ -44,10 +44,17 @@ def test_iter(odl_runner) -> None:
 
 
 @pytest.mark.xfail
-def test_run(odl_runner) -> None:
-    result = odl_runner.run(n=5)
+def test_run(runner) -> None:
+    """
+    Currently, runner.cube gets deinit'd with tube as the runner finishes iteration/run.
+    This prevents persisting cube assets beyond the runner lifecycle,
+    which might not be what we want. Maybe the whole point of cube is to live
+    _beyond_ the lifecycle of tube.
+    """
+    result = runner.run(n=5)
 
     assert result
+    assert runner.cube.assets["footprints"].obj.array.size > 0
 
 
 @pytest.mark.xfail
