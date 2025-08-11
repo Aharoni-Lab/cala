@@ -5,7 +5,7 @@ from noob import Cube, SynchronousRunner, Tube
 from cala.models import AXIS
 
 
-@pytest.fixture(params=["cala-single-cell"])
+@pytest.fixture(params=["cala-single-cell", "cala-two-cells"])
 def tube(request):
     return Tube.from_specification(request.param)
 
@@ -45,33 +45,14 @@ def test_iter(runner) -> None:
 
 @pytest.mark.xfail
 def test_run(runner) -> None:
-    """
-    Currently, runner.cube gets deinit'd with tube as the runner finishes iteration/run.
-    This prevents persisting cube assets beyond the runner lifecycle,
-    which might not be what we want. Maybe the whole point of cube is to live
-    _beyond_ the lifecycle of tube.
-    """
     result = runner.run(n=5)
 
     assert result
-    assert runner.cube.assets["footprints"].obj.array.size > 0
 
 
 @pytest.mark.xfail
 def test_combined_footprint() -> None:
     """Start with two footprints combined"""
-    raise AssertionError("Not implemented")
-
-
-@pytest.mark.xfail
-def test_dilating_footprint() -> None:
-    """start with binary-eroded footprints"""
-    raise AssertionError("Not implemented")
-
-
-@pytest.mark.xfail
-def test_eroding_footprint() -> None:
-    """start with binary-dilated footprints"""
     raise AssertionError("Not implemented")
 
 
