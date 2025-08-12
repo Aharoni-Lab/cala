@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.assets import Residual
-from cala.nodes.detect import Cataloger, DupeSniffer, Energy, SliceNMF
+from cala.nodes.detect import Cataloger, Sniffer, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -61,10 +61,10 @@ def slice_nmf(toy):
 
 @pytest.fixture(scope="class")
 def sniffer():
-    return DupeSniffer.from_specification(
+    return Sniffer.from_specification(
         spec=NodeSpecification(
             id="test_dupe_sniffer",
-            type="cala.nodes.detect.DupeSniffer",
+            type="cala.nodes.detect.Sniffer",
             params={"merge_threshold": 0.8},
         )
     )

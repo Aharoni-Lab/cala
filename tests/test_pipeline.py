@@ -5,7 +5,7 @@ from noob import Cube, SynchronousRunner, Tube
 from cala.models import AXIS
 
 
-@pytest.fixture(params=["cala-single-cell", "cala-two-cells"])
+@pytest.fixture(params=["cala-single-cell", "cala-two-cells", "cala-two-overlap-cells"])
 def tube(request):
     return Tube.from_specification(request.param)
 
@@ -29,7 +29,7 @@ def test_process(runner) -> None:
 
 
 def test_iter(runner) -> None:
-    gen = runner.iter(n=30)
+    gen = runner.iter(n=runner.tube.nodes["source"].spec.params["n_frames"])
 
     movie = []
     for _, exp in enumerate(gen):
