@@ -52,3 +52,26 @@ def two_cells_source(
         cell_traces=traces,
     )
     return toy.movie_gen()
+
+
+def two_overlapping_source(
+    n_frames: int = 30,
+    frame_dims: dict = None,
+    cell_radii: int = 30,
+    positions: list[dict] = None,
+) -> Generator[A[Frame, Name("frame")]]:
+    frame_dims = FrameDims(width=512, height=512) if frame_dims is None else FrameDims(**frame_dims)
+    traces = [np.array(range(0, n_frames)), np.array([0, *range(n_frames - 1, 0, -1)])]
+    if positions is None:
+        positions = [Position(width=236, height=236), Position(width=276, height=276)]
+    else:
+        positions = [Position(**position) for position in positions]
+
+    toy = Toy(
+        n_frames=n_frames,
+        frame_dims=frame_dims,
+        cell_radii=cell_radii,
+        cell_positions=positions,
+        cell_traces=traces,
+    )
+    return toy.movie_gen()
