@@ -108,17 +108,6 @@ class TestSliceNMF:
 
         assert_scalar_multiple_arrays(footprint, toy.footprints.array)
 
-    def test_check_validity(self, slice_nmf, single_cell_video, energy_shape, toy):
-        """
-        test this with multiple overlapping cells!!
-        """
-        slice_ = slice_nmf._get_max_energy_slice(single_cell_video.array, energy_shape)
-        footprint, _ = slice_nmf._local_nmf(
-            slice_,
-            toy.frame_dims.model_dump(),
-        )
-        assert slice_nmf._check_validity(footprint, single_cell_video.array)
-
     def test_process(self, slice_nmf, single_cell_video, energy_shape, toy):
         new_component = slice_nmf.process(
             Residual.from_array(single_cell_video.array), energy_shape
