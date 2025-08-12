@@ -6,7 +6,7 @@ import xarray as xr
 from noob import Name
 from noob.node import Node
 
-from cala.assets import Footprint, Footprints, Residual, Trace, Traces
+from cala.assets import Footprint, Footprints, Trace, Traces
 from cala.models import AXIS
 
 

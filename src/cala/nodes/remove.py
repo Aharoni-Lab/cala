@@ -1,11 +1,11 @@
 from typing import Annotated as A
-import cv2
 
+import cv2
 import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import Footprints, Traces, CompStats, PixStats, Overlaps
+from cala.assets import CompStats, Footprints, Overlaps, PixStats, Traces
 from cala.models import AXIS
 
 

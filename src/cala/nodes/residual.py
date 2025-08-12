@@ -76,7 +76,7 @@ def _clear_overestimates(A: xr.DataArray, R: xr.DataArray, clip_val: float) -> x
     Remove all sections of the footprints that cause negative residuals.
     This occurs by:
     1. find "significant" negative residual spots that is more than a noise level, and thus
-    cannot be clipped to zero. !!!! (only of the latest frame, and then go back to trace update..?) !!!!
+    cannot be clipped to zero. !!!! (only of the latest frame, and then go back to trace update..?)
     2. all footprint values at these spots go to zero.
 
 

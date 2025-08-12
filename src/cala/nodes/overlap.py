@@ -1,5 +1,5 @@
-import xarray as xr
 import numpy as np
+import xarray as xr
 
 from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
