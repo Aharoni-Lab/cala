@@ -1,4 +1,4 @@
-noob_id: cala-odl
+noob_id: cala-two-overlap-cells
 noob_model: noob.cube.CubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
 
@@ -30,28 +30,28 @@ assets:
 
 nodes:
   source:
-    type: cala.testing.single_cell_source
+    type: cala.testing.two_overlapping_source
     params:
-      n_frames: 30
+      n_frames: 50
   denoise:
     type: cala.nodes.prep.denoise
     params:
       ksize:
-      - 3
-      - 3
+        - 3
+        - 3
       sigmaX: 1.5
     depends:
-    - frame: source.frame
+      - frame: source.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-    - frame: denoise.frame
+      - frame: denoise.frame
   motion:
     type: cala.nodes.prep.RigidStabilizer
     params:
       drift_speed: 1.0
     depends:
-    - frame: glow.frame
+      - frame: glow.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
@@ -93,7 +93,25 @@ nodes:
       - footprints: assets.footprints
       - traces: assets.traces
 
-# DETECT BEGINS
+  over_est:
+    type: cala.nodes.remove.get_razed_ids
+    params:
+      min_thicc: 3
+    depends:
+      - footprints: assets.footprints
+      - trigger: residual.movie
+
+  clean:
+    type: cala.nodes.remove.filter_components
+    depends:
+      - footprints: assets.footprints
+      - traces: assets.traces
+      - pix_stats: assets.pix_stats
+      - comp_stats: assets.comp_stats
+      - overlaps: assets.overlaps
+      - keep_ids: over_est.keep_ids
+
+  # DETECT BEGINS
   energy:
     type: cala.nodes.detect.Energy
     params:
@@ -111,7 +129,7 @@ nodes:
       - residuals: residual.movie
       - energy: energy.energy
   sniff:
-    type: cala.nodes.detect.DupeSniffer
+    type: cala.nodes.detect.Sniffer
     params:
       merge_threshold: 0.8
     depends:
@@ -119,7 +137,6 @@ nodes:
       - new_tr: nmf.new_tr
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-      - residuals: residual.movie
   catalog:
     type: cala.nodes.detect.Cataloger
     depends:
@@ -158,7 +175,7 @@ nodes:
       - overlaps: assets.overlaps
       - footprints: assets.footprints
       - new_footprints: catalog.new_footprint
-#  DETECT ENDS
+  #  DETECT ENDS
 
   footprints_frame:
     type: cala.nodes.footprints.Footprinter

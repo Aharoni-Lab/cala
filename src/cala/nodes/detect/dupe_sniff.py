@@ -6,20 +6,15 @@ import xarray as xr
 from noob import Name
 from noob.node import Node
 
-from cala.assets import Footprint, Footprints, Residual, Trace, Traces
+from cala.assets import Footprint, Footprints, Trace, Traces
 from cala.models import AXIS
 
 
-class DupeSniffer(Node):
+class Sniffer(Node):
     merge_threshold: float  # this should get later replaced by confidence level
 
     def process(
-        self,
-        new_fp: Footprint,
-        new_tr: Trace,
-        existing_fp: Footprints,
-        existing_tr: Traces,
-        residuals: Residual,
+        self, new_fp: Footprint, new_tr: Trace, existing_fp: Footprints, existing_tr: Traces
     ) -> A[list[tuple[str, float]], Name("dupes")]:
         """
         determines whether the new component overlaps with an existing component.

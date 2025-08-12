@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.assets import Residual
-from cala.nodes.detect import Cataloger, DupeSniffer, Energy, SliceNMF
+from cala.nodes.detect import Cataloger, Energy, SliceNMF, Sniffer
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -61,10 +61,10 @@ def slice_nmf(toy):
 
 @pytest.fixture(scope="class")
 def sniffer():
-    return DupeSniffer.from_specification(
+    return Sniffer.from_specification(
         spec=NodeSpecification(
             id="test_dupe_sniffer",
-            type="cala.nodes.detect.DupeSniffer",
+            type="cala.nodes.detect.Sniffer",
             params={"merge_threshold": 0.8},
         )
     )
@@ -107,17 +107,6 @@ class TestSliceNMF:
         )
 
         assert_scalar_multiple_arrays(footprint, toy.footprints.array)
-
-    def test_check_validity(self, slice_nmf, single_cell_video, energy_shape, toy):
-        """
-        test this with multiple overlapping cells!!
-        """
-        slice_ = slice_nmf._get_max_energy_slice(single_cell_video.array, energy_shape)
-        footprint, _ = slice_nmf._local_nmf(
-            slice_,
-            toy.frame_dims.model_dump(),
-        )
-        assert slice_nmf._check_validity(footprint, single_cell_video.array)
 
     def test_process(self, slice_nmf, single_cell_video, energy_shape, toy):
         new_component = slice_nmf.process(

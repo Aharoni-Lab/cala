@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 from noob.node import Node
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from sklearn.decomposition import NMF
 
 from cala.assets import Footprint, Residual, Trace
@@ -18,10 +18,15 @@ class SliceNMF(Node):
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
     validity_threshold: float
 
+    errors_: list[float] = Field(default_factory=list)
+    _model: NMF = PrivateAttr(None)
+
     def model_post_init(self, context: Any, /) -> None:
         self.nmf_kwargs.update({"n_components": 1, "init": "nndsvd"})
         if not self.nmf_kwargs.get("tol", None):
             self.nmf_kwargs["tol"] = 1e-4
+
+        self._model = NMF(**self.nmf_kwargs)
 
     def process(
         self, residuals: Residual, energy: xr.DataArray
@@ -39,9 +44,8 @@ class SliceNMF(Node):
 
             # eventually we should just log this value instead of throwing out the component
             # otherwise we keep coming back to this energy max point
-            if self._check_validity(a_new, residuals):
+            if (self.errors_[-1] / slice_.sum().item()) <= self.nmf_kwargs["tol"]:
                 return Footprint.from_array(a_new), Trace.from_array(c_new)
-
         return Footprint(), Trace()
 
     def _get_max_energy_slice(
@@ -92,12 +96,11 @@ class SliceNMF(Node):
         # Reshape neighborhood to 2D matrix (time × space)
         R = slice_.stack(space=AXIS.spatial_dims).transpose(AXIS.frames_dim, "space")
 
-        # Apply NMF (check how long nndsvd takes vs random)
-        model = NMF(**self.nmf_kwargs)
+        c = self._model.fit_transform(R)  # temporal component
+        a = self._model.components_  # spatial component
 
-        # when residual is negative, the error becomes massive...
-        c = model.fit_transform(R)  # temporal component
-        a = model.components_  # spatial component
+        err = self._model.reconstruction_err_.item()
+        self.errors_.append(err)
 
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
@@ -126,51 +129,3 @@ class SliceNMF(Node):
         c_new = c_new / factor
 
         return a_new, c_new
-
-    def _check_validity(self, a_new: xr.DataArray, residuals: xr.DataArray) -> bool:
-        """
-        Think this is redundant with NMF.reconstruction_err_
-        """
-
-        # not sure if this step is necessary or even makes sense
-        # how would a rank-1 nmf be not similar to the mean, unless the nmf error was massive?
-        # and if the error is big, maybe it just means it's partially overlapping with another
-        # luminescent object?
-        # instead of tossing, we do candidates - cell, background, UNKNOWN
-        # we gather everything. we merge everything as much as possible. and then we decide what to
-        # do.
-
-        # is it a cell / background, or just a plain wrong estimator - how do we distinguish these?
-        # what i'm worried about is a WRONG estimator cannibalizing real cell signal
-        # estimator_confidence, and neuron_confidence
-        # estimator_confidence - how much of it can be explained by others
-        # this can be remedied in the merge / split step? first it gets split, then it gets merged
-        # neuron_confidence - how likely is it a neuron
-
-        nonzero_ax_to_idx = {
-            ax: sorted([int(x) for x in set(idx)])
-            for ax, idx in zip(a_new.dims, a_new.values.nonzero())
-        }
-        # nonzero coordinates, like [[0, 1, 0, 1], [0, 0, 1, 1]]
-        # for [0, 0], [0, 1], [1, 0], [1, 1]
-
-        if len(list(nonzero_ax_to_idx.values())[0]) == 0:
-            return False
-
-        # it should look like something from a residual. paper does not specify this,
-        # but i think we should only get correlation from within the new footprint perimeter,
-        # since otherwise the correlation will get drowned out by the mismatch
-        # from where the detected cell is NOT present.
-        mean_residual = residuals.mean(dim=AXIS.frames_dim).isel(nonzero_ax_to_idx)
-
-        a_norm = a_new.isel(nonzero_ax_to_idx) / a_new.sum()
-        res_norm = mean_residual / mean_residual.sum()
-
-        # the reason we break from detection as soon as this happens is because
-        # we don't want to get flooded with wrong estimators.
-        # we instead wait for when we get cleaner signal.
-        # (this might not be super viable for cold-start.
-        # what if the first cell is bad? we just keep trying?)
-        r_spatial = xr.corr(a_norm, res_norm)
-
-        return not r_spatial <= self.validity_threshold

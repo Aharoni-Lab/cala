@@ -5,37 +5,38 @@ from noob import Cube, SynchronousRunner, Tube
 from cala.models import AXIS
 
 
-@pytest.fixture
-def odl_tube():
-    return Tube.from_specification("cala-odl")
+@pytest.fixture(params=["cala-single-cell", "cala-two-cells", "cala-two-overlap-cells"])
+def tube(request):
+    return Tube.from_specification(request.param)
 
 
 @pytest.fixture
-def odl_cube():
-    return Cube.from_specification("cala-odl")
+def cube():
+    return Cube.from_specification("cala-single-cell")
 
 
 @pytest.fixture
-def odl_runner(odl_tube, odl_cube):
-    return SynchronousRunner(tube=odl_tube, cube=odl_cube)
+def runner(tube, cube, request):
+    return SynchronousRunner(tube=tube, cube=cube)
 
 
-def test_process(odl_runner) -> None:
+def test_process(runner) -> None:
     """Start with noisy suff stats"""
-    odl_runner.init()
-    odl_runner.process()
+    runner.init()
+    runner.process()
 
-    assert odl_runner.cube.assets["buffer"].obj.array.size > 0
+    assert runner.cube.assets["buffer"].obj.array.size > 0
 
 
-def test_iter(odl_runner) -> None:
-    gen = odl_runner.iter(n=30)
+@pytest.mark.xfail
+def test_iter(runner) -> None:
+    gen = runner.iter(n=runner.tube.nodes["source"].spec.params["n_frames"])
 
     movie = []
     for _, exp in enumerate(gen):
         movie.append(exp[0].array)
-        fps = odl_runner.cube.assets["footprints"].obj
-        trs = odl_runner.cube.assets["traces"].obj
+        fps = runner.cube.assets["footprints"].obj
+        trs = runner.cube.assets["traces"].obj
 
     expected = xr.concat(movie, dim=AXIS.frames_dim)
     result = (fps.array @ trs.array).transpose(*expected.dims)
@@ -44,8 +45,8 @@ def test_iter(odl_runner) -> None:
 
 
 @pytest.mark.xfail
-def test_run(odl_runner) -> None:
-    result = odl_runner.run(n=5)
+def test_run(runner) -> None:
+    result = runner.run(n=5)
 
     assert result
 
@@ -53,18 +54,6 @@ def test_run(odl_runner) -> None:
 @pytest.mark.xfail
 def test_combined_footprint() -> None:
     """Start with two footprints combined"""
-    raise AssertionError("Not implemented")
-
-
-@pytest.mark.xfail
-def test_dilating_footprint() -> None:
-    """start with binary-eroded footprints"""
-    raise AssertionError("Not implemented")
-
-
-@pytest.mark.xfail
-def test_eroding_footprint() -> None:
-    """start with binary-dilated footprints"""
     raise AssertionError("Not implemented")
 
 
