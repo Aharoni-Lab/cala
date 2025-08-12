@@ -112,7 +112,7 @@ nodes:
       - residuals: residual.movie
       - energy: energy.energy
   sniff:
-    type: cala.nodes.detect.DupeSniffer
+    type: cala.nodes.detect.Sniffer
     params:
       merge_threshold: 0.8
     depends:
@@ -120,7 +120,6 @@ nodes:
       - new_tr: nmf.new_tr
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-      - residuals: residual.movie
   catalog:
     type: cala.nodes.detect.Cataloger
     depends:
