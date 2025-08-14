@@ -1,7 +1,7 @@
 import pytest
 import xarray as xr
 from noob import Cube, SynchronousRunner, Tube
-from noob.node import NodeSpecification, Node
+from noob.node import Node, NodeSpecification
 
 from cala.models import AXIS
 

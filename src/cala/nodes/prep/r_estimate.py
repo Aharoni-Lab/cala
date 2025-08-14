@@ -1,9 +1,11 @@
-from typing import Annotated as A, Any
-import numpy as np
-from noob import process_method, Name
-from pydantic import BaseModel, Field, ConfigDict, PrivateAttr, model_validator
+from typing import Annotated as A
+from typing import Any
 
+import numpy as np
+from noob import Name, process_method
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from skimage.feature import blob_log
+
 from cala.assets import Frame
 from cala.models import AXIS
 
@@ -20,10 +22,6 @@ class SizeEst(BaseModel):
     _est_radius: int = PrivateAttr(None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    @model_validator(mode="after")
-    def validity_check(self):
-        assert self.hardset_radius or self.n_frames
 
     @process_method
     def get_median_radius(self, frame: Frame) -> A[int, Name("radius")]:
