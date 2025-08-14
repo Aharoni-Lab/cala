@@ -7,13 +7,11 @@ from pydantic import ConfigDict
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.assets import Frame, Residual
+from cala.assets import Residual
 from cala.models import AXIS
 
 
 class Energy(Node):
-    gaussian_std: float
-    """not sure why we're smoothing the residual...??"""
     min_frames: int
     """minimum number of frames to consider to begin detecting cells"""
 
@@ -22,7 +20,7 @@ class Energy(Node):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def process(
-        self, residuals: Residual, trigger: Frame
+        self, residuals: Residual, trigger: bool = True
     ) -> A[xr.DataArray | None, Name("energy")]:
         if residuals.array is None or residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return xr.DataArray()

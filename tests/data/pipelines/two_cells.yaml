@@ -98,7 +98,6 @@ nodes:
   energy:
     type: cala.nodes.detect.Energy
     params:
-      gaussian_std: 1.0
       min_frames: 10
     depends:
       - residuals: residual.movie
