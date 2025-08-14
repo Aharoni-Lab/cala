@@ -38,7 +38,7 @@ def two_cells_source(
     positions: list[dict] = None,
 ) -> Generator[A[Frame, Name("frame")]]:
     frame_dims = FrameDims(width=512, height=512) if frame_dims is None else FrameDims(**frame_dims)
-    traces = [np.array(range(0, n_frames)), np.array([0, *range(30 - 1, 0, -1)])]
+    traces = [np.array(range(0, n_frames)), np.array([0, *range(n_frames - 1, 0, -1)])]
     if positions is None:
         positions = [Position(width=206, height=206), Position(width=306, height=306)]
     else:
