@@ -14,7 +14,6 @@ from cala.models import AXIS
 
 
 class SliceNMF(Node):
-    cell_radius: int
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     errors_: list[float] = Field(default_factory=list)
@@ -28,7 +27,7 @@ class SliceNMF(Node):
         self._model = NMF(**self.nmf_kwargs)
 
     def process(
-        self, residuals: Residual, energy: xr.DataArray
+        self, residuals: Residual, energy: xr.DataArray, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
         residuals = residuals.array.copy()
 
@@ -38,7 +37,9 @@ class SliceNMF(Node):
         if energy.size > 1:
             while np.sqrt(energy.max()).item() > self.nmf_kwargs["tol"]:
                 # Find and analyze neighborhood of maximum variance
-                slice_ = self._get_max_energy_slice(arr=residuals, energy_landscape=energy)
+                slice_ = self._get_max_energy_slice(
+                    arr=residuals, energy_landscape=energy, radius=detect_radius
+                )
 
                 a_new, c_new = self._local_nmf(
                     slice_=slice_,
@@ -66,13 +67,13 @@ class SliceNMF(Node):
         self,
         arr: xr.DataArray,
         energy_landscape: xr.DataArray,
+        radius: int,
     ) -> xr.DataArray:
         """Find neighborhood around point of maximum variance."""
         # Find maximum point
         max_coords = energy_landscape.argmax(dim=AXIS.spatial_dims)
 
         # Define neighborhood
-        radius = int(np.round(self.cell_radius))
         window = {
             ax: slice(
                 max(0, pos.values - radius),
