@@ -5,7 +5,6 @@ from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
 
 
-
 def ingest_frame(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
     A = footprints.array
 
@@ -35,8 +34,7 @@ def ingest_component(
         return overlaps
 
     elif overlaps.array is None or overlaps.array.size == 1:
-        overlaps.array = ingest_frame(overlaps, footprints).array
-        return overlaps
+        return ingest_frame(overlaps, footprints)
 
     V = overlaps.array
 
