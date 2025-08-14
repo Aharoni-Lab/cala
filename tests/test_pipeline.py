@@ -37,7 +37,6 @@ def test_process(runner) -> None:
     assert runner.cube.assets["buffer"].obj.array.size > 0
 
 
-@pytest.mark.xfail
 def test_iter(runner) -> None:
     gen = runner.iter(n=runner.tube.nodes["source"].spec.params["n_frames"])
 
