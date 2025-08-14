@@ -124,33 +124,24 @@ nodes:
     type: cala.nodes.detect.SliceNMF
     params:
       cell_radius: 10
-      validity_threshold: 0.9
     depends:
       - residuals: residual.movie
       - energy: energy.energy
-  sniff:
-    type: cala.nodes.detect.Sniffer
+  catalog:
+    type: cala.nodes.detect.Cataloger
     params:
       merge_threshold: 0.8
     depends:
-      - new_fp: nmf.new_fp
-      - new_tr: nmf.new_tr
+      - new_fps: nmf.new_fps
+      - new_trs: nmf.new_trs
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-  catalog:
-    type: cala.nodes.detect.Cataloger
-    depends:
-      - new_fp: nmf.new_fp
-      - new_tr: nmf.new_tr
-      - existing_fp: assets.footprints
-      - existing_tr: assets.traces
-      - duplicates: sniff.dupes
 
   trace_component:
     type: cala.nodes.traces.ingest_component
     depends:
       - traces: assets.traces
-      - new_trace: catalog.new_trace
+      - new_trace: catalog.new_traces
   footprint_component:
     type: cala.nodes.footprints.ingest_component
     depends:
@@ -161,14 +152,14 @@ nodes:
     depends:
       - pixel_stats: assets.pix_stats
       - frames: assets.buffer
-      - new_trace: catalog.new_trace
+      - new_trace: catalog.new_traces
       - traces: assets.traces
   comp_component:
     type: cala.nodes.component_stats.ingest_component
     depends:
       - component_stats: assets.comp_stats
       - traces: assets.traces
-      - new_trace: catalog.new_trace
+      - new_trace: catalog.new_traces
   overlaps_update:
     type: cala.nodes.overlap.ingest_component
     depends:
