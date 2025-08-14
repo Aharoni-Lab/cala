@@ -1,9 +1,10 @@
-from typing import Annotated as A
+from typing import Annotated as A, Iterable, Hashable
 
 import numpy as np
 import xarray as xr
 from noob import Name
 from noob.node import Node
+from scipy.sparse.csgraph import connected_components
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
@@ -13,25 +14,61 @@ from cala.util import create_id
 
 
 class Cataloger(Node):
+    merge_threshold: float
 
     def process(
         self,
-        new_fp: Footprint,
-        new_tr: Trace,
-        existing_fp: Footprints = None,
-        existing_tr: Traces = None,
-        duplicates: list[tuple[str, float]] | None = None,
-    ) -> tuple[A[Footprint | None, Name("new_footprint")], A[Trace | None, Name("new_trace")]]:
+        new_fps: list[Footprint],
+        new_trs: list[Trace],
+        existing_fp: Footprints | None = None,
+        existing_tr: Traces | None = None,
+    ) -> tuple[A[list[Footprint], Name("new_footprints")], A[list[Trace], Name("new_traces")]]:
 
-        if new_fp.array is None or new_fp.array.size == 1:
-            return Footprint(), Trace()
+        if not new_fps or not new_trs:
+            return [], []
 
-        if not duplicates:
-            footprint, trace = self._register(new_fp, new_tr)
-        else:
-            footprint, trace = self._merge(new_fp, new_tr, existing_fp, existing_tr, duplicates)
+        existing_fp = existing_fp.array
+        existing_tr = existing_tr.array
 
-        return footprint, trace
+        new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
+        new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
+
+        conn_mat = self._connection_matrix(new_fps, new_trs)
+        num, label = connected_components(conn_mat)
+        combined_fps = []
+        combined_trs = []
+
+        for l in set(label):
+            group = np.where(label == l)[0]
+            fps = new_fps.sel({AXIS.component_dim: group})
+            trs = new_trs.sel({AXIS.component_dim: group})
+            res = fps @ trs
+            new_fp, new_tr = self._decompose(res, new_fps[0].coords, new_trs[0].coords)
+
+            combined_fps.append(new_fp)
+            combined_trs.append(new_tr)
+
+        new_fps = xr.concat([fp.array for fp in combined_fps], dim=AXIS.component_dim)
+        new_trs = xr.concat([tr.array for tr in combined_trs], dim=AXIS.component_dim)
+
+        conn_mat = self._connection_matrix(new_fps, new_trs, existing_fp, existing_tr)
+        footprints = []
+        traces = []
+
+        # we're not doing connected components because it's not square matrix
+        for i, dupes in enumerate(conn_mat.transpose(AXIS.component_dim, ...)):
+            if not dupes or not any(dupes):
+                footprint, trace = self._register(new_fps[i], new_trs[i])
+            else:
+                dupe_ids = dupes.where(dupes, drop=True)[f"{AXIS.id_coord}'"].values
+                fp = new_fps.sel({AXIS.component_dim: i})
+                tr = new_trs.sel({AXIS.component_dim: i})
+                footprint, trace = self._merge_with(fp, tr, existing_fp, existing_tr, dupe_ids)
+
+            footprints.append(footprint)
+            traces.append(trace)
+
+        return footprints, traces
 
     def _register(
         self, new_fp: Footprint, new_tr: Trace, confidence: float = 0.0
@@ -62,39 +99,36 @@ class Cataloger(Node):
 
         return Footprint.from_array(footprint), Trace.from_array(trace)
 
-    def _merge(
+    def _merge_with(
         self,
-        new_fp: Footprint,
-        new_tr: Trace,
-        existing_fp: Footprints,
-        existing_tr: Traces,
-        duplicates: list[tuple[str, float]],
+        new_fp: xr.DataArray,
+        new_tr: xr.DataArray,
+        cognate_fps: xr.DataArray,
+        cognate_trs: xr.DataArray,
+        dupe_ids: Iterable[Hashable],
     ) -> tuple[Footprint, Trace]:
-        """
-        # 1. get the "movie" of the og piece
-        # 2. get the "movie" of the new piece
-        # 3. sum the movies
-        # 4. do the NMF
-        # 5. replace the original component with the merged one
-        """
+        cognate_fp = cognate_fps.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
+        cognate_tr = cognate_trs.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
 
-        most_similar = duplicates[0]
-        most_similar_fp = existing_fp.array.set_xindex(AXIS.id_coord).sel(
-            {AXIS.id_coord: most_similar[0]}
-        )
-        most_similar_tr = existing_tr.array.set_xindex(AXIS.id_coord).sel(
-            {AXIS.id_coord: most_similar[0]}
+        recreated_movie = cognate_fp @ cognate_tr
+        new_movie = new_fp @ new_tr
+        combined_movie = recreated_movie + new_movie
+        combined_movie = combined_movie.assign_coords(
+            {ax: combined_movie[ax] for ax in AXIS.spatial_dims}
         )
 
-        combined_movie = self._combine_component_movies(
-            new_fp=new_fp, new_tr=new_tr, fp_to_merge=most_similar_fp, tr_to_merge=most_similar_tr
-        ).array
+        a_new, c_new = self._decompose(combined_movie, new_fp.coords, new_tr.coords)
+        a_new.array.attrs["replaces"] = cognate_fp["id_"].values.tolist()
+        c_new.array.attrs["replaces"] = cognate_tr["id_"].values.tolist()
 
+        return self._register(a_new, c_new)
+
+    def _decompose(
+        self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
+    ) -> tuple[Footprint, Trace]:
         # Reshape neighborhood to 2D matrix (time × space)
-        shape = xr.DataArray(combined_movie.sum(dim=AXIS.frames_dim) > 0).reset_coords(
-            [AXIS.id_coord, AXIS.confidence_coord], drop=True
-        )
-        slice_ = Movie.from_array(combined_movie.where(shape, 0, drop=True))
+        shape = xr.DataArray(movie.sum(dim=AXIS.frames_dim) > 0)
+        slice_ = Movie.from_array(movie.where(shape, 0, drop=True))
 
         a, c = self._nmf(slice_)
 
@@ -103,23 +137,12 @@ class Cataloger(Node):
         a_new, c_new = self._reshape(
             footprint=a,
             trace=c,
-            fp_coords=most_similar_fp.coords,
-            tr_coords=most_similar_tr.coords,
+            fp_coords=fp_coords,
+            tr_coords=tr_coords,
             slice_coords=slice_coords,
         )
 
         return a_new, c_new
-
-    def _combine_component_movies(
-        self, new_fp: Footprint, new_tr: Trace, fp_to_merge: xr.DataArray, tr_to_merge: xr.DataArray
-    ) -> Movie:
-        recreated_movie = fp_to_merge @ tr_to_merge
-        new_movie = new_fp.array @ new_tr.array
-        combined_movie = recreated_movie + new_movie
-
-        return Movie.from_array(
-            combined_movie.assign_coords({ax: combined_movie[ax] for ax in AXIS.spatial_dims})
-        )
 
     def _nmf(self, movie: Movie) -> tuple[np.ndarray, np.ndarray]:
 
@@ -159,3 +182,23 @@ class Cataloger(Node):
         )
 
         return Footprint.from_array(a_new), Trace.from_array(c_new)
+
+    def _connection_matrix(
+        self,
+        fps: xr.DataArray,
+        trs: xr.DataArray,
+        fps_base: xr.DataArray | None = None,
+        trs_base: xr.DataArray | None = None,
+    ) -> xr.DataArray:
+        if fps_base is None:
+            fps_base = fps.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+            trs_base = trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        else:
+            fps_base = fps_base.rename(AXIS.component_rename)
+            trs_base = trs_base.rename(AXIS.component_rename)
+
+        overlaps = fps @ fps_base > 0
+        # this should later reflect confidence
+        corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
+
+        return overlaps * corrs

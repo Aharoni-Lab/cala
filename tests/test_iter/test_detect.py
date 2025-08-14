@@ -63,7 +63,9 @@ def slice_nmf(toy):
 @pytest.fixture(scope="class")
 def cataloger():
     return Cataloger.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.detect.Cataloger")
+        spec=NodeSpecification(
+            id="test", type="cala.nodes.detect.Cataloger", params={"merge_threshold": 0.8}
+        )
     )
 
 
@@ -133,43 +135,69 @@ class TestSliceNMF:
 
 
 class TestCataloger:
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def new_component(self, single_cell_video, energy_shape):
         return SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.slice_nmf.SliceNMF",
-                params={"cell_radius": 60, "validity_threshold": 0.8},
+                params={"cell_radius": 60},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
-            new_fp=new_fp,
-            new_tr=new_tr,
+            new_fp=new_fp[0],
+            new_tr=new_tr[0],
         )
 
-        assert np.array_equal(fp.array, new_fp.array)
-        assert np.array_equal(tr.array, new_tr.array)
+        assert np.array_equal(fp.array, new_fp[0].array)
+        assert np.array_equal(tr.array, new_tr[0].array)
 
-    def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
+    def test_merge_with(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.slice_nmf.SliceNMF",
-                params={"cell_radius": 10, "validity_threshold": 0.8},
+                params={"cell_radius": 10},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
         new_fp, new_tr = new_component
-        fp, tr = cataloger._merge(
-            new_fp, new_tr, toy.footprints, toy.traces, duplicates=[("cell_0", 1.0)]
+        fp, tr = cataloger._merge_with(
+            new_fp[0].array, new_tr[0].array, toy.footprints.array, toy.traces.array, ["cell_0"]
         )
 
-        movie_result = fp.array @ tr.array
+        movie_result = (fp.array @ tr.array).reset_coords(
+            [AXIS.id_coord, AXIS.confidence_coord], drop=True
+        )
 
-        movie_new_comp = new_fp.array @ new_tr.array
-        movie_expected = single_cell_video.array + movie_new_comp
+        movie_new_comp = new_fp[0].array @ new_tr[0].array
+        movie_expected = (single_cell_video.array + movie_new_comp).transpose(*movie_result.dims)
 
-        np.testing.assert_allclose(movie_result, movie_expected.transpose(*movie_result.dims))
+        xr.testing.assert_allclose(movie_result, movie_expected)
+
+    @pytest.fixture(scope="function")
+    def new_chunks(self, single_cell_video, energy_shape):
+        return SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
+                params={"cell_radius": 10},
+            )
+        ).process(Residual.from_array(single_cell_video.array), energy_shape)
+
+    def test_process_chunks(self, cataloger, toy, new_chunks, single_cell_video, energy_shape):
+        fpts, trcs = new_chunks
+
+        new_fps, new_trs = cataloger.process(fpts, trcs, toy.footprints, toy.traces)
+
+        result = (new_fps[0].array @ new_trs[0].array).reset_coords(
+            [AXIS.id_coord, AXIS.confidence_coord], drop=True
+        )
+        expected = (toy.make_movie().array * 2).transpose(*result.dims)
+        # *2 because we're (force) detecting a cell on top of an existing cell
+
+        assert new_fps[0].array.attrs.get("replaces", None) == ["cell_0"]
+        xr.testing.assert_allclose(result, expected)
