@@ -57,7 +57,7 @@ class Cataloger(Node):
 
         # we're not doing connected components because it's not square matrix
         for i, dupes in enumerate(conn_mat.transpose(AXIS.component_dim, ...)):
-            if not any(dupes) or not existing_fp or not existing_tr:
+            if not any(dupes) or existing_fp is None or existing_tr is None:
                 footprint, trace = self._register(new_fps[i], new_trs[i])
             else:
                 dupe_ids = dupes.where(dupes, drop=True)[f"{AXIS.id_coord}'"].values
@@ -134,7 +134,7 @@ class Cataloger(Node):
         a_new.array.attrs["replaces"] = cognate_fp["id_"].values.tolist()
         c_new.array.attrs["replaces"] = cognate_tr["id_"].values.tolist()
 
-        return self._register(a_new, c_new)
+        return self._register(a_new.array, c_new.array)
 
     def _decompose(
         self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates

@@ -80,7 +80,7 @@ class TestEnergy:
 
     def test_process(self, energy, single_cell_video):
         energy_landscape = energy.process(
-            residuals=Residual.from_array(single_cell_video.array), trigger=single_cell_video
+            residuals=Residual.from_array(single_cell_video.array), trigger=True
         )
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
@@ -148,8 +148,8 @@ class TestCataloger:
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
-            new_fp=new_fp[0],
-            new_tr=new_tr[0],
+            new_fp=new_fp[0].array,
+            new_tr=new_tr[0].array,
         )
 
         assert np.array_equal(fp.array, new_fp[0].array)

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, Trace, Traces
+from cala.assets import Frame, Traces
 from cala.models import AXIS
 
 
@@ -67,12 +67,11 @@ def test_ingest_component(comp_update, toy, request) -> None:
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
 
-    new_traces = [
-        Trace.from_array(
-            toy.traces.array.isel({AXIS.component_dim: -1, AXIS.frames_dim: slice(None, -10)})
-        )
-    ]
-    new_traces[0].array.attrs["replaces"] = ["cell_0"]
+    new_traces = Traces.from_array(
+        toy.traces.array.isel({AXIS.component_dim: [-1], AXIS.frames_dim: slice(None, -10)})
+    )
+
+    new_traces.array.attrs["replaces"] = ["cell_0"]
 
     result = comp_update.process(traces, new_traces)
 
