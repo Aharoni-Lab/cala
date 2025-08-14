@@ -51,4 +51,4 @@ def create_id() -> str:
 
 def combine_attr_replaces(attrs: Sequence[dict[str, list[str]]], context: None = None) -> dict:
     repl = [item for attr in attrs for item in attr.get("replaces", [])]
-    return {"replaces": repl}
+    return {"replaces": repl} if repl else {}
