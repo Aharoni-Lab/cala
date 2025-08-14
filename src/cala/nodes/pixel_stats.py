@@ -86,7 +86,7 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
 
 
 def ingest_component(
-    pixel_stats: PixStats, frames: Movie, new_trace: Trace, traces: Traces
+    pixel_stats: PixStats, frames: Movie, new_traces: Traces, traces: Traces
 ) -> PixStats:
     """Update pixel statistics with new components.
 
@@ -99,32 +99,33 @@ def ingest_component(
 
     Args:
         frames (Movie): Stack of frames up to current timestep.
-        new_trace (Traces): Newly detected components' traces
+        new_traces (Traces): Newly detected components' traces
 
     Returns:
         PixelStater: Updated pixel statistics matrix
     """
-    if new_trace.array is None:
+    c_new = new_traces.array
+    if c_new is None:
         return pixel_stats
 
-    if pixel_stats.array is None:
+    W = pixel_stats.array
+    if W is None:
         pixel_stats.array = initialize(traces, frames).array
         return pixel_stats
 
     # Compute scaling factor (1/t)
-    frame_idx = new_trace.array[AXIS.frame_coord].max().item()
+    frame_idx = c_new[AXIS.frame_coord].max().item()
     scale = 1 / (frame_idx + 1)
 
     # Compute outer product of frame and new traces
     # (1/t)Y_buf c_new^T
-    new_stats = scale * (frames.array @ new_trace.array)
+    new_stats = scale * (frames.array @ c_new)
 
-    if new_stats[AXIS.id_coord].item() in pixel_stats.array[AXIS.id_coord].values:
-        pixel_stats.array.set_xindex(AXIS.id_coord).loc[
-            {AXIS.id_coord: new_stats[AXIS.id_coord].item()}
-        ] = new_stats
-    else:
-        # Concatenate with existing pixel stats along component axis
-        pixel_stats.array = xr.concat([pixel_stats.array, new_stats], dim=AXIS.component_dim)
+    merged_ids = c_new.attrs.get("replaces")
+    if merged_ids:
+        intact_ids = [id_ for id_ in W[AXIS.id_coord].values if id_ not in merged_ids]
+        W = W.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+
+    pixel_stats.array = xr.concat([W, new_stats], dim=AXIS.component_dim)
 
     return pixel_stats

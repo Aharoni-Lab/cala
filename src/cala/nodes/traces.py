@@ -233,13 +233,10 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     else:
         c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
 
-    merged = c_det.attrs.get("replaces")
-    if merged:
-        c = (
-            c.set_xindex(AXIS.id_coord)
-            .sel({AXIS.id_coord: [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged]})
-            .reset_index(AXIS.id_coord)
-        )
+    merged_ids = c_det.attrs.get("replaces")
+    if merged_ids:
+        intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
+        c = c.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
 
     traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
 

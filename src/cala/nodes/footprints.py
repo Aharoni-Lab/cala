@@ -103,13 +103,10 @@ def ingest_component(footprints: Footprints, new_footprints: Footprints) -> Foot
         footprints.array = a_det
         return footprints
 
-    merged = a_det.attrs.get("replaces")
-    if merged:
-        a = (
-            a.set_xindex(AXIS.id_coord)
-            .sel({AXIS.id_coord: [id_ for id_ in a[AXIS.id_coord].values if id_ not in merged]})
-            .reset_index(AXIS.id_coord)
-        )
+    merged_ids = a_det.attrs.get("replaces")
+    if merged_ids:
+        intact_ids = [id_ for id_ in a[AXIS.id_coord].values if id_ not in merged_ids]
+        a = a.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
 
     footprints.array = xr.concat([a, a_det], dim=AXIS.component_dim, combine_attrs="drop")
 
