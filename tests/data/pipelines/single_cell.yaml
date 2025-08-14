@@ -123,31 +123,25 @@ nodes:
     type: cala.nodes.traces.ingest_component
     depends:
       - traces: assets.traces
-      - new_trace: catalog.new_traces
+      - new_traces: catalog.new_traces
   footprint_component:
     type: cala.nodes.footprints.ingest_component
     depends:
       - footprints:  assets.footprints
-      - new_footprint: catalog.new_footprints
+      - new_footprints: catalog.new_footprints
   pix_component:
     type: cala.nodes.pixel_stats.ingest_component
     depends:
       - pixel_stats: assets.pix_stats
       - frames: assets.buffer
-      - new_trace: catalog.new_traces
+      - new_traces: catalog.new_traces
       - traces: assets.traces
   comp_component:
     type: cala.nodes.component_stats.ingest_component
     depends:
       - component_stats: assets.comp_stats
       - traces: assets.traces
-      - new_trace: catalog.new_traces
-  overlaps_update:
-    type: cala.nodes.overlap.ingest_component
-    depends:
-      - overlaps: assets.overlaps
-      - footprints: assets.footprints
-      - new_footprints: catalog.new_footprints
+      - new_traces: catalog.new_traces
 #  DETECT ENDS
 
   footprints_frame:
@@ -159,6 +153,11 @@ nodes:
       - footprints: assets.footprints
       - pixel_stats: pix_component.value
       - component_stats: comp_component.value
+
+  overlaps_update:
+    type: cala.nodes.overlap.ingest_frame
+    depends:
+      - footprints: footprints_frame.footprints
 
   return:
     type: return

@@ -1,4 +1,4 @@
-from typing import Annotated as A
+from typing import Annotated as A, Sequence
 
 import numpy as np
 import xarray as xr
@@ -8,6 +8,7 @@ from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Trace, Traces
 from cala.models import AXIS
+from cala.util import combine_attr_replaces
 
 
 class Init:
@@ -200,42 +201,51 @@ class FrameUpdate:
         ).assign_coords(y[AXIS.frames_dim].coords)
 
 
-def ingest_component(traces: Traces, new_trace: Trace) -> Traces:
+def ingest_component(traces: Traces, new_traces: list[Trace]) -> Traces:
     """
 
     :param traces:
     :param new_trace: Can be either a newly registered trace or an updated existing one.
     :return:
     """
-    c = traces.array
-    c_det = new_trace.array
 
-    if c_det is None:
+    if not new_traces:
         return traces
 
+    c = traces.array
+    c_det = xr.concat(
+        [tr.array for tr in new_traces],
+        dim=AXIS.component_dim,
+        coords=[AXIS.id_coord, AXIS.confidence_coord],
+        combine_attrs=combine_attr_replaces,
+    )
+
     if c is None:
-        traces.array = c_det.volumize.dim_with_coords(
-            dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
-        )
+        traces.array = c_det
         return traces
 
     if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
-        # if newly detected cell is truncated
-        c_new = xr.zeros_like(c.isel({AXIS.component_dim: -1}))
+        # if newly detected cells are truncated
+        c_new = xr.DataArray(
+            np.zeros((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim])),
+            dims=[AXIS.component_dim, AXIS.frames_dim],
+            coords=c.isel({AXIS.component_dim: 0}).coords,
+        )
         c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
         c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
 
-        c_new.loc[c_det[AXIS.frame_coord]] = c_det
+        c_new.loc[{AXIS.frames_dim: c_det[AXIS.frame_coord]}] = c_det
     else:
         c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
 
-    if c_new[AXIS.id_coord].item() in c[AXIS.id_coord].values:
-        # if merging
-        traces.array.set_xindex(AXIS.id_coord).loc[
-            {AXIS.id_coord: c_new[AXIS.id_coord].item()}
-        ] = c_new
-    else:
-        # if new
-        traces.array = xr.concat([c, c_new], dim=AXIS.component_dim)
+    merged = c_det.attrs.get("replaces")
+    if merged:
+        c = (
+            c.set_xindex(AXIS.id_coord)
+            .sel({AXIS.id_coord: [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged]})
+            .reset_index(AXIS.id_coord)
+        )
+
+    traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
 
     return traces

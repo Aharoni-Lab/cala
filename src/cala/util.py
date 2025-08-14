@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Sequence
 from uuid import uuid4
 
 import numpy as np
@@ -46,3 +47,8 @@ def package_frame(
 
 def create_id() -> str:
     return uuid4().hex
+
+
+def combine_attr_replaces(attrs: Sequence[dict[str, list[str]]], context: None = None) -> dict:
+    repl = [item for attr in attrs for item in attr.get("replaces", [])]
+    return {"replaces": repl}
