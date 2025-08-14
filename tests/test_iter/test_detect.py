@@ -1,9 +1,10 @@
 import numpy as np
+import xarray as xr
 import pytest
 from noob.node import NodeSpecification
 
-from cala.assets import Residual
-from cala.nodes.detect import Cataloger, Energy, SliceNMF, Sniffer
+from cala.assets import Residual, AXIS
+from cala.nodes.detect import Cataloger, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -43,7 +44,7 @@ def energy():
     )
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def energy_shape(energy, single_cell_video):
     return energy.process(Residual.from_array(single_cell_video.array), trigger=single_cell_video)
 
@@ -54,18 +55,7 @@ def slice_nmf(toy):
         spec=NodeSpecification(
             id="test_slice_nmf",
             type="cala.nodes.detect.SliceNMF",
-            params={"cell_radius": 2 * toy.cell_radii[0], "validity_threshold": 0.8},
-        )
-    )
-
-
-@pytest.fixture(scope="class")
-def sniffer():
-    return Sniffer.from_specification(
-        spec=NodeSpecification(
-            id="test_dupe_sniffer",
-            type="cala.nodes.detect.Sniffer",
-            params={"merge_threshold": 0.8},
+            params={"cell_radius": 2 * toy.cell_radii[0]},
         )
     )
 
@@ -117,52 +107,29 @@ class TestSliceNMF:
         else:
             raise AssertionError("Failed to detect a new component")
 
-        for new, old in zip([new_fp, new_tr], [toy.footprints, toy.traces]):
+        for new, old in zip([new_fp[0], new_tr[0]], [toy.footprints, toy.traces]):
             assert_scalar_multiple_arrays(new.array, old.array)
 
-
-class TestSniffer:
-    @pytest.fixture(scope="class")
-    def new_component(self, slice_nmf, single_cell_video, energy_shape):
-        return slice_nmf.process(Residual.from_array(single_cell_video.array), energy_shape)
-
-    def test_find_overlap_ids(self, toy, new_component, sniffer):
-        new_fp, new_tr = new_component
-
-        toy.add_cell(
-            position=Position(width=260, height=260),
-            radius=toy.cell_radii[0],
-            trace=toy.traces.array[0][::-1].values,
-            id_="cell_1",
+    def test_chunks(self, single_cell_video, energy_shape, toy):
+        nmf = SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.SliceNMF",
+                params={"cell_radius": 10},
+            )
         )
+        fpts, trcs = nmf.process(Residual.from_array(single_cell_video.array), energy_shape)
+        if not fpts or not trcs:
+            raise AssertionError("Failed to detect a new component")
 
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-        assert np.all(ids == ["cell_0", "cell_1"])
+        fpt_arr = xr.concat([f.array for f in fpts], dim="component")
 
-        toy.drop_cell("cell_1")
+        expected = toy.footprints.array[0]
+        result = (fpt_arr.sum(dim="component") > 0).astype(int)
 
-    def test_get_overlapped_traces(self, toy, new_component, sniffer):
-        new_fp, _ = new_component
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-
-        trace = sniffer._get_overlapped_traces(ids, toy.traces.array)
-
-        assert np.all(trace == toy.traces.array)
-
-    def test_has_unique_trace(self, toy, new_component, sniffer):
-        new_fp, new_tr = new_component
-        toy.add_cell(
-            Position(width=260, height=260), 30, np.array(range(toy.n_frames, 0, -1)), "cell_1"
-        )
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-        traces = sniffer._get_overlapped_traces(ids, toy.traces.array)
-        dupe = sniffer._get_synced_traces(new_tr.array, traces)
-
-        assert len(dupe) == 1
-        assert dupe[0][0] == "cell_0"
-        assert np.isclose(dupe[0][1], 1.0)
-
-        toy.drop_cell("cell_1")
+        assert np.array_equal(expected, result)
+        for trc in trcs:
+            assert_scalar_multiple_arrays(trc.array, toy.traces.array[0])
 
 
 class TestCataloger:
