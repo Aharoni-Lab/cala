@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
+import xarray as xr
 from noob.node import NodeSpecification
 
-from cala.assets import Residual
-from cala.nodes.detect import Cataloger, Energy, SliceNMF, Sniffer
+from cala.assets import AXIS, Footprints, Residual, Traces
+from cala.nodes.detect import Cataloger, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -38,14 +39,14 @@ def energy():
         spec=NodeSpecification(
             id="test_energy",
             type="cala.nodes.detect.Energy",
-            params={"gaussian_std": 1.0, "min_frames": 10},
+            params={"min_frames": 10},
         )
     )
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def energy_shape(energy, single_cell_video):
-    return energy.process(Residual.from_array(single_cell_video.array), trigger=single_cell_video)
+    return energy.process(Residual.from_array(single_cell_video.array), trigger=True)
 
 
 @pytest.fixture(scope="class")
@@ -54,18 +55,7 @@ def slice_nmf(toy):
         spec=NodeSpecification(
             id="test_slice_nmf",
             type="cala.nodes.detect.SliceNMF",
-            params={"cell_radius": 2 * toy.cell_radii[0], "validity_threshold": 0.8},
-        )
-    )
-
-
-@pytest.fixture(scope="class")
-def sniffer():
-    return Sniffer.from_specification(
-        spec=NodeSpecification(
-            id="test_dupe_sniffer",
-            type="cala.nodes.detect.Sniffer",
-            params={"merge_threshold": 0.8},
+            params={"cell_radius": 2 * toy.cell_radii[0]},
         )
     )
 
@@ -73,7 +63,9 @@ def sniffer():
 @pytest.fixture(scope="class")
 def cataloger():
     return Cataloger.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.detect.Cataloger")
+        spec=NodeSpecification(
+            id="test", type="cala.nodes.detect.Cataloger", params={"merge_threshold": 0.8}
+        )
     )
 
 
@@ -88,7 +80,7 @@ class TestEnergy:
 
     def test_process(self, energy, single_cell_video):
         energy_landscape = energy.process(
-            residuals=Residual.from_array(single_cell_video.array), trigger=single_cell_video
+            residuals=Residual.from_array(single_cell_video.array), trigger=True
         )
         assert energy_landscape.sizes == single_cell_video.array[0].sizes
         assert np.all(energy_landscape >= 0)
@@ -117,92 +109,150 @@ class TestSliceNMF:
         else:
             raise AssertionError("Failed to detect a new component")
 
-        for new, old in zip([new_fp, new_tr], [toy.footprints, toy.traces]):
+        for new, old in zip([new_fp[0], new_tr[0]], [toy.footprints, toy.traces]):
             assert_scalar_multiple_arrays(new.array, old.array)
 
-
-class TestSniffer:
-    @pytest.fixture(scope="class")
-    def new_component(self, slice_nmf, single_cell_video, energy_shape):
-        return slice_nmf.process(Residual.from_array(single_cell_video.array), energy_shape)
-
-    def test_find_overlap_ids(self, toy, new_component, sniffer):
-        new_fp, new_tr = new_component
-
-        toy.add_cell(
-            position=Position(width=260, height=260),
-            radius=toy.cell_radii[0],
-            trace=toy.traces.array[0][::-1].values,
-            id_="cell_1",
+    def test_chunks(self, single_cell_video, energy_shape, toy):
+        nmf = SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.SliceNMF",
+                params={"cell_radius": 10},
+            )
         )
+        fpts, trcs = nmf.process(Residual.from_array(single_cell_video.array), energy_shape)
+        if not fpts or not trcs:
+            raise AssertionError("Failed to detect a new component")
 
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-        assert np.all(ids == ["cell_0", "cell_1"])
+        fpt_arr = xr.concat([f.array for f in fpts], dim="component")
 
-        toy.drop_cell("cell_1")
+        expected = toy.footprints.array[0]
+        result = (fpt_arr.sum(dim="component") > 0).astype(int)
 
-    def test_get_overlapped_traces(self, toy, new_component, sniffer):
-        new_fp, _ = new_component
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-
-        trace = sniffer._get_overlapped_traces(ids, toy.traces.array)
-
-        assert np.all(trace == toy.traces.array)
-
-    def test_has_unique_trace(self, toy, new_component, sniffer):
-        new_fp, new_tr = new_component
-        toy.add_cell(
-            Position(width=260, height=260), 30, np.array(range(toy.n_frames, 0, -1)), "cell_1"
-        )
-        ids = sniffer._find_overlap_ids(new_fp.array, toy.footprints.array)
-        traces = sniffer._get_overlapped_traces(ids, toy.traces.array)
-        dupe = sniffer._get_synced_traces(new_tr.array, traces)
-
-        assert len(dupe) == 1
-        assert dupe[0][0] == "cell_0"
-        assert np.isclose(dupe[0][1], 1.0)
-
-        toy.drop_cell("cell_1")
+        assert np.array_equal(expected, result)
+        for trc in trcs:
+            assert_scalar_multiple_arrays(trc.array, toy.traces.array[0])
 
 
 class TestCataloger:
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="function")
     def new_component(self, single_cell_video, energy_shape):
         return SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.slice_nmf.SliceNMF",
-                params={"cell_radius": 60, "validity_threshold": 0.8},
+                params={"cell_radius": 60},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
-            new_fp=new_fp,
-            new_tr=new_tr,
+            new_fp=new_fp[0].array,
+            new_tr=new_tr[0].array,
         )
 
-        assert np.array_equal(fp.array, new_fp.array)
-        assert np.array_equal(tr.array, new_tr.array)
+        assert np.array_equal(fp.array, new_fp[0].array)
+        assert np.array_equal(tr.array, new_tr[0].array)
 
-    def test_merge(self, cataloger, toy, single_cell_video, energy_shape):
+    def test_merge_with(self, cataloger, toy, single_cell_video, energy_shape):
         new_component = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.slice_nmf.SliceNMF",
-                params={"cell_radius": 10, "validity_threshold": 0.8},
+                params={"cell_radius": 10},
             )
         ).process(Residual.from_array(single_cell_video.array), energy_shape)
 
         new_fp, new_tr = new_component
-        fp, tr = cataloger._merge(
-            new_fp, new_tr, toy.footprints, toy.traces, duplicates=[("cell_0", 1.0)]
+        fp, tr = cataloger._merge_with(
+            new_fp[0].array, new_tr[0].array, toy.footprints.array, toy.traces.array, ["cell_0"]
         )
 
-        movie_result = fp.array @ tr.array
+        movie_result = (fp.array @ tr.array).reset_coords(
+            [AXIS.id_coord, AXIS.confidence_coord], drop=True
+        )
 
-        movie_new_comp = new_fp.array @ new_tr.array
-        movie_expected = single_cell_video.array + movie_new_comp
+        movie_new_comp = new_fp[0].array @ new_tr[0].array
+        movie_expected = (single_cell_video.array + movie_new_comp).transpose(*movie_result.dims)
 
-        np.testing.assert_allclose(movie_result, movie_expected.transpose(*movie_result.dims))
+        xr.testing.assert_allclose(movie_result, movie_expected)
+
+    def test_process_ideal(self, cataloger, separate_cells, energy):
+        """
+        test cataloging separate cells. ideal case with cell_radius=5
+        """
+        movie = separate_cells.make_movie().array
+        ener = energy.process(Residual.from_array(movie), trigger=True)
+        fps, trs = SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
+                params={"cell_radius": 5},
+            )
+        ).process(Residual.from_array(movie), ener)
+
+        # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
+        new_fps, new_trs = cataloger.process(
+            fps, trs, separate_cells.footprints, separate_cells.traces
+        )
+
+        result = new_fps.array @ new_trs.array
+
+        # would not detect cell_0 and cell_1 since they're uniform
+        detected = ["cell_2", "cell_3"]
+        expected = (
+            separate_cells.footprints.array.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: detected})
+            @ separate_cells.traces.array.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: detected})
+        ).transpose(*result.dims) * 2
+
+        assert new_fps.array.attrs.get("replaces") == detected
+        xr.testing.assert_allclose(result, expected)
+
+    def test_process_fail(self, cataloger, separate_cells, energy):
+        """
+        test cataloging separate cells. nmf supposed to fail with radius=25 (grabs too many cells)
+        """
+        movie = separate_cells.make_movie().array
+        ener = energy.process(Residual.from_array(movie), trigger=True)
+        fps, trs = SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
+                params={"cell_radius": 25},
+            )
+        ).process(Residual.from_array(movie), ener)
+
+        # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
+        new_fps, new_trs = cataloger.process(
+            fps, trs, separate_cells.footprints, separate_cells.traces
+        )
+
+        assert new_fps.array is None and new_trs.array is None
+
+    def test_process_connected(self, cataloger, connected_cells, energy):
+        """
+        trial with connected cells 🙏
+        """
+        movie = connected_cells.make_movie().array
+        ener = energy.process(Residual.from_array(movie), trigger=True)
+        fps, trs = SliceNMF.from_specification(
+            spec=NodeSpecification(
+                id="test_slice_nmf",
+                type="cala.nodes.detect.slice_nmf.SliceNMF",
+                params={"cell_radius": 4},
+            )
+        ).process(Residual.from_array(movie), ener)
+
+        # NOTE: by manually putting in connected_cells,
+        # we're forcing a double-detection in this test
+        new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
+
+        result = (new_fps.array @ new_trs.array).where(new_fps.array.max(dim=AXIS.component_dim), 0)
+        expected = movie.where(new_fps.array.max(dim=AXIS.component_dim), 0)
+
+        assert new_fps.array is not None
+        # 1. the footprints do not overlap
+        assert np.all(np.triu(new_fps.array @ new_fps.array.rename(AXIS.component_rename), 1) == 0)
+        # 2. the trace and footprint values are accurate (where they do exist)
+        xr.testing.assert_allclose(result, expected.transpose(*result.dims), atol=1e-5)

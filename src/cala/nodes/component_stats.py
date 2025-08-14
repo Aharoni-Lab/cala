@@ -1,7 +1,6 @@
-import numpy as np
 import xarray as xr
 
-from cala.assets import CompStats, Frame, PopSnap, Trace, Traces
+from cala.assets import CompStats, Frame, PopSnap, Traces
 from cala.models import AXIS
 
 
@@ -70,7 +69,7 @@ def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) 
     return component_stats
 
 
-def ingest_component(component_stats: CompStats, traces: Traces, new_trace: Trace) -> CompStats:
+def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Traces) -> CompStats:
     """
     Update component statistics with new components.
 
@@ -85,33 +84,37 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_trace: Trac
 
     Args:
         traces (Traces): Current temporal traces in buffer
-        new_trace (Traces): Newly detected temporal components
+        new_traces (Traces): Newly detected temporal components
     """
-    if new_trace.array is None:
+    if new_traces.array is None:
         return component_stats
 
     # Get current frame index (starting with 1)
-    t = new_trace.array[AXIS.frame_coord].max().item() + 1
+    t = new_traces.array[AXIS.frame_coord].max().item() + 1
 
-    c_new = new_trace.array.volumize.dim_with_coords(
-        dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
-    )
+    c_new = new_traces.array
     M = component_stats.array
 
     if M is None or M.size == 1:
         component_stats.array = initialize(traces).array
         return component_stats
 
-    if c_new[AXIS.id_coord].item() in M[AXIS.id_coord].values:
-        # trace REPLACEMENT
-        dim_idx = np.where(M[AXIS.id_coord].values == c_new[AXIS.id_coord].item())[0].tolist()
-        M = M.drop_sel({AXIS.component_dim: dim_idx, f"{AXIS.component_dim}'": dim_idx})
+    merged_ids = c_new.attrs.get("replaces", [])
+    intact_ids = [id_ for id_ in M[AXIS.id_coord].values if id_ not in merged_ids]
+
+    if merged_ids:
+        M = (
+            M.set_xindex([AXIS.id_coord, f"{AXIS.id_coord}'"])
+            .sel({AXIS.id_coord: intact_ids, f"{AXIS.id_coord}'": intact_ids})
+            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
+        )
 
     # think i also have to remove the ID from c_buf,
     # since it's been already added in trace.component_ingest
     c_buf = traces.array
-    id_idx = np.where(c_buf[AXIS.id_coord].values == c_new[AXIS.id_coord].item())[0].tolist()
-    c_buf = c_buf.drop_sel({AXIS.component_dim: id_idx})
+    c_buf = (
+        c_buf.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+    )
 
     # Compute cross-correlation between buffer and new components
     # C_buf^T c_new

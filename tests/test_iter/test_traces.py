@@ -2,25 +2,8 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, Trace, Traces
+from cala.assets import Frame, Traces
 from cala.models import AXIS
-from cala.testing.toy import FrameDims, Position, Toy
-
-
-@pytest.fixture
-def separate_cells() -> Toy:
-    n_frames = 50
-
-    return Toy(
-        n_frames=n_frames,
-        frame_dims=FrameDims(width=50, height=50),
-        cell_radii=3,
-        cell_positions=[Position(width=15, height=15), Position(width=35, height=35)],
-        cell_traces=[
-            np.array(range(n_frames), dtype=float),
-            np.array(range(n_frames, 0, -1), dtype=float),
-        ],
-    )
 
 
 @pytest.fixture
@@ -84,8 +67,15 @@ def test_ingest_component(comp_update, toy, request) -> None:
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
 
-    trace = Trace.from_array(toy.traces.array.isel({AXIS.component_dim: -1}))
+    new_traces = Traces.from_array(
+        toy.traces.array.isel({AXIS.component_dim: [-1], AXIS.frames_dim: slice(None, -10)})
+    )
 
-    expected = comp_update.process(traces, trace)
+    new_traces.array.attrs["replaces"] = ["cell_0"]
 
-    assert expected == toy.traces
+    result = comp_update.process(traces, new_traces)
+
+    expected = toy.traces.array.drop_sel({AXIS.component_dim: 0})
+    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(40, None)}] = 0
+
+    assert result.array.equals(expected)

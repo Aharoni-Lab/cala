@@ -4,27 +4,23 @@ import xarray as xr
 from noob import Name
 from noob.node import Node
 from pydantic import ConfigDict
-from scipy.ndimage import gaussian_filter
 from skimage.restoration import estimate_sigma
 from sklearn.feature_extraction.image import PatchExtractor
 
-from cala.assets import Frame, Residual
+from cala.assets import Residual
 from cala.models import AXIS
 
 
 class Energy(Node):
-    gaussian_std: float
-    """not sure why we're smoothing the residual...??"""
     min_frames: int
     """minimum number of frames to consider to begin detecting cells"""
 
     noise_level_: float | None = None
-    sampler: PatchExtractor = PatchExtractor(patch_size=(20, 20), max_patches=30)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def process(
-        self, residuals: Residual, trigger: Frame
+        self, residuals: Residual, trigger: bool = True
     ) -> A[xr.DataArray | None, Name("energy")]:
         if residuals.array is None or residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return xr.DataArray()
@@ -43,23 +39,14 @@ class Energy(Node):
         return E
 
     def _estimate_gaussian_noise(self, residuals: xr.DataArray) -> float:
-        patches = self.sampler.transform(residuals)
+        sampler = PatchExtractor(patch_size=(20, 20), max_patches=30)
+        patches = sampler.transform(residuals)
         return float(estimate_sigma(patches))
 
     def _center_to_median(self, arr: xr.DataArray) -> xr.DataArray:
         """Process residuals through median subtraction and spatial filtering."""
         # Center residuals: why median and not mean?
         pixels_median = arr.median(dim=AXIS.frames_dim)
-        arr_centered = arr - pixels_median
-
-        # Apply spatial filter -- why are we doing this??
-        V = xr.apply_ufunc(
-            lambda x: gaussian_filter(x, self.gaussian_std),
-            arr_centered,
-            input_core_dims=[[*AXIS.spatial_dims]],
-            output_core_dims=[[*AXIS.spatial_dims]],
-            vectorize=True,
-            dask="allowed",
-        )
+        V = arr - pixels_median
 
         return V

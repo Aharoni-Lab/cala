@@ -65,7 +65,7 @@ def comp_update() -> Node:
 def test_ingest_component(init, comp_update, separate_cells):
     pre_ingest = init.process(
         traces=Traces.from_array(
-            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -2)})
         ),
         frames=separate_cells.make_movie(),
     )
@@ -73,7 +73,9 @@ def test_ingest_component(init, comp_update, separate_cells):
     result = comp_update.process(
         pixel_stats=pre_ingest,
         frames=separate_cells.make_movie(),
-        new_trace=Traces.from_array(separate_cells.traces.array.isel({AXIS.component_dim: [-1]})),
+        new_traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(-2, None)})
+        ),
         traces=separate_cells.traces,
     )
 

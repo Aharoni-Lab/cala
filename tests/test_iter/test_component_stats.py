@@ -68,17 +68,20 @@ def comp_update() -> Node:
 
 
 def test_ingest_component(init, comp_update, separate_cells):
+    slice_loc = -2
 
     result = comp_update.process(
         component_stats=init.process(
             Traces.from_array(
-                separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+                separate_cells.traces.array.isel({AXIS.component_dim: slice(None, slice_loc)})
             )
         ),
         traces=Traces.from_array(
-            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(None, slice_loc)})
         ),
-        new_trace=Trace.from_array(separate_cells.traces.array.isel({AXIS.component_dim: -1})),
+        new_traces=Traces.from_array(
+            separate_cells.traces.array.isel({AXIS.component_dim: slice(slice_loc, None)})
+        ),
     )
 
     expected = init.process(separate_cells.traces)
