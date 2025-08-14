@@ -1,4 +1,4 @@
-noob_id: cala-two-cells
+noob_id: cala-odl
 noob_model: noob.cube.CubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
 
@@ -30,10 +30,9 @@ assets:
 
 nodes:
   source:
-    type: cala.testing.two_cells_source
+    type: cala.testing.single_cell_source
     params:
       n_frames: 30
-
   denoise:
     type: cala.nodes.prep.denoise
     params:
@@ -53,6 +52,12 @@ nodes:
       drift_speed: 1.0
     depends:
       - frame: glow.frame
+  size_est:
+    type: cala.nodes.prep.SizeEst
+    params:
+      hardset_radius: 10
+    depends:
+      - frame: motion.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
@@ -94,6 +99,24 @@ nodes:
       - footprints: assets.footprints
       - traces: assets.traces
 
+  over_est:
+    type: cala.nodes.remove.get_razed_ids
+    params:
+      min_thicc: 3
+    depends:
+      - footprints: assets.footprints
+      - trigger: residual.movie
+
+  clean:
+    type: cala.nodes.remove.filter_components
+    depends:
+      - footprints: assets.footprints
+      - traces: assets.traces
+      - pix_stats: assets.pix_stats
+      - comp_stats: assets.comp_stats
+      - overlaps: assets.overlaps
+      - keep_ids: over_est.keep_ids
+
   # DETECT BEGINS
   energy:
     type: cala.nodes.detect.Energy
@@ -104,11 +127,10 @@ nodes:
       - trigger: trace_frame.latest_trace
   nmf:
     type: cala.nodes.detect.SliceNMF
-    params:
-      cell_radius: 10
     depends:
       - residuals: residual.movie
       - energy: energy.energy
+      - detect_radius: size_est.radius
   catalog:
     type: cala.nodes.detect.Cataloger
     params:

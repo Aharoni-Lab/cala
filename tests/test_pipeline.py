@@ -1,18 +1,27 @@
 import pytest
 import xarray as xr
 from noob import Cube, SynchronousRunner, Tube
+from noob.node import Node, NodeSpecification
 
 from cala.models import AXIS
 
 
-@pytest.fixture(params=["cala-single-cell", "cala-two-cells", "cala-two-overlap-cells"])
+@pytest.fixture(params=["single_cell_source", "two_cells_source", "two_overlapping_source"])
 def tube(request):
-    return Tube.from_specification(request.param)
+    tube = Tube.from_specification("cala-odl")
+    source = Node.from_specification(
+        NodeSpecification(
+            id="source", type=f"cala.testing.{request.param}", params={"n_frames": 50}
+        )
+    )
+    tube.nodes["source"] = source
+
+    return tube
 
 
 @pytest.fixture
 def cube():
-    return Cube.from_specification("cala-single-cell")
+    return Cube.from_specification("cala-odl")
 
 
 @pytest.fixture
