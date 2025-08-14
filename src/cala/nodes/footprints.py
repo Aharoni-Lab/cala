@@ -1,7 +1,8 @@
+from typing import Annotated as A
 import cv2
 import numpy as np
 import xarray as xr
-from noob import process_method
+from noob import process_method, Name
 
 from cala.assets import CompStats, Footprint, Footprints, PixStats
 from cala.models import AXIS
@@ -22,7 +23,7 @@ class Footprinter:
     @process_method
     def ingest_frame(
         self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats
-    ) -> Footprints:
+    ) -> A[Footprints, Name("footprints")]:
         """
         Update spatial footprints using sufficient statistics.
 
@@ -91,24 +92,25 @@ class Footprinter:
         )
 
 
-def ingest_component(footprints: Footprints, new_footprint: Footprint | Footprints) -> Footprints:
-    if new_footprint.array is None:
+def ingest_component(footprints: Footprints, new_footprints: Footprints) -> Footprints:
+    if new_footprints.array is None:
         return footprints
+
+    a = footprints.array
+    a_det = new_footprints.array
 
     if footprints.array is None:
-        footprints.array = new_footprint.array.volumize.dim_with_coords(
-            dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
-        )
+        footprints.array = a_det
         return footprints
 
-    if new_footprint.array[AXIS.id_coord].item() in footprints.array[AXIS.id_coord].values:
-        # if replacing (post-merging in catalog)
-        footprints.array.set_xindex(AXIS.id_coord).loc[
-            {AXIS.id_coord: new_footprint.array[AXIS.id_coord].item()}
-        ] = new_footprint.array
-    else:
-        # if new
-        footprints.array = xr.concat(
-            [footprints.array, new_footprint.array], dim=AXIS.component_dim
+    merged = a_det.attrs.get("replaces")
+    if merged:
+        a = (
+            a.set_xindex(AXIS.id_coord)
+            .sel({AXIS.id_coord: [id_ for id_ in a[AXIS.id_coord].values if id_ not in merged]})
+            .reset_index(AXIS.id_coord)
         )
+
+    footprints.array = xr.concat([a, a_det], dim=AXIS.component_dim, combine_attrs="drop")
+
     return footprints

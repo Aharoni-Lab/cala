@@ -201,11 +201,11 @@ class FrameUpdate:
         ).assign_coords(y[AXIS.frames_dim].coords)
 
 
-def ingest_component(traces: Traces, new_traces: list[Trace]) -> Traces:
+def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     """
 
     :param traces:
-    :param new_trace: Can be either a newly registered trace or an updated existing one.
+    :param new_traces: Can be either a newly registered trace or an updated existing one.
     :return:
     """
 
@@ -213,12 +213,7 @@ def ingest_component(traces: Traces, new_traces: list[Trace]) -> Traces:
         return traces
 
     c = traces.array
-    c_det = xr.concat(
-        [tr.array for tr in new_traces],
-        dim=AXIS.component_dim,
-        coords=[AXIS.id_coord, AXIS.confidence_coord],
-        combine_attrs=combine_attr_replaces,
-    )
+    c_det = new_traces.array
 
     if c is None:
         traces.array = c_det
