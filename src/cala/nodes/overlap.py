@@ -22,7 +22,9 @@ def initialize(
     return Overlaps.from_array(data)
 
 
-def ingest_frame(footprints: Footprints) -> Overlaps:
+def ingest_frame(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
+    if footprints.array is None:
+        return overlaps
     return initialize(footprints)
 
 

@@ -156,6 +156,7 @@ nodes:
   overlaps_update:
     type: cala.nodes.overlap.ingest_frame
     depends:
+      - overlaps: assets.overlaps
       - footprints: footprints_frame.footprints
 
   return:
