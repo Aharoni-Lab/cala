@@ -1,7 +1,6 @@
-import numpy as np
 import xarray as xr
 
-from cala.assets import CompStats, Frame, PopSnap, Trace, Traces
+from cala.assets import CompStats, Frame, PopSnap, Traces
 from cala.models import AXIS
 
 

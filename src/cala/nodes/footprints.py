@@ -1,10 +1,11 @@
 from typing import Annotated as A
+
 import cv2
 import numpy as np
 import xarray as xr
-from noob import process_method, Name
+from noob import Name, process_method
 
-from cala.assets import CompStats, Footprint, Footprints, PixStats
+from cala.assets import CompStats, Footprints, PixStats
 from cala.models import AXIS
 
 

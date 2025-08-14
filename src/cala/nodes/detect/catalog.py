@@ -1,4 +1,5 @@
-from typing import Annotated as A, Iterable, Hashable
+from collections.abc import Hashable, Iterable
+from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
@@ -10,7 +11,7 @@ from xarray import Coordinates
 
 from cala.assets import Footprint, Footprints, Movie, Trace, Traces
 from cala.models import AXIS
-from cala.util import create_id, combine_attr_replaces
+from cala.util import combine_attr_replaces, create_id
 
 
 class Cataloger(Node):
@@ -38,8 +39,8 @@ class Cataloger(Node):
         combined_fps = []
         combined_trs = []
 
-        for l in set(label):
-            group = np.where(label == l)[0]
+        for lbl in set(label):
+            group = np.where(label == lbl)[0]
             fps = new_fps.sel({AXIS.component_dim: group})
             trs = new_trs.sel({AXIS.component_dim: group})
             res = fps @ trs

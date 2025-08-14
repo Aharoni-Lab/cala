@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.assets import Frame, Movie, PixStats, PopSnap, Trace, Traces
+from cala.assets import Frame, Movie, PixStats, PopSnap, Traces
 from cala.models import AXIS
 
 

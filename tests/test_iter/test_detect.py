@@ -1,9 +1,9 @@
 import numpy as np
-import xarray as xr
 import pytest
+import xarray as xr
 from noob.node import NodeSpecification
 
-from cala.assets import Residual, AXIS, Footprints, Traces
+from cala.assets import AXIS, Footprints, Residual, Traces
 from cala.nodes.detect import Cataloger, Energy, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
@@ -244,7 +244,8 @@ class TestCataloger:
             )
         ).process(Residual.from_array(movie), ener)
 
-        # NOTE: by manually putting in connected_cells, we're forcing a double-detection in this test
+        # NOTE: by manually putting in connected_cells,
+        # we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
 
         result = (new_fps.array @ new_trs.array).where(new_fps.array.max(dim=AXIS.component_dim), 0)
