@@ -58,8 +58,8 @@ class SliceNMF(Node):
                     trcs.append(Trace.from_array(c_new))
                     residuals = (residuals - a_new @ c_new).clip(0)
                 else:
-                    energy.loc[{AXIS.spatial_dims: slice_[AXIS.spatial_dims]}] = 0
-                    residuals.loc[{AXIS.spatial_dims: slice_[AXIS.spatial_dims]}] = 0
+                    energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
+                    residuals.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
         return fpts, trcs
 
     def _get_max_energy_slice(

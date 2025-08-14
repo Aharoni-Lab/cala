@@ -10,7 +10,7 @@ from xarray import Coordinates
 
 from cala.assets import Footprint, Footprints, Movie, Trace, Traces
 from cala.models import AXIS
-from cala.util import create_id
+from cala.util import create_id, combine_attr_replaces
 
 
 class Cataloger(Node):
@@ -22,10 +22,10 @@ class Cataloger(Node):
         new_trs: list[Trace],
         existing_fp: Footprints | None = None,
         existing_tr: Traces | None = None,
-    ) -> tuple[A[list[Footprint], Name("new_footprints")], A[list[Trace], Name("new_traces")]]:
+    ) -> tuple[A[Footprints, Name("new_footprints")], A[Traces, Name("new_traces")]]:
 
         if not new_fps or not new_trs:
-            return [], []
+            return Footprints(), Traces()
 
         existing_fp = existing_fp.array
         existing_tr = existing_tr.array
@@ -57,7 +57,7 @@ class Cataloger(Node):
 
         # we're not doing connected components because it's not square matrix
         for i, dupes in enumerate(conn_mat.transpose(AXIS.component_dim, ...)):
-            if not dupes or not any(dupes):
+            if not any(dupes) or not existing_fp or not existing_tr:
                 footprint, trace = self._register(new_fps[i], new_trs[i])
             else:
                 dupe_ids = dupes.where(dupes, drop=True)[f"{AXIS.id_coord}'"].values
@@ -65,19 +65,32 @@ class Cataloger(Node):
                 tr = new_trs.sel({AXIS.component_dim: i})
                 footprint, trace = self._merge_with(fp, tr, existing_fp, existing_tr, dupe_ids)
 
-            footprints.append(footprint)
-            traces.append(trace)
+            footprints.append(footprint.array)
+            traces.append(trace.array)
 
-        return footprints, traces
+        footprints = xr.concat(
+            footprints,
+            dim=AXIS.component_dim,
+            coords=[AXIS.id_coord, AXIS.confidence_coord],
+            combine_attrs=combine_attr_replaces,
+        )
+        traces = xr.concat(
+            traces,
+            dim=AXIS.component_dim,
+            coords=[AXIS.id_coord, AXIS.confidence_coord],
+            combine_attrs=combine_attr_replaces,
+        )
+
+        return Footprints.from_array(footprints), Traces.from_array(traces)
 
     def _register(
-        self, new_fp: Footprint, new_tr: Trace, confidence: float = 0.0
+        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0.0
     ) -> tuple[Footprint, Trace]:
 
         new_id = create_id()
 
         footprint = (
-            new_fp.array.expand_dims(AXIS.component_dim)
+            new_fp.expand_dims(AXIS.component_dim)
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [new_id]),
@@ -87,7 +100,7 @@ class Cataloger(Node):
             .isel({AXIS.component_dim: 0})
         )
         trace = (
-            new_tr.array.expand_dims(AXIS.component_dim)
+            new_tr.expand_dims(AXIS.component_dim)
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [new_id]),
