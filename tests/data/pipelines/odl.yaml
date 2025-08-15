@@ -127,6 +127,9 @@ nodes:
       - trigger: trace_frame.latest_trace
   nmf:
     type: cala.nodes.detect.SliceNMF
+    params:
+      nmf_kwargs:
+        tol: 0.0001
     depends:
       - residuals: residual.movie
       - energy: energy.energy
