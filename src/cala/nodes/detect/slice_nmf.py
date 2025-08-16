@@ -10,11 +10,15 @@ from pydantic import Field, PrivateAttr
 from sklearn.decomposition import NMF
 
 from cala.assets import Footprint, Residual, Trace
-from cala.models import AXIS
 from cala.logging import init_logger
+from cala.models import AXIS
 
 
 class SliceNMF(Node):
+    min_frames: int
+    """Wait until this number of frames to begin detecting."""
+    detect_thresh: float
+    """Minimum detection threshold for brightness fluctuation."""
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     error_: float = Field(None)
@@ -24,48 +28,52 @@ class SliceNMF(Node):
 
     def model_post_init(self, context: Any, /) -> None:
         self.nmf_kwargs.update({"n_components": 1, "init": "nndsvd"})
-        if not self.nmf_kwargs.get("tol", None):
-            self.nmf_kwargs["tol"] = 1e-4
-
         self._model = NMF(**self.nmf_kwargs)
 
     def process(
-        self, residuals: Residual, energy: xr.DataArray, detect_radius: int
+        self, residuals: Residual, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
         res = residuals.array.copy()
+
+        if res.sizes[AXIS.frames_dim] < self.min_frames:
+            return [], []
+
+        energy = self._get_energy(res)
 
         fps = []
         trs = []
 
-        if energy.size > 1:
-            while res.max().item() > 0.9:  # this takes way too long.
-                # while np.sqrt(energy.max()).item() > self.nmf_kwargs["tol"]:  # or use res directly
-                # Find and analyze neighborhood of maximum variance
-                slice_ = self._get_max_energy_slice(
-                    arr=res, energy_landscape=energy, radius=detect_radius
-                )
+        while np.sqrt(energy.max()).item() > self.detect_thresh:  # or use res directly
+            # Find and analyze neighborhood of maximum variance
+            slice_ = self._get_max_energy_slice(
+                arr=res, energy_landscape=energy, radius=detect_radius
+            )
 
-                a_new, c_new = self._local_nmf(
-                    slice_=slice_,
-                    spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
-                )
+            a_new, c_new = self._local_nmf(
+                slice_=slice_,
+                spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
+            )
 
-                l1_norm = slice_.sum().item()
-                l0_norm = np.prod(slice_.shape)  # this fails when the residuals are tiny
-                comp_recon = a_new @ c_new
+            l1_norm = slice_.sum().item()
+            # l0_norm = np.prod(slice_.shape)  # this fails when the residuals are tiny
+            comp_recon = a_new @ c_new
 
-                shift = (comp_recon).median(dim=AXIS.frames_dim)
-                comp_energy = ((comp_recon - shift) ** 2).sum(dim=AXIS.frames_dim)
-                energy -= comp_energy
+            energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
-                if (self.error_ / l1_norm) <= self.nmf_kwargs["tol"]:
-                    fps.append(Footprint.from_array(a_new))
-                    trs.append(Trace.from_array(c_new))
-                    res = (res - comp_recon).clip(0)
-                else:
-                    energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
-                    res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
+            if (self.error_ / l1_norm) <= self._model.tol:
+                fps.append(Footprint.from_array(a_new))
+                trs.append(Trace.from_array(c_new))
+                res = (res - comp_recon).clip(0)
+            else:
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
+
         return fps, trs
+
+    def _get_energy(self, res: xr.DataArray) -> xr.DataArray:
+        pixels_median = res.median(dim=AXIS.frames_dim)
+        V = res - pixels_median
+
+        return (V**2).sum(dim=AXIS.frames_dim)
 
     def _get_max_energy_slice(
         self,
