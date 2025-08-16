@@ -75,7 +75,6 @@ nodes:
       - footprints: assets.footprints
       - frame: motion.frame
       - overlaps: assets.overlaps
-
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
@@ -98,41 +97,26 @@ nodes:
       - frames: assets.buffer
       - footprints: assets.footprints
       - traces: assets.traces
-
-  over_est:
-    type: cala.nodes.remove.get_razed_ids
+  cleanup:
+    type: cala.nodes.cleanup.purge_razed_components
     params:
       min_thicc: 3
-    depends:
-      - footprints: assets.footprints
-      - trigger: residual.movie
-
-  clean:
-    type: cala.nodes.remove.filter_components
     depends:
       - footprints: assets.footprints
       - traces: assets.traces
       - pix_stats: assets.pix_stats
       - comp_stats: assets.comp_stats
       - overlaps: assets.overlaps
-      - keep_ids: over_est.keep_ids
+      - trigger: residual.movie
 
   # DETECT BEGINS
-  energy:
-    type: cala.nodes.detect.Energy
-    params:
-      min_frames: 10
-    depends:
-      - residuals: residual.movie
-      - trigger: trace_frame.latest_trace
   nmf:
     type: cala.nodes.detect.SliceNMF
     params:
-      nmf_kwargs:
-        tol: 0.0001
+      min_frames: 10
+      detect_thresh: 1.0
     depends:
       - residuals: residual.movie
-      - energy: energy.energy
       - detect_radius: size_est.radius
   catalog:
     type: cala.nodes.detect.Cataloger
@@ -180,7 +164,7 @@ nodes:
       - component_stats: comp_component.value
 
   overlaps_update:
-    type: cala.nodes.overlap.ingest_frame
+    type: cala.nodes.overlap.initialize
     depends:
       - overlaps: assets.overlaps
       - footprints: footprints_frame.footprints

@@ -34,8 +34,8 @@ class Cataloger(Node):
         new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
 
-        conn_mat = self._connection_matrix(new_fps, new_trs)
-        num, label = connected_components(conn_mat)
+        merge_mat = self._merge_matrix(new_fps, new_trs)
+        num, label = connected_components(merge_mat)
         combined_fps = []
         combined_trs = []
 
@@ -52,12 +52,12 @@ class Cataloger(Node):
         new_fps = xr.concat([fp.array for fp in combined_fps], dim=AXIS.component_dim)
         new_trs = xr.concat([tr.array for tr in combined_trs], dim=AXIS.component_dim)
 
-        conn_mat = self._connection_matrix(new_fps, new_trs, existing_fp, existing_tr)
+        merge_mat = self._merge_matrix(new_fps, new_trs, existing_fp, existing_tr)
         footprints = []
         traces = []
 
         # we're not doing connected components because it's not square matrix
-        for i, dupes in enumerate(conn_mat.transpose(AXIS.component_dim, ...)):
+        for i, dupes in enumerate(merge_mat.transpose(AXIS.component_dim, ...)):
             if not any(dupes) or existing_fp is None or existing_tr is None:
                 footprint, trace = self._register(new_fps[i], new_trs[i])
             else:
@@ -197,7 +197,7 @@ class Cataloger(Node):
 
         return Footprint.from_array(a_new), Trace.from_array(c_new)
 
-    def _connection_matrix(
+    def _merge_matrix(
         self,
         fps: xr.DataArray,
         trs: xr.DataArray,
