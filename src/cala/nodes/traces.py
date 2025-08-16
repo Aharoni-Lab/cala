@@ -208,11 +208,11 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     :return:
     """
 
-    if not new_traces:
-        return traces
-
     c = traces.array
     c_det = new_traces.array
+
+    if c_det is None:
+        return traces
 
     if c is None:
         traces.array = c_det

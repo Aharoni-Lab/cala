@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, Traces
+from cala.assets import Frame, Overlaps, Traces
 from cala.models import AXIS
 
 
@@ -42,7 +42,7 @@ def test_ingest_frame(frame_update, toy, request) -> None:
     traces = Traces.from_array(toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
 
     frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frames_dim: -1}))
-    overlap = xray.process(footprints=toy.footprints)
+    overlap = xray.process(overlaps=Overlaps(), footprints=toy.footprints)
 
     result = frame_update.process(
         traces=traces,

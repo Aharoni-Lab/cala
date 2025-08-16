@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Footprint, Footprints
+from cala.assets import Footprint, Footprints, Overlaps
 from cala.models import AXIS
 
 
@@ -14,12 +14,12 @@ def init() -> Node:
 
 
 def test_init(init, separate_cells, connected_cells) -> None:
-    overlap = init.process(footprints=separate_cells.footprints)
+    overlap = init.process(overlaps=Overlaps(), footprints=separate_cells.footprints)
 
     assert np.trace(overlap.array) == len(separate_cells.cell_ids)
     assert np.all(np.triu(overlap.array, k=1) == 0)
 
-    result = init.process(footprints=connected_cells.footprints)
+    result = init.process(overlaps=Overlaps(), footprints=connected_cells.footprints)
 
     expected = np.array([[1, 0, 1, 0], [0, 1, 1, 0], [1, 1, 1, 1], [0, 0, 1, 1]])
 
@@ -39,9 +39,9 @@ def test_ingest_component(init, comp_update, toy, request) -> None:
     base = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
     new = Footprint.from_array(toy.footprints.array.isel({AXIS.component_dim: -1}))
 
-    pre_ingest = init.process(footprints=base)
+    pre_ingest = init.process(overlaps=Overlaps(), footprints=base)
 
     result = comp_update.process(overlaps=pre_ingest, footprints=base, new_footprints=new)
-    expected = init.process(footprints=toy.footprints)
+    expected = init.process(overlaps=Overlaps(), footprints=toy.footprints)
 
     assert result == expected

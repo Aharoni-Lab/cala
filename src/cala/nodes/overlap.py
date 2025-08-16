@@ -5,27 +5,17 @@ from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
 
 
-def initialize(
-    footprints: Footprints,
-) -> Overlaps:
-    """
-    Sparse matrix of component footprint overlaps.
-
-    Args:
-        footprints (Footprints): Current temporal component c_t.
-    """
+def initialize(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
     A = footprints.array
 
-    # Use matrix multiplication with broadcasting to compute overlaps
-    data = (A @ A.rename(AXIS.component_rename)) > 0
-
-    return Overlaps.from_array(data)
-
-
-def ingest_frame(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
-    if footprints.array is None:
+    if A is None:
         return overlaps
-    return initialize(footprints)
+
+    V = (A @ A.rename(AXIS.component_rename)) > 0
+
+    overlaps.array = V
+
+    return overlaps
 
 
 def ingest_component(
@@ -44,8 +34,7 @@ def ingest_component(
         return overlaps
 
     elif overlaps.array is None or overlaps.array.size == 1:
-        overlaps.array = initialize(footprints).array
-        return overlaps
+        return initialize(overlaps, footprints)
 
     V = overlaps.array
 

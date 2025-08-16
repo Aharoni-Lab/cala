@@ -104,7 +104,8 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
 
     if merged_ids:
         M = (
-            M.set_xindex([AXIS.id_coord, f"{AXIS.id_coord}'"])
+            M.set_xindex(AXIS.id_coord)
+            .set_xindex(f"{AXIS.id_coord}'")
             .sel({AXIS.id_coord: intact_ids, f"{AXIS.id_coord}'": intact_ids})
             .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )

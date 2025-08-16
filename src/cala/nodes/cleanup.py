@@ -9,9 +9,37 @@ from cala.assets import CompStats, Footprints, Overlaps, PixStats, Traces
 from cala.models import AXIS
 
 
-def get_razed_ids(
-    footprints: Footprints, min_thicc: int, trigger: bool
-) -> A[xr.DataArray, Name("keep_ids")]:
+def purge_razed_components(
+    footprints: Footprints,
+    traces: Traces,
+    pix_stats: PixStats,
+    comp_stats: CompStats,
+    overlaps: Overlaps,
+    min_thicc: int,
+    trigger: bool,
+) -> tuple[
+    A[Footprints, Name("footprints")],
+    A[Traces, Name("traces")],
+    A[PixStats, Name("pix_stats")],
+    A[CompStats, Name("comp_stats")],
+    A[Overlaps, Name("overlaps")],
+]:
+    keep_ids = _get_razed_ids(footprints=footprints, min_thicc=min_thicc)
+    return filter_components(
+        footprints=footprints,
+        traces=traces,
+        pix_stats=pix_stats,
+        comp_stats=comp_stats,
+        overlaps=overlaps,
+        keep_ids=keep_ids,
+    )
+
+
+def _get_razed_ids(footprints: Footprints, min_thicc: int) -> A[xr.DataArray, Name("keep_ids")]:
+    """
+    :param min_thicc: minimum number of pixel thickness to keep the cell
+    :return:
+    """
     A = footprints.array
 
     if A is None:
