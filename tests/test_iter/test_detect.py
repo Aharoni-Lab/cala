@@ -4,7 +4,7 @@ import xarray as xr
 from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Footprints, Residual, Traces
-from cala.nodes.detect import Cataloger, Energy, SliceNMF
+from cala.nodes.detect import Cataloger, SliceNMF
 from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
 
@@ -29,27 +29,12 @@ def toy():
 
 
 @pytest.fixture(scope="class")
-def energy():
-    return Energy.from_specification(
-        spec=NodeSpecification(
-            id="test_energy",
-            type="cala.nodes.detect.Energy",
-            params={"min_frames": 10},
-        )
-    )
-
-
-@pytest.fixture(scope="function")
-def energy_shape(energy, toy):
-    return energy.process(Residual.from_array(toy.make_movie().array), trigger=True)
-
-
-@pytest.fixture(scope="class")
 def slice_nmf():
     return SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
             type="cala.nodes.detect.SliceNMF",
+            params={"min_frames": 10, "detect_thresh": 1},
         )
     )
 
@@ -63,45 +48,10 @@ def cataloger():
     )
 
 
-class TestEnergy:
-    def test_estimate_gaussian_noise(self, energy, toy):
-        noise_level = energy._estimate_gaussian_noise(toy.make_movie().array)
-        print(f"\nNoise Level: {noise_level}")
-
-    def test_center_to_median(self, energy, toy):
-        centered_video = energy._center_to_median(toy.make_movie().array)
-        assert centered_video.max() < toy.make_movie().array.max()
-
-    def test_process(self, energy, toy):
-        energy_landscape = energy.process(
-            residuals=Residual.from_array(toy.make_movie().array), trigger=True
-        )
-        assert energy_landscape.sizes == toy.make_movie().array[0].sizes
-        assert np.all(energy_landscape >= 0)
-
-
 class TestSliceNMF:
-    def test_get_max_energy_slice(self, slice_nmf, toy, energy_shape):
-        slice_ = slice_nmf._get_max_energy_slice(
-            toy.make_movie().array, energy_shape, radius=toy.cell_radii[0] * 2
-        )
-        return slice_
-
-    def test_local_nmf(self, slice_nmf, toy, energy_shape):
-        slice_ = slice_nmf._get_max_energy_slice(
-            toy.make_movie().array, energy_shape, radius=toy.cell_radii[0] * 2
-        )
-        footprint, trace = slice_nmf._local_nmf(
-            slice_,
-            toy.frame_dims.model_dump(),
-        )
-
-        assert_scalar_multiple_arrays(footprint, toy.footprints.array)
-
-    def test_process(self, slice_nmf, toy, energy_shape):
+    def test_process(self, slice_nmf, toy):
         new_component = slice_nmf.process(
             Residual.from_array(toy.make_movie().array),
-            energy_shape,
             detect_radius=toy.cell_radii[0] * 2,
         )
         if new_component:
@@ -112,16 +62,15 @@ class TestSliceNMF:
         for new, old in zip([new_fp[0], new_tr[0]], [toy.footprints, toy.traces]):
             assert_scalar_multiple_arrays(new.array, old.array)
 
-    def test_chunks(self, energy_shape, toy):
+    def test_chunks(self, toy):
         nmf = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.SliceNMF",
+                params={"min_frames": 10, "detect_thresh": 1},
             )
         )
-        fpts, trcs = nmf.process(
-            Residual.from_array(toy.make_movie().array), energy_shape, detect_radius=10
-        )
+        fpts, trcs = nmf.process(Residual.from_array(toy.make_movie().array), detect_radius=10)
         if not fpts or not trcs:
             raise AssertionError("Failed to detect a new component")
 
@@ -137,10 +86,8 @@ class TestSliceNMF:
 
 class TestCataloger:
     @pytest.fixture(scope="function")
-    def new_component(self, slice_nmf, toy, energy_shape):
-        return slice_nmf.process(
-            Residual.from_array(toy.make_movie().array), energy_shape, detect_radius=60
-        )
+    def new_component(self, slice_nmf, toy):
+        return slice_nmf.process(Residual.from_array(toy.make_movie().array), detect_radius=60)
 
     def test_register(self, cataloger, new_component, toy):
         new_fp, new_tr = new_component
@@ -152,9 +99,9 @@ class TestCataloger:
         assert np.array_equal(fp.array, new_fp[0].array)
         assert np.array_equal(tr.array, new_tr[0].array)
 
-    def test_merge_with(self, slice_nmf, cataloger, toy, energy_shape):
+    def test_merge_with(self, slice_nmf, cataloger, toy):
         new_component = slice_nmf.process(
-            Residual.from_array(toy.make_movie().array), energy_shape, detect_radius=10
+            Residual.from_array(toy.make_movie().array), detect_radius=10
         )
 
         new_fp, new_tr = new_component
@@ -171,13 +118,12 @@ class TestCataloger:
 
         xr.testing.assert_allclose(movie_result, movie_expected)
 
-    def test_process_ideal(self, slice_nmf, cataloger, separate_cells, energy):
+    def test_process_ideal(self, slice_nmf, cataloger, separate_cells):
         """
         test cataloging separate cells. ideal case with cell_radius=5
         """
         movie = separate_cells.make_movie().array
-        ener = energy.process(Residual.from_array(movie), trigger=True)
-        fps, trs = slice_nmf.process(Residual.from_array(movie), ener, detect_radius=5)
+        fps, trs = slice_nmf.process(Residual.from_array(movie), detect_radius=5)
 
         # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(
@@ -196,13 +142,12 @@ class TestCataloger:
         assert new_fps.array.attrs.get("replaces") == detected
         xr.testing.assert_allclose(result, expected)
 
-    def test_process_fail(self, slice_nmf, cataloger, separate_cells, energy):
+    def test_process_fail(self, slice_nmf, cataloger, separate_cells):
         """
         test cataloging separate cells. nmf supposed to fail with radius=25 (grabs too many cells)
         """
         movie = separate_cells.make_movie().array
-        ener = energy.process(Residual.from_array(movie), trigger=True)
-        fps, trs = slice_nmf.process(Residual.from_array(movie), ener, detect_radius=25)
+        fps, trs = slice_nmf.process(Residual.from_array(movie), detect_radius=25)
 
         # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(
@@ -211,13 +156,12 @@ class TestCataloger:
 
         assert new_fps.array is None and new_trs.array is None
 
-    def test_process_connected(self, slice_nmf, cataloger, connected_cells, energy):
+    def test_process_connected(self, slice_nmf, cataloger, connected_cells):
         """
         trial with connected cells 🙏
         """
         movie = connected_cells.make_movie().array
-        ener = energy.process(Residual.from_array(movie), trigger=True)
-        fps, trs = slice_nmf.process(Residual.from_array(movie), ener, detect_radius=4)
+        fps, trs = slice_nmf.process(Residual.from_array(movie), detect_radius=4)
 
         # NOTE: by manually putting in connected_cells,
         # we're forcing a double-detection in this test
