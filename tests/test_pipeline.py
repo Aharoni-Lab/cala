@@ -6,13 +6,19 @@ from noob.node import Node, NodeSpecification
 from cala.models import AXIS
 
 
-@pytest.fixture(params=["single_cell_source", "two_cells_source", "two_overlapping_source"])
+@pytest.fixture(
+    params=[
+        "SingleCellSource",
+        "TwoCellsSource",
+        "TwoOverlappingSource",
+        "SeparateSource",
+        "ConnectedSource",
+    ]
+)
 def tube(request):
     tube = Tube.from_specification("cala-odl")
     source = Node.from_specification(
-        NodeSpecification(
-            id="source", type=f"cala.testing.{request.param}", params={"n_frames": 50}
-        )
+        NodeSpecification(id="source", type=f"cala.testing.{request.param}")
     )
     tube.nodes["source"] = source
 
@@ -38,7 +44,7 @@ def test_process(runner) -> None:
 
 
 def test_iter(runner) -> None:
-    gen = runner.iter(n=runner.tube.nodes["source"].spec.params["n_frames"])
+    gen = runner.iter(n=runner.tube.nodes["source"].instance.n_frames)
 
     movie = []
     for _, exp in enumerate(gen):
@@ -49,28 +55,25 @@ def test_iter(runner) -> None:
     expected = xr.concat(movie, dim=AXIS.frames_dim)
     result = (fps.array @ trs.array).transpose(*expected.dims)
 
-    if runner.tube.nodes["source"].fn.__name__ == "two_overlapping_source":
+    src_node = runner.tube.nodes["source"].spec.type_.split(".")[-1]
+
+    if src_node == "TwoOverlappingSource":
         diff = expected - result
         for d_fr, e_fr in zip(diff, expected):
             assert d_fr.max() <= e_fr.quantile(0.98) * 2e-2
     else:
         xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
 
+    n_discoverable = {
+        "SingleCellSource": 1,
+        "TwoCellsSource": 2,
+        "TwoOverlappingSource": 2,
+        "SeparateSource": 2,
+    }
+    assert fps.array.sizes[AXIS.component_dim] == n_discoverable[src_node]
 
-@pytest.mark.xfail
+
 def test_run(runner) -> None:
     result = runner.run(n=5)
 
     assert result
-
-
-@pytest.mark.xfail
-def test_combined_footprint() -> None:
-    """Start with two footprints combined"""
-    raise AssertionError("Not implemented")
-
-
-@pytest.mark.xfail
-def test_redundant_footprint() -> None:
-    """start with redundant footprints"""
-    raise AssertionError("Not implemented")
