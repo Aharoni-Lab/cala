@@ -32,6 +32,9 @@ class SizeEst(BaseModel):
             return self._est_radius
 
         blobs = blob_log(frame.array, **self.log_kwargs)
+        if blobs.size == 0:
+            return 0
+
         self.centers_ = [blobs[:-1] for blobs in blobs]
         self.sizes_ += [blob[-1].item() for blob in blobs]
         self._est_radius = int(np.round(np.median(self.sizes_)).item())

@@ -101,13 +101,13 @@ def filter_components(
             comp_stats.array.set_xindex(AXIS.id_coord)
             .set_xindex(f"{AXIS.id_coord}'")
             .sel({AXIS.id_coord: keep_ids, f"{AXIS.id_coord}'": keep_ids.values.tolist()})
-            .reset_index(AXIS.id_coord)
+            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )
         overlaps.array = (
             overlaps.array.set_xindex(AXIS.id_coord)
             .set_xindex(f"{AXIS.id_coord}'")
             .sel({AXIS.id_coord: keep_ids, f"{AXIS.id_coord}'": keep_ids.values.tolist()})
-            .reset_index(AXIS.id_coord)
+            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )
 
     return footprints, traces, pix_stats, comp_stats, overlaps
