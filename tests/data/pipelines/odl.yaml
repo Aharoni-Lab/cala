@@ -30,9 +30,7 @@ assets:
 
 nodes:
   source:
-    type: cala.testing.single_cell_source
-    params:
-      n_frames: 30
+    type: cala.testing.SingleCellSource
   denoise:
     type: cala.nodes.prep.denoise
     params:
@@ -49,13 +47,19 @@ nodes:
   motion:
     type: cala.nodes.prep.RigidStabilizer
     params:
-      drift_speed: 1.0
+      drift_speed: 0.5
     depends:
       - frame: glow.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
-      hardset_radius: 10
+      # hardset_radius: 10
+      log_kwargs:
+        min_sigma: 1
+        max_sigma: 10
+        num_sigma: 10
+        threshold: 0.2
+        overlap: 0.5
     depends:
       - frame: motion.frame
   cache:
