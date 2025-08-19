@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import Annotated as A
+from typing import Self
 
 import numpy as np
 from noob import Name, process_method
@@ -33,7 +34,7 @@ class MovieSource(BaseModel):
 
 class SingleCellSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.frame_dims = (
             FrameDims(width=512, height=512)
             if self.frame_dims is None
@@ -52,7 +53,7 @@ class SingleCellSource(MovieSource):
 
 class TwoCellsSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.frame_dims = (
             FrameDims(width=512, height=512)
             if self.frame_dims is None
@@ -74,7 +75,7 @@ class TwoCellsSource(MovieSource):
 
 class TwoOverlappingSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.frame_dims = (
             FrameDims(width=512, height=512)
             if self.frame_dims is None
@@ -96,7 +97,7 @@ class TwoOverlappingSource(MovieSource):
 
 class SeparateSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.cell_radii = 3
         self.frame_dims = (
             FrameDims(width=50, height=50)
@@ -122,7 +123,7 @@ class SeparateSource(MovieSource):
 
 class ConnectedSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.cell_radii = 8
         self.frame_dims = (
             FrameDims(width=50, height=50)
@@ -148,7 +149,7 @@ class ConnectedSource(MovieSource):
 
 class GradualOnSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self):
+    def complete_model(self) -> Self:
         self.n_frames = 100
         self.cell_radii = 8
         self.frame_dims = (
@@ -188,4 +189,4 @@ class GradualOnSource(MovieSource):
 
 class SplitOffSource(MovieSource):
     @model_validator(mode="after")
-    def complete_model(self): ...
+    def complete_model(self) -> Self: ...

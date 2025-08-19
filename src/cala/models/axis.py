@@ -3,7 +3,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from cala.models.checks import is_unique, is_unit_interval, has_no_nan
+from cala.models.checks import has_no_nan, is_unique
 
 
 class Axis:

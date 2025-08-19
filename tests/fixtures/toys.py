@@ -1,6 +1,6 @@
 import pytest
 
-from cala.testing import SingleCellSource, SeparateSource, ConnectedSource
+from cala.testing import ConnectedSource, SeparateSource, SingleCellSource
 from cala.testing.toy import Toy
 
 

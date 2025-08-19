@@ -6,8 +6,8 @@ import xarray as xr
 from noob import Name, process_method
 
 from cala.assets import CompStats, Footprints, PixStats
-from cala.models import AXIS
 from cala.logging import init_logger
+from cala.models import AXIS
 
 
 class Footprinter:
