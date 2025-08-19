@@ -5,8 +5,6 @@
 ![PyPI - Status](https://img.shields.io/pypi/status/cala)
 [![codecov](https://codecov.io/gh/Aharoni-Lab/cala/graph/badge.svg?token=Apn4YtSvbU)](https://codecov.io/gh/Aharoni-Lab/cala)
 
-## Features
-
 Cala is a neural endoscope image processing tool designed for neuroscience research, with a focus on long-term massive recordings. It features a no-code approach through configuration files, making it accessible to researchers of all programming backgrounds.
 
 ## Requirements
