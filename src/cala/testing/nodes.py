@@ -61,8 +61,8 @@ class TwoCellsSource(MovieSource):
         )
 
         self._traces = [
-            np.array(range(0, self.n_frames)),
-            np.array([0, *range(self.n_frames - 1, 0, -1)]),
+            np.array(range(0, self.n_frames), dtype=float),
+            np.array([0, *range(self.n_frames - 1, 0, -1)], dtype=float),
         ]
         if self.positions is None:
             self.positions = [Position(width=206, height=206), Position(width=306, height=306)]
@@ -82,8 +82,8 @@ class TwoOverlappingSource(MovieSource):
             else FrameDims(**self.frame_dims)
         )
         self._traces = [
-            np.array(range(0, self.n_frames)),
-            np.array([0, *range(self.n_frames - 1, 0, -1)]),
+            np.array(range(0, self.n_frames), dtype=float),
+            np.array([0, *range(self.n_frames - 1, 0, -1)], dtype=float),
         ]
 
         if self.positions is None:
