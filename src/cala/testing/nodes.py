@@ -144,3 +144,44 @@ class ConnectedSource(MovieSource):
 
         self._toy = self._build_toy()
         return self
+
+
+class GradualOnSource(MovieSource):
+    @model_validator(mode="after")
+    def complete_model(self):
+        self.n_frames = 100
+        self.cell_radii = 8
+        self.frame_dims = (
+            FrameDims(width=50, height=50)
+            if self.frame_dims is None
+            else FrameDims(**self.frame_dims)
+        )
+        self.positions = [
+            Position(width=15, height=15),
+            Position(width=15, height=35),
+            Position(width=25, height=25),
+            Position(width=35, height=35),
+            Position(width=35, height=15),
+        ]
+        gap = 20
+        decr = np.array(range(self.n_frames - 1, 0, -1), dtype=float)
+        sine = np.abs(np.sin(np.linspace(0, 2 * np.pi, self.n_frames - gap)) * self.n_frames)
+        incr = np.array(range(self.n_frames - gap * 2), dtype=float)
+        rand = np.random.random(self.n_frames - gap * 3) * self.n_frames
+        const = np.ones(self.n_frames - gap * 4, dtype=float) * self.n_frames
+
+        self._traces = [
+            np.pad(decr, (1, 0), mode="constant", constant_values=0),
+            np.pad(sine, (gap, 0), mode="constant", constant_values=0),
+            np.pad(incr, (gap * 2, 0), mode="constant", constant_values=0),
+            np.pad(rand, (gap * 3, 0), mode="constant", constant_values=0),
+            np.pad(const, (gap * 4, 0), mode="constant", constant_values=0),
+        ]
+
+        self._toy = self._build_toy()
+        return self
+
+
+class SplitOffSource(MovieSource):
+    @model_validator(mode="after")
+    def complete_model(self): ...

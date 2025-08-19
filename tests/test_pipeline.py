@@ -12,7 +12,7 @@ from cala.models import AXIS
         "TwoCellsSource",
         "TwoOverlappingSource",
         "SeparateSource",
-        "ConnectedSource",
+        "GradualOnSource",
     ]
 )
 def tube(request):

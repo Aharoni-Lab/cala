@@ -4,6 +4,14 @@ from .nodes import (
     TwoOverlappingSource,
     SeparateSource,
     ConnectedSource,
+    GradualOnSource,
 )
 
-__all__ = [SingleCellSource, TwoCellsSource, TwoOverlappingSource, SeparateSource, ConnectedSource]
+__all__ = [
+    "SingleCellSource",
+    "TwoCellsSource",
+    "TwoOverlappingSource",
+    "SeparateSource",
+    "ConnectedSource",
+    "GradualOnSource",
+]

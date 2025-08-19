@@ -5,27 +5,7 @@ from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Footprints, Residual, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
-from cala.testing.toy import FrameDims, Position, Toy
 from cala.testing.util import assert_scalar_multiple_arrays
-
-
-@pytest.fixture(autouse=True, scope="module")
-def toy():
-    n_frames = 30
-    frame_dims = FrameDims(width=512, height=512)
-    cell_positions = [Position(width=256, height=256)]
-    cell_radii = 30
-    cell_traces = [np.array(range(n_frames), dtype=float)]
-    confidences = [0.8]
-
-    return Toy(
-        n_frames=n_frames,
-        frame_dims=frame_dims,
-        cell_radii=cell_radii,
-        cell_positions=cell_positions,
-        cell_traces=cell_traces,
-        confidences=confidences,
-    )
 
 
 @pytest.fixture(scope="class")
@@ -49,20 +29,20 @@ def cataloger():
 
 
 class TestSliceNMF:
-    def test_process(self, slice_nmf, toy):
+    def test_process(self, slice_nmf, single_cell):
         new_component = slice_nmf.process(
-            Residual.from_array(toy.make_movie().array),
-            detect_radius=toy.cell_radii[0] * 2,
+            Residual.from_array(single_cell.make_movie().array),
+            detect_radius=single_cell.cell_radii[0] * 2,
         )
         if new_component:
             new_fp, new_tr = new_component
         else:
             raise AssertionError("Failed to detect a new component")
 
-        for new, old in zip([new_fp[0], new_tr[0]], [toy.footprints, toy.traces]):
+        for new, old in zip([new_fp[0], new_tr[0]], [single_cell.footprints, single_cell.traces]):
             assert_scalar_multiple_arrays(new.array, old.array)
 
-    def test_chunks(self, toy):
+    def test_chunks(self, single_cell):
         nmf = SliceNMF.from_specification(
             spec=NodeSpecification(
                 id="test_slice_nmf",
@@ -70,26 +50,30 @@ class TestSliceNMF:
                 params={"min_frames": 10, "detect_thresh": 1},
             )
         )
-        fpts, trcs = nmf.process(Residual.from_array(toy.make_movie().array), detect_radius=10)
+        fpts, trcs = nmf.process(
+            Residual.from_array(single_cell.make_movie().array), detect_radius=10
+        )
         if not fpts or not trcs:
             raise AssertionError("Failed to detect a new component")
 
         fpt_arr = xr.concat([f.array for f in fpts], dim="component")
 
-        expected = toy.footprints.array[0]
+        expected = single_cell.footprints.array[0]
         result = (fpt_arr.sum(dim="component") > 0).astype(int)
 
         assert np.array_equal(expected, result)
         for trc in trcs:
-            assert_scalar_multiple_arrays(trc.array, toy.traces.array[0])
+            assert_scalar_multiple_arrays(trc.array, single_cell.traces.array[0])
 
 
 class TestCataloger:
     @pytest.fixture(scope="function")
-    def new_component(self, slice_nmf, toy):
-        return slice_nmf.process(Residual.from_array(toy.make_movie().array), detect_radius=60)
+    def new_component(self, slice_nmf, single_cell):
+        return slice_nmf.process(
+            Residual.from_array(single_cell.make_movie().array), detect_radius=60
+        )
 
-    def test_register(self, cataloger, new_component, toy):
+    def test_register(self, cataloger, new_component):
         new_fp, new_tr = new_component
         fp, tr = cataloger._register(
             new_fp=new_fp[0].array,
@@ -99,14 +83,18 @@ class TestCataloger:
         assert np.array_equal(fp.array, new_fp[0].array)
         assert np.array_equal(tr.array, new_tr[0].array)
 
-    def test_merge_with(self, slice_nmf, cataloger, toy):
+    def test_merge_with(self, slice_nmf, cataloger, single_cell):
         new_component = slice_nmf.process(
-            Residual.from_array(toy.make_movie().array), detect_radius=10
+            Residual.from_array(single_cell.make_movie().array), detect_radius=10
         )
 
         new_fp, new_tr = new_component
         fp, tr = cataloger._merge_with(
-            new_fp[0].array, new_tr[0].array, toy.footprints.array, toy.traces.array, ["cell_0"]
+            new_fp[0].array,
+            new_tr[0].array,
+            single_cell.footprints.array,
+            single_cell.traces.array,
+            ["cell_0"],
         )
 
         movie_result = (fp.array @ tr.array).reset_coords(
@@ -114,7 +102,9 @@ class TestCataloger:
         )
 
         movie_new_comp = new_fp[0].array @ new_tr[0].array
-        movie_expected = (toy.make_movie().array + movie_new_comp).transpose(*movie_result.dims)
+        movie_expected = (single_cell.make_movie().array + movie_new_comp).transpose(
+            *movie_result.dims
+        )
 
         xr.testing.assert_allclose(movie_result, movie_expected)
 

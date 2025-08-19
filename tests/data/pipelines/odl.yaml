@@ -55,7 +55,7 @@ nodes:
     params:
       # hardset_radius: 10
       log_kwargs:
-        min_sigma: 1
+        min_sigma: 3
         max_sigma: 10
         num_sigma: 10
         threshold: 0.2

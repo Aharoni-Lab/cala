@@ -1,7 +1,13 @@
 import pytest
 
-from cala.testing.nodes import SeparateSource, ConnectedSource
+from cala.testing import SingleCellSource, SeparateSource, ConnectedSource
 from cala.testing.toy import Toy
+
+
+@pytest.fixture
+def single_cell() -> Toy:
+    source = SingleCellSource()
+    return source._toy
 
 
 @pytest.fixture
