@@ -72,21 +72,19 @@ class Cataloger(Node):
         footprints = xr.concat(
             footprints,
             dim=AXIS.component_dim,
-            coords=[AXIS.id_coord, AXIS.confidence_coord],
+            coords=[AXIS.id_coord, AXIS.detect_coord],
             combine_attrs=combine_attr_replaces,
         )
         traces = xr.concat(
             traces,
             dim=AXIS.component_dim,
-            coords=[AXIS.id_coord, AXIS.confidence_coord],
+            coords=[AXIS.id_coord, AXIS.detect_coord],
             combine_attrs=combine_attr_replaces,
         )
 
         return Footprints.from_array(footprints), Traces.from_array(traces)
 
-    def _register(
-        self, new_fp: xr.DataArray, new_tr: xr.DataArray, confidence: float = 0.0
-    ) -> tuple[Footprint, Trace]:
+    def _register(self, new_fp: xr.DataArray, new_tr: xr.DataArray) -> tuple[Footprint, Trace]:
 
         new_id = create_id()
 
@@ -95,7 +93,10 @@ class Cataloger(Node):
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                    AXIS.detect_coord: (
+                        AXIS.component_dim,
+                        [new_tr[AXIS.frame_coord].max().item()],
+                    ),
                 }
             )
             .isel({AXIS.component_dim: 0})
@@ -105,7 +106,10 @@ class Cataloger(Node):
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                    AXIS.detect_coord: (
+                        AXIS.component_dim,
+                        [new_tr[AXIS.frame_coord].max().item()],
+                    ),
                 }
             )
             .isel({AXIS.component_dim: 0})

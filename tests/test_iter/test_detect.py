@@ -98,7 +98,7 @@ class TestCataloger:
         )
 
         movie_result = (fp.array @ tr.array).reset_coords(
-            [AXIS.id_coord, AXIS.confidence_coord], drop=True
+            [AXIS.id_coord, AXIS.detect_coord], drop=True
         )
 
         movie_new_comp = new_fp[0].array @ new_tr[0].array

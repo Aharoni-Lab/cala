@@ -31,7 +31,7 @@ class Init:
 
         trace_coords = [
             AXIS.id_coord,
-            AXIS.confidence_coord,
+            AXIS.detect_coord,
             AXIS.frame_coord,
             AXIS.timestamp_coord,
         ]
@@ -226,7 +226,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
             coords=c.isel({AXIS.component_dim: 0}).coords,
         )
         c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
-        c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
+        c_new[AXIS.detect_coord] = c_det[AXIS.detect_coord]
 
         c_new.loc[{AXIS.frames_dim: c_det[AXIS.frame_coord]}] = c_det
     else:

@@ -3,7 +3,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from cala.models.checks import is_unique, is_unit_interval
+from cala.models.checks import is_unique, is_unit_interval, has_no_nan
 
 
 class Axis:
@@ -17,7 +17,7 @@ class Axis:
 
     id_coord: str = "id_"
     timestamp_coord: str = "timestamp"
-    confidence_coord: str = "confidence"
+    detect_coord: str = "detected_on"
     frame_coord: str = "frame"
     width_coord: str = "width"
     height_coord: str = "height"
@@ -37,7 +37,7 @@ class Axis:
         return {
             AXIS.component_dim: f"{AXIS.component_dim}'",
             AXIS.id_coord: f"{AXIS.id_coord}'",
-            AXIS.confidence_coord: f"{AXIS.confidence_coord}'",
+            AXIS.detect_coord: f"{AXIS.detect_coord}'",
         }
 
 
@@ -62,11 +62,11 @@ class Coords(Enum):
     width = Coord(name=AXIS.width_coord, dtype=int, checks=[is_unique])
     frame = Coord(name=AXIS.frame_coord, dtype=int, checks=[is_unique])
     timestamp = Coord(name=AXIS.timestamp_coord, dtype=str, checks=[is_unique])
-    confidence = Coord(name=AXIS.confidence_coord, dtype=float, checks=[is_unit_interval])
+    detected = Coord(name=AXIS.detect_coord, dtype=int, checks=[has_no_nan])
 
 
 class Dims(Enum):
     width = Dim(name=AXIS.width_dim, coords=[Coords.width.value])
     height = Dim(name=AXIS.height_dim, coords=[Coords.height.value])
     frame = Dim(name=AXIS.frames_dim, coords=[Coords.frame.value, Coords.timestamp.value])
-    component = Dim(name=AXIS.component_dim, coords=[Coords.id.value, Coords.confidence.value])
+    component = Dim(name=AXIS.component_dim, coords=[Coords.id.value, Coords.detected.value])

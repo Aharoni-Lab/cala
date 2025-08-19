@@ -141,7 +141,7 @@ class Toy(BaseModel):
         return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
                 AXIS.id_coord: (AXIS.component_dim, [id_]),
-                AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                AXIS.detect_coord: (AXIS.component_dim, [confidence]),
                 **{ax: footprint[ax] for ax in AXIS.spatial_dims},
             }
         )
@@ -165,7 +165,7 @@ class Toy(BaseModel):
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
-                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                    AXIS.detect_coord: (AXIS.component_dim, [confidence]),
                     AXIS.frames_dim: range(trace.size),
                 }
             )
