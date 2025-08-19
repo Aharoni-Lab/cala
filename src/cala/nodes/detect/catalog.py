@@ -1,6 +1,7 @@
 from collections.abc import Hashable, Iterable
 from typing import Annotated as A
 
+import cv2
 import numpy as np
 import xarray as xr
 from noob import Name
@@ -215,8 +216,21 @@ class Cataloger(Node):
             fps_base = fps_base.rename(AXIS.component_rename)
             trs_base = trs_base.rename(AXIS.component_rename)
 
+        fps = self._expand_boundary(fps > 0)
+
         overlaps = fps @ fps_base > 0
         # this should later reflect confidence
         corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
 
         return overlaps * corrs
+
+    def _expand_boundary(self, mask: xr.DataArray) -> xr.DataArray:
+        kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+        return xr.apply_ufunc(
+            lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
+            mask.astype(np.uint8),
+            input_core_dims=[AXIS.spatial_dims],
+            output_core_dims=[AXIS.spatial_dims],
+            vectorize=True,
+            dask="parallelized",
+        )
