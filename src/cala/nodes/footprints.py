@@ -7,9 +7,11 @@ from noob import Name, process_method
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.models import AXIS
+from cala.logging import init_logger
 
 
 class Footprinter:
+    logger = init_logger(__name__)
 
     def __init__(self, tol: float, max_iter: int | None = None, bep: int | None = None):
         self.bep = bep
@@ -55,7 +57,7 @@ class Footprinter:
             kernel = self._expansion_kernel()
             mask = self._expand_boundary(kernel, mask)
 
-        # for _ in range(self.max_iter):
+        cnt = 0
         while True:
             AM = A.rename(AXIS.component_rename) @ M
             numerator = W - AM
@@ -72,8 +74,15 @@ class Footprinter:
             update = numerator / (M_diag + np.finfo(float).tiny)
             A_new = (mask * (A + update)).clip(min=0)
 
-            if (np.abs(A - A_new).sum() / np.prod(A.shape)).item() < self.tol:
+            step = (np.abs(A - A_new).sum() / np.prod(A.shape)).item()
+
+            cnt += 1
+            maxed = self.max_iter and (cnt == self.max_iter)
+
+            if step < self.tol or maxed:
                 footprints.array = A_new
+                if maxed:
+                    self.logger.debug(msg="max_iter reached before converging.")
                 return footprints
             else:
                 A = A_new
