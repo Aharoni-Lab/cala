@@ -9,10 +9,7 @@ from cala.models import AXIS
 
 
 def build(
-    frames: Movie,
-    footprints: Footprints,
-    traces: Traces,
-    clip_threshold: float | None = None,
+    frames: Movie, footprints: Footprints, traces: Traces, clip_threshold: float | None = None
 ) -> A[Residual, Name("movie")]:
     """
     The computation follows the equation:
