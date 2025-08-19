@@ -167,15 +167,19 @@ class GradualOnSource(MovieSource):
         decr = np.array(range(self.n_frames - 1, 0, -1), dtype=float)
         sine = np.abs(np.sin(np.linspace(0, 2 * np.pi, self.n_frames - gap)) * self.n_frames)
         incr = np.array(range(self.n_frames - gap * 2), dtype=float)
-        rand = np.random.random(self.n_frames - gap * 3) * self.n_frames
-        const = np.ones(self.n_frames - gap * 4, dtype=float) * self.n_frames
+        expo = (
+            np.linspace(0, np.exp(3), self.n_frames - gap * 3)
+            * np.exp(-np.linspace(0, np.exp(2), self.n_frames - gap * 3))
+            * self.n_frames
+        )
+        tanh = np.tanh(np.linspace(0, 5, self.n_frames - gap * 4)) * self.n_frames
 
         self._traces = [
             np.pad(decr, (1, 0), mode="constant", constant_values=0),
             np.pad(sine, (gap, 0), mode="constant", constant_values=0),
             np.pad(incr, (gap * 2, 0), mode="constant", constant_values=0),
-            np.pad(rand, (gap * 3, 0), mode="constant", constant_values=0),
-            np.pad(const, (gap * 4, 0), mode="constant", constant_values=0),
+            np.pad(expo, (gap * 3, 0), mode="constant", constant_values=0),
+            np.pad(tanh, (gap * 4, 0), mode="constant", constant_values=0),
         ]
 
         self._toy = self._build_toy()
