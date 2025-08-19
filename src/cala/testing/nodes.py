@@ -40,7 +40,7 @@ class SingleCellSource(MovieSource):
             if self.frame_dims is None
             else FrameDims(**self.frame_dims)
         )
-        self._traces = [np.array(range(0, self.n_frames))]
+        self._traces = [np.array(range(0, self.n_frames), dtype=float)]
 
         if self.positions is None:
             self.positions = [Position(width=256, height=256)]

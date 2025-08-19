@@ -9,7 +9,7 @@ from .config import (
     yaml_config,
 )
 from .meta import monkeypatch_session
-from .toys import connected_cells, separate_cells
+from .toys import connected_cells, separate_cells, single_cell
 
 __all__ = [
     "monkeypatch_session",
@@ -21,6 +21,7 @@ __all__ = [
     "tmp_config_source",
     "tmp_cwd",
     "yaml_config",
+    "single_cell",
     "separate_cells",
     "connected_cells",
 ]

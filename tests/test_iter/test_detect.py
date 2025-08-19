@@ -157,8 +157,8 @@ class TestCataloger:
         # we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
 
-        result = (new_fps.array @ new_trs.array).where(new_fps.array.max(dim=AXIS.component_dim), 0)
-        expected = movie.where(new_fps.array.max(dim=AXIS.component_dim), 0)
+        result = new_fps.array @ new_trs.array
+        expected = movie * (new_fps.array.max(dim=AXIS.component_dim) > 1e-4)
 
         assert new_fps.array is not None
         # 1. the footprints do not overlap
