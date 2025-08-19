@@ -44,12 +44,12 @@ nodes:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: denoise.frame
-  motion:
-    type: cala.nodes.prep.RigidStabilizer
-    params:
-      drift_speed: 0.5
-    depends:
-      - frame: glow.frame
+#  motion:
+#    type: cala.nodes.prep.RigidStabilizer
+#    params:
+#      drift_speed: 0.5
+#    depends:
+#      - frame: glow.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
@@ -61,41 +61,42 @@ nodes:
         threshold: 0.2
         overlap: 0.5
     depends:
-      - frame: motion.frame
+      - frame: glow.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
-      - frame: motion.frame
+      - frame: glow.frame
 
   trace_frame:
     type: cala.nodes.traces.FrameUpdate
     params:
-      tolerance: 0.001
+      tol: 0.001
+      max_iter: 100
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: motion.frame
+      - frame: glow.frame
       - overlaps: assets.overlaps
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
-      - frame: motion.frame
+      - frame: glow.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
-      - frame: motion.frame
+      - frame: glow.frame
       - new_traces: trace_frame.latest_trace
 
   residual:
     type: cala.nodes.residual.build
     params:
-      clip_threshold: 0.001
+      clip_threshold: 0.1
     depends:
       - trigger: trace_frame.latest_trace
       - frames: assets.buffer
@@ -161,7 +162,8 @@ nodes:
     type: cala.nodes.footprints.Footprinter
     params:
       bep: 1
-      tol: 0.0000001
+      tol: 0.0001
+      max_iter: 100
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_component.value
@@ -176,4 +178,4 @@ nodes:
   return:
     type: return
     depends:
-      - motion.frame
+      - glow.frame
