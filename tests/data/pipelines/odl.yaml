@@ -92,15 +92,24 @@ nodes:
       - component_stats: assets.comp_stats
       - frame: glow.frame
       - new_traces: trace_frame.latest_trace
+  footprints_frame:
+    type: cala.nodes.footprints.Footprinter
+    params:
+      bep: 1
+      tol: 0.0001
+      max_iter: 100
+    depends:
+      - footprints: assets.footprints
+      - pixel_stats: pix_frame.value
+      - component_stats: comp_frame.value
 
   residual:
     type: cala.nodes.residual.build
     params:
       clip_threshold: 0.1
     depends:
-      - trigger: trace_frame.latest_trace
       - frames: assets.buffer
-      - footprints: assets.footprints
+      - footprints: footprints_frame.footprints
       - traces: assets.traces
   cleanup:
     type: cala.nodes.cleanup.purge_razed_components
@@ -158,22 +167,11 @@ nodes:
       - new_traces: catalog.new_traces
   #  DETECT ENDS
 
-  footprints_frame:
-    type: cala.nodes.footprints.Footprinter
-    params:
-      bep: 1
-      tol: 0.0001
-      max_iter: 100
-    depends:
-      - footprints: assets.footprints
-      - pixel_stats: pix_component.value
-      - component_stats: comp_component.value
-
   overlaps_update:
     type: cala.nodes.overlap.initialize
     depends:
       - overlaps: assets.overlaps
-      - footprints: footprints_frame.footprints
+      - footprints: footprint_component.footprints
 
   return:
     type: return

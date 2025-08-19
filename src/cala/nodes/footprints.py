@@ -102,7 +102,9 @@ class Footprinter:
         )
 
 
-def ingest_component(footprints: Footprints, new_footprints: Footprints) -> Footprints:
+def ingest_component(
+    footprints: Footprints, new_footprints: Footprints
+) -> A[Footprints, Name("footprints")]:
     if new_footprints.array is None:
         return footprints
 

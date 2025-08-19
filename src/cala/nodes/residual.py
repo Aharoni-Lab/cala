@@ -12,7 +12,6 @@ def build(
     frames: Movie,
     footprints: Footprints,
     traces: Traces,
-    trigger: bool,
     clip_threshold: float | None = None,
 ) -> A[Residual, Name("movie")]:
     """
