@@ -43,7 +43,7 @@ class SliceNMF(Node):
         fps = []
         trs = []
 
-        while np.sqrt(energy.max()).item() > self.detect_thresh:  # or use res directly
+        while energy.max().item() >= self.detect_thresh:  # or use res directly
             # Find and analyze neighborhood of maximum variance
             slice_ = self._get_max_energy_slice(
                 arr=res, energy_landscape=energy, radius=detect_radius
@@ -65,7 +65,7 @@ class SliceNMF(Node):
                 trs.append(Trace.from_array(c_new))
                 res = (res - comp_recon).clip(0)
             else:
-                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 1e-7
 
         return fps, trs
 
@@ -73,7 +73,7 @@ class SliceNMF(Node):
         pixels_median = res.median(dim=AXIS.frames_dim)
         V = res - pixels_median
 
-        return (V**2).sum(dim=AXIS.frames_dim)
+        return np.sqrt((V**2).mean(dim=AXIS.frames_dim))
 
     def _get_max_energy_slice(
         self,
