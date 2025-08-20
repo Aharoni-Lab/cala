@@ -80,7 +80,9 @@ def _clear_overestimates(A: xr.DataArray, R: xr.DataArray, clip_val: float) -> x
     have been removed, and the remaining negative spots are noise level.
     """
 
-    R_min = R.min(dim=AXIS.frames_dim)
+    R_min = R.isel({AXIS.frames_dim: -1}).reset_coords(
+        [AXIS.frame_coord, AXIS.timestamp_coord], drop=True
+    )  # .min(dim=AXIS.frames_dim)
     footprints = A.where(R_min > clip_val, 0, drop=False)
 
     return footprints
