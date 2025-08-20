@@ -5,6 +5,7 @@ from .nodes import (
     SingleCellSource,
     TwoCellsSource,
     TwoOverlappingSource,
+    SplitOffSource,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "SeparateSource",
     "ConnectedSource",
     "GradualOnSource",
+    "SplitOffSource",
 ]
