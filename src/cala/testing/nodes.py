@@ -190,6 +190,7 @@ class GradualOnSource(MovieSource):
 class SplitOffSource(MovieSource):
     @model_validator(mode="after")
     def complete_model(self) -> Self:
+        self.n_frames = 100
         self.cell_radii = 8
         self.frame_dims = (
             FrameDims(width=50, height=50)
@@ -205,7 +206,14 @@ class SplitOffSource(MovieSource):
                 [0, *range(1, int(self.n_frames / 2)), *range(int(self.n_frames / 2), 0, -1)],
                 dtype=float,
             ),
-            np.array(range(self.n_frames), dtype=float),
+            np.array(
+                [
+                    *range(int(self.n_frames / 4)),
+                    *range(int(self.n_frames / 4), 0, -1),
+                    *range(int(self.n_frames / 2)),
+                ],
+                dtype=float,
+            ),
         ]
         self._toy = self._build_toy()
         return self
