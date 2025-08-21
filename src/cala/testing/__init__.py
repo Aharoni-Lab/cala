@@ -3,9 +3,9 @@ from .nodes import (
     GradualOnSource,
     SeparateSource,
     SingleCellSource,
+    SplitOffSource,
     TwoCellsSource,
     TwoOverlappingSource,
-    SplitOffSource,
 )
 
 __all__ = [

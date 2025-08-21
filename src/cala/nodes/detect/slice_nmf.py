@@ -19,6 +19,9 @@ class SliceNMF(Node):
     """Wait until this number of frames to begin detecting."""
     detect_thresh: float
     """Minimum detection threshold for brightness fluctuation."""
+    reprod_tol: float
+    """Mean pixel value error tolerance for reproduced slice from the new component"""
+
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     error_: float = Field(None)
@@ -60,7 +63,7 @@ class SliceNMF(Node):
 
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
-            if (self.error_ / l1_norm) <= self._model.tol:
+            if (self.error_ / l1_norm) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
                 res = (res - comp_recon).clip(0)

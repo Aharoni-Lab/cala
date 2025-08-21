@@ -128,6 +128,7 @@ nodes:
     params:
       min_frames: 10
       detect_thresh: 1.0
+      reprod_tol: 0.001
     depends:
       - residuals: residual.movie
       - detect_radius: size_est.radius
