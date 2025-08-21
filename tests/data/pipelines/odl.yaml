@@ -25,6 +25,9 @@ assets:
   overlaps:
     type: cala.assets.Overlaps
     scope: session
+  residuals:
+    type: cala.assets.Residual
+    scope: session
 
 # Add refiners in nodes
 
@@ -101,15 +104,21 @@ nodes:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
+  facetune:
+    type: cala.nodes.cleanup.clear_overestimates
+    params:
+      nmf_error: 1.0
+    depends:
+      - footprints: footprints_frame.footprints
+      - residuals: assets.residuals
 
   residual:
     type: cala.nodes.residual.build
-    params:
-      clip_threshold: 0.1
     depends:
       - frames: assets.buffer
       - footprints: footprints_frame.footprints
       - traces: assets.traces
+      - residuals: assets.residuals
   cleanup:
     type: cala.nodes.cleanup.purge_razed_components
     params:
