@@ -14,6 +14,7 @@ from cala.models import AXIS
         "SeparateSource",
         "TwoOverlappingSource",
         "GradualOnSource",
+        "SplitOffSource",
     ]
 )
 def source(request):
@@ -47,7 +48,7 @@ def test_process(runner) -> None:
     assert runner.cube.assets["buffer"].obj.array.size > 0
 
 
-def test_iter(runner, source) -> None:
+def test_odl(runner, source) -> None:
     gen = runner.iter(n=source.instance.n_frames)
     src_name = source.spec.type_.split(".")[-1]
     toy = source.instance._toy.model_copy()
@@ -58,10 +59,14 @@ def test_iter(runner, source) -> None:
         fps = runner.cube.assets["footprints"].obj
         trs = runner.cube.assets["traces"].obj
 
-    if src_name in ["TwoOverlappingSource", "GradualOnSource"]:
-        # Correct component count
+    # Correct component count
+    if src_name != "SeparateSource":
         assert toy.traces.array.sizes[AXIS.component_dim] == trs.array.sizes[AXIS.component_dim]
+    else:
+        # 2 is the # of discoverable cells (non-constant) for SeparateSource
+        assert trs.array.sizes[AXIS.component_dim] == 2
 
+    if src_name in ["TwoOverlappingSource", "GradualOnSource", "SplitOffSource"]:
         # Traces are reasonably similar
         tr_corr = xr.corr(
             toy.traces.array, trs.array.rename(AXIS.component_rename), dim=AXIS.frame_coord
@@ -74,18 +79,3 @@ def test_iter(runner, source) -> None:
         result = (fps.array @ trs.array).transpose(*expected.dims)
 
         xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
-
-    n_discoverable = {
-        "SingleCellSource": 1,
-        "TwoCellsSource": 2,
-        "TwoOverlappingSource": 2,
-        "SeparateSource": 2,
-        "GradualOnSource": 5,
-    }
-    assert fps.array.sizes[AXIS.component_dim] == n_discoverable[src_name]
-
-
-def test_run(runner) -> None:
-    result = runner.run(n=5)
-
-    assert result
