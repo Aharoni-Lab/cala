@@ -2,10 +2,9 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Residual
+import xarray as xr
 from cala.models.axis import AXIS
-from cala.nodes.residual import _clear_overestimates
-from cala.testing.toy import FrameDims, Position, Toy
+from cala.nodes.residual import _align_overestimates, _find_unlayered_footprints
 
 
 @pytest.fixture(scope="function")
@@ -25,25 +24,32 @@ def test_init(init, separate_cells) -> None:
     assert np.all(result.array == 0)
 
 
-@pytest.fixture
-def one_cell() -> Toy:
-    n_frames = 50
+def test_align_overestimates(single_cell) -> None:
+    """
+    grab the last frame of the residual. assume part of the footprint masked area is negative
+    traces needs to proportionally decrease, until the recalculated residual is zero
 
-    return Toy(
-        n_frames=n_frames,
-        frame_dims=FrameDims(width=50, height=50),
-        cell_radii=3,
-        cell_positions=[Position(width=25, height=25)],
-        cell_traces=[np.array(range(n_frames), dtype=float)],
+    Eventually, this probably can be absorbed straight into trace frame_ingest as a constraint.
+    """
+    movie = single_cell.make_movie()
+    last_frame = movie.array.isel({AXIS.frames_dim: -1})
+
+    last_res = xr.zeros_like(last_frame)
+    last_res.loc[{AXIS.width_coord: slice(single_cell.cell_positions[0].width, None)}] = -1
+    last_res = last_res.where(single_cell.footprints.array[0].values, 0)
+
+    last_trace = single_cell.traces.array.isel({AXIS.frames_dim: -1})
+
+    footprints = single_cell.footprints.array
+
+    adjusted_traces = _align_overestimates(A=footprints, R_latest=last_res, C_latest=last_trace)
+
+    np.testing.assert_array_equal(
+        (footprints @ adjusted_traces).values, movie.array.isel({AXIS.frames_dim: -2}).values
     )
 
 
-def test_clear_overestimates(one_cell) -> None:
-    residual = Residual.from_array(one_cell.make_movie().array)
-    residual.array.loc[{AXIS.width_coord: slice(one_cell.cell_positions[0].width, None)}] *= -1
-
-    result = _clear_overestimates(A=one_cell.footprints.array, R=residual.array, clip_val=-1.0)
-    expected = one_cell.footprints.array.copy()
-    expected.loc[{AXIS.width_coord: slice(one_cell.cell_positions[0].width, None)}] = 0
-
-    assert result.equals(expected)
+def test_find_exposed_footprints(connected_cells) -> None:
+    footprints = connected_cells.footprints
+    result = _find_unlayered_footprints(footprints.array)
+    assert result.sum(dim=AXIS.component_dim).max().item() == footprints.max().item()
