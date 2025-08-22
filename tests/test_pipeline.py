@@ -79,3 +79,20 @@ def test_odl(runner, source) -> None:
         result = (fps.array @ trs.array).transpose(*expected.dims)
 
         xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
+
+
+def test_with_avi() -> None:
+    cube = Cube.from_specification("cala-io")
+    tube = Tube.from_specification("cala-io")
+
+    runner = SynchronousRunner(tube=tube, cube=cube)
+
+    import matplotlib.pyplot as plt
+
+    gen = runner.iter()
+    for i, fr in enumerate(gen):
+        raw = fr["raw"].array
+        prep = fr["prep"].array / fr["prep"].array.max() * raw.max()
+        plt.imsave(f"out{i}.png", xr.concat([raw, prep], dim=AXIS.height_dim))
+
+    assert runner.cube.assets["buffer"].obj.array.size > 0
