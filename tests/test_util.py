@@ -2,7 +2,6 @@ from datetime import datetime
 
 import numpy as np
 
-from cala.assets import Frame
 from cala.util import package_frame
 
 
@@ -13,6 +12,6 @@ def test_package_frame():
     timestamp = datetime(2023, 4, 8, 12, 0, 0)
 
     # Transform the frame
-    dataarray = package_frame(frame, index, timestamp)
+    frame = package_frame(frame, index, timestamp)
 
-    assert Frame.from_array(dataarray)
+    assert np.array_equal(frame.array.values, frame)

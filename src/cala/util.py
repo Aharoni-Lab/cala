@@ -1,16 +1,24 @@
-from collections.abc import Sequence
+from collections.abc import Sequence, Generator
 from datetime import datetime
+from itertools import count
+from typing import Annotated as A
 from uuid import uuid4
 
 import numpy as np
 import xarray as xr
+from noob import Name
 
+from cala.assets import Frame
 from cala.models import AXIS
 
 
-def package_frame(
-    frame: np.ndarray, index: int, timestamp: datetime | str | None = None
-) -> xr.DataArray:
+def counter(start: int = 0, limit: int = 1e7) -> A[Generator[int], Name("idx")]:
+    cnt = count(start=start)
+    while (val := next(cnt)) < limit:
+        yield val
+
+
+def package_frame(frame: np.ndarray, index: int, timestamp: datetime | str | None = None) -> Frame:
     """Transform a 2D numpy frame into an xarray DataArray.
 
     Args:
@@ -37,12 +45,13 @@ def package_frame(
         name="frame",
     )
 
-    return frame.assign_coords(
+    da = frame.assign_coords(
         {
             AXIS.width_dim: range(frame.sizes[AXIS.width_dim]),
             AXIS.height_dim: range(frame.sizes[AXIS.height_dim]),
         }
     )
+    return Frame.from_array(da.astype(float))
 
 
 def create_id() -> str:
