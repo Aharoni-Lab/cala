@@ -50,7 +50,7 @@ def test_tiff_stream(tmp_path):
         save_tiff(tmp_path / f"{i}.tif", image)
 
     media = sorted(glob(str(tmp_path / "*.tif")))
-    s = iter(stream(media))
+    s = stream(media)
 
     for idx, res in enumerate(s):
         np.testing.assert_array_equal(res, generate_text_image(str(idx)))
@@ -65,7 +65,7 @@ def test_video_stream(tmp_path):
     save_movie(tmp_path / "video.mp4", video)
 
     media = sorted(glob(str(tmp_path / "*.mp4")))
-    s = iter(stream(media))
+    s = stream(media)
 
     for idx, res in enumerate(s):
         np.testing.assert_allclose(
