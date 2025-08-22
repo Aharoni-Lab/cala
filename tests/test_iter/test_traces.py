@@ -26,7 +26,7 @@ def test_init(init, toy, request) -> None:
 def frame_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
-            id="frame_test", type="cala.nodes.traces.FrameUpdate", params={"tolerance": 1e-3}
+            id="frame_test", type="cala.nodes.traces.FrameUpdate", params={"tol": 1e-3}
         )
     )
 

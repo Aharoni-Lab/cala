@@ -20,7 +20,6 @@ def test_init(init, separate_cells) -> None:
         footprints=separate_cells.footprints,
         traces=separate_cells.traces,
         frames=separate_cells.make_movie(),
-        trigger=True,
     )
 
     assert np.all(result.array == 0)

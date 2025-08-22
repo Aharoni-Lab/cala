@@ -18,6 +18,7 @@ class Entity(BaseModel):
     coords: list[Coord] = Field(default_factory=list)
     dtype: type
     checks: list[Callable] = Field(default_factory=list)
+    allow_extra_coords: bool = True
 
     _model: DataArraySchema = PrivateAttr(DataArraySchema())
 
@@ -47,15 +48,14 @@ class Entity(BaseModel):
             checks=self.checks,
         )
 
-    @staticmethod
-    def _build_coord_schema(coords: list[Coord]) -> CoordsSchema:
+    def _build_coord_schema(self, coords: list[Coord]) -> CoordsSchema:
         spec = dict()
 
         for c in coords:
             dim = DimsSchema((c.dim,)) if c.dim else None
             spec[c.name] = DataArraySchema(dims=dim, dtype=DTypeSchema(c.dtype), checks=c.checks)
 
-        return CoordsSchema(spec)
+        return CoordsSchema(spec, allow_extra_keys=self.allow_extra_coords)
 
 
 class Group(Entity):

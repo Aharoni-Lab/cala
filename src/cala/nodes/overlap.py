@@ -39,7 +39,7 @@ def ingest_component(
     V = overlaps.array
 
     a_new = new_footprints.array.volumize.dim_with_coords(
-        dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.confidence_coord]
+        dim=AXIS.component_dim, coords=[AXIS.id_coord, AXIS.detect_coord]
     )
 
     if a_new[AXIS.id_coord].item() in V[AXIS.id_coord].values:

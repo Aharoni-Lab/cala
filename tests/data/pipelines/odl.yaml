@@ -30,9 +30,7 @@ assets:
 
 nodes:
   source:
-    type: cala.testing.single_cell_source
-    params:
-      n_frames: 30
+    type: cala.testing.SingleCellSource
   denoise:
     type: cala.nodes.prep.denoise
     params:
@@ -46,56 +44,71 @@ nodes:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: denoise.frame
-  motion:
-    type: cala.nodes.prep.RigidStabilizer
-    params:
-      drift_speed: 1.0
-    depends:
-      - frame: glow.frame
+#  motion:
+#    type: cala.nodes.prep.RigidStabilizer
+#    params:
+#      drift_speed: 0.5
+#    depends:
+#      - frame: glow.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
-      hardset_radius: 10
+      log_kwargs:
+        min_sigma: 3
+        max_sigma: 10
+        num_sigma: 10
+        threshold: 0.2
+        overlap: 0.5
     depends:
-      - frame: motion.frame
+      - frame: glow.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
-      - frame: motion.frame
+      - frame: glow.frame
 
   trace_frame:
     type: cala.nodes.traces.FrameUpdate
     params:
-      tolerance: 0.001
+      tol: 0.001
+      max_iter: 100
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: motion.frame
+      - frame: glow.frame
       - overlaps: assets.overlaps
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
-      - frame: motion.frame
+      - frame: glow.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
-      - frame: motion.frame
+      - frame: glow.frame
       - new_traces: trace_frame.latest_trace
+  footprints_frame:
+    type: cala.nodes.footprints.Footprinter
+    params:
+      bep: 1
+      tol: 0.0001
+      max_iter: 100
+    depends:
+      - footprints: assets.footprints
+      - pixel_stats: pix_frame.value
+      - component_stats: comp_frame.value
 
   residual:
     type: cala.nodes.residual.build
     params:
-      clip_threshold: 0.001
+      clip_threshold: 0.1
     depends:
-      - trigger: trace_frame.latest_trace
       - frames: assets.buffer
-      - footprints: assets.footprints
+      - footprints: footprints_frame.footprints
       - traces: assets.traces
   cleanup:
     type: cala.nodes.cleanup.purge_razed_components
@@ -115,6 +128,7 @@ nodes:
     params:
       min_frames: 10
       detect_thresh: 1.0
+      reprod_tol: 0.001
     depends:
       - residuals: residual.movie
       - detect_radius: size_est.radius
@@ -153,23 +167,13 @@ nodes:
       - new_traces: catalog.new_traces
   #  DETECT ENDS
 
-  footprints_frame:
-    type: cala.nodes.footprints.Footprinter
-    params:
-      bep: 1
-      tol: 0.0000001
-    depends:
-      - footprints: assets.footprints
-      - pixel_stats: pix_component.value
-      - component_stats: comp_component.value
-
   overlaps_update:
     type: cala.nodes.overlap.initialize
     depends:
       - overlaps: assets.overlaps
-      - footprints: footprints_frame.footprints
+      - footprints: footprint_component.footprints
 
   return:
     type: return
     depends:
-      - motion.frame
+      - glow.frame
