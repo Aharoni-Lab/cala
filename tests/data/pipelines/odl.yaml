@@ -29,18 +29,16 @@ assets:
     type: cala.assets.Residual
     scope: session
 
-# Add refiners in nodes
-
 nodes:
   source:
     type: cala.testing.SingleCellSource
   denoise:
     type: cala.nodes.prep.denoise
     params:
-      ksize:
-        - 3
-        - 3
-      sigmaX: 1.5
+      method: gaussian
+      kwargs:
+        ksize: [3, 3]
+        sigmaX: 1.5
     depends:
       - frame: source.frame
   glow:
