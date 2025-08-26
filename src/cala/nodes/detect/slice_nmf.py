@@ -58,7 +58,6 @@ class SliceNMF(Node):
             )
 
             l1_norm = slice_.sum().item()
-            # l0_norm = np.prod(slice_.shape)  # this fails when the residuals are tiny
             comp_recon = a_new @ c_new
 
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
@@ -68,7 +67,8 @@ class SliceNMF(Node):
                 trs.append(Trace.from_array(c_new))
                 res = (res - comp_recon).clip(0)
             else:
-                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 1e-7
+                l0_norm = np.prod(slice_.shape)
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm
 
         return fps, trs
 
