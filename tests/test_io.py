@@ -7,20 +7,7 @@ import xarray as xr
 from skimage import io
 
 from cala.nodes.io import stream
-
-
-def generate_text_image(
-    text: str,
-    frame_dims: tuple[int, int] = (256, 256),
-    org: tuple[int, int] = (50, 50),
-    color: tuple[int, int, int] = (255, 255, 255),
-    thickness: int = 2,
-    font_scale: int = 1,
-) -> np.ndarray:
-    image = np.zeros(frame_dims, np.uint8)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-
-    return cv2.putText(image, text, org, font, font_scale, color, thickness, cv2.LINE_AA)
+from cala.testing.util import generate_text_image
 
 
 def save_tiff(filename: Path, frame: np.ndarray) -> None:
