@@ -57,24 +57,38 @@ nodes:
       method: nonlocal
       kwargs:
         h: 4
+        templateWindowSize: 7
+        searchWindowSize: 21
     depends:
       - frame: saltpepper.frame
+  lines:
+    type: cala.nodes.prep.hlines.remove
+    depends:
+      - frame: glow.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: denoise.frame
-  filter:
-    type:
-
+  smooth:
+    type: cala.nodes.prep.denoise
+    params:
+      method: gaussian
+      kwargs:
+        ksize: [ 7, 7 ]
+        sigmaX: 1.5
+    depends:
+      - frame: lines.frame
   motion:
     type: cala.nodes.prep.RigidStabilizer
     params:
       drift_speed: 0.5
     depends:
-      - frame: glow.frame
+      - frame: smooth.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
+      noise_threshold: 2.0
+      n_frames: 30
       log_kwargs:
         min_sigma: 3
         max_sigma: 10
@@ -159,7 +173,7 @@ nodes:
     params:
       min_frames: 30
       detect_thresh: 2.0
-      reprod_tol: 0.001
+      reprod_tol: 0.005
     depends:
       - residuals: residual.movie
       - detect_radius: size_est.radius
