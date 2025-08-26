@@ -15,6 +15,8 @@ class SizeEst(BaseModel):
     """if this is set, no learning occurs."""
     n_frames: int | None = None
     """how many first n frames to learn from. if none, keep learning forever"""
+    noise_threshold: float = 0.0
+
     log_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     sizes_: list[float] = Field(default_factory=list)
@@ -31,7 +33,9 @@ class SizeEst(BaseModel):
         if self.n_frames and self.n_frames < frame.array[AXIS.frame_coord]:
             return self._est_radius
 
-        blobs = blob_log(frame.array, **self.log_kwargs)
+        blobs = blob_log(
+            frame.array.where(frame.array > self.noise_threshold, 0, drop=False), **self.log_kwargs
+        )
         if blobs.size == 0:
             return 0
 
