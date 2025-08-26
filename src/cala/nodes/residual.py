@@ -104,7 +104,7 @@ def _align_overestimates(
         .reset_coords([AXIS.frame_coord, AXIS.timestamp_coord], drop=True)
     )
 
-    return C_latest + xr.apply_ufunc(np.nan_to_num, dC, kwargs={"neginf": 0}).clip(min=0)
+    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC, kwargs={"neginf": 0})).clip(min=0)
 
 
 def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:

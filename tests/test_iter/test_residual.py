@@ -3,6 +3,8 @@ import pytest
 from noob.node import Node, NodeSpecification
 
 import xarray as xr
+
+from cala.assets import Residual
 from cala.models.axis import AXIS
 from cala.nodes.residual import _align_overestimates, _find_unlayered_footprints
 
@@ -16,6 +18,7 @@ def init() -> Node:
 
 def test_init(init, separate_cells) -> None:
     result = init.process(
+        residuals=Residual(),
         footprints=separate_cells.footprints,
         traces=separate_cells.traces,
         frames=separate_cells.make_movie(),
@@ -44,12 +47,13 @@ def test_align_overestimates(single_cell) -> None:
 
     adjusted_traces = _align_overestimates(A=footprints, R_latest=last_res, C_latest=last_trace)
 
-    np.testing.assert_array_equal(
-        (footprints @ adjusted_traces).values, movie.array.isel({AXIS.frames_dim: -2}).values
-    )
+    result = (footprints @ adjusted_traces).values
+    expected = movie.array.isel({AXIS.frames_dim: -2}).values
+
+    np.testing.assert_array_equal(result, expected)
 
 
 def test_find_exposed_footprints(connected_cells) -> None:
     footprints = connected_cells.footprints
     result = _find_unlayered_footprints(footprints.array)
-    assert result.sum(dim=AXIS.component_dim).max().item() == footprints.max().item()
+    assert result.sum(dim=AXIS.component_dim).max().item() == footprints.array.max().item()

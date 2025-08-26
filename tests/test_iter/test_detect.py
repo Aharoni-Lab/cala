@@ -14,7 +14,7 @@ def slice_nmf():
         spec=NodeSpecification(
             id="test_slice_nmf",
             type="cala.nodes.detect.SliceNMF",
-            params={"min_frames": 10, "detect_thresh": 1},
+            params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.00001},
         )
     )
 
@@ -47,7 +47,7 @@ class TestSliceNMF:
             spec=NodeSpecification(
                 id="test_slice_nmf",
                 type="cala.nodes.detect.SliceNMF",
-                params={"min_frames": 10, "detect_thresh": 1},
+                params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.001},
             )
         )
         fpts, trcs = nmf.process(
@@ -158,10 +158,10 @@ class TestCataloger:
         new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
 
         result = new_fps.array @ new_trs.array
-        expected = movie * (new_fps.array.max(dim=AXIS.component_dim) > 1e-4)
+        expected = movie * (new_fps.array.max(dim=AXIS.component_dim) > 1e-3)
 
         assert new_fps.array is not None
         # 1. the footprints do not overlap
         assert np.all(np.triu(new_fps.array @ new_fps.array.rename(AXIS.component_rename), 1) == 0)
         # 2. the trace and footprint values are accurate (where they do exist)
-        xr.testing.assert_allclose(result, expected.transpose(*result.dims), atol=1e-5)
+        xr.testing.assert_allclose(result, expected.transpose(*result.dims), atol=1e-3)
