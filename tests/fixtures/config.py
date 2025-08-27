@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, Generator, MutableMapping
 from pathlib import Path
 from typing import Any
 
@@ -160,7 +160,7 @@ def _flatten(d: MutableMapping, parent_key: str = "", separator: str = "__") -> 
 
 
 @pytest.fixture
-def cwd_to_pytest_base(request):
+def cwd_to_pytest_base(request: pytest.FixtureRequest) -> Generator[None, Any, None]:
     os.chdir(request.config.rootdir)
     yield
     os.chdir(request.config.invocation_params.dir)

@@ -1,4 +1,4 @@
-from collections.abc import Sequence, Generator
+from collections.abc import Generator, Sequence
 from datetime import datetime
 from itertools import count
 from typing import Annotated as A

@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
-from noob.node import Node, NodeSpecification
-
 import xarray as xr
+from noob.node import Node, NodeSpecification
 
 from cala.assets import Residual
 from cala.models.axis import AXIS

@@ -1,6 +1,6 @@
 from typing import Annotated as A
-import numpy as np
 
+import numpy as np
 from noob import Name
 from scipy.ndimage import convolve1d
 from scipy.signal import firwin, welch
@@ -29,7 +29,9 @@ def remove(
     return Frame.from_array(arr)
 
 
-def _remove_lines(image, distortion_freq: float = None, num_taps: int = 65, eps: float = 0.025):
+def _remove_lines(
+    image: np.ndarray, distortion_freq: float = None, num_taps: int = 65, eps: float = 0.025
+) -> np.ndarray:
     """
     Removes horizontal line artifacts from scanned image.
     Args:
@@ -49,7 +51,7 @@ def _remove_lines(image, distortion_freq: float = None, num_taps: int = 65, eps:
     return image - convolve1d(convolve1d(image, hpf, axis=0), lpf, axis=1)
 
 
-def _estimate_distortion_freq(image, min_frequency=1 / 25):
+def _estimate_distortion_freq(image: np.ndarray, min_frequency: float = 1 / 25) -> float:
     """Estimates distortion frequency as spectral peak in vertical dim."""
     f, pxx = welch(image.sum(axis=1))
     pxx[f < min_frequency] = 0.0

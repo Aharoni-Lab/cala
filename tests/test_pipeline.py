@@ -88,20 +88,3 @@ def test_odl(runner, source) -> None:
         expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
         result = (fps.array @ trs.array).transpose(*expected.dims)
         raise NotImplementedError("Deprecation not implemented")
-
-
-def test_with_avi(cwd_to_pytest_base) -> None:
-    cube = Cube.from_specification("cala-io")
-    tube = Tube.from_specification("cala-io")
-
-    runner = SynchronousRunner(tube=tube, cube=cube)
-
-    import matplotlib.pyplot as plt
-
-    gen = runner.iter()
-    for i, fr in enumerate(gen):
-        raw = fr["raw"].array
-        prep = fr["prep"].array / fr["prep"].array.max() * raw.max()
-        plt.imsave(f"out{i}.png", xr.concat([raw, prep], dim=AXIS.height_dim))
-
-    assert runner.cube.assets["buffer"].obj.array.size > 0

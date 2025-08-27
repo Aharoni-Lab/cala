@@ -1,8 +1,9 @@
 from typing import Annotated as A
 
+import numpy as np
 import xarray as xr
 from noob import Name
-import numpy as np
+
 from cala.assets import Footprints, Movie, Residual, Traces
 from cala.models import AXIS
 
@@ -69,12 +70,17 @@ def _align_overestimates(
         1. GradualOn: Know A. B turns ON
             -> trace tries to chase (increases)
             -> footprint tries to chase
-            -> residual becomes negative at A-B -> should just decrease, positive at A^B -> actually... should decrease (just more steeply)
+            -> residual becomes negative at A-B
+                -> should just decrease, positive at A^B
+                -> actually... should decrease (just more steeply)
 
         2. SplitOff: Know AB. B turns OFF
             -> trace tries to chase (decreases)
             -> footprint tries to chase
-            -> residual becomes positive at A-B -> should increase, negative at A^B -> this should just decrease, MORE negative at B-A -> this going to zero makes sense
+            -> residual becomes positive at A-B
+                -> should increase, negative at A^B
+                -> this should just decrease, MORE negative at B-A
+                -> this going to zero makes sense
             OR
             keep B, remove A-B
 
@@ -85,7 +91,8 @@ def _align_overestimates(
         for GradualOn, nothing should go to zero.
         for SplitOff, a chunk needs to go to zero.
 
-            So... how about we do something like (if it's been on for a long time, we become less likely to purge it?)
+            So... how about we do something like (if it's been on for a long time,
+            we become less likely to purge it?)
 
     We subsequently clip R minimum to zero, since all significant negative residual spots
     have been removed, and the remaining negative spots are noise level.
