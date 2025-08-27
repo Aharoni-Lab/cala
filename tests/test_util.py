@@ -12,6 +12,6 @@ def test_package_frame():
     timestamp = datetime(2023, 4, 8, 12, 0, 0)
 
     # Transform the frame
-    frame = package_frame(frame, index, timestamp)
+    result = package_frame(frame, index, timestamp)
 
-    assert np.array_equal(frame.array.values, frame)
+    assert np.array_equal(result.array.values, frame)
