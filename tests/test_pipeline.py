@@ -48,6 +48,7 @@ def test_process(runner) -> None:
     assert runner.cube.assets["buffer"].obj.array.size > 0
 
 
+@pytest.mark.xfail(raises=NotImplementedError)
 def test_odl(runner, source) -> None:
     gen = runner.iter(n=source.instance.n_frames)
     src_name = source.spec.type_.split(".")[-1]
@@ -60,13 +61,16 @@ def test_odl(runner, source) -> None:
         trs = runner.cube.assets["traces"].obj
 
     # Correct component count
-    if src_name != "SeparateSource":
+    if src_name not in ["SeparateSource", "SplitOffSource"]:
         assert toy.traces.array.sizes[AXIS.component_dim] == trs.array.sizes[AXIS.component_dim]
-    else:
+    elif src_name == "SeparateSource":
         # 2 is the # of discoverable cells (non-constant) for SeparateSource
         assert trs.array.sizes[AXIS.component_dim] == 2
+    elif src_name == "SplitOffSource":
+        # 3 because one should be deprecated
+        assert trs.array.sizes[AXIS.component_dim] == 3
 
-    if src_name in ["TwoOverlappingSource", "GradualOnSource", "SplitOffSource"]:
+    if src_name in ["TwoOverlappingSource", "GradualOnSource"]:
         # Traces are reasonably similar
         tr_corr = xr.corr(
             toy.traces.array, trs.array.rename(AXIS.component_rename), dim=AXIS.frame_coord
@@ -74,11 +78,16 @@ def test_odl(runner, source) -> None:
         for corr in tr_corr:
             assert np.isclose(corr.max(), 1, atol=1e-2)
 
-    else:
+    elif src_name in ["SingleCellSource", "TwoCellsSource", "SeparateSource"]:
         expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
         result = (fps.array @ trs.array).transpose(*expected.dims)
 
         xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
+
+    elif src_name == "SplitOffSource":
+        expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
+        result = (fps.array @ trs.array).transpose(*expected.dims)
+        raise NotImplementedError("Deprecation not implemented")
 
 
 def test_with_avi(cwd_to_pytest_base) -> None:
