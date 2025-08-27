@@ -46,7 +46,7 @@ def test_denoise(
 
     results = []
     for frame in iter(gen):
-        results.append(denoise(frame=frame, method=method, **params))
+        results.append(denoise(frame=frame, method=method, kwargs=params))
 
     for exp, res in zip(expected, results):
         np.testing.assert_allclose(exp.values, res.array.values)
