@@ -41,6 +41,6 @@ class SizeEst(BaseModel):
 
         self.centers_ = [blobs[:-1] for blobs in blobs]
         self.sizes_ += [blob[-1].item() for blob in blobs]
-        self._est_radius = int(np.round(np.median(self.sizes_) / 2).item())
+        self._est_radius = (np.median(self.sizes_) // 2 + 1).astype(int)
 
         return self._est_radius

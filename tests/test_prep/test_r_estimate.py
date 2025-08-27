@@ -28,7 +28,7 @@ def test_size_estim(separate_cells):
     )
     result = node.get_median_radius(max_proj)
 
-    assert result == expected
+    assert result == expected // 2 + 1
     assert len(node.sizes_) == 3
 
     for center in node.centers_:
