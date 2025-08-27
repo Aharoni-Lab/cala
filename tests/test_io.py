@@ -7,20 +7,7 @@ import xarray as xr
 from skimage import io
 
 from cala.nodes.io import stream
-
-
-def generate_text_image(
-    text: str,
-    frame_dims: tuple[int, int] = (256, 256),
-    org: tuple[int, int] = (50, 50),
-    color: tuple[int, int, int] = (255, 255, 255),
-    thickness: int = 2,
-    font_scale: int = 1,
-) -> np.ndarray:
-    image = np.zeros(frame_dims, np.uint8)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-
-    return cv2.putText(image, text, org, font, font_scale, color, thickness, cv2.LINE_AA)
+from cala.testing.util import generate_text_image
 
 
 def save_tiff(filename: Path, frame: np.ndarray) -> None:
@@ -50,7 +37,7 @@ def test_tiff_stream(tmp_path):
         save_tiff(tmp_path / f"{i}.tif", image)
 
     media = sorted(glob(str(tmp_path / "*.tif")))
-    s = iter(stream(media))
+    s = stream(media)
 
     for idx, res in enumerate(s):
         np.testing.assert_array_equal(res, generate_text_image(str(idx)))
@@ -65,7 +52,7 @@ def test_video_stream(tmp_path):
     save_movie(tmp_path / "video.mp4", video)
 
     media = sorted(glob(str(tmp_path / "*.mp4")))
-    s = iter(stream(media))
+    s = stream(media)
 
     for idx, res in enumerate(s):
         np.testing.assert_allclose(

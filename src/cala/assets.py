@@ -86,6 +86,7 @@ class Footprints(Asset):
             member=Footprint.entity(),
             group_by=Dims.component,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -134,6 +135,7 @@ class Traces(Asset):
             member=Trace.entity(),
             group_by=Dims.component,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -145,6 +147,7 @@ class Movie(Asset):
             member=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -180,6 +183,7 @@ class CompStats(Asset):
             dims=comp_dims,
             dtype=float,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -191,6 +195,7 @@ class PixStats(Asset):
             dims=(Dims.width.value, Dims.height.value, Dims.component.value),
             dtype=float,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -202,6 +207,7 @@ class Overlaps(Asset):
             dims=comp_dims,
             dtype=bool,
             checks=[has_no_nan],
+            allow_extra_coords=False,
         )
     )
 
@@ -224,5 +230,6 @@ class Residual(Asset):
             member=Frame.entity(),
             group_by=Dims.frame.value,
             checks=[is_non_negative, has_no_nan],
+            allow_extra_coords=False,
         )
     )

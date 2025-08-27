@@ -19,6 +19,9 @@ class SliceNMF(Node):
     """Wait until this number of frames to begin detecting."""
     detect_thresh: float
     """Minimum detection threshold for brightness fluctuation."""
+    reprod_tol: float
+    """Mean pixel value error tolerance for reproduced slice from the new component"""
+
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     error_: float = Field(None)
@@ -43,7 +46,7 @@ class SliceNMF(Node):
         fps = []
         trs = []
 
-        while np.sqrt(energy.max()).item() > self.detect_thresh:  # or use res directly
+        while energy.max().item() >= self.detect_thresh:  # or use res directly
             # Find and analyze neighborhood of maximum variance
             slice_ = self._get_max_energy_slice(
                 arr=res, energy_landscape=energy, radius=detect_radius
@@ -55,17 +58,17 @@ class SliceNMF(Node):
             )
 
             l1_norm = slice_.sum().item()
-            # l0_norm = np.prod(slice_.shape)  # this fails when the residuals are tiny
             comp_recon = a_new @ c_new
 
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
-            if (self.error_ / l1_norm) <= self._model.tol:
+            if (self.error_ / l1_norm) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
                 res = (res - comp_recon).clip(0)
             else:
-                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
+                l0_norm = np.prod(slice_.shape)
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm
 
         return fps, trs
 
@@ -73,7 +76,7 @@ class SliceNMF(Node):
         pixels_median = res.median(dim=AXIS.frames_dim)
         V = res - pixels_median
 
-        return (V**2).sum(dim=AXIS.frames_dim)
+        return np.sqrt((V**2).mean(dim=AXIS.frames_dim))
 
     def _get_max_energy_slice(
         self,

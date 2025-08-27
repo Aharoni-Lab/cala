@@ -5,8 +5,29 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import CompStats, Footprints, Overlaps, PixStats, Traces
+from cala.assets import CompStats, Footprints, Overlaps, PixStats, Residual, Traces
 from cala.models import AXIS
+
+
+def clear_overestimates(
+    footprints: Footprints, residuals: Residual, nmf_error: float
+) -> A[Footprints, Name("footprints")]:
+    """
+    Remove all sections of the footprints that cause negative residuals.
+
+    This occurs by:
+    1. find "significant" negative residual spots that is more than a noise level, and thus
+    cannot be clipped to zero. !!!! (only of the latest frame, and then go back to trace update..?)
+    2. all footprint values at these spots go to zero.
+    """
+    if residuals.array is None:
+        return footprints
+    R_min = residuals.array.isel({AXIS.frames_dim: -1}).reset_coords(
+        [AXIS.frame_coord, AXIS.timestamp_coord], drop=True
+    )
+    tuned_fp = footprints.array.where(R_min > -nmf_error, 0, drop=False)
+
+    return tuned_fp
 
 
 def purge_razed_components(
@@ -101,13 +122,13 @@ def filter_components(
             comp_stats.array.set_xindex(AXIS.id_coord)
             .set_xindex(f"{AXIS.id_coord}'")
             .sel({AXIS.id_coord: keep_ids, f"{AXIS.id_coord}'": keep_ids.values.tolist()})
-            .reset_index(AXIS.id_coord)
+            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )
         overlaps.array = (
             overlaps.array.set_xindex(AXIS.id_coord)
             .set_xindex(f"{AXIS.id_coord}'")
             .sel({AXIS.id_coord: keep_ids, f"{AXIS.id_coord}'": keep_ids.values.tolist()})
-            .reset_index(AXIS.id_coord)
+            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )
 
     return footprints, traces, pix_stats, comp_stats, overlaps

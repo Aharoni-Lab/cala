@@ -54,7 +54,7 @@ class Toy(BaseModel):
     cell_traces: list[np.ndarray]
     cell_ids: list[str]
     """If none, auto populated as cell_{idx}."""
-    confidences: list[float]
+    detected_ons: list[int]
 
     _footprints: xr.DataArray = PrivateAttr(init=False)
     _traces: xr.DataArray = PrivateAttr(init=False)
@@ -74,9 +74,9 @@ class Toy(BaseModel):
         return self
 
     @model_validator(mode="before")
-    def fill_confidences(self) -> Self:
-        if self.get("confidences", None) is None:
-            self["confidences"] = [0.0] * len(self["cell_positions"])
+    def fill_detected_ons(self) -> Self:
+        if self.get("detected_ons", None) is None:
+            self["detected_ons"] = [0] * len(self["cell_positions"])
         return self
 
     @model_validator(mode="before")
@@ -124,7 +124,7 @@ class Toy(BaseModel):
         )
 
     def _generate_footprint(
-        self, radius: int, position: Position, id_: str, confidence: float
+        self, radius: int, position: Position, id_: str, detected_on: int
     ) -> xr.DataArray:
         footprint = xr.DataArray(
             np.zeros((self.frame_dims.height, self.frame_dims.width)),
@@ -141,7 +141,7 @@ class Toy(BaseModel):
         return footprint.expand_dims(AXIS.component_dim).assign_coords(
             {
                 AXIS.id_coord: (AXIS.component_dim, [id_]),
-                AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                AXIS.detect_coord: (AXIS.component_dim, [detected_on]),
                 **{ax: footprint[ax] for ax in AXIS.spatial_dims},
             }
         )
@@ -149,13 +149,13 @@ class Toy(BaseModel):
     def _build_footprints(self) -> xr.DataArray:
         footprints = []
         for radius, position, id_, confid in zip(
-            self.cell_radii, self.cell_positions, self.cell_ids, self.confidences
+            self.cell_radii, self.cell_positions, self.cell_ids, self.detected_ons
         ):
             footprints.append(self._generate_footprint(radius, position, id_, confid))
 
         return xr.concat(footprints, dim=AXIS.component_dim)
 
-    def _format_trace(self, trace: np.ndarray, id_: str, confidence: float) -> xr.DataArray:
+    def _format_trace(self, trace: np.ndarray, id_: str, detected_on: int) -> xr.DataArray:
         return (
             xr.DataArray(
                 trace,
@@ -165,7 +165,7 @@ class Toy(BaseModel):
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
-                    AXIS.confidence_coord: (AXIS.component_dim, [confidence]),
+                    AXIS.detect_coord: (AXIS.component_dim, [detected_on]),
                     AXIS.frames_dim: range(trace.size),
                 }
             )
@@ -173,7 +173,7 @@ class Toy(BaseModel):
 
     def _build_traces(self) -> xr.DataArray:
         traces = []
-        for trace, id_, confid in zip(self.cell_traces, self.cell_ids, self.confidences):
+        for trace, id_, confid in zip(self.cell_traces, self.cell_ids, self.detected_ons):
             traces.append(self._format_trace(trace, id_, confid))
 
         return xr.concat(traces, dim=AXIS.component_dim).assign_coords(
@@ -198,12 +198,12 @@ class Toy(BaseModel):
         return Movie.from_array(movie)
 
     def add_cell(
-        self, position: Position, radius: int, trace: np.ndarray, id_: str, confidence: float = 0.0
+        self, position: Position, radius: int, trace: np.ndarray, id_: str, detected_on: int = 0
     ) -> None:
-        new_footprint = self._generate_footprint(radius, position, id_, confidence)
+        new_footprint = self._generate_footprint(radius, position, id_, detected_on)
         self._footprints = xr.concat([self._footprints, new_footprint], dim=AXIS.component_dim)
 
-        new_trace = self._format_trace(trace, id_, confidence)
+        new_trace = self._format_trace(trace, id_, detected_on)
         self._traces = xr.concat([self._traces, new_trace], dim=AXIS.component_dim)
 
     def drop_cell(self, id_: str | Iterable[str]) -> None:

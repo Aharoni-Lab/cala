@@ -11,18 +11,22 @@ from cala.assets import Frame
 
 
 def denoise(
-    frame: Frame, method: Literal["gaussian", "median", "bilateral"] = "gaussian", **kwargs: Any
+    frame: Frame, method: Literal["gaussian", "median", "bilateral"], kwargs: dict[str, Any]
 ) -> A[Frame, Name("frame")]:
     """Denoise a single frame."""
     methods: dict[str, Callable] = {
         "gaussian": cv2.GaussianBlur,
         "median": cv2.medianBlur,
         "bilateral": cv2.bilateralFilter,
+        "nonlocal": cv2.fastNlMeansDenoising,
     }
 
     _func = methods[method]
+
     frame = frame.array
 
-    denoised = _func(frame.values.astype(np.float32), **kwargs).astype(np.float64)
+    arr = frame.values.astype(np.uint8) if method == "nonlocal" else frame.values.astype(np.float32)
+
+    denoised = _func(arr, **kwargs).astype(float)
 
     return Frame.from_array(xr.DataArray(denoised, dims=frame.dims, coords=frame.coords))

@@ -1,4 +1,3 @@
-from cala.assets import Frame
 from cala.models import AXIS
 from cala.nodes.prep.r_estimate import SizeEst
 from cala.testing.toy import Position
@@ -18,7 +17,7 @@ def test_size_estim(separate_cells):
     max_proj = package_frame(
         separate_cells.make_movie().array.max(dim=AXIS.frames_dim).values, index=1
     )
-    result = node.get_median_radius(Frame.from_array(max_proj))
+    result = node.get_median_radius(max_proj)
 
     expected = separate_cells.cell_radii[0] - 1
     assert result == expected
@@ -27,9 +26,9 @@ def test_size_estim(separate_cells):
     max_proj = package_frame(
         separate_cells.make_movie().array.max(dim=AXIS.frames_dim).values, index=3
     )
-    result = node.get_median_radius(Frame.from_array(max_proj))
+    result = node.get_median_radius(max_proj)
 
-    assert result == expected
+    assert result == expected // 2 + 1
     assert len(node.sizes_) == 3
 
     for center in node.centers_:

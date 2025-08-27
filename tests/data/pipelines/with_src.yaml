@@ -1,8 +1,6 @@
-noob_id: cala-odl
-noob_model: noob.cube.CubeSpecification
+noob_id: cala-io
+noob_model: noob.tube.TubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
-
-# Add GUI server in assets
 
 assets:
   buffer:
@@ -29,31 +27,68 @@ assets:
     type: cala.assets.Residual
     scope: session
 
+
 nodes:
   source:
-    type: cala.testing.SingleCellSource
+    type: cala.nodes.io.stream
+    params:
+      files:
+      - tests/data/movies/msCam1.avi
+  counter:
+    type: cala.util.counter
+  frame:
+    type: cala.util.package_frame
+    depends:
+      - frame: source.value
+      - index: counter.idx
+
+  #PREPROCESS BEGINS
+  saltpepper:
+    type: cala.nodes.prep.denoise
+    params:
+      method: median
+      kwargs:
+        ksize: 3
+    depends:
+      - frame: frame.value
   denoise:
     type: cala.nodes.prep.denoise
     params:
-      method: gaussian
+      method: nonlocal
       kwargs:
-        ksize: [3, 3]
-        sigmaX: 1.5
+        h: 4
+        templateWindowSize: 7
+        searchWindowSize: 21
     depends:
-      - frame: source.frame
+      - frame: saltpepper.frame
+  lines:
+    type: cala.nodes.prep.hlines.remove
+    depends:
+      - frame: glow.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: denoise.frame
-#  motion:
-#    type: cala.nodes.prep.RigidStabilizer
-#    params:
-#      drift_speed: 0.5
-#    depends:
-#      - frame: glow.frame
+  smooth:
+    type: cala.nodes.prep.denoise
+    params:
+      method: gaussian
+      kwargs:
+        ksize: [ 7, 7 ]
+        sigmaX: 1.5
+    depends:
+      - frame: lines.frame
+  motion:
+    type: cala.nodes.prep.RigidStabilizer
+    params:
+      drift_speed: 0.5
+    depends:
+      - frame: smooth.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
+      noise_threshold: 2.0
+      n_frames: 30
       log_kwargs:
         min_sigma: 3
         max_sigma: 10
@@ -61,15 +96,17 @@ nodes:
         threshold: 0.2
         overlap: 0.5
     depends:
-      - frame: glow.frame
+      - frame: motion.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
-      - frame: glow.frame
+      - frame: motion.frame
+  #PREPROCESS ENDS
 
+  # FRAME UPDATE BEGINS
   trace_frame:
     type: cala.nodes.traces.FrameUpdate
     params:
@@ -78,19 +115,19 @@ nodes:
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: glow.frame
+      - frame: motion.frame
       - overlaps: assets.overlaps
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
-      - frame: glow.frame
+      - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
-      - frame: glow.frame
+      - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   footprints_frame:
     type: cala.nodes.footprints.Footprinter
@@ -128,14 +165,15 @@ nodes:
       - comp_stats: assets.comp_stats
       - overlaps: assets.overlaps
       - trigger: residual.movie
+  # FRAME UPDATE ENDS
 
   # DETECT BEGINS
   nmf:
     type: cala.nodes.detect.SliceNMF
     params:
-      min_frames: 10
-      detect_thresh: 1.0
-      reprod_tol: 0.001
+      min_frames: 30
+      detect_thresh: 2.0
+      reprod_tol: 0.005
     depends:
       - residuals: residual.movie
       - detect_radius: size_est.radius
@@ -172,15 +210,16 @@ nodes:
       - component_stats: assets.comp_stats
       - traces: assets.traces
       - new_traces: catalog.new_traces
-  #  DETECT ENDS
 
   overlaps_update:
     type: cala.nodes.overlap.initialize
     depends:
       - overlaps: assets.overlaps
       - footprints: footprint_component.footprints
+  #  DETECT ENDS
 
   return:
     type: return
     depends:
-      - glow.frame
+      - raw: frame.value
+      - prep: motion.frame

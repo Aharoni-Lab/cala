@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from collections.abc import Iterator
+from collections.abc import Generator
 from pathlib import Path
 from typing import Protocol
 
@@ -12,7 +12,7 @@ class Stream(Protocol):
     """Protocol defining the interface for video streams."""
 
     @abstractmethod
-    def __iter__(self) -> Iterator[NDArray]:
+    def __iter__(self) -> Generator[NDArray]:
         """Iterate over frames."""
         ...
 
@@ -35,7 +35,7 @@ class OpenCVStream(Stream):
         if not self._cap.isOpened():
             raise ValueError(f"Failed to open video file: {video_path}")
 
-    def __iter__(self) -> Iterator[NDArray]:
+    def __iter__(self) -> Generator[NDArray]:
         """
         Yields:
             NDArray: Next frame from the video
@@ -66,7 +66,7 @@ class ImageStream(Stream):
             raise ValueError("TIFF files must be grayscale")
         self._sample_shape = frame.shape
 
-    def __iter__(self) -> Iterator[NDArray]:
+    def __iter__(self) -> Generator[NDArray]:
         for file in self._files:
             frame = io.imread(file)
             if len(frame.shape) != 2:
@@ -90,7 +90,7 @@ class VideoStream(Stream):
         self._video_paths = video_paths
         self._current_stream: OpenCVStream | None = None
 
-    def __iter__(self) -> Iterator[NDArray]:
+    def __iter__(self) -> Generator[NDArray]:
         """
         Iterate over frames from all videos sequentially.
 
@@ -108,7 +108,7 @@ class VideoStream(Stream):
             self._current_stream.close()
 
 
-def stream(files: list[str | Path]) -> Stream:
+def stream(files: list[str | Path]) -> Generator[NDArray]:
     """
     Create a video stream from the provided video files.
 
@@ -125,8 +125,8 @@ def stream(files: list[str | Path]) -> Stream:
     video_format = {".mp4", ".avi", ".webm"}
 
     if suffix.issubset(video_format):
-        return VideoStream(files)
+        return iter(VideoStream(files))
     elif suffix.issubset(image_format):
-        return ImageStream(files)
+        return iter(ImageStream(files))
     else:
         raise ValueError(f"Unsupported file format: {suffix}")

@@ -7,6 +7,7 @@ from numba import prange
 from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Traces
+from cala.logging import init_logger
 from cala.models import AXIS
 
 
@@ -31,7 +32,7 @@ class Init:
 
         trace_coords = [
             AXIS.id_coord,
-            AXIS.confidence_coord,
+            AXIS.detect_coord,
             AXIS.frame_coord,
             AXIS.timestamp_coord,
         ]
@@ -83,8 +84,11 @@ class Init:
 
 
 class FrameUpdate:
-    def __init__(self, tolerance: float = 1e-3) -> None:
-        self.tolerance = tolerance
+    logger = init_logger(__name__)
+
+    def __init__(self, tol: float, max_iter: int | None = None) -> None:
+        self.tol = tol
+        self.max_iter = max_iter
 
     @process_method
     def ingest_frame(
@@ -131,7 +135,7 @@ class FrameUpdate:
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
 
-        updated_traces = self._update_traces(A, y, c.copy(), clusters, self.tolerance)
+        updated_traces = self._update_traces(A, y, c.copy(), clusters)
 
         traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
 
@@ -143,14 +147,12 @@ class FrameUpdate:
         y: xr.DataArray,
         c: xr.DataArray,
         clusters: list[np.ndarray],
-        eps: float,
     ) -> xr.DataArray:
         """
         Implementation of the temporal traces update algorithm.
 
-        This function implements the core update logic. It uses block coordinate descent
-        to update temporal traces for overlapping components together while maintaining
-        non-negativity constraints.
+        This function uses block coordinate descent to update temporal traces
+        for overlapping components together while maintaining non-negativity constraints.
 
         Args:
             A (xr.DataArray): Spatial footprints matrix [A, b].
@@ -176,14 +178,13 @@ class FrameUpdate:
         # Step 3: Extract diagonal elements for normalization
         V_diag = np.diag(V)
 
-        # Step 4: Initialize previous iteration value
-        c_old = np.zeros_like(c)
+        cnt = 0
 
-        # Steps 5-10: Main iteration loop until convergence
-        while np.linalg.norm(c - c_old) >= eps * np.linalg.norm(c_old):
+        # Steps 4-9: Main iteration loop until convergence
+        while True:
             c_old = c.copy()
 
-            # Steps 7-9: Update each group using block coordinate descent
+            # Steps 6-8: Update each group using block coordinate descent
             for cluster in clusters:
                 # Update traces for current group (division is pointwise)
                 numerator = u.isel({AXIS.component_dim: cluster}) - (
@@ -191,13 +192,18 @@ class FrameUpdate:
                 ).rename({f"{AXIS.component_dim}'": AXIS.component_dim})
 
                 c.loc[{AXIS.component_dim: cluster}] = np.maximum(
-                    c.isel({AXIS.component_dim: cluster}) + numerator / V_diag[cluster].T,
-                    0,
+                    c.isel({AXIS.component_dim: cluster}) + numerator / V_diag[cluster].T, 0
                 )
 
-        return xr.DataArray(
-            c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
-        ).assign_coords(y[AXIS.frames_dim].coords)
+            cnt += 1
+            maxed = self.max_iter and (cnt == self.max_iter)
+
+            if np.linalg.norm(c - c_old) >= self.tol * np.linalg.norm(c_old) or maxed:
+                if maxed:
+                    self.logger.debug(msg="max_iter reached before converging.")
+                return xr.DataArray(
+                    c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
+                ).assign_coords(y[AXIS.frames_dim].coords)
 
 
 def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
@@ -226,7 +232,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
             coords=c.isel({AXIS.component_dim: 0}).coords,
         )
         c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
-        c_new[AXIS.confidence_coord] = c_det[AXIS.confidence_coord]
+        c_new[AXIS.detect_coord] = c_det[AXIS.detect_coord]
 
         c_new.loc[{AXIS.frames_dim: c_det[AXIS.frame_coord]}] = c_det
     else:

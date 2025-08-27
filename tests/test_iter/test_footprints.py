@@ -81,7 +81,7 @@ def test_ingest_frame(fpter, toy, request):
         footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats
     )
 
-    expected = toy.footprints.copy()
+    expected = toy.footprints.model_copy()
 
     xr.testing.assert_allclose(result.array, expected.array)
 
