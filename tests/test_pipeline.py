@@ -81,7 +81,7 @@ def test_odl(runner, source) -> None:
         xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
 
 
-def test_with_avi() -> None:
+def test_with_avi(cwd_to_pytest_base) -> None:
     cube = Cube.from_specification("cala-io")
     tube = Tube.from_specification("cala-io")
 

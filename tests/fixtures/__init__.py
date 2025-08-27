@@ -7,6 +7,7 @@ from .config import (
     tmp_config_source,
     tmp_cwd,
     yaml_config,
+    cwd_to_pytest_base,
 )
 from .meta import monkeypatch_session
 from .toys import connected_cells, separate_cells, single_cell
@@ -21,6 +22,7 @@ __all__ = [
     "tmp_config_source",
     "tmp_cwd",
     "yaml_config",
+    "cwd_to_pytest_base",
     "single_cell",
     "separate_cells",
     "connected_cells",

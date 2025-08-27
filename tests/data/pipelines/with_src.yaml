@@ -33,7 +33,7 @@ nodes:
     type: cala.nodes.io.stream
     params:
       files:
-      - data/movies/msCam1.avi
+      - tests/data/movies/msCam1.avi
   counter:
     type: cala.util.counter
   frame:

@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable, MutableMapping
 from pathlib import Path
 from typing import Any
@@ -156,3 +157,10 @@ def _flatten(d: MutableMapping, parent_key: str = "", separator: str = "__") -> 
         else:
             items.append((new_key, value))
     return dict(items)
+
+
+@pytest.fixture
+def cwd_to_pytest_base(request):
+    os.chdir(request.config.rootdir)
+    yield
+    os.chdir(request.config.invocation_params.dir)
