@@ -3,7 +3,7 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS
-from cala.nodes.prep.rigid_stabilization import RigidStabilizer, Shift
+from cala.nodes.prep.motion import RigidStabilizer, Shift
 from cala.testing.toy import FrameDims, Position, Toy
 
 
