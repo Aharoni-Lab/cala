@@ -64,11 +64,20 @@ nodes:
   lines:
     type: cala.nodes.prep.hlines.remove
     depends:
-      - frame: glow.frame
+      - frame: denoise.frame
+  motion:  # needs to take place before glow, after lines
+    type: cala.nodes.prep.Stabilizer
+    params:
+      drift_speed: 0.5
+      pcc_filter: difference_of_gaussians
+      filter_kwargs:
+        low_sigma: 1
+    depends:
+      - frame: lines.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: denoise.frame
+      - frame: motion.frame
   smooth:
     type: cala.nodes.prep.denoise
     params:
@@ -77,16 +86,11 @@ nodes:
         ksize: [ 7, 7 ]
         sigmaX: 1.5
     depends:
-      - frame: lines.frame
-  motion:
-    type: cala.nodes.prep.RigidStabilizer
-    params:
-      drift_speed: 0.5
-    depends:
-      - frame: smooth.frame
+      - frame: glow.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
+      hardset_radius: 6
       noise_threshold: 2.0
       n_frames: 30
       log_kwargs:
@@ -96,14 +100,14 @@ nodes:
         threshold: 0.2
         overlap: 0.5
     depends:
-      - frame: motion.frame
+      - frame: smooth.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
-      - frame: motion.frame
+      - frame: smooth.frame
   #PREPROCESS ENDS
 
   # FRAME UPDATE BEGINS
@@ -115,19 +119,19 @@ nodes:
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: motion.frame
+      - frame: smooth.frame
       - overlaps: assets.overlaps
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
-      - frame: motion.frame
+      - frame: smooth.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
-      - frame: motion.frame
+      - frame: smooth.frame
       - new_traces: trace_frame.latest_trace
   footprints_frame:
     type: cala.nodes.footprints.Footprinter
@@ -171,7 +175,7 @@ nodes:
   nmf:
     type: cala.nodes.detect.SliceNMF
     params:
-      min_frames: 30
+      min_frames: 100
       detect_thresh: 2.0
       reprod_tol: 0.005
     depends:
@@ -222,4 +226,4 @@ nodes:
     type: return
     depends:
       - raw: frame.value
-      - prep: motion.frame
+      - prep: smooth.frame
