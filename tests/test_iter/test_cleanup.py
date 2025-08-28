@@ -1,8 +1,8 @@
 import xarray as xr
 
-from cala.assets import Residual, Frame
+from cala.assets import Residual
 from cala.models import AXIS
-from cala.nodes.cleanup import clear_overestimates, _filter_redundant
+from cala.nodes.cleanup import _filter_redundant, clear_overestimates
 
 
 def test_clear_overestimates(single_cell) -> None:
@@ -35,10 +35,10 @@ def test_erase_redundant(splitoff_cells) -> None:
     ).assign_coords({AXIS.id_coord: "cell_2", AXIS.detect_coord: 77})
     traces.array = xr.concat([traces.array, dead_trace], dim=AXIS.component_dim)
 
-    frame = Frame.from_array(footprints.array @ traces.array.isel({AXIS.frames_dim: -1}))
+    # frame = Frame.from_array(footprints.array @ traces.array.isel({AXIS.frames_dim: -1}))
 
     result = _filter_redundant(
-        footprints=footprints, traces=traces, frame=frame, min_life_in_frames=10, quantile=0.9
+        footprints=footprints, traces=traces, min_life_in_frames=10, quantile=0.9
     )
 
     expected = splitoff_cells.footprints.array[AXIS.id_coord].values.tolist()

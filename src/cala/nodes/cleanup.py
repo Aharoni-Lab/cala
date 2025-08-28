@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import CompStats, Footprints, Overlaps, PixStats, Residual, Traces, Frame, PopSnap
+from cala.assets import CompStats, Footprints, Overlaps, PixStats, Residual, Traces
 from cala.models import AXIS
 
 
@@ -64,7 +64,7 @@ def _filter_razed_ids(footprints: Footprints, min_thicc: int) -> A[list[str], Na
     A = footprints.array
 
     if A is None:
-        return xr.DataArray([])
+        return []
 
     kernel = np.ones((min_thicc, min_thicc), np.uint8)
 
@@ -102,7 +102,7 @@ def _filter_components(
         comp_stats.array = None
         overlaps.array = None
 
-    elif not footprints.array[AXIS.id_coord].values.tolist() == keep_ids:
+    elif footprints.array[AXIS.id_coord].values.tolist() != keep_ids:
         footprints.array = (
             footprints.array.set_xindex(AXIS.id_coord)
             .sel({AXIS.id_coord: keep_ids})
@@ -137,7 +137,6 @@ def _filter_components(
 def _filter_redundant(
     footprints: Footprints,
     traces: Traces,
-    frame: Frame,
     min_life_in_frames: int,
     quantile: float = 0.8,
     rel_threshold: float = 0.9,
@@ -154,7 +153,9 @@ def _filter_redundant(
     """
     A = footprints.array
     c_t = traces.array.isel({AXIS.frames_dim: -1})
-    y_t = frame.array
+    y_t = A @ c_t
+    # not sure whether to use y_t or reconstructed. recon probably makes more sense.
+    # y_t = frame.array
 
     keep_ids = []
     for a, c in zip(A.transpose(AXIS.component_dim, ...), c_t.transpose(AXIS.component_dim, ...)):
@@ -176,4 +177,11 @@ def merge_components(
 ) -> A[Footprints, Name("footprints")]:
     """
     Merge existing components
+
+    1. dilate footprints (to consider adjacent components)
+    2. find overlaps
+    3. send to cataloger??
+    4. then send to all component ingestion
+
+    nvm, let's just do it in cataloger.
     """
