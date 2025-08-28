@@ -21,7 +21,7 @@ def test_clear_overestimates(single_cell) -> None:
 def test_erase_redundant(splitoff_cells) -> None:
     footprints = splitoff_cells.footprints
     dead_footprint = xr.DataArray(
-        footprints.array.max(dim=AXIS.component_dim) / 100,
+        footprints.array.sum(dim=AXIS.component_dim) / 100,
         dims=footprints.array.isel({AXIS.component_dim: 1}).dims,
         coords=footprints.array.isel({AXIS.component_dim: 1}).coords,
     ).assign_coords({AXIS.id_coord: "cell_2", AXIS.detect_coord: 77})

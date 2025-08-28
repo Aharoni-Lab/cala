@@ -1,6 +1,6 @@
 import pytest
 
-from cala.testing import ConnectedSource, SeparateSource, SingleCellSource
+from cala.testing import ConnectedSource, SeparateSource, SingleCellSource, SplitOffSource
 from cala.testing.toy import Toy
 
 
@@ -19,4 +19,10 @@ def separate_cells() -> Toy:
 @pytest.fixture
 def connected_cells() -> Toy:
     source = ConnectedSource()
+    return source._toy
+
+
+@pytest.fixture
+def splitoff_cells() -> Toy:
+    source = SplitOffSource()
     return source._toy
