@@ -1,14 +1,18 @@
+from collections.abc import Callable
+from logging import Logger
 from typing import Annotated as A
+from typing import Literal
 
 import cv2
 import numpy as np
 import xarray as xr
-from noob import Name
-from noob.node import Node
-from pydantic import BaseModel, Field
+from noob import Name, process_method
+from pydantic import BaseModel, ConfigDict, Field
+from skimage.filters import butterworth, difference_of_gaussians, sato, scharr
 from skimage.registration import phase_cross_correlation
 
 from cala.assets import Frame
+from cala.logging import init_logger
 from cala.models import AXIS
 
 
@@ -17,14 +21,43 @@ class Shift(BaseModel):
     height: float
 
 
-class RigidStabilizer(Node):
+class Stabilizer(BaseModel):
     drift_speed: float = 1.0
-    kwargs: dict = Field(default_factory=dict)
+    pcc_kwargs: dict = Field(default_factory=dict)
+
+    pcc_filter: Literal["butterworth", "difference_of_gaussians", "sato", "scharr"]
+    filter_kwargs: dict = Field(default_factory=dict)
+    filt_fn: Callable = None
 
     _anchor_last_applied_on: int = None
-    anchor_frame_: Frame = None
-    previous_frame_: Frame = None
+    anchor_frame_: xr.DataArray = None
+    previous_frame_: xr.DataArray = None
     motions_: list[Shift] = None
+
+    logger: Logger = init_logger(__name__)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @process_method
+    def stabilize(self, frame: Frame) -> A[Frame, Name("frame")]:
+        if self.is_first_frame(frame):
+            return frame
+
+        curr_frame = frame.array
+
+        shift = self._compute_shift(curr_frame)
+        shifted_frame = self._apply_shift(curr_frame, shift)
+
+        self.previous_frame_ = shifted_frame
+
+        if self._anchor_last_applied_on == shifted_frame[AXIS.frame_coord].item():
+            self.anchor_frame_ = self._update_anchor(shifted_frame)
+
+        self.motions_.append(shift)
+
+        return Frame.from_array(
+            xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
+        )
 
     def is_first_frame(self, frame: Frame) -> bool:
         if (
@@ -40,8 +73,8 @@ class RigidStabilizer(Node):
             and (self.motions_ is None)
         ):
             self._anchor_last_applied_on = 0
-            self.anchor_frame_ = frame
-            self.previous_frame_ = frame
+            self.anchor_frame_ = frame.array
+            self.previous_frame_ = frame.array
             self.motions_ = [Shift(width=0, height=0)]
             return True
 
@@ -53,7 +86,7 @@ class RigidStabilizer(Node):
                 f"{self.motions_ = }"
             )
 
-    def compute_shift(self, curr_frame: xr.DataArray) -> Shift:
+    def _compute_shift(self, curr_frame: xr.DataArray) -> Shift:
         """
         The simplest way to stabilize streaming frames would be to have a single reference frame
         (the first frame) and shift all subsequent frames against this reference frame.
@@ -91,14 +124,20 @@ class RigidStabilizer(Node):
         if: abs(sequential_shift - anchor_shift) < drift_speed
         then: true_shift = anchor_shift
         """
+        filters = {
+            "butterworth": butterworth,
+            "difference_of_gaussians": difference_of_gaussians,
+            "sato": sato,
+            "scharr": scharr,
+        }
+        filt_fn = filters[self.pcc_filter]
 
-        anchor_shift, a_error, _ = phase_cross_correlation(
-            self.anchor_frame_.array, curr_frame.values, **self.kwargs
-        )
+        curr = filt_fn(curr_frame, **self.filter_kwargs)
+        prev = filt_fn(self.previous_frame_, **self.filter_kwargs)
+        anchor = filt_fn(self.anchor_frame_, **self.filter_kwargs)
 
-        sequent_shift, s_error, _ = phase_cross_correlation(
-            self.previous_frame_.array, curr_frame.values, **self.kwargs
-        )
+        anchor_shift, _, _ = phase_cross_correlation(anchor, curr, **self.pcc_kwargs)
+        sequent_shift, _, _ = phase_cross_correlation(prev, curr, **self.pcc_kwargs)
 
         shift_diff = abs(np.linalg.norm(anchor_shift - sequent_shift))
 
@@ -113,7 +152,7 @@ class RigidStabilizer(Node):
 
         return Shift(height=shift[0], width=shift[1])
 
-    def apply_shift(self, frame: xr.DataArray, shift: Shift) -> xr.DataArray:
+    def _apply_shift(self, frame: xr.DataArray, shift: Shift) -> xr.DataArray:
         # Define the affine transformation matrix for translation
         M = np.float32([[1, 0, shift.width], [0, 1, shift.height]])
 
@@ -122,48 +161,12 @@ class RigidStabilizer(Node):
             M,
             (frame.sizes[AXIS.width_dim], frame.sizes[AXIS.height_dim]),
             flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=np.nan,
+            borderMode=cv2.BORDER_REPLICATE,
+            # borderValue=0,
         )
-        shifted_frame = np.nan_to_num(shifted_frame, copy=True, nan=0)
         return xr.DataArray(shifted_frame, dims=frame.dims, coords=frame.coords)
 
-    def update_anchor(self, frame: xr.DataArray) -> xr.DataArray:
+    def _update_anchor(self, frame: xr.DataArray) -> xr.DataArray:
         curr_index = frame[AXIS.frame_coord].item()
 
-        return (self.anchor_frame_.array * curr_index + frame) / (curr_index + 1)
-
-    def process(self, frame: Frame) -> A[Frame, Name("frame")]:
-        if self.is_first_frame(frame):
-            return frame
-
-        curr_frame = frame.array
-
-        shift = self.compute_shift(curr_frame)
-        shifted_frame = self.apply_shift(curr_frame, shift)
-
-        self.previous_frame_ = Frame.from_array(shifted_frame)
-
-        if self._anchor_last_applied_on == shifted_frame[AXIS.frame_coord].item():
-            self.anchor_frame_.array = self.update_anchor(shifted_frame)
-
-        self.motions_.append(shift)
-
-        return Frame.from_array(
-            xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
-        )
-
-    def get_info(self) -> dict:
-        """Get information about the current state.
-
-        Returns
-        -------
-        dict
-            Dictionary containing current statistics
-        """
-        return {
-            "_anchor_last_applied_on": self._anchor_last_applied_on,
-            "anchor_frame_": self.anchor_frame_,
-            "previous_frame_": self.previous_frame_,
-            "motion_": self.motions_,
-        }
+        return (self.anchor_frame_ * curr_index + frame) / (curr_index + 1)
