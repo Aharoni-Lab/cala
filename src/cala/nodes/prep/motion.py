@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Annotated as A
+from typing import Annotated as A, ClassVar, Literal, Callable, Any
 
 import cv2
 import numpy as np
@@ -7,6 +7,7 @@ import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel, Field, ConfigDict
 from skimage.registration import phase_cross_correlation
+from skimage.filters import butterworth, difference_of_gaussians, sato, scharr
 
 from cala.assets import Frame
 from cala.logging import init_logger
@@ -20,7 +21,11 @@ class Shift(BaseModel):
 
 class Stabilizer(BaseModel):
     drift_speed: float = 1.0
-    kwargs: dict = Field(default_factory=dict)
+    pcc_kwargs: dict = Field(default_factory=dict)
+
+    pcc_filter: Literal["butterworth", "difference_of_gaussians", "sato", "scharr"]
+    filter_kwargs: dict = Field(default_factory=dict)
+    filt_fn: Callable = None
 
     _anchor_last_applied_on: int = None
     anchor_frame_: xr.DataArray = None
@@ -117,14 +122,20 @@ class Stabilizer(BaseModel):
         if: abs(sequential_shift - anchor_shift) < drift_speed
         then: true_shift = anchor_shift
         """
+        filters = {
+            "butterworth": butterworth,
+            "difference_of_gaussians": difference_of_gaussians,
+            "sato": sato,
+            "scharr": scharr,
+        }
+        filt_fn = filters[self.pcc_filter]
 
-        anchor_shift, a_error, _ = phase_cross_correlation(
-            self.anchor_frame_.values, curr_frame.values, **self.kwargs
-        )
+        curr = filt_fn(curr_frame, **self.filter_kwargs)
+        prev = filt_fn(self.previous_frame_, **self.filter_kwargs)
+        anchor = filt_fn(self.anchor_frame_, **self.filter_kwargs)
 
-        sequent_shift, s_error, _ = phase_cross_correlation(
-            self.previous_frame_.values, curr_frame.values, **self.kwargs
-        )
+        anchor_shift, _, _ = phase_cross_correlation(anchor, curr, **self.pcc_kwargs)
+        sequent_shift, _, _ = phase_cross_correlation(prev, curr, **self.pcc_kwargs)
 
         shift_diff = abs(np.linalg.norm(anchor_shift - sequent_shift))
 
@@ -148,10 +159,9 @@ class Stabilizer(BaseModel):
             M,
             (frame.sizes[AXIS.width_dim], frame.sizes[AXIS.height_dim]),
             flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=np.nan,
+            borderMode=cv2.BORDER_REPLICATE,
+            # borderValue=0,
         )
-        shifted_frame = np.nan_to_num(shifted_frame, copy=True, nan=0)
         return xr.DataArray(shifted_frame, dims=frame.dims, coords=frame.coords)
 
     def _update_anchor(self, frame: xr.DataArray) -> xr.DataArray:
