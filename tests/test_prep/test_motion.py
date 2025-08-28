@@ -3,16 +3,14 @@ import pytest
 from noob.node import NodeSpecification
 
 from cala.models import AXIS
-from cala.nodes.prep.motion import RigidStabilizer, Shift
+from cala.nodes.prep.motion import Stabilizer, Shift
 from cala.testing.toy import FrameDims, Position, Toy
 
 
 @pytest.mark.parametrize("params", [{"drift_speed": 1, "kwargs": {"upsample_factor": 100}}])
 def test_motion_estimation(params) -> None:
 
-    stab = RigidStabilizer.from_specification(
-        NodeSpecification(id="test", type="cala.nodes.prep.RigidStabilizer", params=params)
-    )
+    stab = Stabilizer(**params)
 
     n_frames = 50
 
@@ -42,7 +40,7 @@ def test_motion_estimation(params) -> None:
                 width=shifts[0].width - shift.width, height=shifts[0].height - shift.height
             )
         }
-        result.append(stab.process(frame))
+        result.append(stab.stabilize(frame))
 
     estimate = -np.array([(m.width, m.height) for m in stab.motions_])
     expected = np.array([(m.width, m.height) for m in shifts]) - (shifts[0].width, shifts[0].height)
