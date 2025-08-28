@@ -1,13 +1,15 @@
+from collections.abc import Callable
 from logging import Logger
-from typing import Annotated as A, ClassVar, Literal, Callable, Any
+from typing import Annotated as A
+from typing import Literal
 
 import cv2
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
-from pydantic import BaseModel, Field, ConfigDict
-from skimage.registration import phase_cross_correlation
+from pydantic import BaseModel, ConfigDict, Field
 from skimage.filters import butterworth, difference_of_gaussians, sato, scharr
+from skimage.registration import phase_cross_correlation
 
 from cala.assets import Frame
 from cala.logging import init_logger
