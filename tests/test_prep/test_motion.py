@@ -7,7 +7,17 @@ from cala.nodes.prep.motion import Stabilizer, Shift
 from cala.testing.toy import FrameDims, Position, Toy
 
 
-@pytest.mark.parametrize("params", [{"drift_speed": 1, "kwargs": {"upsample_factor": 100}}])
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "drift_speed": 1,
+            "pcc_kwargs": {"upsample_factor": 100},
+            "pcc_filter": "difference_of_gaussians",
+            "filter_kwargs": {"low_sigma": 1},
+        }
+    ],
+)
 def test_motion_estimation(params) -> None:
 
     stab = Stabilizer(**params)
