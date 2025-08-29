@@ -43,7 +43,7 @@ nodes:
       - index: counter.idx
 
   #PREPROCESS BEGINS
-  saltpepper:
+  hotpix:  # needs to happen first
     type: cala.nodes.prep.denoise
     params:
       method: median
@@ -51,42 +51,36 @@ nodes:
         ksize: 3
     depends:
       - frame: frame.value
-  denoise:
-    type: cala.nodes.prep.denoise
+  flatten:
+    type: cala.nodes.prep.butter
     params:
-      method: nonlocal
       kwargs:
-        h: 4
-        templateWindowSize: 7
-        searchWindowSize: 21
+        cutoff_frequency_ratio: 0.005
     depends:
-      - frame: saltpepper.frame
-  lines:
-    type: cala.nodes.prep.hlines.remove
+      - frame: hotpix.frame
+  lines:  # needs to happen after flatten
+    type: cala.nodes.prep.remove_mean
+    params:
+      orient: both
     depends:
-      - frame: denoise.frame
+      - frame: flatten.frame
+  denoise:  # needs to happen after lines
+    type: cala.nodes.prep.Restore
+    depends:
+      - frame: lines.frame
   motion:  # needs to take place before glow, after lines
     type: cala.nodes.prep.Stabilizer
     params:
       drift_speed: 0.5
       pcc_filter: difference_of_gaussians
       filter_kwargs:
-        low_sigma: 1
+        low_sigma: 4
     depends:
-      - frame: lines.frame
+      - frame: denoise.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: motion.frame
-  smooth:
-    type: cala.nodes.prep.denoise
-    params:
-      method: gaussian
-      kwargs:
-        ksize: [ 7, 7 ]
-        sigmaX: 1.5
-    depends:
-      - frame: glow.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
@@ -100,14 +94,14 @@ nodes:
         threshold: 0.2
         overlap: 0.5
     depends:
-      - frame: smooth.frame
+      - frame: glow.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
       size: 100
     depends:
       - buffer: assets.buffer
-      - frame: smooth.frame
+      - frame: motion.frame
   #PREPROCESS ENDS
 
   # FRAME UPDATE BEGINS
@@ -119,19 +113,19 @@ nodes:
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: smooth.frame
+      - frame: motion.frame
       - overlaps: assets.overlaps
   pix_frame:
     type: cala.nodes.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
-      - frame: smooth.frame
+      - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
-      - frame: smooth.frame
+      - frame: motion.frame
       - new_traces: trace_frame.latest_trace
   footprints_frame:
     type: cala.nodes.footprints.Footprinter
@@ -226,4 +220,4 @@ nodes:
     type: return
     depends:
       - raw: frame.value
-      - prep: smooth.frame
+      - prep: motion.frame
