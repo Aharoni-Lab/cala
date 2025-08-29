@@ -39,7 +39,7 @@ class Restore(BaseModel):
         return Frame.from_array(xr.DataArray(denoised, dims=arr.dims, coords=arr.coords))
 
 
-def denoise(
+def blur(
     frame: Frame,
     method: Literal["gaussian", "median", "bilateral", "nonlocal"],
     kwargs: dict[str, Any],

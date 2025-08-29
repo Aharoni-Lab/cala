@@ -44,7 +44,7 @@ nodes:
 
   #PREPROCESS BEGINS
   hotpix:  # needs to happen first
-    type: cala.nodes.prep.denoise
+    type: cala.nodes.prep.blur
     params:
       method: median
       kwargs:
