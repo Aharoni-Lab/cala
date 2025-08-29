@@ -1,4 +1,4 @@
-from typing import Annotated as A
+from typing import Annotated as A, Literal
 
 import numpy as np
 from noob import Name
@@ -6,9 +6,29 @@ from scipy.ndimage import convolve1d
 from scipy.signal import firwin, welch
 
 from cala.assets import Frame
+from cala.models import AXIS
 
 
-def remove(
+def remove_mean(frame: Frame, orient: Literal["horiz", "vert", "both"]) -> A[Frame, Name("frame")]:
+    arr = frame.array
+
+    if orient == "horiz":
+        denoised = arr - arr.mean(dim=AXIS.width_dim)
+    elif orient == "vert":
+        denoised = arr - arr.mean(dim=AXIS.height_dim)
+    elif orient == "both":
+        horiz_dn = arr - arr.mean(dim=AXIS.width_dim)
+        denoised = horiz_dn - horiz_dn.mean(dim=AXIS.height_dim)
+    else:
+        raise ValueError(f"Unknown orientation {orient}")
+
+    # diff should be frame.mean - denoised.mean, but denoised.mean is always 0 by definition
+    diff = frame.array.mean()
+
+    return Frame.from_array(denoised + diff)
+
+
+def remove_freq(
     frame: Frame, distortion_freq: float | None = None, num_taps: int = 65, eps: float = 0.025
 ) -> A[Frame, Name("frame")]:
     arr = frame.array

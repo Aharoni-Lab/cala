@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.metrics import structural_similarity
 
-from cala.nodes.prep.hlines import remove
+from cala.nodes.prep.lines import remove_freq
 from cala.testing.util import generate_text_image
 from cala.util import package_frame
 
@@ -18,6 +18,6 @@ def test_remove_lines():
 
     frame = package_frame(noisy_img, 0)
 
-    result = remove(frame)
+    result = remove_freq(frame)
 
     assert structural_similarity(img.astype(int), result.array.values.astype(int)) == 1
