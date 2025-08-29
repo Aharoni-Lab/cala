@@ -139,7 +139,7 @@ class Stabilizer(BaseModel):
         anchor_shift, _, _ = phase_cross_correlation(anchor, curr, **self.pcc_kwargs)
         sequent_shift, _, _ = phase_cross_correlation(prev, curr, **self.pcc_kwargs)
 
-        shift_diff = abs(np.linalg.norm(anchor_shift - sequent_shift))
+        shift_diff = np.linalg.norm(anchor_shift - sequent_shift)
 
         frame_idx = curr_frame[AXIS.frame_coord].item()
         drift_threshold = (frame_idx - self._anchor_last_applied_on) * self.drift_speed
