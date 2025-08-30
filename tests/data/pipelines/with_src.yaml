@@ -59,7 +59,7 @@ nodes:
     depends:
       - frame: hotpix.frame
   lines:  # needs to happen after flatten
-    type: cala.nodes.prep.remove_mean
+    type: cala.nodes.prep.remove_freq
     params:
       orient: both
     depends:

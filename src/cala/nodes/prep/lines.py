@@ -1,4 +1,4 @@
-from typing import Annotated as A, Literal
+from typing import Annotated as A, Literal, Any
 
 import numpy as np
 from noob import Name
@@ -29,16 +29,25 @@ def remove_mean(frame: Frame, orient: Literal["horiz", "vert", "both"]) -> A[Fra
 
 
 def remove_freq(
-    frame: Frame, distortion_freq: float | None = None, num_taps: int = 65, eps: float = 0.025
+    frame: Frame,
+    orient: Literal["horiz", "vert", "both"],
+    kwargs: dict[str, Any] | None = None,
 ) -> A[Frame, Name("frame")]:
+    if kwargs is None:
+        kwargs = {}
+
     arr = frame.array
 
     if np.all(frame.array == 0):
         return frame
 
-    denoised = _remove_lines(
-        arr.values, distortion_freq=distortion_freq, num_taps=num_taps, eps=eps
-    )
+    if orient == "horiz":
+        denoised = _remove_lines(arr.values, **kwargs)
+    elif orient == "vert":
+        denoised = _remove_lines(arr.values.T, **kwargs).T
+    elif orient == "both":
+        horiz_dn = _remove_lines(arr.values, **kwargs)
+        denoised = _remove_lines(horiz_dn.T, **kwargs).T
 
     dmin = denoised.min()
     if dmin < 0:
