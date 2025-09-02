@@ -18,6 +18,6 @@ def test_remove_lines():
 
     frame = package_frame(noisy_img, 0)
 
-    result = remove_freq(frame)
+    result = remove_freq(frame, orient="horiz")
 
     assert structural_similarity(img.astype(int), result.array.values.astype(int)) == 1
