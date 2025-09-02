@@ -120,14 +120,19 @@ class Traces(Asset):
         else:
             self.array_ = array
 
-    def append(self, array: xr.DataArray, dim: str | list[str]) -> None:
-        array.to_zarr(self.zarr_path, append_dim=dim)
+    def update(self, array: xr.DataArray, **kwargs) -> None:
+        self.validate_array_schema(array)
+        array.to_zarr(self.zarr_path, **kwargs)
 
     @classmethod
     def from_array(
         cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
     ) -> "Traces":
-        return cls(array_=array, zarr_path=zarr_path, peek_size=peek_size)
+        if zarr_path:
+            assert peek_size, "peek_size must be set for zarr."
+        new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
+        new_cls.array = array
+        return new_cls
 
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(

@@ -137,7 +137,10 @@ class FrameUpdate:
 
         updated_traces = self._update_traces(A, y, c.copy(), clusters)
 
-        traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
+        if traces.zarr_path:
+            traces.update(updated_traces, dim=AXIS.frames_dim)
+        else:
+            traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
 
         return PopSnap.from_array(updated_traces)
 
@@ -243,6 +246,9 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
         intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
         c = c.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
 
-    traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
+    if traces.zarr_path:
+        traces.update(c_new, append_dim=AXIS.component_dim)
+    else:
+        traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
 
     return traces
