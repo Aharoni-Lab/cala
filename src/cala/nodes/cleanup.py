@@ -96,11 +96,11 @@ def _filter_components(
     A[Overlaps, Name("overlaps")],
 ]:
     if len(keep_ids) == 0 or footprints.array is None:
-        footprints.array = None
-        traces.array = None
-        pix_stats.array = None
-        comp_stats.array = None
-        overlaps.array = None
+        footprints.reset()
+        traces.reset()
+        pix_stats.reset()
+        comp_stats.reset()
+        overlaps.reset()
 
     elif footprints.array[AXIS.id_coord].values.tolist() != keep_ids:
         footprints.array = (

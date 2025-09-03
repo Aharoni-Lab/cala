@@ -1,15 +1,17 @@
+import contextlib
+import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 import xarray as xr
-from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator
+from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 
 from cala.models.axis import AXIS, Coords, Dims
 from cala.models.checks import has_no_nan, is_non_negative
 from cala.models.entity import Entity, Group
 
-AssetType = TypeVar("AssetType", xr.DataArray, None)
+AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
 
 class Asset(BaseModel):
@@ -29,6 +31,9 @@ class Asset(BaseModel):
     @classmethod
     def from_array(cls, array: xr.DataArray) -> "Asset":
         return cls(array_=array)
+
+    def reset(self) -> None:
+        self.array_ = None
 
     def __eq__(self, other: "Asset") -> bool:
         return self.array.equals(other.array)
@@ -103,13 +108,23 @@ class Traces(Asset):
     @property
     def array(self) -> xr.DataArray:
         if self.zarr_path:
-            return (
-                xr.open_zarr(self.zarr_path)
-                .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
-                .to_dataarray()
-                .isel({"variable": 0})  # not sure why it automatically makes this coordinate
-                .reset_coords("variable", drop=True)
-            )
+            try:
+                da = (
+                    xr.open_zarr(self.zarr_path)
+                    .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+                    .to_dataarray()
+                    .drop_vars(["variable"])
+                    .isel(variable=0)
+                )
+                return da.assign_coords(
+                    {
+                        AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
+                        AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
+                    }
+                ).compute()
+
+            except FileNotFoundError:
+                return self.array_
         else:
             return self.array_
 
@@ -120,14 +135,32 @@ class Traces(Asset):
         else:
             self.array_ = array
 
-    def append(self, array: xr.DataArray, dim: str | list[str]) -> None:
-        array.to_zarr(self.zarr_path, append_dim=dim)
+    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
+        self.validate_array_schema(array)
+        array.to_zarr(self.zarr_path, **kwargs)
+
+    def reset(self) -> None:
+        self.array_ = None
+        if self.zarr_path:
+            path = Path(self.zarr_path)
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                contextlib.suppress(FileNotFoundError)
 
     @classmethod
     def from_array(
         cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
     ) -> "Traces":
-        return cls(array_=array, zarr_path=zarr_path, peek_size=peek_size)
+        new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
+        new_cls.array = array
+        return new_cls
+
+    @model_validator(mode="after")
+    def check_zarr_setting(self) -> "Traces":
+        if self.zarr_path:
+            assert self.peek_size, "peek_size must be set for zarr."
+        return self
 
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(

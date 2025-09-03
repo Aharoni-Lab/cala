@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel, ConfigDict, Field
-from skimage.filters import butterworth, difference_of_gaussians, sato, scharr
+from skimage.filters import difference_of_gaussians
 from skimage.registration import phase_cross_correlation
 
 from cala.assets import Frame
@@ -124,22 +124,14 @@ class Stabilizer(BaseModel):
         if: abs(sequential_shift - anchor_shift) < drift_speed
         then: true_shift = anchor_shift
         """
-        filters = {
-            "butterworth": butterworth,
-            "difference_of_gaussians": difference_of_gaussians,
-            "sato": sato,
-            "scharr": scharr,
-        }
-        filt_fn = filters[self.pcc_filter]
-
-        curr = filt_fn(curr_frame, **self.filter_kwargs)
-        prev = filt_fn(self.previous_frame_, **self.filter_kwargs)
-        anchor = filt_fn(self.anchor_frame_, **self.filter_kwargs)
+        curr = difference_of_gaussians(curr_frame, **self.filter_kwargs)
+        prev = difference_of_gaussians(self.previous_frame_, **self.filter_kwargs)
+        anchor = difference_of_gaussians(self.anchor_frame_, **self.filter_kwargs)
 
         anchor_shift, _, _ = phase_cross_correlation(anchor, curr, **self.pcc_kwargs)
         sequent_shift, _, _ = phase_cross_correlation(prev, curr, **self.pcc_kwargs)
 
-        shift_diff = abs(np.linalg.norm(anchor_shift - sequent_shift))
+        shift_diff = np.linalg.norm(anchor_shift - sequent_shift)
 
         frame_idx = curr_frame[AXIS.frame_coord].item()
         drift_threshold = (frame_idx - self._anchor_last_applied_on) * self.drift_speed

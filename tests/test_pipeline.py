@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -31,8 +33,11 @@ def tube(source):
 
 
 @pytest.fixture
-def cube():
-    return Cube.from_specification("cala-odl")
+def cube(tmp_path: Path):
+    cube = Cube.from_specification("cala-odl")
+    cube.assets["traces"].spec.params["zarr_path"] = tmp_path / "traces"
+    cube.assets["traces"].params["zarr_path"] = tmp_path / "traces"
+    return cube
 
 
 @pytest.fixture

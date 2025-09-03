@@ -134,10 +134,20 @@ class FrameUpdate:
             csgraph=overlaps.array.data, directed=False, return_labels=True
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
+        updated_traces = self._update_traces(A, y, c, clusters)
 
-        updated_traces = self._update_traces(A, y, c.copy(), clusters)
-
-        traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
+        if traces.zarr_path:
+            updated_tr = updated_traces.expand_dims(AXIS.frames_dim).assign_coords(
+                {
+                    AXIS.timestamp_coord: (
+                        AXIS.frames_dim,
+                        [updated_traces[AXIS.timestamp_coord].values],
+                    )
+                }
+            )
+            traces.update(updated_tr, append_dim=AXIS.frames_dim)
+        else:
+            traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
 
         return PopSnap.from_array(updated_traces)
 
@@ -187,6 +197,7 @@ class FrameUpdate:
             # Steps 6-8: Update each group using block coordinate descent
             for cluster in clusters:
                 # Update traces for current group (division is pointwise)
+
                 numerator = u.isel({AXIS.component_dim: cluster}) - (
                     V.isel({f"{AXIS.component_dim}'": cluster}) @ c
                 ).rename({f"{AXIS.component_dim}'": AXIS.component_dim})
@@ -241,8 +252,22 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     merged_ids = c_det.attrs.get("replaces")
     if merged_ids:
         intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
-        c = c.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+        if traces.zarr_path:
+            traces.array = (
+                traces.array.set_xindex(AXIS.id_coord)
+                .sel({AXIS.id_coord: intact_ids})
+                .reset_index(AXIS.id_coord)
+            )
+        else:
+            c = (
+                c.set_xindex(AXIS.id_coord)
+                .sel({AXIS.id_coord: intact_ids})
+                .reset_index(AXIS.id_coord)
+            )
 
-    traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
+    if traces.zarr_path:
+        traces.update(c_new, append_dim=AXIS.component_dim)
+    else:
+        traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
 
     return traces

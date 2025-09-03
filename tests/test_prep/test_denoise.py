@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 
 from cala.models import AXIS
-from cala.nodes.prep.denoise import denoise
+from cala.nodes.prep.denoise import blur
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -46,7 +46,7 @@ def test_denoise(
 
     results = []
     for frame in iter(gen):
-        results.append(denoise(frame=frame, method=method, kwargs=params))
+        results.append(blur(frame=frame, method=method, kwargs=params))
 
     for exp, res in zip(expected, results):
         np.testing.assert_allclose(exp.values, res.array.values)

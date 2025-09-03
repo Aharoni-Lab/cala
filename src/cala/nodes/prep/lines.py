@@ -1,4 +1,5 @@
 from typing import Annotated as A
+from typing import Any, Literal
 
 import numpy as np
 from noob import Name
@@ -6,19 +7,48 @@ from scipy.ndimage import convolve1d
 from scipy.signal import firwin, welch
 
 from cala.assets import Frame
+from cala.models import AXIS
 
 
-def remove(
-    frame: Frame, distortion_freq: float | None = None, num_taps: int = 65, eps: float = 0.025
+def remove_mean(frame: Frame, orient: Literal["horiz", "vert", "both"]) -> A[Frame, Name("frame")]:
+    arr = frame.array
+
+    if orient == "horiz":
+        denoised = arr - arr.mean(dim=AXIS.width_dim)
+    elif orient == "vert":
+        denoised = arr - arr.mean(dim=AXIS.height_dim)
+    elif orient == "both":
+        horiz_dn = arr - arr.mean(dim=AXIS.width_dim)
+        denoised = horiz_dn - horiz_dn.mean(dim=AXIS.height_dim)
+    else:
+        raise ValueError(f"Unknown orientation {orient}")
+
+    # diff should be frame.mean - denoised.mean, but denoised.mean is always 0 by definition
+    diff = frame.array.mean()
+
+    return Frame.from_array(denoised + diff)
+
+
+def remove_freq(
+    frame: Frame,
+    orient: Literal["horiz", "vert", "both"],
+    kwargs: dict[str, Any] | None = None,
 ) -> A[Frame, Name("frame")]:
+    if kwargs is None:
+        kwargs = {}
+
     arr = frame.array
 
     if np.all(frame.array == 0):
         return frame
 
-    denoised = _remove_lines(
-        arr.values, distortion_freq=distortion_freq, num_taps=num_taps, eps=eps
-    )
+    if orient == "horiz":
+        denoised = _remove_lines(arr.values, **kwargs)
+    elif orient == "vert":
+        denoised = _remove_lines(arr.values.T, **kwargs).T
+    elif orient == "both":
+        horiz_dn = _remove_lines(arr.values, **kwargs)
+        denoised = _remove_lines(horiz_dn.T, **kwargs).T
 
     dmin = denoised.min()
     if dmin < 0:
