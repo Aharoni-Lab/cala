@@ -9,6 +9,7 @@ import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
 from skimage.restoration import calibrate_denoiser
+
 from cala.assets import Frame
 
 
