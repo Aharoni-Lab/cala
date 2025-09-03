@@ -1,8 +1,8 @@
 from .background_removal import remove_background
-from .denoise import blur, Restore
+from .denoise import Restore, blur
 from .flatten import butter
 from .glow_removal import GlowRemover
-from .lines import remove_mean, remove_freq
+from .lines import remove_freq, remove_mean
 from .motion import Stabilizer
 from .r_estimate import SizeEst
 
