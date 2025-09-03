@@ -61,3 +61,12 @@ def test_ingest_component(connected_cells, path):
     # new_traces.to_zarr(zarr_traces.zarr_path, append_dim=AXIS.component_dim)
 
     assert zarr_traces.array.equals(traces)
+
+
+def test_overwrite(connected_cells, separate_cells, path):
+    conn_traces = connected_cells.traces.array
+    zarr_traces = Traces.from_array(conn_traces, path, peek_size=connected_cells.n_frames)
+
+    sep_traces = separate_cells.traces.array
+    zarr_traces.array = sep_traces
+    assert zarr_traces.array.equals(sep_traces)
