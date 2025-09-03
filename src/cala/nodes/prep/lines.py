@@ -1,4 +1,5 @@
-from typing import Annotated as A, Literal, Any
+from typing import Annotated as A
+from typing import Any, Literal
 
 import numpy as np
 from noob import Name

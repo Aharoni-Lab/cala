@@ -12,7 +12,7 @@ from skimage.restoration import calibrate_denoiser
 from cala.assets import Frame
 
 
-def _bilateral(arr, **kwargs) -> np.ndarray:
+def _bilateral(arr: np.ndarray, **kwargs: Any) -> np.ndarray:
     arr = arr.astype(np.float32)
     return cv2.bilateralFilter(arr, **kwargs)
 
