@@ -15,6 +15,9 @@ assets:
     scope: session
   traces:
     type: cala.assets.Traces
+    params:
+      zarr_path: data/traces
+      peek_size: 100
     scope: session
   pix_stats:
     type: cala.assets.PixStats
@@ -33,7 +36,7 @@ nodes:
   source:
     type: cala.testing.SingleCellSource
   denoise:
-    type: cala.nodes.prep.denoise
+    type: cala.nodes.prep.blur
     params:
       method: gaussian
       kwargs:
