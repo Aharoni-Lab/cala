@@ -1,9 +1,7 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 import xarray as xr
-from noob import Cube, SynchronousRunner, Tube
+from noob import SynchronousRunner, Tube
 from noob.node import Node, NodeSpecification
 
 from cala.models import AXIS
@@ -26,31 +24,25 @@ def source(request):
 
 
 @pytest.fixture
-def tube(source):
+def tube(source, tmp_path):
     tube = Tube.from_specification("cala-odl")
     tube.nodes["source"] = source
+    tube.cube.assets["traces"].spec.params["zarr_path"] = tmp_path / "traces"
+    tube.cube.assets["traces"].params["zarr_path"] = tmp_path / "traces"
+
     return tube
 
 
 @pytest.fixture
-def cube(tmp_path: Path):
-    cube = Cube.from_specification("cala-odl")
-    cube.assets["traces"].spec.params["zarr_path"] = tmp_path / "traces"
-    cube.assets["traces"].params["zarr_path"] = tmp_path / "traces"
-    return cube
-
-
-@pytest.fixture
-def runner(tube, cube, request):
-    return SynchronousRunner(tube=tube, cube=cube)
+def runner(tube, request):
+    return SynchronousRunner(tube=tube)
 
 
 def test_process(runner) -> None:
-    """Start with noisy suff stats"""
     runner.init()
     runner.process()
 
-    assert runner.cube.assets["buffer"].obj.array.size > 0
+    assert runner.tube.cube.assets["buffer"].obj.array.size > 0
 
 
 @pytest.mark.xfail(raises=NotImplementedError)
@@ -62,8 +54,8 @@ def test_odl(runner, source) -> None:
     preprocessed_frames = []
     for fr in gen:
         preprocessed_frames.append(fr[0].array)
-        fps = runner.cube.assets["footprints"].obj
-        trs = runner.cube.assets["traces"].obj
+        fps = runner.tube.cube.assets["footprints"].obj
+        trs = runner.tube.cube.assets["traces"].obj
 
     # Correct component count
     if src_name not in ["SeparateSource", "SplitOffSource"]:
