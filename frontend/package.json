@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev:frontend": "esbuild src/main.js --bundle --outfile=dist/main.js --watch",
-    "dev:backend": "NODE_ENV=development cala spec /test/",
+    "dev:backend": "NODE_ENV=development cala test_spec --gui",
     "dev": "concurrently --names frontend,backend -c red,blue 'npm run dev:frontend' 'npm run dev:backend'",
     "build": "esbuild src/main.js --bundle --minify --outfile=../src/cala/gui/dist/main.js"
   },
