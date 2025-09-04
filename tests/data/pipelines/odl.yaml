@@ -7,30 +7,30 @@ noob_version: 0.1.1.dev118+g64d81b7
 assets:
   buffer:
     type: cala.assets.Movie
-    scope: session
+    scope: runner
     depends:
       - cache.buffer
   footprints:
     type: cala.assets.Footprints
-    scope: session
+    scope: runner
   traces:
     type: cala.assets.Traces
     params:
       zarr_path: data/traces
       peek_size: 100
-    scope: session
+    scope: runner
   pix_stats:
     type: cala.assets.PixStats
-    scope: session
+    scope: runner
   comp_stats:
     type: cala.assets.CompStats
-    scope: session
+    scope: runner
   overlaps:
     type: cala.assets.Overlaps
-    scope: session
+    scope: runner
   residuals:
     type: cala.assets.Residual
-    scope: session
+    scope: runner
 
 nodes:
   source:
