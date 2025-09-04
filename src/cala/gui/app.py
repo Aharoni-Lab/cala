@@ -1,20 +1,18 @@
-import asyncio
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Any
 
 from fastapi import FastAPI
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> None:
-    asyncio.create_task()
-
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     yield
 
 
 def get_app() -> FastAPI:
     from fastapi.staticfiles import StaticFiles
-
-    from cala.gui.routes import get_frontend_dir, router
+    from cala.gui.dependencies import get_frontend_dir
+    from cala.gui.routes import router
 
     app = FastAPI(lifespan=lifespan, debug=True)
 

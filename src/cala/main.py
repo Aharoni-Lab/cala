@@ -5,9 +5,16 @@ import uvicorn
 from noob import SynchronousRunner, Tube
 
 from cala.gui.app import get_app
+from cala.logging import init_logger
+
+logger = init_logger(__name__)
 
 cli = typer.Typer()
-app = get_app()
+
+try:
+    app = get_app()
+except TypeError as e:
+    logger.warning(f"Failed to load gui app: {e}")
 
 
 @cli.command()
