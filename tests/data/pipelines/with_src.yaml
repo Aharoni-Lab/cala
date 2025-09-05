@@ -6,8 +6,6 @@ assets:
   buffer:
     type: cala.assets.Movie
     scope: runner
-    depends:
-      - cache.buffer
   footprints:
     type: cala.assets.Footprints
     scope: runner
