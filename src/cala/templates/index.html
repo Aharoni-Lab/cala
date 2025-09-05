@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Cala Dashboard</title>
-    <link href="./dist/main.css" rel="stylesheet"/>
+    <link href="./static/main.css" rel="stylesheet"/>
     <style>
         .main {
             display: grid;
@@ -23,6 +23,7 @@
 <body>
 <div class="dashboard">
     <h1>Cala Dashboard</h1>
+    {% include "includes/filepicker.html" %}
     <details style="margin-bottom:20px">
         <summary>Metadata</summary>
         <ul>
@@ -74,9 +75,6 @@
     </div>
 </div>
 
-<script>
-    window.config = {{config | tojson | safe}}
-</script>
-<script src="./dist/main.js"></script>
+<script src="./static/main.js"></script>
 </body>
 </html>
