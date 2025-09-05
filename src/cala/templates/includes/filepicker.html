@@ -1,0 +1,12 @@
+<form id="tube-picker"
+      name="file"
+      hx-encoding="multipart/form-data"
+      hx-post="/submit-tube"
+      hx-swap="innerHTML"
+      hx-target="#tube-config"
+
+>
+    <input type="file" name="file">
+    <button type="submit">Submit Your Tube</button>
+</form>
+<div id="tube-config"></div>

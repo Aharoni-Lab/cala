@@ -22,6 +22,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 router = APIRouter()
 
 _thread = None
+_tube_config = None
 
 
 class QManager:
@@ -70,7 +71,7 @@ async def stream(node_id: str, filename: str) -> FileResponse:
     stream_path = Path("output_dir") / node_id / filename
     if stream_path.exists():
         return FileResponse(str(stream_path))
-    raise FileNotFoundError({"AppStreamError": f"Playlist not found: {stream_path}"})
+    raise HTTPException(404, detail={"AppStreamError": f"Playlist not found: {stream_path}"})
 
 
 @router.post("/start")
@@ -95,3 +96,16 @@ def stop():
     q.put(None)
     _thread.terminate()
     _thread.join()
+
+
+@router.post("/submit-tube")
+def submit_tube(file: UploadFile, request: Request) -> HTMLResponse:
+    global _tube_config
+    try:
+        tube_config = yaml.safe_load(file.file)
+    except Exception:
+        raise HTTPException(422, "not good")
+    _tube_config = tube_config
+    return templates.TemplateResponse(
+        request, "partials/tube-config.html", {"tube_config": tube_config}
+    )
