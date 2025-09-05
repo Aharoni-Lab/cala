@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -20,7 +21,7 @@ except TypeError as e:
 @cli.command()
 def main(spec: str, gui: Annotated[bool, typer.Option()] = False) -> None:
     if gui:
-        uvicorn.run("cala.main:app", reload=True)
+        uvicorn.run("cala.main:app", reload=True, reload_dirs=[Path(__file__).parent])
     else:
         tube = Tube.from_specification(spec)
         runner = SynchronousRunner(tube=tube)
