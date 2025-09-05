@@ -1,17 +1,23 @@
 from pathlib import Path
 from queue import Queue
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, WebSocket, BackgroundTasks
+import yaml
+from fastapi import (
+    APIRouter,
+    WebSocket,
+    BackgroundTasks,
+    HTTPException,
+    UploadFile,
+)
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from noob import SynchronousRunner
 
-from cala.gui.dependencies import get_frontend_dir, Spec
-from cala.models.gui import GUISpec
+from cala.gui.const import TEMPLATES_DIR
+from cala.gui.dependencies import Spec
 
-templates = Jinja2Templates(directory=get_frontend_dir() / "templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 router = APIRouter()
 
@@ -29,9 +35,18 @@ class QManager:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def get(request: Request, spec: Annotated[GUISpec, Depends(Spec)]) -> HTMLResponse:
+async def get(request: Request, spec: Spec) -> HTMLResponse:
     """Serve the dashboard page"""
-    return templates.TemplateResponse(request, "index.html", {"config": spec.model_dump()})
+
+    config = spec.model_dump_json()
+
+    response = templates.TemplateResponse(request, "index.html", {"config": spec.model_dump()})
+    response.set_cookie(
+        key="config",
+        value=config,
+        samesite="lax",
+    )
+    return response
 
 
 @router.websocket("/ws")
