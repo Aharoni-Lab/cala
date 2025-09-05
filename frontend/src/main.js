@@ -1,10 +1,26 @@
 import VideoPlayer from "./components/videoPlayer";
 import LineChart from "./components/lineChart";
 import FrameNumber from "./components/frameNumber";
+import './vendor/htmx.2.0.6';
 import './css/video-js.css';
 
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    console.log("cookie value", value);
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function getConfig() {
+    let config_str = getCookie('config');
+    console.log("config string", config_str);
+    let config = JSON.parse(config_str);
+    console.log(config);
+    return config;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    const config = window.config
+    const config = getConfig()
 
 
     // Initialize video player
