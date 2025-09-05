@@ -3,7 +3,7 @@ import asyncio
 from fastapi import WebSocketDisconnect
 
 from cala.gui import WebsocketMessage
-from cala.gui.dependencies import get_socket_manager
+from cala.gui.deps import get_socket_manager
 
 
 def send_through(payload: dict) -> None:

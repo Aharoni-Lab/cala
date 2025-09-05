@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from noob import SynchronousRunner
 
 from cala.gui.const import TEMPLATES_DIR
-from cala.gui.dependencies import Spec
+from cala.gui.deps import Spec
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
