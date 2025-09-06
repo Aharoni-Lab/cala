@@ -12,7 +12,8 @@ from fastapi import (
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from noob import SynchronousRunner
+from noob import SynchronousRunner, Tube
+from noob.tube import TubeSpecification
 
 from cala.gui.const import TEMPLATES_DIR
 from cala.gui.deps import Spec
@@ -21,6 +22,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 router = APIRouter()
 
+_running = False
 _thread = None
 _tube_config = None
 
@@ -75,18 +77,29 @@ async def stream(node_id: str, filename: str) -> FileResponse:
 
 
 @router.post("/start")
-def start(background: BackgroundTasks):
-    global _thread
-    tube = Tube.from_specification()
-    runner = SynchronousRunner(tube=tube)
+def start(background: BackgroundTasks) -> HTMLResponse:
+    try:
+        global _running
+        if _running:
+            raise HTTPException(400, f"Already running.")
+        global _thread
+        print(_tube_config["noob_id"])
+        spec = TubeSpecification(**_tube_config)
+        tube = Tube.from_specification(spec)
+        runner = SynchronousRunner(tube=tube)
 
-    def _cb(event):
-        q = QManager.get_queue("lineplot")
-        if event.condition == "what i want":
-            q.put(event)
+        def _cb(event):
+            q = QManager.get_queue("lineplot")
+            if event.condition == "what i want":
+                q.put(event)
 
-    runner.add_callback(_cb)
-    background.add_task(runner.run)
+        runner.add_callback(_cb)
+        background.add_task(runner.run)
+
+        _running = True
+        return HTMLResponse("Running...")
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @router.post("/stop")
@@ -103,9 +116,10 @@ def submit_tube(file: UploadFile, request: Request) -> HTMLResponse:
     global _tube_config
     try:
         tube_config = yaml.safe_load(file.file)
-    except Exception:
-        raise HTTPException(422, "not good")
+    except Exception as e:
+        raise HTTPException(422, f"Failed to load Tube specification. {e}")
     _tube_config = tube_config
-    return templates.TemplateResponse(
-        request, "partials/tube-config.html", {"tube_config": tube_config}
-    )
+    return HTMLResponse(f"Loaded: {tube_config["noob_id"]}")
+    # return templates.TemplateResponse(
+    #     request, "partials/tube-config.html", {"tube_config": f"Loaded: {tube_config["noob_id"]}"}
+    # )
