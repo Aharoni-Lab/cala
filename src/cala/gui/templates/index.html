@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Cala Dashboard</title>
-    <link href="./static/main.css" rel="stylesheet"/>
+    <link href="../static/main.css" rel="stylesheet"/>
     <style>
         .main {
             display: grid;
@@ -24,6 +24,8 @@
 <div class="dashboard">
     <h1>Cala Dashboard</h1>
     {% include "includes/filepicker.html" %}
+    {% include "includes/start.html" %}
+    {% include "includes/stop.html" %}
     <details style="margin-bottom:20px">
         <summary>Metadata</summary>
         <ul>
@@ -75,6 +77,6 @@
     </div>
 </div>
 
-<script src="./static/main.js"></script>
+<script src="../static/main.js"></script>
 </body>
 </html>
