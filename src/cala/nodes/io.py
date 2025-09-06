@@ -7,6 +7,8 @@ import cv2
 from numpy.typing import NDArray
 from skimage import io
 
+from cala.config import config
+
 
 class Stream(Protocol):
     """Protocol defining the interface for video streams."""
@@ -27,6 +29,8 @@ class OpenCVStream(Stream):
 
     def __init__(self, video_path: Path | str) -> None:
         video_path = Path(video_path)
+        if not video_path.is_absolute():
+            video_path = config.video_dir / video_path
 
         if not video_path.exists():
             raise FileNotFoundError(f"Video file not found: {video_path}")

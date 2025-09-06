@@ -1,4 +1,4 @@
-noob_id: cala-io
+noob_id: cala-with-movie
 noob_model: noob.tube.TubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
 
@@ -31,7 +31,7 @@ nodes:
     type: cala.nodes.io.stream
     params:
       files:
-      - tests/data/movies/msCam1.avi
+        - cala/msCam1.avi
   counter:
     type: cala.util.counter
   frame:
