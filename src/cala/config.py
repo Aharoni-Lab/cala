@@ -90,6 +90,11 @@ class Config(BaseSettings, YAMLMixin):
         default=Path(_dirs.user_videos_dir), description="Directory where videos are stored"
     )
 
+    runtime_dir: Path = Field(
+        default=Path(_dirs.user_runtime_dir) / "runtime",
+        description="Directory where runtime data are stored",
+    )
+
     @field_validator("user_dir", "config_dir", mode="after")
     @classmethod
     def create_dir(cls, value: Path) -> Path:

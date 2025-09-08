@@ -4,7 +4,7 @@ import yaml
 from fastapi import Depends
 
 from cala.gui.const import SPEC_FILE
-from cala.models.gui import GUISpec
+from cala.gui.spec import GUISpec
 
 
 async def get_spec() -> GUISpec:

@@ -15,7 +15,7 @@ function getConfig() {
     let config_str = getCookie('config');
     console.log("config string", config_str);
     let config = JSON.parse(config_str);
-    console.log(config);
+    console.log("config json", config);
     return config;
 }
 

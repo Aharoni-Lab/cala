@@ -1,20 +1,14 @@
-from pathlib import Path
 from queue import Queue
 
 import yaml
-from fastapi import (
-    APIRouter,
-    WebSocket,
-    BackgroundTasks,
-    HTTPException,
-    UploadFile,
-)
+from fastapi import APIRouter, WebSocket, BackgroundTasks, HTTPException, UploadFile
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from noob import SynchronousRunner, Tube
 from noob.tube import TubeSpecification
 
+from cala.config import config
 from cala.gui.const import TEMPLATES_DIR
 from cala.gui.deps import Spec
 
@@ -67,12 +61,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.send_json(event)
 
 
-@router.get("/{node_id}/{filename}")
+@router.get("/{node_id}/stream.m3u8")
 async def stream(node_id: str, filename: str) -> FileResponse:
     """Serve HLS stream files"""
-    stream_path = Path("output_dir") / node_id / filename
+    stream_path = config.runtime_dir / node_id / filename
     if stream_path.exists():
         return FileResponse(str(stream_path))
+    else:
+        return HTMLResponse("File not found")
     raise HTTPException(404, detail={"AppStreamError": f"Playlist not found: {stream_path}"})
 
 
@@ -83,7 +79,6 @@ def start(background: BackgroundTasks) -> HTMLResponse:
         if _running:
             raise HTTPException(400, f"Already running.")
         global _thread
-        print(_tube_config["noob_id"])
         spec = TubeSpecification(**_tube_config)
         tube = Tube.from_specification(spec)
         runner = SynchronousRunner(tube=tube)
@@ -95,11 +90,11 @@ def start(background: BackgroundTasks) -> HTMLResponse:
 
         runner.add_callback(_cb)
         background.add_task(runner.run)
-
-        _running = True
-        return HTMLResponse("Running...")
     except Exception as e:
         raise HTTPException(500, str(e))
+
+    _running = True
+    return HTMLResponse("Running...")
 
 
 @router.post("/stop")
