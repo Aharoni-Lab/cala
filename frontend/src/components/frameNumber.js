@@ -5,7 +5,6 @@ class FrameNumber {
 
     initialize() {
         this.liveNumberElement = document.getElementById(this.elementId);
-
     }
 
     updateData(data) {

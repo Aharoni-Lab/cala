@@ -22,7 +22,6 @@ function getConfig() {
 document.addEventListener('DOMContentLoaded', async () => {
     const config = getConfig()
 
-
     // Initialize video player
     const videoPlayer = new VideoPlayer('stream-player', {
         fluid: true,

@@ -1,5 +1,5 @@
 prep_movie:
-  stream_url: /prep_movie/stream.m3u8
+  stream_url: prep_movie/stream.m3u8
 
 metric_plot:
   width: 500
@@ -7,4 +7,4 @@ metric_plot:
   max_points: 100
 
 footprint_movie:
-  stream_url: /footprint_movie/stream.m3u8
+  stream_url: footprint_movie/stream.m3u8
