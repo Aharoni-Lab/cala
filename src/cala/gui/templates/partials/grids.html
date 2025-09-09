@@ -1,22 +1,23 @@
-{% for grid in grids %}
-{% if grid.type == "cala.gui.components.StreamArr" %}
-<div class="video-container gfg">
-    <h3>{{ grid.id }}</h3>
-    <video
-            id="{{ grid.id }}"
-            class="video-js"
-            controls
-            data-setup='{"fluid": true}'
-    >
-        <source
-                src="{{ grid.id }}/stream.m3u8"
-                type="application/x-mpegURL"
-        />
-    </video>
+{% include "includes/stop.html" %}
+<div id="grids" class="grids">
+    {% for grid in grids %}
+    {% if grid.type == "cala.gui.components.StreamArr" %}
+    <div class="video-container gfg">
+        <h3>{{ grid.id }}</h3>
+        <button
+                id="play-{{ grid.id }}"
+                name="play"
+                type="button"
+                hx-trigger="click"
+                hx-post="/player/{{ grid.id }}"
+                hx-swap="innerHTML"
+        >Play
+        </button>
+    </div>
+    {% else %}
+    <div class="plot-section gfg"><h3>{{ grid.id }}</h3>
+        <div id="{{ grid.id }}"></div>
+    </div>
+    {% endif %}
+    {% endfor %}
 </div>
-{% else %}
-<div class="plot-section gfg"><h3>{{ grid.id }}</h3>
-    <div id="{{ grid.id }}"></div>
-</div>
-{% endif %}
-{% endfor %}

@@ -20,8 +20,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   //   fluid: true,
   //   liveui: true,
   // });
-  // var elem = videoPlayer.buildElement(grid);
-  // grids.appendChild(elem);
   // videoPlayer.initialize();
   // videoPlayer.play();
 
