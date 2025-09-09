@@ -9,6 +9,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from noob import SynchronousRunner
+from noob.tube import TubeSpecification, Tube
 from starlette.responses import JSONResponse
 
 from cala.config import config
@@ -84,39 +86,30 @@ async def stream(node_id: str, filename: str) -> FileResponse:
 
 
 @router.post("/start")
-def start(
-    background: BackgroundTasks,
-    spec: Spec,
-    request: Request,
-    hx_request: Annotated[str | None, Header()] = None,
-) -> HTMLResponse:
-    # try:
-    #     global _running
-    #     if _running:
-    #         raise HTTPException(400, f"Already running.")
-    #     global _thread
-    #     spec = TubeSpecification(**_tube_config)
-    #     tube = Tube.from_specification(spec)
-    #     runner = SynchronousRunner(tube=tube)
-    #
-    #     def _cb(event):
-    #         q = QManager.get_queue("lineplot")
-    #         if event.condition == "what i want":
-    #             q.put(event)
-    #
-    #     runner.add_callback(_cb)
-    #     background.add_task(runner.run)
-    # except Exception as e:
-    #     raise HTTPException(500, str(e))
-    #
-    # _running = True
-    if hx_request:
-        print(spec.grids.values())
-        grid = templates.TemplateResponse(
-            request, "partials/grids.html", {"grids": list(spec.grids.values())}
-        )
-        print("grid", grid.body.decode())
-    return grid
+def start(background: BackgroundTasks, gui_spec: Spec, request: Request) -> HTMLResponse:
+    try:
+        global _running
+        if _running:
+            raise HTTPException(400, f"Already running.")
+        global _thread
+        spec = TubeSpecification(**_tube_config)
+        tube = Tube.from_specification(spec)
+        runner = SynchronousRunner(tube=tube)
+
+        def _cb(event):
+            q = QManager.get_queue("lineplot")
+            if event.condition == "what i want":
+                q.put(event)
+
+        runner.add_callback(_cb)
+        background.add_task(runner.run)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    _running = True
+    return templates.TemplateResponse(
+        request, "partials/grids.html", {"grids": list(gui_spec.grids.values())}
+    )
 
 
 @router.post("/stop")
