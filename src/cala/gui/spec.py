@@ -1,8 +1,14 @@
-from pydantic import BaseModel, field_validator
+from typing import Any
+
+from noob.types import AbsoluteIdentifier
+from pydantic import BaseModel, field_validator, ConfigDict
 
 
 class Grid(BaseModel):
+    model_config = ConfigDict(extra="allow")
     id: str
+    type: AbsoluteIdentifier
+    params: dict[str, Any] | None = None
 
 
 class GUISpec(BaseModel):

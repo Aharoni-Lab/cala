@@ -1,8 +1,11 @@
 grids:
   prep_movie:
-    frame_rate: 30
-
+    type: cala.gui.components.StreamArr
+    params:
+      frame_rate: 30
   metric_plot:
-    width: 500
-    height: 200
-    max_points: 100
+    type: cala.gui.components.StreamCnt
+    params:
+      width: 500
+      height: 200
+      max_points: 100

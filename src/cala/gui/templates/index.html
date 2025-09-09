@@ -2,67 +2,17 @@
 <html>
 <head>
     <title>Cala Dashboard</title>
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
     <link href="../static/main.css" rel="stylesheet"/>
-    <style>
-        .main {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-gap: 10px;
-            background-color: #181818;
-            padding: 10px;
-        }
-
-        .gfg {
-            background-color: rgb(255, 255, 255);
-            text-align: center;
-            padding: 25px 0;
-            font-size: 30px;
-        }
-    </style>
 </head>
 <body>
 <div class="dashboard">
     <h1>Cala Dashboard</h1>
     {% include "includes/filepicker.html" %}
     {% include "includes/start.html" %}
-    {% include "includes/stop.html" %}
-    <details style="margin-bottom:20px">
-        <summary>Metadata</summary>
-        <ul>
-            <li>User:</li>
-            <li>Animal ID:</li>
-            <li>Experiment ID:</li>
-            <li>Run ID:</li>
-            <li>Started:
-                <time></time>
-            </li>
-            <li>Elapsed:
-                <time></time>
-            </li>
-        </ul>
-    </details>
-    <h3>Processing Frame #<span id="frame-index">0</span></h3>
-    <div class="main">
-        <div class="video-container gfg">
-            <h3>Preprocessed Video</h3>
-            <video
-                    class="video-js"
-                    controls
-                    data-setup='{"fluid": true}'
-                    id="stream-player"
-            >
-                <source
-                        src="{{ config.grids['prep_movie'].id }}/stream.m3u8"
-                        type="application/x-mpegURL"
-                />
-            </video>
-        </div>
-        <div class="plot-section gfg"><h3>Component Discovery</h3>
-            <div id="plot-container"></div>
-        </div>
-    </div>
 </div>
-
+<div id="grids" class="grids"></div>
 <script src="../static/main.js"></script>
 </body>
 </html>
