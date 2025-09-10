@@ -16,7 +16,7 @@ function getConfig() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const config = getConfig();
-  // const videoPlayer = new VideoPlayer(grid, {
+  // const videoPlayer = new VideoPlayer('stream-player', {
   //   fluid: true,
   //   liveui: true,
   // });

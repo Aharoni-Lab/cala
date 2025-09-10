@@ -1,11 +1,10 @@
 import base64
 
 import yaml
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from noob import SynchronousRunner
 from noob.tube import TubeSpecification, Tube
 from starlette.responses import FileResponse
 from starlette.websockets import WebSocket
@@ -13,6 +12,7 @@ from starlette.websockets import WebSocket
 from cala.config import config
 from cala.gui.const import TEMPLATES_DIR
 from cala.gui.deps import Spec
+from cala.gui.runner import BackgroundRunner
 from cala.gui.util import QManager
 from cala.logging import init_logger
 
@@ -24,6 +24,7 @@ router = APIRouter()
 _running = False
 _thread = None
 _tube_config = None
+_runner = None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -36,28 +37,33 @@ async def get(request: Request, spec: Spec) -> HTMLResponse:
 
 
 @router.post("/start")
-def start(background: BackgroundTasks, gui_spec: Spec, request: Request) -> HTMLResponse:
+def start(gui_spec: Spec, request: Request) -> HTMLResponse:
     try:
         global _running
         if _running:
             raise HTTPException(400, f"Already running.")
-        global _thread
         spec = TubeSpecification(**_tube_config)
         tube = Tube.from_specification(spec)
-        runner = SynchronousRunner(tube=tube)
+
+        global _runner
+        _runner = BackgroundRunner(tube=tube)
 
         def _cb(event):
-            q = QManager.get_queue("prepped")
-            logger.warning(msg=event)
-            if event["node_id"] == "glow":
-                q.put(event)
+            for name, grid in gui_spec.grids.items():
+                if grid.match(event):
+                    q = QManager.get_queue(grid.id)
+                    q.put(event)
+                    logger.warning(msg=q.get())
+                    raise NotImplementedError()
 
-        runner.add_callback(_cb)
-        background.add_task(runner.run)
+        _runner.add_callback(_cb)
+        _runner.run()
+
     except Exception as e:
         raise HTTPException(500, str(e))
 
     _running = True
+
     return templates.TemplateResponse(
         request, "partials/grids.html", {"grids": list(gui_spec.grids.values())}
     )
@@ -65,11 +71,8 @@ def start(background: BackgroundTasks, gui_spec: Spec, request: Request) -> HTML
 
 @router.post("/stop")
 def stop():
-    global _thread
-    q = QManager.get_queue("lineplot")
-    q.put(None)
-    _thread.terminate()
-    _thread.join()
+    global _runner
+    _runner.shutdown()
 
 
 @router.post("/submit-tube")
@@ -100,7 +103,6 @@ async def player(node_id: str, request: Request) -> HTMLResponse:
 async def stream(node_id: str) -> FileResponse:
     """Serve HLS stream files"""
     stream_path = config.runtime_dir / node_id / "stream.m3u8"
-    print(f"stream_path={stream_path}")
     if stream_path.exists():
         return FileResponse(str(stream_path))
     else:
@@ -110,7 +112,7 @@ async def stream(node_id: str) -> FileResponse:
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """Handle WebSocket connection and run streamers"""
-    q = QManager.get_queue("lineplot")
+    q = QManager.get_queue()
 
     await websocket.accept()
     # some kind of waiting mechanism here
