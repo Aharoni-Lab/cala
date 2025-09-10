@@ -49,12 +49,16 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         _runner = BackgroundRunner(tube=tube)
 
         def _cb(event):
-            for name, grid in gui_spec.nodes.items():
-                if grid.match(event):
-                    q = QManager.get_queue(grid.id)
-                    q.put(event)
-                    logger.warning(msg=q.get())
-                    raise NotImplementedError()
+            for name, node in gui_spec.nodes.items():
+                for depend in node.depends:
+                    if isinstance(depend, dict):
+                        depend = str(depend.values())
+                    src_node_id, signal = depend.split(".")
+                    if (event["node_id"] == src_node_id) and (event["signal"] == signal):
+                        q = QManager.get_queue(node.id)
+                        q.put(event)
+                        logger.warning(msg=q.get())
+                        raise NotImplementedError()
 
         _runner.add_callback(_cb)
         _runner.run()
@@ -63,7 +67,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         raise HTTPException(500, str(e))
 
     _running = True
-
+    print(list(gui_spec.nodes.values()))
     return templates.TemplateResponse(
         request, "partials/grids.html", {"grids": list(gui_spec.nodes.values())}
     )

@@ -1,11 +1,11 @@
-grids:
+nodes:
   prep_movie:
-    type: cala.gui.components.StreamArr
+    type: cala.gui.components.Encoder
     params:
       frame_rate: 30
+    depends:
+      - glow.frame
   metric_plot:
-    type: cala.gui.components.StreamCnt
-    params:
-      width: 500
-      height: 200
-      max_points: 100
+    type: cala.gui.components.component_counter
+    depends:
+      - something.idk  # might want to get from multiple nodes...

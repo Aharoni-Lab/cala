@@ -1,7 +1,7 @@
 {% include "includes/stop.html" %}
 <div id="grids" class="grids">
     {% for grid in grids %}
-    {% if grid.type == "cala.gui.components.Encoder" %}
+    {% if grid.type_ == "cala.gui.components.Encoder" %}
     <div class="video-container gfg">
         <h3>{{ grid.id }}</h3>
         <button
