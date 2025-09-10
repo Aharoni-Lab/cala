@@ -11,7 +11,7 @@ from cala.config import config
 from cala.models import AXIS
 
 
-class StreamArr(BaseModel):
+class Encoder(BaseModel):
     frame_rate: int
     _stream: VideoStream | None = None
     _container: av.container.OutputContainer | None = None

@@ -49,7 +49,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         _runner = BackgroundRunner(tube=tube)
 
         def _cb(event):
-            for name, grid in gui_spec.grids.items():
+            for name, grid in gui_spec.nodes.items():
                 if grid.match(event):
                     q = QManager.get_queue(grid.id)
                     q.put(event)
@@ -65,7 +65,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
     _running = True
 
     return templates.TemplateResponse(
-        request, "partials/grids.html", {"grids": list(gui_spec.grids.values())}
+        request, "partials/grids.html", {"grids": list(gui_spec.nodes.values())}
     )
 
 
