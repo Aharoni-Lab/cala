@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:e405b84c03d818e0e6574ac2b0e41143e39f6ae83d8a325c63f0c5a79e7377f4"
+content_hash = "sha256:9cee290ad8bb089564778c0a70e9f1bc6397ab0ae54bc5644a0937aadc59371a"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1811,15 +1811,14 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev137"
+version = "0.1.1.dev154"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "event-callbacks"
-revision = "597f209c89631756c59d75e492a0b6c1df2155db"
+ref = "node-enabled"
+revision = "d5dc6044870dfbc2a46a76a76a31e7138aef1280"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
-    "anyio>=4.10.0",
     "platformdirs>=4.3.7",
     "pydantic-settings>=2.8.1",
     "pydantic>=2.10.6",
