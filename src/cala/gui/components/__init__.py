@@ -1,5 +1,5 @@
-from .counter import StreamCnt
-from .streamer import StreamArr
+from .counter import component_counter
+from .encoder import Encoder
 
 
-__all__ = ["StreamCnt", "StreamArr"]
+__all__ = ["component_counter", "Encoder"]
