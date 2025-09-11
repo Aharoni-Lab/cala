@@ -32,6 +32,11 @@ nodes:
     params:
       files:
         - cala/msCam1.avi
+        - cala/msCam2.avi
+        - cala/msCam3.avi
+        - cala/msCam4.avi
+        - cala/msCam5.avi
+        - cala/msCam6.avi
   counter:
     type: cala.util.counter
   frame:
@@ -41,7 +46,7 @@ nodes:
       - index: counter.idx
 
   #PREPROCESS BEGINS
-  hotpix:  # needs to happen first
+  hotpix: # needs to happen first
     type: cala.nodes.prep.blur
     params:
       method: median
@@ -56,17 +61,17 @@ nodes:
         cutoff_frequency_ratio: 0.005
     depends:
       - frame: hotpix.frame
-  lines:  # needs to happen after flatten
+  lines: # needs to happen after flatten
     type: cala.nodes.prep.remove_freq
     params:
       orient: both
     depends:
       - frame: flatten.frame
-  denoise:  # needs to happen after lines
+  denoise: # needs to happen after lines
     type: cala.nodes.prep.Restore
     depends:
       - frame: lines.frame
-  motion:  # needs to take place before glow, after lines
+  motion: # needs to take place before glow, after lines
     type: cala.nodes.prep.Stabilizer
     params:
       drift_speed: 0.5
@@ -191,7 +196,7 @@ nodes:
   footprint_component:
     type: cala.nodes.footprints.ingest_component
     depends:
-      - footprints:  assets.footprints
+      - footprints: assets.footprints
       - new_footprints: catalog.new_footprints
   pix_component:
     type: cala.nodes.pixel_stats.ingest_component

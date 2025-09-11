@@ -1,0 +1,46 @@
+noob_id: cala-gui
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev118+g64d81b7
+
+assets:
+  buffer:
+    type: cala.assets.Movie
+    scope: runner
+  footprints:
+    type: cala.assets.Footprints
+    scope: runner
+  traces:
+    type: cala.assets.Traces
+    scope: runner
+  pix_stats:
+    type: cala.assets.PixStats
+    scope: runner
+  comp_stats:
+    type: cala.assets.CompStats
+    scope: runner
+  overlaps:
+    type: cala.assets.Overlaps
+    scope: runner
+  residuals:
+    type: cala.assets.Residual
+    scope: runner
+
+
+nodes:
+  source:
+    type: cala.nodes.io.stream
+    params:
+      files:
+        - cala/msCam1.avi
+        - cala/msCam2.avi
+        - cala/msCam3.avi
+        - cala/msCam4.avi
+        - cala/msCam5.avi
+        - cala/msCam6.avi
+  counter:
+    type: cala.util.counter
+  frame:
+    type: cala.util.package_frame
+    depends:
+      - frame: source.value
+      - index: counter.idx

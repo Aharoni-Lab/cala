@@ -1,11 +1,20 @@
+assets:
+  queues:
+    type: cala.gui.util.QManager
+    scope: runner
+
 nodes:
   prep_movie:
     type: cala.gui.components.Encoder
     params:
+      grid_id: prep_movie
       frame_rate: 30
     depends:
-      - glow.frame
-  metric_plot:
+      - frame.value
+  component_count:
     type: cala.gui.components.component_counter
+    params:
+      queue_id: component_count
     depends:
-      - something.idk  # might want to get from multiple nodes...
+      - footprints: assets.footprints
+      - q_manager: assets.queues
