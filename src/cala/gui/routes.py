@@ -6,7 +6,6 @@ from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from noob.tube import TubeSpecification, Tube
-from starlette.responses import FileResponse
 from starlette.websockets import WebSocket
 
 from cala.config import config
@@ -43,6 +42,8 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         if _running:
             raise HTTPException(400, f"Already running.")
         spec = TubeSpecification(**_tube_config)
+        spec.assets = {**spec.assets, **gui_spec.assets}
+        spec.nodes = {**spec.nodes, **gui_spec.nodes}
         tube = Tube.from_specification(spec)
 
         global _runner
@@ -57,8 +58,8 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
                     if (event["node_id"] == src_node_id) and (event["signal"] == signal):
                         q = QManager.get_queue(node.id)
                         q.put(event)
-                        logger.warning(msg=q.get())
-                        raise NotImplementedError()
+                        # logger.warning(msg=q.get())
+                        # raise NotImplementedError()
 
         _runner.add_callback(_cb)
         _runner.run()
@@ -67,7 +68,6 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         raise HTTPException(500, str(e))
 
     _running = True
-    print(list(gui_spec.nodes.values()))
     return templates.TemplateResponse(
         request, "partials/grids.html", {"grids": list(gui_spec.nodes.values())}
     )
@@ -97,20 +97,12 @@ async def player(node_id: str, request: Request) -> HTMLResponse:
     print(f"stream_path={stream_path}")
     if stream_path.exists():  # later change this to "has chunk ext files"
         return templates.TemplateResponse(
-            request, "partials/player.html", {"id": node_id, "path": stream_path}
+            request,
+            "partials/player.html",
+            {"id": node_id, "path": f"/stream/{node_id}/stream.m3u8"},
         )
     else:
         raise HTTPException(404)
-
-
-@router.get("/stream/{node_id}")
-async def stream(node_id: str) -> FileResponse:
-    """Serve HLS stream files"""
-    stream_path = config.runtime_dir / node_id / "stream.m3u8"
-    if stream_path.exists():
-        return FileResponse(str(stream_path))
-    else:
-        return HTMLResponse("File not found")
 
 
 @router.websocket("/ws")
