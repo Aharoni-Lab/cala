@@ -1,4 +1,4 @@
-<video
+<video-js
         id="{{ id }}"
         class="video-js"
         controls
@@ -8,4 +8,13 @@
             src="{{ path }}"
             type="application/x-mpegURL"
     />
-</video>
+</video-js>
+<script>
+const {{ id }} = new VideoPlayer("{{ id }}", {
+    fluid: true,
+    liveui: true,
+});
+{{ id }}.initialize();
+{{ id }}.play();
+window.{{ id }} = {{ id }};
+</script>

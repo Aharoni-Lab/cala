@@ -1,6 +1,11 @@
+import VideoPlayer from "./components/videoPlayer";
+import videojs from "video.js";
 import "./vendor/htmx.2.0.6";
 import "./css/video-js.css";
 import "./css/grids.css";
+
+window.videojs = videojs;
+window.VideoPlayer = VideoPlayer;
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -16,15 +21,9 @@ function getConfig() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const config = getConfig();
-  // const videoPlayer = new VideoPlayer('stream-player', {
-  //   fluid: true,
-  //   liveui: true,
-  // });
-  // videoPlayer.initialize();
-  // videoPlayer.play();
 
   // // Create WebSocket connection
-  // const ws = new WebSocket(`ws://${window.location.host}/ws`);
+  const ws = new WebSocket(`ws://${window.location.host}/ws`);
   //
   // const chart = new LineChart('#plot-container', config.metric_plot);
   // await chart.initialize();
