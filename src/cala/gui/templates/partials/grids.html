@@ -18,6 +18,37 @@
     <div class="plot-section gfg"><h3>{{ grid.id }}</h3>
         <div id="{{ grid.id }}"></div>
     </div>
+    <script>
+        const {
+        {
+            grid.id
+        }
+        }
+        = new LineChart("{{ grid.id }}");
+        console.log("before DOMContentLoaded", "{{ grid.id }}");
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("within DOMContentLoaded", "{{ grid.id }}");
+            await {
+            {
+                grid.id
+            }
+        }.
+            initialize();
+        })
+        console.log("after DOMContentLoaded", "{{ grid.id }}");
+        window.
+        {
+            {
+                grid.id
+            }
+        }
+        = {
+        {
+            grid.id
+        }
+        }
+        ;
+    </script>
     {% endif %}
     {% endfor %}
 </div>

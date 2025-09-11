@@ -1,4 +1,5 @@
 import base64
+from queue import Empty
 
 import yaml
 from fastapi import APIRouter, HTTPException, UploadFile
@@ -87,20 +88,25 @@ def submit_tube(file: UploadFile, request: Request) -> HTMLResponse:
     except Exception as e:
         raise HTTPException(422, f"Failed to load Tube specification. {e}")
     _tube_config = tube_config
-    return HTMLResponse(f"Loaded: {tube_config["noob_id"]}")
+    return templates.TemplateResponse(
+        request, "partials/tube-config.html", {"msg": f"noob_id: {tube_config['noob_id']}"}
+    )
+    # return HTMLResponse(f"Loaded: {tube_config["noob_id"]}")
 
 
 @router.post("/player/{node_id}")
 async def player(node_id: str, request: Request) -> HTMLResponse:
     """Serve video player DOM"""
     stream_path = config.runtime_dir / node_id / "stream.m3u8"
-    print(f"stream_path={stream_path}")
     if stream_path.exists():  # later change this to "has chunk ext files"
-        return templates.TemplateResponse(
+        template = templates.TemplateResponse(
             request,
             "partials/player.html",
             {"id": node_id, "path": f"/stream/{node_id}/stream.m3u8"},
+            headers={"Content-Control": "no-store"},
         )
+        print(template.headers)
+        return template
     else:
         raise HTTPException(404)
 
@@ -108,13 +114,16 @@ async def player(node_id: str, request: Request) -> HTMLResponse:
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """Handle WebSocket connection and run streamers"""
-    q = QManager.get_queue()
+    q = QManager.get_queue("idk")
 
     await websocket.accept()
     # some kind of waiting mechanism here
     # to keep the connection open until the client disconnects
     while True:
-        event = q.get()
+        try:
+            event = q.get(False)
+        except Empty:
+            event = None
         if event is None:
             break
         await websocket.send_json(event)
