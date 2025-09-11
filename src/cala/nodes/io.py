@@ -1,7 +1,6 @@
 from abc import abstractmethod
-from collections.abc import Generator
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Generator
 
 import cv2
 from numpy.typing import NDArray
@@ -58,61 +57,29 @@ class OpenCVStream(Stream):
             self._cap.release()
 
 
-class ImageStream(Stream):
+def stream_images(files: list[Path]) -> Generator[NDArray]:
     """Stream implementation for sequence of TIFF files."""
-
-    def __init__(self, files: list[Path]) -> None:
-        self._files = files
-
-        # Validate first file to ensure it's readable and get sample shape
-        frame = io.imread(self._files[0])
+    for file in files:
+        frame = io.imread(file)
         if len(frame.shape) != 2:
-            raise ValueError("TIFF files must be grayscale")
-        self._sample_shape = frame.shape
-
-    def __iter__(self) -> Generator[NDArray]:
-        for file in self._files:
-            frame = io.imread(file)
-            if len(frame.shape) != 2:
-                raise ValueError(f"File {file} is not grayscale")
-            if frame.shape != self._sample_shape:
-                raise ValueError(
-                    f"Inconsistent frame shape in {file}: "
-                    f"expected {self._sample_shape}, got {frame.shape}"
-                )
-            yield frame
-
-    def close(self) -> None:
-        """No resources to close for image sequence."""
-        pass
+            raise ValueError(f"File {file} is not grayscale")
+        yield frame
 
 
-class VideoStream(Stream):
-    """Handles streaming from multiple video files sequentially."""
+def stream_videos(video_paths: list[Path]) -> Generator[NDArray]:
+    """
+    Iterate over frames from all videos sequentially.
 
-    def __init__(self, video_paths: list[Path]) -> None:
-        self._video_paths = video_paths
-        self._current_stream: OpenCVStream | None = None
-
-    def __iter__(self) -> Generator[NDArray]:
-        """
-        Iterate over frames from all videos sequentially.
-
-        Yields:
-            NDArray: Next frame from the current video
-        """
-        for video_path in self._video_paths:
-            self._current_stream = OpenCVStream(video_path)
-            yield from self._current_stream
-            self._current_stream.close()
-
-    def close(self) -> None:
-        """Close the current video stream if open."""
-        if self._current_stream is not None:
-            self._current_stream.close()
+    Yields:
+        NDArray: Next frame from the current video
+    """
+    for video_path in video_paths:
+        current_stream = OpenCVStream(video_path)
+        yield from current_stream
+        current_stream.close()
 
 
-def stream(files: list[str | Path]) -> Generator[NDArray]:
+def stream(files: list[str | Path]) -> Generator[NDArray, None, None]:
     """
     Create a video stream from the provided video files.
 
@@ -129,8 +96,8 @@ def stream(files: list[str | Path]) -> Generator[NDArray]:
     video_format = {".mp4", ".avi", ".webm"}
 
     if suffix.issubset(video_format):
-        return iter(VideoStream(files))
+        yield from stream_videos(files)
     elif suffix.issubset(image_format):
-        return iter(ImageStream(files))
+        yield from stream_images(files)
     else:
         raise ValueError(f"Unsupported file format: {suffix}")
