@@ -1,61 +1,27 @@
+import getConfig from "./config";
+import { add_on, pseudoSwitch } from "./switch";
 import LineChart from "./components/lineChart";
 import VideoPlayer from "./components/videoPlayer";
-import videojs from "video.js";
+// import videojs from "video.js";
 import "./vendor/htmx.2.0.6";
 import "./css/video-js.css";
 import "./css/grids.css";
 
-window.videojs = videojs;
+window.add_on = add_on;
+// window.videojs = videojs;
 window.VideoPlayer = VideoPlayer;
 window.LineChart = LineChart;
-
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-}
-
-function getConfig() {
-  let config_byt = getCookie("config");
-  if (config_byt[0] === '"') {
-    config_byt = config_byt.slice(1);
-  }
-  if (config_byt[config_byt.length - 1] === '"') {
-    config_byt = config_byt.slice(0, -1);
-  }
-
-  const config_str = atob(config_byt);
-  return JSON.parse(config_str);
-}
+window.wsCallbacks = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
   const config = getConfig();
   console.log(config);
 
-  // // Create WebSocket connection
   const ws = new WebSocket(`ws://${window.location.host}/ws`);
-  //
-  // const chart = new LineChart('#plot-container', config.metric_plot);
-  // await chart.initialize();
-  //
-  // const counter = new FrameNumber('frame-index');
-  // counter.initialize();
-  //
-  // ws.onmessage = (event) => {
-  //     const data = JSON.parse(event.data);
-  //
-  //     switch (data.payload.type_) {
-  //         case "frame_index":
-  //             delete data.payload.type_;
-  //             counter.updateData(data.payload);
-  //             break;
-  //         case "component_count":
-  //             delete data.payload.type_;
-  //             chart.updateData(data.payload);
-  //             break;
-  //         default:
-  //             console.log("Nothing fits! Data:", data);
-  //             break;
-  //     }
-  // };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log(data);
+    pseudoSwitch(wsCallbacks, data.type_, data.payload);
+  };
 });
