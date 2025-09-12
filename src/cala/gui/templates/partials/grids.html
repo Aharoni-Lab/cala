@@ -15,39 +15,25 @@
         </button>
     </div>
     {% else %}
-    <div class="plot-section gfg"><h3>{{ grid.id }}</h3>
-        <div id="{{ grid.id }}"></div>
+    <div class="plot-section gfg">
+        <h3>{{ grid.id }}</h3>
+        <div id="plot-{{ grid.id }}">
+            <button
+                    id="button-{{ grid.id }}"
+                    name="button"
+                    type="button"
+            >Play
+            </button>
+        </div>
     </div>
     <script>
-        const {
-        {
-            grid.id
-        }
-        }
-        = new LineChart("{{ grid.id }}");
-        console.log("before DOMContentLoaded", "{{ grid.id }}");
-        document.addEventListener("DOMContentLoaded", async () => {
-            console.log("within DOMContentLoaded", "{{ grid.id }}");
-            await {
-            {
-                grid.id
-            }
-        }.
-            initialize();
+        const plot = document.getElementById("button-{{ grid.id }}");
+        plot.addEventListener("click", async () => {
+            const {{ grid.id }} = new LineChart("#plot-{{ grid.id }}");
+            await {{ grid.id }}.initialize();
+            add_on(wsCallbacks, "{{ grid.id }}", {{ grid.id }}.updateData);
+            window.{{ grid.id }} = {{ grid.id }};
         })
-        console.log("after DOMContentLoaded", "{{ grid.id }}");
-        window.
-        {
-            {
-                grid.id
-            }
-        }
-        = {
-        {
-            grid.id
-        }
-        }
-        ;
     </script>
     {% endif %}
     {% endfor %}
