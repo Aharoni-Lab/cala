@@ -41,7 +41,7 @@ class LineChart {
     return this;
   }
 
-  updateData(data) {
+  update(data) {
     if (!this.view) return;
 
     const currentData = this.view.data("table");

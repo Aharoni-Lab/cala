@@ -1,4 +1,5 @@
 import base64
+from asyncio import sleep
 from queue import Empty
 
 import yaml
@@ -6,6 +7,7 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from noob.event import Event
 from noob.tube import TubeSpecification, Tube
 from starlette.websockets import WebSocket
 
@@ -51,16 +53,10 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         _runner = BackgroundRunner(tube=tube)
 
         def _cb(event):
-            for name, node in gui_spec.nodes.items():
-                for depend in node.depends:
-                    if isinstance(depend, dict):
-                        depend = str(depend.values())
-                    src_node_id, signal = depend.split(".")
-                    if (event["node_id"] == src_node_id) and (event["signal"] == signal):
-                        q = QManager.get_queue(node.id)
-                        q.put(event)
-                        # logger.warning(msg=q.get())
-                        # raise NotImplementedError()
+            for node_id, _ in gui_spec.nodes.items():
+                if event["node_id"] == node_id:
+                    q = QManager.get_queue(node_id)
+                    q.put(event)
 
         _runner.add_callback(_cb)
         _runner.run()
@@ -91,22 +87,19 @@ def submit_tube(file: UploadFile, request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "partials/tube-config.html", {"msg": f"noob_id: {tube_config['noob_id']}"}
     )
-    # return HTMLResponse(f"Loaded: {tube_config["noob_id"]}")
 
 
 @router.post("/player/{node_id}")
 async def player(node_id: str, request: Request) -> HTMLResponse:
     """Serve video player DOM"""
     stream_path = config.runtime_dir / node_id / "stream.m3u8"
-    if stream_path.exists():  # later change this to "has chunk ext files"
-        template = templates.TemplateResponse(
+    if stream_path.exists():
+        return templates.TemplateResponse(
             request,
             "partials/player.html",
             {"id": node_id, "path": f"/stream/{node_id}/stream.m3u8"},
             headers={"Content-Control": "no-store"},
         )
-        print(template.headers)
-        return template
     else:
         raise HTTPException(404)
 
@@ -114,16 +107,15 @@ async def player(node_id: str, request: Request) -> HTMLResponse:
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     """Handle WebSocket connection and run streamers"""
-    q = QManager.get_queue("idk")
-
     await websocket.accept()
-    # some kind of waiting mechanism here
-    # to keep the connection open until the client disconnects
     while True:
-        try:
-            event = q.get(False)
-        except Empty:
-            event = None
-        if event is None:
-            break
-        await websocket.send_json(event)
+        await sleep(0.01)
+        qs = [QManager.get_queue(q) for q in QManager().queues.keys()]
+        events: list[Event] = []
+        for q in qs:
+            try:
+                events.append(q.get(False))
+            except Empty:
+                pass
+        for event in events:
+            await websocket.send_json({"node_id": event["node_id"], "value": event["value"]})

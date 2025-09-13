@@ -31,8 +31,7 @@
         plot.addEventListener("click", async () => {
             const {{ grid.id }} = new LineChart("#plot-{{ grid.id }}");
             await {{ grid.id }}.initialize();
-            add_on(wsCallbacks, "{{ grid.id }}", {{ grid.id }}.updateData);
-            window.{{ grid.id }} = {{ grid.id }};
+            add_on(wsCallbacks, "{{ grid.id }}", {{ grid.id }});
         })
     </script>
     {% endif %}

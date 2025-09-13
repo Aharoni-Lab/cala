@@ -18,10 +18,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log(config);
 
   const ws = new WebSocket(`ws://${window.location.host}/ws`);
-
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    console.log(data);
-    pseudoSwitch(wsCallbacks, data.type_, data.payload);
+    var plt = pseudoSwitch(wsCallbacks, data.node_id);
+    plt.update(data.value);
   };
 });

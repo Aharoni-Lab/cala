@@ -1,8 +1,3 @@
-assets:
-  queues:
-    type: cala.gui.util.QManager
-    scope: runner
-
 nodes:
   prep_movie:
     type: cala.gui.components.Encoder
@@ -13,8 +8,6 @@ nodes:
       - frame.value
   component_count:
     type: cala.gui.components.component_counter
-    params:
-      queue_id: component_count
     depends:
-      - footprints: assets.footprints
-      - q_manager: assets.queues
+      - index: counter.idx
+      - traces: assets.traces
