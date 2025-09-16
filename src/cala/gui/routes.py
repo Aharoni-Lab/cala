@@ -1,4 +1,5 @@
 import base64
+import contextlib
 from asyncio import sleep
 from queue import Empty
 
@@ -8,7 +9,7 @@ from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from noob.event import Event
-from noob.tube import TubeSpecification, Tube
+from noob.tube import Tube, TubeSpecification
 from starlette.websockets import WebSocket
 
 from cala.config import config
@@ -43,7 +44,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
     try:
         global _running
         if _running:
-            raise HTTPException(400, f"Already running.")
+            raise HTTPException(400, "Already running.")
         spec = TubeSpecification(**_tube_config)
         spec.assets = {**spec.assets, **gui_spec.assets}
         spec.nodes = {**spec.nodes, **gui_spec.nodes}
@@ -52,7 +53,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         global _runner
         _runner = BackgroundRunner(tube=tube)
 
-        def _cb(event):
+        def _cb(event: Event) -> None:
             for node_id, _ in gui_spec.nodes.items():
                 if event["node_id"] == node_id:
                     q = QManager.get_queue(node_id)
@@ -62,7 +63,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         _runner.run()
 
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
     _running = True
     return templates.TemplateResponse(
@@ -71,7 +72,7 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
 
 
 @router.post("/stop")
-def stop():
+def stop() -> None:
     global _runner
     _runner.shutdown()
 
@@ -82,7 +83,7 @@ def submit_tube(file: UploadFile, request: Request) -> HTMLResponse:
     try:
         tube_config = yaml.safe_load(file.file)
     except Exception as e:
-        raise HTTPException(422, f"Failed to load Tube specification. {e}")
+        raise HTTPException(422, f"Failed to load Tube specification. {e}") from e
     _tube_config = tube_config
     return templates.TemplateResponse(
         request, "partials/tube-config.html", {"msg": f"noob_id: {tube_config['noob_id']}"}
@@ -110,12 +111,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     while True:
         await sleep(0.01)
-        qs = [QManager.get_queue(q) for q in QManager().queues.keys()]
+        qs = [QManager.get_queue(q) for q in QManager().queues]
         events: list[Event] = []
         for q in qs:
-            try:
+            with contextlib.suppress(Empty):
                 events.append(q.get(False))
-            except Empty:
-                pass
+
         for event in events:
             await websocket.send_json({"node_id": event["node_id"], "value": event["value"]})

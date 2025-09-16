@@ -1,6 +1,7 @@
 from abc import abstractmethod
+from collections.abc import Generator
 from pathlib import Path
-from typing import Protocol, Generator
+from typing import Protocol
 
 import cv2
 from numpy.typing import NDArray

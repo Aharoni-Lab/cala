@@ -63,9 +63,9 @@ class Encoder(BaseModel):
             for packet in packets:
                 self._container.mux(packet)
 
-        except EncodingWarning:
+        except EncodingWarning as e:
             self._container.close()
-            raise EncodingError()
+            raise EncodingError() from e
 
     def deinit(self) -> None:
         # Flush any remaining packets

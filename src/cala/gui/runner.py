@@ -2,7 +2,7 @@ import threading
 from dataclasses import dataclass
 from enum import Enum, auto
 from logging import Logger
-from queue import Queue, Empty
+from queue import Empty, Queue
 
 from noob import SynchronousRunner
 from noob.types import ReturnNodeType
@@ -41,7 +41,7 @@ class BackgroundRunner(SynchronousRunner):
     def state(self) -> RunState:
         return self._state
 
-    def join(self):
+    def join(self) -> None:
         if self._thread is not None:
             self._thread.join()
         else:
@@ -101,7 +101,7 @@ class BackgroundRunner(SynchronousRunner):
 
         self._logger.info("Runner has been shut down")
 
-    def pause(self):
+    def pause(self) -> None:
         """
         Pause job processing in the runner.
 
@@ -110,5 +110,5 @@ class BackgroundRunner(SynchronousRunner):
 
         """
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume job processing in the runner."""

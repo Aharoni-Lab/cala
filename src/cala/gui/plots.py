@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from pathlib import Path
 
 import cv2
@@ -7,10 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray as xr
-from scipy.sparse.csgraph import connected_components
-from skimage.measure import find_contours
-
-from cala.models.axis import AXIS
 
 sns.set_theme(style="whitegrid", context="notebook", font_scale=1.2, palette="deep")
 
@@ -31,7 +26,6 @@ def write_movie(video: xr.DataArray, path: str | Path) -> None:
 
 
 def write_gif(
-    titles: list[str],
     videos: xr.DataArray | list[xr.DataArray],
     path: str | Path,
     n_cols: int | None = None,

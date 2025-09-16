@@ -1,5 +1,6 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Any
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
