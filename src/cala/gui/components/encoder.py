@@ -5,8 +5,7 @@ from typing import Any
 import av
 import numpy as np
 from av.video import VideoStream
-from noob import process_method
-from pydantic import BaseModel
+from noob.node import Node
 
 from cala.assets import Frame
 from cala.config import config
@@ -26,14 +25,13 @@ class EncodingError(Exception):
         return "Encoding failed."
 
 
-class Encoder(BaseModel):
-    grid_id: str
+class Encoder(Node):
     frame_rate: int
     _stream: VideoStream | None = None
     _container: av.container.OutputContainer | None = None
 
     def model_post_init(self, context: Any, /) -> None:
-        encode_dir = config.runtime_dir / self.grid_id
+        encode_dir = config.runtime_dir / self.id
         encode_dir.mkdir(parents=True, exist_ok=True)
         clear_dir(encode_dir)
         hls_manifest = encode_dir / "stream.m3u8"
@@ -51,8 +49,7 @@ class Encoder(BaseModel):
         self._stream = self._container.add_stream("h264", rate=self.frame_rate)
         self._stream.pix_fmt = "yuv420p"
 
-    @process_method
-    def save(self, frame: Frame) -> None:
+    def process(self, frame: Frame) -> None:
         frame = frame.array.astype(np.uint8)
         self._stream.width = frame.sizes[AXIS.width_dim]
         self._stream.height = frame.sizes[AXIS.height_dim]
