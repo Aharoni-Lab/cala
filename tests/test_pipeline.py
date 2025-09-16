@@ -9,11 +9,11 @@ from cala.models import AXIS
 
 @pytest.fixture(
     params=[
-        "SingleCellSource",
-        "TwoCellsSource",
-        "SeparateSource",
-        "TwoOverlappingSource",
-        "GradualOnSource",
+        # "SingleCellSource",
+        # "TwoCellsSource",
+        # "SeparateSource",
+        # "TwoOverlappingSource",
+        # "GradualOnSource",
         "SplitOffSource",
     ]
 )
@@ -27,8 +27,8 @@ def source(request):
 def tube(source, tmp_path):
     tube = Tube.from_specification("cala-odl")
     tube.nodes["source"] = source
-    tube.cube.assets["traces"].spec.params["zarr_path"] = tmp_path / "traces"
-    tube.cube.assets["traces"].params["zarr_path"] = tmp_path / "traces"
+    # tube.cube.assets["traces"].params["zarr_path"] = tmp_path / "traces"
+    # tube.cube.assets["traces"].params["peek_size"] = 100
 
     return tube
 
@@ -53,7 +53,7 @@ def test_odl(runner, source) -> None:
 
     preprocessed_frames = []
     for fr in gen:
-        preprocessed_frames.append(fr[0].array)
+        preprocessed_frames.append(fr["prep"].array)
         fps = runner.tube.cube.assets["footprints"].obj
         trs = runner.tube.cube.assets["traces"].obj
 

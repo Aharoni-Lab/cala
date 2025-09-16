@@ -1,23 +1,16 @@
 noob_id: cala-odl
-noob_model: noob.cube.CubeSpecification
+noob_model: noob.tube.TubeSpecification
 noob_version: 0.1.1.dev118+g64d81b7
-
-# Add GUI server in assets
 
 assets:
   buffer:
     type: cala.assets.Movie
     scope: runner
-    depends:
-      - cache.buffer
   footprints:
     type: cala.assets.Footprints
     scope: runner
   traces:
     type: cala.assets.Traces
-    params:
-      zarr_path: data/traces
-      peek_size: 100
     scope: runner
   pix_stats:
     type: cala.assets.PixStats
@@ -35,28 +28,33 @@ assets:
 nodes:
   source:
     type: cala.testing.SingleCellSource
-  denoise:
+  counter:
+    type: cala.util.counter
+  frame:
+    type: cala.util.package_frame
+    depends:
+      - frame: source.value
+      - index: counter.idx
+
+  #PREPROCESS BEGINS
+  hotpix: # needs to happen first
     type: cala.nodes.prep.blur
     params:
-      method: gaussian
+      method: median
       kwargs:
-        ksize: [3, 3]
-        sigmaX: 1.5
+        ksize: 3
     depends:
-      - frame: source.frame
+      - frame: frame.value
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: denoise.frame
-#  motion:
-#    type: cala.nodes.prep.RigidStabilizer
-#    params:
-#      drift_speed: 0.5
-#    depends:
-#      - frame: glow.frame
+      - frame: hotpix.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
+      hardset_radius: 6
+      noise_threshold: 2.0
+      n_frames: 30
       log_kwargs:
         min_sigma: 3
         max_sigma: 10
@@ -72,7 +70,9 @@ nodes:
     depends:
       - buffer: assets.buffer
       - frame: glow.frame
+  #PREPROCESS ENDS
 
+  # FRAME UPDATE BEGINS
   trace_frame:
     type: cala.nodes.traces.FrameUpdate
     params:
@@ -131,6 +131,7 @@ nodes:
       - comp_stats: assets.comp_stats
       - overlaps: assets.overlaps
       - trigger: residual.movie
+  # FRAME UPDATE ENDS
 
   # DETECT BEGINS
   nmf:
@@ -160,7 +161,7 @@ nodes:
   footprint_component:
     type: cala.nodes.footprints.ingest_component
     depends:
-      - footprints:  assets.footprints
+      - footprints: assets.footprints
       - new_footprints: catalog.new_footprints
   pix_component:
     type: cala.nodes.pixel_stats.ingest_component
@@ -175,15 +176,16 @@ nodes:
       - component_stats: assets.comp_stats
       - traces: assets.traces
       - new_traces: catalog.new_traces
-  #  DETECT ENDS
 
   overlaps_update:
     type: cala.nodes.overlap.initialize
     depends:
       - overlaps: assets.overlaps
       - footprints: footprint_component.footprints
+  #  DETECT ENDS
 
   return:
     type: return
     depends:
-      - glow.frame
+      - raw: frame.value
+      - prep: glow.frame
