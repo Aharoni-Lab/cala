@@ -1,6 +1,6 @@
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
-from typing import Self
+from typing import Self, TypeVar
 
 import numpy as np
 import xarray as xr
@@ -19,6 +19,9 @@ class FrameDims(BaseModel):
 class Position(BaseModel):
     width: int
     height: int
+
+
+_TFrame = TypeVar("_TFrame", xr.DataArray, Frame)
 
 
 class Toy(BaseModel):
@@ -55,6 +58,7 @@ class Toy(BaseModel):
     cell_ids: list[str]
     """If none, auto populated as cell_{idx}."""
     detected_ons: list[int]
+    emit_frames: bool = False
 
     _footprints: xr.DataArray = PrivateAttr(init=False)
     _traces: xr.DataArray = PrivateAttr(init=False)
@@ -238,7 +242,10 @@ class Toy(BaseModel):
         else:
             raise ValueError("No traces available")
 
-    def movie_gen(self) -> Generator[Frame]:
+    def movie_gen(self) -> Generator[_TFrame]:
         for i in range(self._traces.sizes[AXIS.frames_dim]):
             trace = self._traces.isel({AXIS.frames_dim: i})
-            yield Frame.from_array(trace @ self._footprints)
+            if not self.emit_frames:
+                yield trace @ self._footprints
+            else:
+                yield Frame.from_array(trace @ self._footprints)

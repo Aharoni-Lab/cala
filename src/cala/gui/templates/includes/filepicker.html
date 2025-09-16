@@ -1,0 +1,12 @@
+<label for="tube-picker">Choose tube config to upload (YAML)</label>
+<form id="tube-picker"
+      name="file"
+      hx-encoding="multipart/form-data"
+      hx-post="/submit-tube"
+      hx-swap="innerHTML"
+      hx-target="#tube-config"
+>
+    <input type="file" id="file_upload" name="file" accept=".yaml, .yml"/>
+    <button type="submit">Submit</button>
+</form>
+<div id="tube-config"></div>

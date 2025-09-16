@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from noob.node import NodeSpecification
 
 from cala.models import AXIS
 from cala.nodes.prep.motion import Shift, Stabilizer
@@ -30,6 +29,7 @@ def test_motion_estimation(params) -> None:
         cell_radii=3,
         cell_positions=[Position(width=15, height=15), Position(width=35, height=35)],
         cell_traces=[np.array(range(n_frames)), np.array(range(n_frames, 0, -1))],
+        emit_frames=True,
     )
 
     shifts = [

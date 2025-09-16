@@ -134,7 +134,7 @@ class FrameUpdate:
             csgraph=overlaps.array.data, directed=False, return_labels=True
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
-        updated_traces = self._update_traces(A, y, c, clusters)
+        updated_traces = self._update_traces(A, y, c.copy(), clusters)
 
         if traces.zarr_path:
             updated_tr = updated_traces.expand_dims(AXIS.frames_dim).assign_coords(
@@ -173,7 +173,6 @@ class FrameUpdate:
                 Shape: (components,)
             clusters (list[np.ndarray]): list of groups that each contain component indices that
                 have overlapping footprints.
-            eps (float): Tolerance level for convergence checking.
 
         Returns:
             xr.DataArray: Updated temporal traces satisfying non-negativity constraints.

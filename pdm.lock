@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:12e60b24cb50e4800f7985def144f9dd98512e90777a9a77474713335b360bf1"
+content_hash = "sha256:9cee290ad8bb089564778c0a70e9f1bc6397ab0ae54bc5644a0937aadc59371a"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -35,9 +35,9 @@ files = [
 
 [[package]]
 name = "anyio"
-version = "4.9.0"
+version = "4.10.0"
 requires_python = ">=3.9"
-summary = "High level compatibility layer for multiple asynchronous event loop implementations"
+summary = "High-level concurrency and networking framework on top of asyncio or Trio"
 dependencies = [
     "exceptiongroup>=1.0.2; python_version < \"3.11\"",
     "idna>=2.8",
@@ -45,8 +45,8 @@ dependencies = [
     "typing-extensions>=4.5; python_version < \"3.13\"",
 ]
 files = [
-    {file = "anyio-4.9.0-py3-none-any.whl", hash = "sha256:9f76d541cad6e36af7beb62e978876f3b41e3e04f2c1fbf0884604c0a9c4d93c"},
-    {file = "anyio-4.9.0.tar.gz", hash = "sha256:673c0c244e15788651a4ff38710fea9675823028a6f08a5eda409e0c9840a028"},
+    {file = "anyio-4.10.0-py3-none-any.whl", hash = "sha256:60e474ac86736bbfd6f210f7a61218939c318f43f9972497381f1c5e930ed3d1"},
+    {file = "anyio-4.10.0.tar.gz", hash = "sha256:3f3fae35c96039744587aa5b8371e7e8e603c0702999535961dd336026973ba6"},
 ]
 
 [[package]]
@@ -1811,11 +1811,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev121"
+version = "0.1.1.dev154"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "37-tube-resources-for-data-shared-between-nodes"
-revision = "fd131c7704c0485baadb7a59d5d714b529f09d58"
+ref = "node-enabled"
+revision = "d5dc6044870dfbc2a46a76a76a31e7138aef1280"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",

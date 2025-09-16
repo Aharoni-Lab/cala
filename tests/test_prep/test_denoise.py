@@ -28,6 +28,7 @@ def test_denoise(
         cell_radii=1,
         cell_positions=[Position(width=5, height=5)],
         cell_traces=[np.ones(10)],
+        emit_frames=True,
     )
 
     gen = toy.movie_gen()

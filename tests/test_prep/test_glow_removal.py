@@ -14,6 +14,7 @@ def test_glow_removal():
         cell_radii=1,
         cell_positions=[Position(width=5, height=5)],
         cell_traces=[np.array([5, 4, 3, 2, 1, 1, 2, 3, 4, 5])],
+        emit_frames=True,
     )
 
     gen = toy.movie_gen()

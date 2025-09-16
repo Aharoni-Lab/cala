@@ -1,0 +1,13 @@
+nodes:
+  prep_movie:
+    type: cala.gui.components.Encoder
+    params:
+      grid_id: prep_movie
+      frame_rate: 30
+    depends:
+      - frame.value
+  component_count:
+    type: cala.gui.components.component_counter
+    depends:
+      - index: counter.idx
+      - traces: assets.traces
