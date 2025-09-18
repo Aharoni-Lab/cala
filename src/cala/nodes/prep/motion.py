@@ -1,14 +1,12 @@
-from collections.abc import Callable
 from logging import Logger
 from typing import Annotated as A
-from typing import Literal
 
 import cv2
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel, ConfigDict, Field
-from skimage.filters import difference_of_gaussians
+from skimage.filters import butterworth
 from skimage.registration import phase_cross_correlation
 
 from cala.assets import Frame
@@ -23,13 +21,13 @@ class Shift(BaseModel):
 
 class Stabilizer(BaseModel):
     drift_speed: float = 1.0
+    patch_size: int = 50
     pcc_kwargs: dict = Field(default_factory=dict)
 
-    pcc_filter: Literal["butterworth", "difference_of_gaussians", "sato", "scharr"]
     filter_kwargs: dict = Field(default_factory=dict)
-    filt_fn: Callable = None
 
     _anchor_last_applied_on: int = None
+    patch_: dict[str, tuple[int, int]] = None
     anchor_frame_: xr.DataArray = None
     previous_frame_: xr.DataArray = None
     motions_: list[Shift] = None
@@ -38,9 +36,33 @@ class Stabilizer(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @staticmethod
+    def _interesting_patch(
+        frame: np.ndarray, width: int, height: int
+    ) -> dict[str, tuple[int, int]]:
+        box = [
+            {"width": (x, x + width), "height": (y, y + height)}
+            for x in range(0, frame.shape[1], width)
+            for y in range(0, frame.shape[0], height)
+        ]
+        return box[
+            np.argmax(
+                [
+                    frame[c["height"][0] : c["height"][1], c["width"][0] : c["width"][1]].var()
+                    for c in box
+                ]
+            )
+        ]
+
+    def _get_patch(self, frame: xr.DataArray) -> np.ndarray:
+        return frame.values[
+            self.patch_["height"][0] : self.patch_["height"][1],
+            self.patch_["width"][0] : self.patch_["width"][1],
+        ]
+
     @process_method
     def stabilize(self, frame: Frame) -> A[Frame, Name("frame")]:
-        if self.is_first_frame(frame):
+        if self._is_first_frame(frame):
             return frame
 
         curr_frame = frame.array
@@ -59,7 +81,7 @@ class Stabilizer(BaseModel):
             xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
         )
 
-    def is_first_frame(self, frame: Frame) -> bool:
+    def _is_first_frame(self, frame: Frame) -> bool:
         if (
             (self.anchor_frame_ is not None)
             and (self.previous_frame_ is not None)
@@ -73,6 +95,7 @@ class Stabilizer(BaseModel):
             and (self.motions_ is None)
         ):
             self._anchor_last_applied_on = 0
+            self.patch_ = self._interesting_patch(frame.array, self.patch_size, self.patch_size)
             self.anchor_frame_ = frame.array
             self.previous_frame_ = frame.array
             self.motions_ = [Shift(width=0, height=0)]
@@ -124,11 +147,10 @@ class Stabilizer(BaseModel):
         if: abs(sequential_shift - anchor_shift) < drift_speed
         then: true_shift = anchor_shift
         """
-        curr = difference_of_gaussians(curr_frame, **self.filter_kwargs)
-        prev = difference_of_gaussians(self.previous_frame_, **self.filter_kwargs)
-        anchor = difference_of_gaussians(self.anchor_frame_, **self.filter_kwargs)
+        curr = butterworth(curr_frame, **self.filter_kwargs)
+        prev = butterworth(self.previous_frame_, **self.filter_kwargs)
 
-        anchor_shift, _, _ = phase_cross_correlation(anchor, curr, **self.pcc_kwargs)
+        anchor_shift, _, _ = phase_cross_correlation(self.anchor_frame_, curr, **self.pcc_kwargs)
         sequent_shift, _, _ = phase_cross_correlation(prev, curr, **self.pcc_kwargs)
 
         shift_diff = np.linalg.norm(anchor_shift - sequent_shift)
@@ -154,11 +176,12 @@ class Stabilizer(BaseModel):
             (frame.sizes[AXIS.width_dim], frame.sizes[AXIS.height_dim]),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_REPLICATE,
-            # borderValue=0,
         )
         return xr.DataArray(shifted_frame, dims=frame.dims, coords=frame.coords)
 
     def _update_anchor(self, frame: xr.DataArray) -> xr.DataArray:
         curr_index = frame[AXIS.frame_coord].item()
 
-        return (self.anchor_frame_ * curr_index + frame) / (curr_index + 1)
+        return (self.anchor_frame_ * curr_index + butterworth(frame, **self.filter_kwargs)) / (
+            curr_index + 1
+        )

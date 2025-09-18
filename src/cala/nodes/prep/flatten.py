@@ -16,11 +16,9 @@ def butter(frame: Frame, kwargs: dict[str, Any]) -> A[Frame, Name("frame")]:
     To recover the absolute brightness, we shift the filtered image by the
     mean brightness of the original frame.
     """
-    arr = butterworth(frame.array, **kwargs) + frame.array.mean().item()
+    arr = butterworth(frame.array, **kwargs)  # + frame.array.mean().item()
 
-    return Frame.from_array(
-        xr.DataArray(arr.clip(0), dims=frame.array.dims, coords=frame.array.coords)
-    )
+    return Frame.from_array(xr.DataArray(arr, dims=frame.array.dims, coords=frame.array.coords))
 
 
 def ball(frame: Frame, kwargs: dict[str, Any]) -> Frame:
