@@ -1,197 +1,110 @@
-from logging import Logger
-from typing import Annotated as A
+import functools
+from typing import Callable
 
 import cv2
 import numpy as np
 import xarray as xr
-from noob import Name, process_method
+from noob import process_method
 from numpy.fft import ifftshift
-from pydantic import BaseModel, ConfigDict, Field
+from numpydantic import NDArray
+from pydantic import BaseModel, ConfigDict, PrivateAttr, Field
 from skimage.filters import difference_of_gaussians
 
 from cala.assets import Frame
-from cala.logging import init_logger
 from cala.models import AXIS
+from cala.testing.util import shift_by
 
 
 class Shift(BaseModel):
-    width: float
     height: float
+    width: float
+
+    @classmethod
+    def from_arr(cls, array: NDArray) -> "Shift":
+        assert array.shape == (2,)
+        return Shift(height=array[1], width=array[0])
+
+    def __add__(self, other: "Shift") -> "Shift":
+        return Shift(height=self.height + other.height, width=self.width + other.width)
 
 
-class Stabilizer(BaseModel):
-    drift_speed: float = 1.0
-    patch_size: int = None
-    kwargs: dict = Field(default_factory=dict)
+class LockOn(BaseModel):
+    max_shifts: tuple[float, float] = (50, 50)
+    upsample_factor: int = 10
 
-    _anchor_last_applied_on: int = None
-    patch_: dict[str, tuple[int, int]] = None
-    anchor_frame_: xr.DataArray = None
-    previous_frame_: xr.DataArray = None
-    motions_: list[Shift] = None
+    prep_kwargs: dict = Field(default_factory=dict)
 
-    logger: Logger = init_logger(__name__)
+    _reg_shift: Callable = PrivateAttr(None)
+    """A callable used to find the shift"""
+    _local: xr.DataArray = PrivateAttr(None)
+    """local anchor - processed and ready for comparison"""
+    _anchor: xr.DataArray = PrivateAttr(None)
+    """global anchor - processed and ready for comparison"""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @process_method
-    def stabilize(self, frame: Frame) -> A[Frame, Name("frame")]:
-        if not self.started:
-            self._first_frame_setup(frame)
+    def stabilize(self, frame: Frame) -> Frame:
+        arr = frame.array
+        prepped = prepare(arr)
+        if not self._has_prereqs:
+            self._init(prepped)
             return frame
 
-        temp_frame = self._prep_frame(frame.array)
-        shift = self._compute_shift(temp_frame)
-        shifted_frame = self._apply_shift(frame.array, shift)
+        # --- image, prepped, local --- #
+        # image: original image. only shifted and outputted
+        # prepped: processed image. only used to find the shift and then discarded
+        # local: shifted prepped from the last iteration to be used as a template
 
-        self.motions_.append(shift)
-        self._update_anchors(shifted_frame)
+        # Steps:
+        # 1. raw prepped gets shifted to last local anchor. We save the shift
+        # 2. the shifted prepped gets shifted to global anchor. We add to the shift
+        # 3. we apply total shift to image. We also save the total shifted prepped
+        #    as the anchor for the next frame
 
-        return Frame.from_array(
-            xr.DataArray(shifted_frame, dims=frame.array.dims, coords=frame.array.coords)
-        )
+        total = Shift(height=0, width=0)
+        for template in [self._local, self._anchor]:
+            shift_arr, _, _ = self._reg_shift(prepped.values, template.values)
+            shift = Shift.from_arr(shift_arr)
+            total += shift
+            prepped = apply_shift(prepped, shift)
+        self._get_ready_for_next(prepped)
 
-    def _first_frame_setup(self, frame: Frame) -> None:
-        self._anchor_last_applied_on = 0
-        self.patch_ = self._interesting_patch(frame.array, self.patch_size, self.patch_size)
-        self.anchor_frame_ = frame.array
-        self.previous_frame_ = frame.array
-        self.motions_ = [Shift(width=0, height=0)]
-
-    @staticmethod
-    def _interesting_patch(
-        frame: np.ndarray, width: int, height: int
-    ) -> dict[str, tuple[int, int]]:
-        box = [
-            {"width": (x, x + width), "height": (y, y + height)}
-            for x in range(0, frame.shape[1], width)
-            for y in range(0, frame.shape[0], height)
-        ]
-        return box[
-            np.argmax(
-                [
-                    frame[c["height"][0] : c["height"][1], c["width"][0] : c["width"][1]].var()
-                    for c in box
-                ]
-            )
-        ]
-
-    def _prep_frame(self, frame: xr.DataArray) -> xr.DataArray:
-        arr = self._get_patch(frame.values)
-        arr = difference_of_gaussians(arr, low_sigma=3)
-        arr = cv2.normalize(
-            arr, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1
-        )
-        arr = cv2.fastNlMeansDenoising(arr, None, 7, 7, 21)
-        return xr.DataArray(arr, dims=frame.dims, coords=frame.coords)
-
-    def _get_patch(self, frame: np.ndarray) -> np.ndarray:
-        return frame[
-            self.patch_["height"][0] : self.patch_["height"][1],
-            self.patch_["width"][0] : self.patch_["width"][1],
-        ]
-
-    def _compute_shift(self, curr_frame: xr.DataArray) -> Shift:
-        """
-        The simplest way to stabilize streaming frames would be to have a single reference frame
-        (the first frame) and shift all subsequent frames against this reference frame.
-        However, as different sets of neurons are active at different times, frames that are far
-        apart in time sometimes have few common objects to lock onto.
-
-        To mitigate this, we could stabilize all frames against the previous frame, domino style.
-        However, errors stack up and a gradual shift takes place with this strategy.
-
-        This algorithm attempts to solve this issue by mixing the two strategies:
-        1. We default to stabilizing against the anchor frame.
-        2. If we begin losing features to lock onto, the anchor shift will explode to
-        an unpredictable value.
-        3. In this case, we fall back to the sequential shift.
-        4. During the "anchor mismatch period", the sequential shift will slowly drift.
-        5. And then, as old features surface again, the anchor will lock in again.
-        6. However, the sequential shift will have drifted.
-        7. We try to estimate how fast it would drift with drift_speed.
-        8. Then, the TRUE shift is within the range of sequential_shift +- drift.
-        9. Thus, we assume that if anchor_shift falls within this range, the anchor shift
-        has returned to the TRUE shift.
-
-        in mathematical notations, this translates to:
-        if:
-        sequential_shift - drift_speed < anchor_shift < sequential_shift + drift_speed
-
-        then:
-        true_shift = anchor_shift
-
-        the inequality is same as:
-        sequential_shift - anchor_shift < drift_speed
-        anchor_shift - sequential_shift < drift_speed
-
-        which summarizes to:
-        if: abs(sequential_shift - anchor_shift) < drift_speed
-        then: true_shift = anchor_shift
-        """
-        anchor_shift, _, _ = _register_translation(
-            self.anchor_frame_.values, curr_frame.values, **self.kwargs
-        )
-        sequent_shift, _, _ = _register_translation(
-            self.previous_frame_.values, curr_frame.values, **self.kwargs
-        )
-
-        shift_diff = np.linalg.norm(anchor_shift - sequent_shift)
-
-        frame_idx = curr_frame[AXIS.frame_coord].item()
-        drift_threshold = (frame_idx - self._anchor_last_applied_on) * self.drift_speed
-
-        if shift_diff > drift_threshold:
-            shift = sequent_shift
-        else:
-            shift = anchor_shift
-            self._anchor_last_applied_on = frame_idx
-
-        return Shift(height=shift[0], width=shift[1])
-
-    def _apply_shift(self, frame: xr.DataArray, shift: Shift) -> xr.DataArray:
-        M = np.float32([[1, 0, shift.width], [0, 1, shift.height]])
-
-        shifted_frame = cv2.warpAffine(
-            frame.values,
-            M,
-            (frame.sizes[AXIS.width_dim], frame.sizes[AXIS.height_dim]),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REPLICATE,
-        )
-        return xr.DataArray(shifted_frame, dims=frame.dims, coords=frame.coords)
-
-    def _update_anchors(self, frame: xr.DataArray) -> None:
-        self.previous_frame_ = frame
-
-        if self._anchor_last_applied_on == frame[AXIS.frame_coord].item():
-            curr_index = frame[AXIS.frame_coord].item()
-            self.anchor_frame_ = (self.anchor_frame_ * curr_index + frame) / (curr_index + 1)
+        result = apply_shift(arr, total)
+        return Frame.from_array(result)
 
     @property
-    def started(self):
-        if (
-            (self.anchor_frame_ is not None)
-            and (self.previous_frame_ is not None)
-            and (self.motions_ is not None)
-        ):
-            return True
-        elif self.anchor_frame_ is None and self.previous_frame_ is None and self.motions_ is None:
-            return False
-        else:
-            raise AttributeError(
-                f"Undefined State: Partially initialized."
-                f"{self.anchor_frame_ = }, "
-                f"{self.previous_frame_ = }, "
-                f"{self.motions_ = }"
-            )
+    def _has_prereqs(self) -> bool:
+        return self._local is not None
+
+    def _init(self, image: xr.DataArray) -> None:
+        self._local = image
+        self._anchor = image
+        self._reg_shift = functools.partial(
+            register_shift, upsample_factor=self.upsample_factor, max_shifts=self.max_shifts
+        )
+
+    def _calculate_shift(self, shift: xr.DataArray) -> xr.DataArray: ...
+
+    def _get_ready_for_next(self, prepped: xr.DataArray) -> None:
+        self._local = prepped
+
+        # global learns the local
+        curr_idx = prepped[AXIS.frame_coord].item()
+        self._anchor = (self._anchor * curr_idx + self._local) / (curr_idx + 1)
 
 
-def _register_translation(
+def prepare(image: xr.DataArray) -> xr.DataArray:
+    tmp = difference_of_gaussians(image, low_sigma=3)
+    tmp = cv2.normalize(tmp, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+    result = cv2.GaussianBlur(tmp.astype(float), (11, 11), 20)
+    return xr.DataArray(result, dims=image.dims, coords=image.coords)
+
+
+def register_shift(
     src_image: np.ndarray,
     target_image: np.ndarray,
-    shifts_lb: tuple[int, int] = (-20, -20),
-    shifts_ub: tuple[int, int] = (20, 20),
+    max_shifts: tuple[float, float] = (20, 20),
     upsample_factor: int = 1,
 ):
     """
@@ -250,17 +163,8 @@ def _register_translation(
     # Locate maximum
     new_cross_corr = np.abs(cross_correlation)
 
-    if (shifts_lb[0] < 0) and (shifts_ub[0] >= 0):
-        new_cross_corr[shifts_ub[0] : shifts_lb[0], :] = 0
-    else:
-        new_cross_corr[: shifts_lb[0], :] = 0
-        new_cross_corr[shifts_ub[0] :, :] = 0
-
-    if (shifts_lb[1] < 0) and (shifts_ub[1] >= 0):
-        new_cross_corr[:, shifts_ub[1] : shifts_lb[1]] = 0
-    else:
-        new_cross_corr[:, : shifts_lb[1]] = 0
-        new_cross_corr[:, shifts_ub[1] :] = 0
+    new_cross_corr[max_shifts[0] : -max_shifts[0], :] = 0
+    new_cross_corr[:, max_shifts[1] : -max_shifts[1]] = 0
 
     maxima = np.unravel_index(np.argmax(new_cross_corr), cross_correlation.shape)
     midpoints = np.array([np.fix(axis_size // 2) for axis_size in shape])
@@ -406,3 +310,69 @@ def _compute_phasediff(cross_correlation_max):
             The complex value of the cross correlation at its maximum point.
     """
     return np.arctan2(cross_correlation_max.imag, cross_correlation_max.real)
+
+
+def apply_shifts_dft(src_freq, shifts, diffphase, is_freq: bool = True):
+    """
+    Args:
+        apply shifts using inverse dft
+        src_freq: ndarray
+            if is_freq it is fourier transform image else original image
+        shifts: shifts to apply
+        diffphase: comes from the register_translation output
+    """
+
+    if not is_freq:
+
+        src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
+        src_freq = cv2.dft(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+        src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
+        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+
+    nr, nc = src_freq.shape
+    Nr = ifftshift(np.arange(-np.fix(nr / 2.0), np.ceil(nr / 2.0)))
+    Nc = ifftshift(np.arange(-np.fix(nc / 2.0), np.ceil(nc / 2.0)))
+    Nc, Nr = np.meshgrid(Nc, Nr)
+    Greg = src_freq * np.exp(1j * 2 * np.pi * (-shifts[0] * Nr / nr - shifts[1] * Nc / nc))
+
+    Greg = Greg.dot(np.exp(1j * diffphase))
+    Greg = np.dstack([np.real(Greg), np.imag(Greg)])
+    new_img = cv2.idft(Greg)[:, :, 0]
+
+    max_w, max_h, min_w, min_h = 0, 0, 0, 0
+    max_h, max_w = np.ceil(np.maximum((max_h, max_w), shifts[:2])).astype(int)
+    min_h, min_w = np.floor(np.minimum((min_h, min_w), shifts[:2])).astype(int)
+
+    new_img[:max_h] = new_img[max_h]
+    if min_h < 0:
+        new_img[min_h:] = new_img[min_h - 1]
+    if max_w > 0:
+        new_img[:, :max_w] = new_img[:, max_w, np.newaxis]
+    if min_w < 0:
+        new_img[:, min_w:] = new_img[:, min_w - 1, np.newaxis]
+
+    return new_img
+
+
+def apply_shift(image: xr.DataArray, shift: Shift) -> xr.DataArray:
+    M = np.float32([[1, 0, shift.width], [0, 1, shift.height]])
+
+    shifted_frame = cv2.warpAffine(
+        image.values,
+        M,
+        (image.sizes[AXIS.width_dim], image.sizes[AXIS.height_dim]),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+    return xr.DataArray(shifted_frame, dims=image.dims, coords=image.coords)
+
+
+def check_shift_validity(
+    source: xr.DataArray, target: xr.DataArray, shift: np.ndarray, threshold: float
+) -> bool:
+    expected = np.array([5, 5])
+    tester = shift_by(source.values, *expected)
+    total, _, _ = register_shift(tester, target.values)
+    result = total - shift
+    error = np.linalg.norm(result - expected)
+    return error < threshold
