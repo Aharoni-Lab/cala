@@ -51,7 +51,7 @@ def package_frame(frame: np.ndarray, index: int, timestamp: datetime | str | Non
             AXIS.height_dim: range(frame.sizes[AXIS.height_dim]),
         }
     )
-    return Frame.from_array(da.astype(float))
+    return Frame.from_array(da)
 
 
 def create_id() -> str:

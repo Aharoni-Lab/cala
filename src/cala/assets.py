@@ -78,7 +78,7 @@ class Frame(Asset):
         Entity(
             name="frame",
             dims=(Dims.width.value, Dims.height.value),
-            dtype=float,
+            dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
             checks=[is_non_negative, has_no_nan],
         )
     )
