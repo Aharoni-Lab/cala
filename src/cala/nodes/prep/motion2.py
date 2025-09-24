@@ -22,7 +22,7 @@ class Shift(BaseModel):
     @classmethod
     def from_arr(cls, array: NDArray) -> "Shift":
         assert array.shape == (2,)
-        return Shift(height=array[1], width=array[0])
+        return Shift(height=array[0], width=array[1])
 
     def __add__(self, other: "Shift") -> "Shift":
         return Shift(height=self.height + other.height, width=self.width + other.width)
@@ -32,7 +32,8 @@ class LockOn(BaseModel):
     max_shifts: tuple[float, float] = (50, 50)
     upsample_factor: int = 10
 
-    prep_kwargs: dict = Field(default_factory=dict)
+    dog_kwargs: dict = Field(default_factory=dict)
+    gauss_kwargs: dict = Field(default_factory=dict)
 
     _reg_shift: Callable = PrivateAttr(None)
     """A callable used to find the shift"""
@@ -64,7 +65,7 @@ class LockOn(BaseModel):
 
         total = Shift(height=0, width=0)
         for template in [self._local, self._anchor]:
-            shift_arr, _, _ = self._reg_shift(prepped.values, template.values)
+            shift_arr, _, _ = self._reg_shift(template.values, prepped.values)
             shift = Shift.from_arr(shift_arr)
             total += shift
             prepped = apply_shift(prepped, shift)
@@ -89,9 +90,9 @@ class LockOn(BaseModel):
     def _get_ready_for_next(self, prepped: xr.DataArray) -> None:
         self._local = prepped
 
-        # global learns the local
-        curr_idx = prepped[AXIS.frame_coord].item()
-        self._anchor = (self._anchor * curr_idx + self._local) / (curr_idx + 1)
+        # # global learns the local
+        # curr_idx = prepped[AXIS.frame_coord].item()
+        # self._anchor = (self._anchor * curr_idx + self._local) / (curr_idx + 1)
 
 
 def prepare(image: xr.DataArray) -> xr.DataArray:

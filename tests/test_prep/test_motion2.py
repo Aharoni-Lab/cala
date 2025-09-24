@@ -52,7 +52,7 @@ def gauss(img: xr.DataArray) -> xr.DataArray:
     # tmp = img[100:300, 500:700]
     tmp = difference_of_gaussians(img, low_sigma=3)  # nothing: 1.3 min
     tmp = cv2.normalize(tmp, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
-    res = cv2.GaussianBlur(tmp, (11, 11), 20)  # 1.5 mins
+    res = cv2.GaussianBlur(tmp.astype(float), (11, 11), 20)  # 1.5 mins
 
     return xr.DataArray(res, dims=img.dims, coords=img.coords)
 
@@ -72,19 +72,17 @@ def test_real(real):
         for func in [median, gauss, nlm]:
             if prev is None:
                 prev = func(frame.array)
+                tmpl = prev
                 break
 
-            curr = func(frame.array)
-            if i == 1:
-                tmpl = curr
-
+            prepped = func(frame.array)
             drift, _, _ = register_shift(
-                prev.values.astype(float), curr.values.astype(float), upsample_factor=10
+                prev.values.astype(float), prepped.values.astype(float), upsample_factor=10
             )
             drift = Shift(height=drift[0], width=drift[1])
 
             corrected = apply_shift(frame.array, drift)
-            prev = apply_shift(curr, drift)
+            prev = apply_shift(prepped, drift)
 
             if i % 1 == 0:
                 slow_drift, _, _ = register_shift(  # THIS WAS CORRECTED< NOT PREV
