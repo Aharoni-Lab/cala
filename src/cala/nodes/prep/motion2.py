@@ -1,5 +1,5 @@
 import functools
-from typing import Callable
+from collections.abc import Callable
 
 import cv2
 import numpy as np
@@ -7,7 +7,7 @@ import xarray as xr
 from noob import process_method
 from numpy.fft import ifftshift
 from numpydantic import NDArray
-from pydantic import BaseModel, ConfigDict, PrivateAttr, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 from skimage.filters import difference_of_gaussians
 
 from cala.assets import Frame
@@ -32,8 +32,8 @@ class LockOn(BaseModel):
     max_shifts: tuple[float, float] = (50, 50)
     upsample_factor: int = 10
 
-    dog_kwargs: dict = Field(default_factory=dict)
-    gauss_kwargs: dict = Field(default_factory=dict)
+    dog_kwargs: dict = Field(default_factory=dict, validate_default=True)
+    gauss_kwargs: dict = Field(default_factory=dict, validate_default=True)
 
     _reg_shift: Callable = PrivateAttr(None)
     """A callable used to find the shift"""
@@ -44,24 +44,41 @@ class LockOn(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @field_validator("dog_kwargs", mode="before")
+    @classmethod
+    def default_dog(cls, value: dict) -> dict:
+        if not value:
+            return {"low_sigma": 3}
+        else:
+            return value
+
+    @field_validator("gauss_kwargs", mode="before")
+    @classmethod
+    def default_gauss(cls, value: dict) -> dict:
+        if not value:
+            return {"ksize": (11, 11), "sigmaX": 20}
+        else:
+            return value
+
     @process_method
     def stabilize(self, frame: Frame) -> Frame:
+        """
+        --- image, prepped, local ---
+        image: original image. only shifted and outputted
+        prepped: processed image. only used to find the shift and then discarded
+        local: shifted prepped from the last iteration to be used as a template
+
+        Steps:
+        1. raw prepped gets shifted to last local anchor. We save the shift
+        2. the shifted prepped gets shifted to global anchor. We add to the shift
+        3. we apply total shift to image. We also save the total shifted prepped
+           as the anchor for the next frame
+        """
         arr = frame.array
-        prepped = prepare(arr)
+        prepped = prepare(arr, dog_kwargs=self.dog_kwargs, gauss_kwargs=self.gauss_kwargs)
         if not self._has_prereqs:
             self._init(prepped)
             return frame
-
-        # --- image, prepped, local --- #
-        # image: original image. only shifted and outputted
-        # prepped: processed image. only used to find the shift and then discarded
-        # local: shifted prepped from the last iteration to be used as a template
-
-        # Steps:
-        # 1. raw prepped gets shifted to last local anchor. We save the shift
-        # 2. the shifted prepped gets shifted to global anchor. We add to the shift
-        # 3. we apply total shift to image. We also save the total shifted prepped
-        #    as the anchor for the next frame
 
         total = Shift(height=0, width=0)
         for template in [self._local, self._anchor]:
@@ -90,15 +107,15 @@ class LockOn(BaseModel):
     def _get_ready_for_next(self, prepped: xr.DataArray) -> None:
         self._local = prepped
 
-        # # global learns the local
-        # curr_idx = prepped[AXIS.frame_coord].item()
-        # self._anchor = (self._anchor * curr_idx + self._local) / (curr_idx + 1)
+        # global learns the local
+        curr_idx = prepped[AXIS.frame_coord].item()
+        self._anchor = (self._anchor * curr_idx + self._local) / (curr_idx + 1)
 
 
-def prepare(image: xr.DataArray) -> xr.DataArray:
-    tmp = difference_of_gaussians(image, low_sigma=3)
+def prepare(image: xr.DataArray, dog_kwargs: dict, gauss_kwargs: dict) -> xr.DataArray:
+    tmp = difference_of_gaussians(image, **dog_kwargs)
     tmp = cv2.normalize(tmp, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
-    result = cv2.GaussianBlur(tmp.astype(float), (11, 11), 20)
+    result = cv2.GaussianBlur(tmp.astype(float), **gauss_kwargs)
     return xr.DataArray(result, dims=image.dims, coords=image.coords)
 
 
@@ -107,7 +124,7 @@ def register_shift(
     target_image: np.ndarray,
     max_shifts: tuple[float, float] = (20, 20),
     upsample_factor: int = 1,
-):
+) -> tuple[np.ndarray, np.ndarray, float]:
     """
     This code gives the same precision as the FFT upsampled cross-correlation
     in a fraction of the computation time and with reduced memory requirements.
@@ -213,7 +230,12 @@ def register_shift(
     return shifts, src_freq, _compute_phasediff(CCmax)
 
 
-def _upsampled_dft(data, upsampled_region_size, upsample_factor=1, axis_offsets=None):
+def _upsampled_dft(
+    data: np.ndarray,
+    upsampled_region_size: list[np.float64],
+    upsample_factor: int = 1,
+    axis_offsets: np.ndarray = None,
+) -> np.ndarray:
     """
     Upsampled DFT by matrix multiplication.
 
@@ -258,7 +280,8 @@ def _upsampled_dft(data, upsampled_region_size, upsample_factor=1, axis_offsets=
     else:
         if len(upsampled_region_size) != data.ndim:
             raise ValueError(
-                "shape of upsampled region sizes must be equal to input data's number of dimensions."
+                "shape of upsampled region sizes must be equal to "
+                "input data's number of dimensions."
             )
 
     if axis_offsets is None:
@@ -302,9 +325,10 @@ def _upsampled_dft(data, upsampled_region_size, upsample_factor=1, axis_offsets=
     return output
 
 
-def _compute_phasediff(cross_correlation_max):
+def _compute_phasediff(cross_correlation_max: np.complex128) -> np.float64:
     """
-    Compute global phase difference between the two images (should be zero if images are non-negative).
+    Compute global phase difference between the two images
+    (should be zero if images are non-negative).
 
     Args:
         cross_correlation_max : complex
@@ -313,7 +337,9 @@ def _compute_phasediff(cross_correlation_max):
     return np.arctan2(cross_correlation_max.imag, cross_correlation_max.real)
 
 
-def apply_shifts_dft(src_freq, shifts, diffphase, is_freq: bool = True):
+def apply_shifts_dft(
+    src_freq: np.ndarray, shifts: np.ndarray, diffphase: float, is_freq: bool = True
+) -> np.ndarray:
     """
     Args:
         apply shifts using inverse dft

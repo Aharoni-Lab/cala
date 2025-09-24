@@ -9,7 +9,7 @@ from skimage.filters import difference_of_gaussians
 from cala.config import config
 from cala.nodes.io import stream
 from cala.nodes.prep import blur, butter, remove_mean
-from cala.nodes.prep.motion2 import register_shift, apply_shift, LockOn, Shift
+from cala.nodes.prep.motion2 import LockOn, Shift, apply_shift, register_shift
 from cala.util import package_frame
 
 
