@@ -188,6 +188,12 @@ class GradualOnSource(MovieSource):
 
 
 class SplitOffSource(MovieSource):
+    """
+    1. Two overlapping cells go up together till 25.
+    2. One dims to 0 while the other continues to get brighter until 50.
+    3. Dim cell grows to 50 while bright cell dims to 0.
+    """
+
     @model_validator(mode="after")
     def complete_model(self) -> Self:
         self.n_frames = 100

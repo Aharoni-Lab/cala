@@ -42,9 +42,9 @@ nodes:
         - cala/msCam9.avi
         - cala/msCam10.avi
   counter:
-    type: cala.util.counter
+    type: cala.nodes.prep.counter
   frame:
-    type: cala.util.package_frame
+    type: cala.nodes.prep.package_frame
     depends:
       - frame: source.value
       - index: counter.idx

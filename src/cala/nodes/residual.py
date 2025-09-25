@@ -61,7 +61,6 @@ def _align_overestimates(
     A: xr.DataArray, C_latest: xr.DataArray, R_latest: xr.DataArray
 ) -> xr.DataArray:
     """
-
         Gotta be able to do at least ONE OF splitoff or gradualon.
 
         Negative residuals just need to go. There isn't much you can do with the value...?

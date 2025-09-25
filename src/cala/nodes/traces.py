@@ -149,6 +149,7 @@ class FrameUpdate:
         else:
             traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
 
+        # res = frame.array - A.unstack("pixels") @ updated_traces
         return PopSnap.from_array(updated_traces)
 
     def _update_traces(
