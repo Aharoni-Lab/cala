@@ -75,14 +75,18 @@ nodes:
     type: cala.nodes.prep.Anchor
     depends:
       - frame: lines.frame
-  #  denoise:
-  #    type: cala.nodes.prep.Restore
-  #    depends:
-  #      - frame: motion.frame
+  denoise:
+    type: cala.nodes.prep.blur
+    params:
+      method: median
+      kwargs:
+        ksize: 7
+    depends:
+      - frame: motion.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: motion.frame
+      - frame: denoise.frame
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
@@ -96,7 +100,7 @@ nodes:
         threshold: 0.2
         overlap: 0.5
     depends:
-      - frame: motion.frame
+      - frame: denoise.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
@@ -173,7 +177,7 @@ nodes:
     type: cala.nodes.detect.SliceNMF
     params:
       min_frames: 100
-      detect_thresh: 2.0
+      detect_thresh: 3.0
       reprod_tol: 0.005
     depends:
       - residuals: residual.movie
