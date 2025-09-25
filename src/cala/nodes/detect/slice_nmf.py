@@ -36,15 +36,16 @@ class SliceNMF(Node):
     def process(
         self, residuals: Residual, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
-        res = residuals.array.copy()
 
-        if res.sizes[AXIS.frames_dim] < self.min_frames:
+        if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return [], []
 
-        energy = self._get_energy(res)
+        energy = self._get_energy(residuals.array)
 
         fps = []
         trs = []
+
+        res = residuals.array.copy()
 
         while energy.max().item() >= self.detect_thresh:  # or use res directly
             # Find and analyze neighborhood of maximum variance
@@ -73,7 +74,8 @@ class SliceNMF(Node):
         return fps, trs
 
     def _get_energy(self, res: xr.DataArray) -> xr.DataArray:
-        pixels_median = res.median(dim=AXIS.frames_dim)
+        # should technically be median but it's so slow
+        pixels_median = res.mean(dim=AXIS.frames_dim)
         V = res - pixels_median
 
         return np.sqrt((V**2).mean(dim=AXIS.frames_dim))
