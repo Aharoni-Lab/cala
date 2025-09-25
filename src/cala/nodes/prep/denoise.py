@@ -57,7 +57,7 @@ def blur(
 
     frame = frame.array
 
-    arr = frame.values.astype(np.uint8) if method == "nonlocal" else frame.values.astype(np.float32)
+    arr = frame.values.astype(np.uint8) if method == "median" else frame.values.astype(np.float32)
 
     denoised = _func(arr, **kwargs).astype(float)
 

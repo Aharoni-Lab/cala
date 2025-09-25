@@ -132,13 +132,14 @@ nodes:
   footprints_frame:
     type: cala.nodes.footprints.Footprinter
     params:
-      bep: 1
+      bep: 4
       tol: 0.0001
       max_iter: 100
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
+      - index: counter.idx
   facetune:
     type: cala.nodes.cleanup.clear_overestimates
     params:
