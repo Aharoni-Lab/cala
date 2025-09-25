@@ -7,9 +7,11 @@ from typing import Any, ClassVar, TypeVar
 import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 
+from cala.config import config
 from cala.models.axis import AXIS, Coords, Dims
 from cala.models.checks import has_no_nan, is_non_negative
 from cala.models.entity import Entity, Group
+from cala.util import clear_dir
 
 AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
@@ -97,7 +99,8 @@ class Footprints(Asset):
 
 
 class Traces(Asset):
-    zarr_path: Path | str | None = None
+    zarr_path: Path | None = None
+    """relative to config.user_data_dir"""
     peek_size: int | None = None
     """
     Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
@@ -155,6 +158,14 @@ class Traces(Asset):
         new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
         new_cls.array = array
         return new_cls
+
+    @field_validator("zarr_path", mode="after")
+    @classmethod
+    def validate_zarr_path(cls, value: Path) -> Path:
+        zarr_dir = (config.user_dir / value).resolve()
+        zarr_dir.mkdir(parents=True, exist_ok=True)
+        clear_dir(zarr_dir)
+        return zarr_dir
 
     @model_validator(mode="after")
     def check_zarr_setting(self) -> "Traces":

@@ -1,6 +1,8 @@
 from collections.abc import Generator, Sequence
 from datetime import datetime
 from itertools import count
+from pathlib import Path
+from shutil import rmtree
 from typing import Annotated as A
 from uuid import uuid4
 
@@ -61,3 +63,11 @@ def create_id() -> str:
 def combine_attr_replaces(attrs: Sequence[dict[str, list[str]]], context: None = None) -> dict:
     repl = [item for attr in attrs for item in attr.get("replaces", [])]
     return {"replaces": repl} if repl else {}
+
+
+def clear_dir(directory: Path | str) -> None:
+    for path in Path(directory).glob("**/*"):
+        if path.is_file():
+            path.unlink()
+        elif path.is_dir():
+            rmtree(path)

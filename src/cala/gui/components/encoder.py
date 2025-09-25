@@ -1,5 +1,3 @@
-from pathlib import Path
-from shutil import rmtree
 from typing import Any
 
 import av
@@ -10,14 +8,7 @@ from noob.node import Node
 from cala.assets import Frame
 from cala.config import config
 from cala.models import AXIS
-
-
-def clear_dir(directory: Path | str) -> None:
-    for path in Path(directory).glob("**/*"):
-        if path.is_file():
-            path.unlink()
-        elif path.is_dir():
-            rmtree(path)
+from cala.util import clear_dir
 
 
 class EncodingError(Exception):
