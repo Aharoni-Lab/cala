@@ -2,7 +2,7 @@ from datetime import datetime
 
 import numpy as np
 
-from cala.util import package_frame
+from cala.nodes.prep import package_frame
 
 
 def test_package_frame():

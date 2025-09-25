@@ -161,7 +161,9 @@ class Traces(Asset):
 
     @field_validator("zarr_path", mode="after")
     @classmethod
-    def validate_zarr_path(cls, value: Path) -> Path:
+    def validate_zarr_path(cls, value: Path | None) -> Path | None:
+        if value is None:
+            return value
         zarr_dir = (config.user_dir / value).resolve()
         zarr_dir.mkdir(parents=True, exist_ok=True)
         clear_dir(zarr_dir)

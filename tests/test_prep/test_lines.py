@@ -1,9 +1,9 @@
 import numpy as np
 from skimage.metrics import structural_similarity
 
+from cala.nodes.prep import package_frame
 from cala.nodes.prep.lines import remove_freq
 from cala.testing.util import generate_text_image
-from cala.util import package_frame
 
 
 def test_remove_lines():
