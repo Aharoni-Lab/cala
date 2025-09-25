@@ -42,15 +42,13 @@ nodes:
     depends:
       - frame: hotpix.frame
   lines:
-    type: cala.nodes.prep.remove_freq
+    type: cala.nodes.prep.remove_mean
     params:
       orient: both
     depends:
       - frame: flatten.frame
   motion:
-    type: cala.nodes.prep.Stabilizer
-    params:
-      drift_speed: 0.5
+    type: cala.nodes.prep.Anchor
     depends:
       - frame: lines.frame
 

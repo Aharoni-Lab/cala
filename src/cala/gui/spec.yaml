@@ -10,7 +10,7 @@ nodes:
     params:
       frame_rate: 30
     depends:
-      - flatten.frame
+      - motion.frame
 #  component_count:
 #    type: cala.gui.components.component_counter
 #    depends:
