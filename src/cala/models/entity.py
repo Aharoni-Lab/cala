@@ -16,7 +16,7 @@ class Entity(BaseModel):
     name: str
     dims: tuple[Dim, ...]
     coords: list[Coord] = Field(default_factory=list)
-    dtype: type
+    dtype: type | None
     checks: list[Callable] = Field(default_factory=list)
     allow_extra_coords: bool = True
 
@@ -44,7 +44,7 @@ class Entity(BaseModel):
         return DataArraySchema(
             dims=DimsSchema(tuple(dim.name for dim in self.dims), ordered=False),
             coords=coords_schema,
-            dtype=DTypeSchema(self.dtype),
+            dtype=DTypeSchema(self.dtype) if self.dtype else None,
             checks=self.checks,
         )
 

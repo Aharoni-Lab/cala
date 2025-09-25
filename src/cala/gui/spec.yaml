@@ -1,13 +1,18 @@
 nodes:
-  prep_movie:
+  raw_movie:
     type: cala.gui.components.Encoder
     params:
-      grid_id: prep_movie
       frame_rate: 30
     depends:
       - frame.value
-  component_count:
-    type: cala.gui.components.component_counter
+  prep_movie:
+    type: cala.gui.components.Encoder
+    params:
+      frame_rate: 30
     depends:
-      - index: counter.idx
-      - traces: assets.traces
+      - flatten.frame
+#  component_count:
+#    type: cala.gui.components.component_counter
+#    depends:
+#      - index: counter.idx
+#      - traces: assets.traces

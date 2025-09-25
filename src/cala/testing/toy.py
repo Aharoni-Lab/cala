@@ -55,9 +55,9 @@ class Toy(BaseModel):
     cell_radii: int | list[int]
     cell_positions: list[Position]
     cell_traces: list[np.ndarray]
-    cell_ids: list[str]
+    cell_ids: list[str] = None
     """If none, auto populated as cell_{idx}."""
-    detected_ons: list[int]
+    detected_ons: list[int] = None
     emit_frames: bool = False
 
     _footprints: xr.DataArray = PrivateAttr(init=False)

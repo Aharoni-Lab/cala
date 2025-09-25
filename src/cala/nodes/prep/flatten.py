@@ -11,16 +11,18 @@ from cala.assets import Frame
 
 def butter(frame: Frame, kwargs: dict[str, Any]) -> A[Frame, Name("frame")]:
     """
-    butterworth filter centers the image to zero. this causes two images with same intensity ratio
-    across pixels to be indistinguishable.
-    To recover the absolute brightness, we shift the filtered image by the
-    mean brightness of the original frame.
-    """
-    arr = butterworth(frame.array, **kwargs) + frame.array.mean().item()
+    Butterworth filter centers the image to zero. This is due to the constant term (the mean)
+    being expressed as the 0th term in the fourier series.
+    Since the absolute background activity does not matter (all that is left is the high-frequency
+    signal), we simply add half of the 8-bit pixel max so that the total cannot exceed the
+    0-255 range.
 
-    return Frame.from_array(
-        xr.DataArray(arr.clip(0), dims=frame.array.dims, coords=frame.array.coords)
-    )
+    The filter can also be used to reduce the scattering and the glow! (inspired by Marcel Brosche)
+    This helps remove overlap between cells (with higher cutoff_frequency_ratio)
+    """
+    arr = butterworth(frame.array, **kwargs) + 2**7
+
+    return Frame.from_array(xr.DataArray(arr, dims=frame.array.dims, coords=frame.array.coords))
 
 
 def ball(frame: Frame, kwargs: dict[str, Any]) -> Frame:

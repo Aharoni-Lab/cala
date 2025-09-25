@@ -30,3 +30,8 @@ def generate_text_image(
         org = (frame_dims[0] // 2, frame_dims[1] // 2)
 
     return cv2.putText(image, text, org, font, font_scale, color, thickness, cv2.LINE_AA)
+
+
+def shift_by(img: np.ndarray, right_pix: int, down_pix: int) -> np.ndarray:
+    M = np.float32([[1, 0, right_pix], [0, 1, down_pix]])
+    return cv2.warpAffine(img, M, (img.shape[1], img.shape[0]), borderMode=cv2.BORDER_REPLICATE)

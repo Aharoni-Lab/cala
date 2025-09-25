@@ -1,0 +1,64 @@
+noob_id: cala-prep
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev118+g64d81b7
+
+nodes:
+  source:
+    type: cala.nodes.io.stream
+    params:
+      files:
+        - cala/msCam1.avi
+        - cala/msCam2.avi
+        - cala/msCam3.avi
+        - cala/msCam4.avi
+        - cala/msCam5.avi
+        - cala/msCam6.avi
+        - cala/msCam7.avi
+        - cala/msCam8.avi
+        - cala/msCam9.avi
+        - cala/msCam10.avi
+  counter:
+    type: cala.util.counter
+  frame:
+    type: cala.util.package_frame
+    depends:
+      - frame: source.value
+      - index: counter.idx
+
+  #PREPROCESS BEGINS
+  hotpix:
+    type: cala.nodes.prep.blur
+    params:
+      method: median
+      kwargs:
+        ksize: 3
+    depends:
+      - frame: frame.value
+  flatten:
+    type: cala.nodes.prep.butter
+    params:
+      kwargs:
+        cutoff_frequency_ratio: 0.005
+    depends:
+      - frame: hotpix.frame
+  lines:
+    type: cala.nodes.prep.remove_freq
+    params:
+      orient: both
+    depends:
+      - frame: flatten.frame
+  motion:
+    type: cala.nodes.prep.Stabilizer
+    params:
+      drift_speed: 0.5
+    depends:
+      - frame: lines.frame
+
+#  denoise: # needs to happen after lines
+#    type: cala.nodes.prep.Restore
+#    depends:
+#      - frame: lines.frame
+#  glow:
+#    type: cala.nodes.prep.GlowRemover
+#    depends:
+#      - frame: motion.frame
