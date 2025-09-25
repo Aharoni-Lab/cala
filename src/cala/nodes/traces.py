@@ -180,10 +180,10 @@ class FrameUpdate:
                 Shape: (components,)
         """
         # Step 1: Compute projection of current frame
-        u = A @ y
+        u = (A @ y).as_numpy()
 
         # Step 2: Compute gram matrix of spatial components
-        V = A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        V = (A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})).as_numpy()
 
         # Step 3: Extract diagonal elements for normalization
         V_diag = np.diag(V)

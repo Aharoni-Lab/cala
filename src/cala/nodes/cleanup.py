@@ -70,7 +70,7 @@ def _filter_razed_ids(footprints: Footprints, min_thicc: int) -> A[list[str], Na
 
     eroded = xr.apply_ufunc(
         cv2.erode,
-        (A > 0).astype(np.uint8),
+        (A > 0).as_numpy().astype(np.uint8),
         kwargs={"kernel": kernel},
         vectorize=True,
         input_core_dims=[AXIS.spatial_dims],

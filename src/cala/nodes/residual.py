@@ -51,6 +51,7 @@ def build(
         traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
 
     # Compute residual R = Y - [A,b][C;f]
+    # if recently discovered (during the expansion phase), recalculate. otherwise, just append?!
     R = Y - (A @ C)
     residuals.array = R.clip(min=0)  # clipping is for the first n frames
 
@@ -110,7 +111,9 @@ def _align_overestimates(
         .reset_coords([AXIS.frame_coord, AXIS.timestamp_coord], drop=True)
     )
 
-    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC, kwargs={"neginf": 0})).clip(min=0)
+    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC.as_numpy(), kwargs={"neginf": 0})).clip(
+        min=0
+    )
 
 
 def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:

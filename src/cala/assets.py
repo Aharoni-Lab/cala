@@ -4,8 +4,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar, TypeVar
 
+import numpy as np
 import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
+from sparse import COO
 
 from cala.config import config
 from cala.models.axis import AXIS, Coords, Dims
@@ -63,6 +65,12 @@ class Footprint(Asset):
         )
     )
 
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Footprint":
+        if isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        return cls(array_=array)
+
 
 class Trace(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
@@ -96,6 +104,12 @@ class Footprints(Asset):
             allow_extra_coords=False,
         )
     )
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Footprints":
+        if isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        return cls(array_=array)
 
 
 class Traces(Asset):

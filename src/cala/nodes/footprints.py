@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
+from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
@@ -64,19 +65,19 @@ class Footprinter:
         plain_mask = A > 0
         mask = self._build_mask(plain_mask, index=index)
 
+        # Expand M diagonal for broadcasting
+        M_diag = xr.apply_ufunc(
+            np.diag,
+            M,
+            input_core_dims=[M.dims],
+            output_core_dims=[[AXIS.component_dim]],
+            dask="allowed",
+        )
+
         cnt = 0
         while True:
             AM = A.rename(AXIS.component_rename) @ M
             numerator = W - AM
-
-            # Expand M diagonal for broadcasting
-            M_diag = xr.apply_ufunc(
-                np.diag,
-                M,
-                input_core_dims=[M.dims],
-                output_core_dims=[[AXIS.component_dim]],
-                dask="allowed",
-            )
 
             update = numerator / (M_diag + np.finfo(float).tiny)
             A_new = (mask * (A + update)).clip(min=0)
@@ -104,14 +105,16 @@ class Footprinter:
         return cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
 
     def _expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
-        return xr.apply_ufunc(
+        expanded = xr.apply_ufunc(
             lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
-            mask.astype(np.uint8),
+            mask.as_numpy().astype(np.uint8),
             input_core_dims=[AXIS.spatial_dims],
             output_core_dims=[AXIS.spatial_dims],
             vectorize=True,
             dask="parallelized",
         )
+        expanded.data = COO.from_numpy(expanded.data)
+        return expanded
 
     def _build_mask(self, mask: xr.DataArray, index: int) -> xr.DataArray:
         expansion_left = (index - mask[AXIS.detect_coord] - self.bep) <= 0

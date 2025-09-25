@@ -36,7 +36,7 @@ class Cataloger(Node):
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
 
         merge_mat = self._merge_matrix(new_fps, new_trs)
-        num, label = connected_components(merge_mat)
+        num, label = connected_components(merge_mat.data)
         combined_fps = []
         combined_trs = []
 
@@ -62,7 +62,7 @@ class Cataloger(Node):
             if not any(dupes) or existing_fp is None or existing_tr is None:
                 footprint, trace = self._register(new_fps[i], new_trs[i])
             else:
-                dupe_ids = dupes.where(dupes, drop=True)[f"{AXIS.id_coord}'"].values
+                dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
                 fp = new_fps.sel({AXIS.component_dim: i})
                 tr = new_trs.sel({AXIS.component_dim: i})
                 footprint, trace = self._merge_with(fp, tr, existing_fp, existing_tr, dupe_ids)
@@ -146,8 +146,8 @@ class Cataloger(Node):
         self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
     ) -> tuple[Footprint, Trace]:
         # Reshape neighborhood to 2D matrix (time × space)
-        shape = xr.DataArray(movie.sum(dim=AXIS.frames_dim) > 0)
-        slice_ = Movie.from_array(movie.where(shape, 0, drop=True))
+        shape = movie.sum(dim=AXIS.frames_dim) > 0
+        slice_ = Movie.from_array(movie.where(shape.as_numpy(), 0, drop=True))
 
         a, c = self._nmf(slice_)
 
@@ -171,7 +171,7 @@ class Cataloger(Node):
         # Apply NMF (check how long nndsvd takes vs random)
         model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
 
-        c = model.fit_transform(stacked)  # temporal component
+        c = model.fit_transform(stacked.as_numpy())  # temporal component
         a = model.components_  # spatial component
 
         return a, c
@@ -216,7 +216,9 @@ class Cataloger(Node):
             fps_base = fps_base.rename(AXIS.component_rename)
             trs_base = trs_base.rename(AXIS.component_rename)
 
-        fps = self._expand_boundary(fps > 0)
+        # So that "touching" ones can merge
+        # Can save time by calculating centroid instead
+        # fps = self._expand_boundary(fps > 0)
 
         overlaps = fps @ fps_base > 0
         # this should later reflect confidence
