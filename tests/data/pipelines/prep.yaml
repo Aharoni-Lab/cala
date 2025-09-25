@@ -38,7 +38,7 @@ nodes:
     type: cala.nodes.prep.butter
     params:
       kwargs:
-        cutoff_frequency_ratio: 0.005
+        cutoff_frequency_ratio: 0.010
     depends:
       - frame: hotpix.frame
   lines:
@@ -51,12 +51,11 @@ nodes:
     type: cala.nodes.prep.Anchor
     depends:
       - frame: lines.frame
-
-#  denoise: # needs to happen after lines
-#    type: cala.nodes.prep.Restore
-#    depends:
-#      - frame: lines.frame
-#  glow:
-#    type: cala.nodes.prep.GlowRemover
-#    depends:
-#      - frame: motion.frame
+  #  denoise:
+  #    type: cala.nodes.prep.Restore
+  #    depends:
+  #      - frame: motion.frame
+  glow:
+    type: cala.nodes.prep.GlowRemover
+    depends:
+      - frame: motion.frame

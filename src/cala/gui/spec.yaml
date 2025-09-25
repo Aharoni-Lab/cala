@@ -5,12 +5,18 @@ nodes:
       frame_rate: 30
     depends:
       - frame.value
-  prep_movie:
+  stable_movie:
     type: cala.gui.components.Encoder
     params:
       frame_rate: 30
     depends:
       - motion.frame
+  deglowed:
+    type: cala.gui.components.Encoder
+    params:
+      frame_rate: 30
+    depends:
+      - glow.frame
 #  component_count:
 #    type: cala.gui.components.component_counter
 #    depends:
