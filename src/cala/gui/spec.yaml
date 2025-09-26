@@ -17,6 +17,14 @@ nodes:
       frame_rate: 30
     depends:
       - glow.frame
+  shapes:
+    type: cala.gui.components.Stamper
+    params:
+      frame_rate: 30
+      gain: 2.0
+    depends:
+      - footprints: assets.footprints
+      - new_traces: trace_frame.latest_trace
 #  component_count:
 #    type: cala.gui.components.component_counter
 #    depends:

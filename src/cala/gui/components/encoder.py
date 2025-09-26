@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 import av
 import numpy as np
@@ -18,6 +18,8 @@ class EncodingError(Exception):
 
 class Encoder(Node):
     frame_rate: int
+
+    color: Literal["gray", "rgb24"] = "gray"
     _stream: VideoStream | None = None
     _container: av.container.OutputContainer | None = None
 
@@ -46,7 +48,7 @@ class Encoder(Node):
         self._stream.height = frame.sizes[AXIS.height_dim]
 
         try:
-            vid_frame = av.VideoFrame.from_ndarray(frame.to_numpy(), format="gray")
+            vid_frame = av.VideoFrame.from_ndarray(frame.to_numpy(), format=self.color)
             packets = self._stream.encode(vid_frame.reformat(format=self._stream.pix_fmt))
             for packet in packets:
                 self._container.mux(packet)
