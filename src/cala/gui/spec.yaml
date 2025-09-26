@@ -21,7 +21,7 @@ nodes:
     type: cala.gui.components.Stamper
     params:
       frame_rate: 30
-      gain: 2.0
+      gain: 3.0
     depends:
       - footprints: assets.footprints
       - new_traces: trace_frame.latest_trace

@@ -89,10 +89,9 @@ def stamp(footprints: Footprints, new_traces: PopSnap, gain: float) -> DuckFrame
                 cv2.COLOR_GRAY2BGR,
             )
             * code
-        ).astype(int)
+        )
 
         # since it centers to 128 before glow removal, this is probably safe
-        frame += np.clip(partial * gain, None, 255)
-
+        frame += np.clip((partial * gain).astype(int), None, 255)
 
     return DuckFrame.from_array(xr.DataArray(frame, dims=[*AXIS.spatial_dims, "channel"]))
