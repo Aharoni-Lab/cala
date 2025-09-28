@@ -18,7 +18,6 @@ from cala.testing.toy import FrameDims, Position, Toy
     ],
 )
 def test_motion_estimation(params) -> None:
-
     stab = Anchor(**params)
 
     n_frames = 50
@@ -68,4 +67,35 @@ def test_motion_estimation(params) -> None:
     np.testing.assert_allclose(estimate, expected[1:], atol=1.0)
 
 
-def test_rigid_translator_preserves_neuron_traces(): ...
+# def test_motion_with_movie():
+#     """
+#     For testing how well the motion correction performs with real movie
+#     """
+#     gen = stream(
+#         [
+#             "cala/msCam1.avi",
+#             "cala/msCam2.avi",
+#             "cala/msCam3.avi",
+#             "cala/msCam4.avi",
+#             "cala/msCam5.avi",
+#         ]
+#     )
+#
+#     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+#     out = cv2.VideoWriter("mc_test.avi", fourcc, 24.0, (752, 960))
+#
+#     stab = Anchor()
+#
+#     for idx, arr in enumerate(gen):
+#         frame = package_frame(arr, idx)
+#         frame = blur(frame, method="median", kwargs={"ksize": 3})
+#         frame = butter(frame, {})
+#         frame = remove_mean(frame, orient="both")
+#         matched = stab.stabilize(frame)
+#
+#         combined = np.concat([frame.array.values, matched.array.values], axis=0)
+#
+#         frame_bgr = cv2.cvtColor(combined.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+#         out.write(frame_bgr)
+#
+#     out.release()
