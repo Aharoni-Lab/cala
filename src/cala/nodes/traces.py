@@ -3,84 +3,11 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
-from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Traces
+from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
 from cala.models import AXIS
-
-
-class Init:
-    @process_method
-    def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
-        """Learn temporal traces from footprints and frames."""
-        A = footprints.array
-        Y = frames.array
-
-        # Get frames to use and flatten them
-        flattened_frames = Y.stack({"pixels": AXIS.spatial_dims})
-        flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
-
-        # Process all components
-        temporal_traces = self._solve_all_component_traces(
-            flattened_footprints.values,
-            flattened_frames.values,
-            flattened_footprints.sizes[AXIS.component_dim],
-            flattened_frames.sizes[AXIS.frames_dim],
-        )
-
-        trace_coords = [
-            AXIS.id_coord,
-            AXIS.detect_coord,
-            AXIS.frame_coord,
-            AXIS.timestamp_coord,
-        ]
-        coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
-        return Traces.from_array(
-            xr.DataArray(temporal_traces, dims=(AXIS.component_dim, AXIS.frames_dim), coords=coords)
-        )
-
-    @staticmethod
-    def _solve_all_component_traces(
-        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
-    ) -> np.ndarray:
-        """Solve temporal traces for all components in parallel
-
-        Args:
-            footprints: Array of shape (n_components, height*width)
-            frames: Array of shape (n_frames, height*width)
-        Returns:
-            Array of shape (n_components, n_frames)
-        """
-        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
-
-        # Parallel loop over components
-        for i in prange(n_components):
-            footprint = footprints[i]
-            active_pixels = footprint > 0
-
-            if np.any(active_pixels):
-                footprint_active = footprint[active_pixels]
-                frames_active = frames[:, active_pixels]
-                results[i] = Init._fast_nnls_vector(footprint_active, frames_active)
-
-        return results
-
-    @staticmethod
-    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-        """Specialized NNLS for single-variable case across multiple frames
-        A: footprint values (n_pixels,)
-        B: frame data matrix (n_frames, n_pixels)
-        Returns: brightness values for each frame (n_frames,)
-        """
-        ata = (A * A).sum()  # Compute once for all frames
-        if ata <= 0:
-            return np.zeros(B.shape[0], dtype=B.dtype)
-
-        # Vectorized computation for all frames
-        atb = A @ B.T  # dot product with each frame
-        return np.maximum(0, atb / ata)
 
 
 class FrameUpdate:
