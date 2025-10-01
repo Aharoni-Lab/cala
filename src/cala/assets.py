@@ -78,7 +78,7 @@ class Trace(Asset):
             name="trace",
             dims=(Dims.frame.value,),
             dtype=float,
-            checks=[is_non_negative, has_no_nan],
+            checks=[is_non_negative],
         )
     )
 
@@ -194,7 +194,7 @@ class Traces(Asset):
             name="trace-group",
             member=Trace.entity(),
             group_by=Dims.component,
-            checks=[is_non_negative, has_no_nan],
+            checks=[is_non_negative],
             allow_extra_coords=False,
         )
     )

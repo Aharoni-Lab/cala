@@ -238,7 +238,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
         # if newly detected cells are truncated
         c_new = xr.DataArray(
-            np.zeros((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim])),
+            np.full((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim]), np.nan),
             dims=[AXIS.component_dim, AXIS.frames_dim],
             coords=c.isel({AXIS.component_dim: 0}).coords,
         )
