@@ -30,7 +30,7 @@ class SliceNMF(Node):
     _logger = init_logger(__name__)
 
     def model_post_init(self, context: Any, /) -> None:
-        self.nmf_kwargs.update({"n_components": 1, "init": "nndsvd"})
+        self.nmf_kwargs.update({"n_components": 1, "init": "random"})
         self._model = NMF(**self.nmf_kwargs)
 
     def process(

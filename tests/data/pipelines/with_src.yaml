@@ -138,19 +138,12 @@ nodes:
     params:
       bep: 4
       tol: 0.0001
-      max_iter: 100
+      max_iter: 5
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
       - index: counter.idx
-  facetune:
-    type: cala.nodes.cleanup.clear_overestimates
-    params:
-      nmf_error: 1.0
-    depends:
-      - footprints: footprints_frame.footprints
-      - residuals: assets.residuals
 
   residual:
     type: cala.nodes.residual.build
@@ -185,7 +178,10 @@ nodes:
   catalog:
     type: cala.nodes.detect.Cataloger
     params:
-      merge_threshold: 0.8
+      preserve_age: 100
+      smooth_kwargs:
+        sigma: 2
+      merge_threshold: 0.9
     depends:
       - new_fps: nmf.new_fps
       - new_trs: nmf.new_trs

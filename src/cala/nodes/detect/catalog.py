@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 from noob.node import Node
+from scipy.ndimage import gaussian_filter1d
 from scipy.sparse.csgraph import connected_components
 from sklearn.decomposition import NMF
 from xarray import Coordinates
@@ -16,6 +17,9 @@ from cala.util import combine_attr_replaces, create_id
 
 
 class Cataloger(Node):
+    smooth_kwargs: dict
+    preserve_age: int
+    """Don't merge with new components if older than this number of frames."""
     merge_threshold: float
 
     def process(
@@ -29,8 +33,15 @@ class Cataloger(Node):
         if not new_fps or not new_trs:
             return Footprints(), Traces()
 
-        existing_fp = existing_fp.array
-        existing_tr = existing_tr.array
+        if existing_fp.array is not None:
+            targets = existing_tr.array[AXIS.detect_coord] > (
+                existing_tr.array[AXIS.frame_coord].max() - self.preserve_age
+            )
+            existing_fp = existing_fp.array.where(targets, drop=True)
+            existing_tr = existing_tr.array.where(targets, drop=True)
+        else:
+            existing_fp = existing_fp.array
+            existing_tr = existing_tr.array
 
         new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
@@ -45,7 +56,7 @@ class Cataloger(Node):
             fps = new_fps.sel({AXIS.component_dim: group})
             trs = new_trs.sel({AXIS.component_dim: group})
             res = fps @ trs
-            new_fp, new_tr = self._decompose(res, new_fps[0].coords, new_trs[0].coords)
+            new_fp, new_tr = self._recompose(res, new_fps[0].coords, new_trs[0].coords)
 
             combined_fps.append(new_fp)
             combined_trs.append(new_tr)
@@ -57,7 +68,7 @@ class Cataloger(Node):
         footprints = []
         traces = []
 
-        # we're not doing connected components because it's not square matrix
+        # cannot use connected_components because it's not a square matrix
         for i, dupes in enumerate(merge_mat.transpose(AXIS.component_dim, ...)):
             if not any(dupes) or existing_fp is None or existing_tr is None:
                 footprint, trace = self._register(new_fps[i], new_trs[i])
@@ -136,13 +147,13 @@ class Cataloger(Node):
             {ax: combined_movie[ax] for ax in AXIS.spatial_dims}
         )
 
-        a_new, c_new = self._decompose(combined_movie, new_fp.coords, new_tr.coords)
-        a_new.array.attrs["replaces"] = cognate_fp["id_"].values.tolist()
-        c_new.array.attrs["replaces"] = cognate_tr["id_"].values.tolist()
+        a_new, c_new = self._recompose(combined_movie, new_fp.coords, new_tr.coords)
+        a_new.array.attrs["replaces"] = cognate_fp[AXIS.id_coord].values.tolist()
+        c_new.array.attrs["replaces"] = cognate_tr[AXIS.id_coord].values.tolist()
 
         return self._register(a_new.array, c_new.array)
 
-    def _decompose(
+    def _recompose(
         self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
     ) -> tuple[Footprint, Trace]:
         # Reshape neighborhood to 2D matrix (time × space)
@@ -169,7 +180,7 @@ class Cataloger(Node):
             AXIS.frames_dim, "space"
         )
         # Apply NMF (check how long nndsvd takes vs random)
-        model = NMF(n_components=1, init="nndsvd", tol=1e-4, max_iter=200)
+        model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
 
         c = model.fit_transform(stacked.as_numpy())  # temporal component
         a = model.components_  # spatial component
@@ -209,11 +220,17 @@ class Cataloger(Node):
         fps_base: xr.DataArray | None = None,
         trs_base: xr.DataArray | None = None,
     ) -> xr.DataArray:
+
+        trs.data = gaussian_filter1d(trs.transpose(AXIS.component_dim, ...), **self.smooth_kwargs)
+
         if fps_base is None:
             fps_base = fps.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
             trs_base = trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
         else:
             fps_base = fps_base.rename(AXIS.component_rename)
+            trs_base.data = gaussian_filter1d(
+                trs_base.transpose(AXIS.component_dim, ...), **self.smooth_kwargs
+            )
             trs_base = trs_base.rename(AXIS.component_rename)
 
         # So that "touching" ones can merge
@@ -221,7 +238,7 @@ class Cataloger(Node):
         # fps = self._expand_boundary(fps > 0)
 
         overlaps = fps @ fps_base > 0
-        # this should later reflect confidence
+
         corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
 
         return overlaps * corrs
