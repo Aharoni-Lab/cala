@@ -8,9 +8,9 @@ def is_non_negative(da: xr.DataArray) -> None:
 
 
 def is_unique(da: xr.DataArray) -> None:
-    _, counts = np.unique(da, return_counts=True)
+    elem, counts = np.unique(da, return_counts=True)
     if counts.max() > 1:
-        raise ValueError("The values in DataArray are not unique.")
+        raise ValueError(f"The values in DataArray are not unique : {elem[counts > 1]}")
 
 
 def is_unit_interval(da: xr.DataArray) -> None:
