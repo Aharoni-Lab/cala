@@ -12,6 +12,9 @@ assets:
   traces:
     type: cala.assets.Traces
     scope: runner
+  #    params:
+  #      zarr_path: traces/
+  #      peek_size: 100
   pix_stats:
     type: cala.assets.PixStats
     scope: runner
@@ -91,14 +94,6 @@ nodes:
     type: cala.nodes.prep.SizeEst
     params:
       hardset_radius: 6
-      noise_threshold: 2.0
-      n_frames: 30
-      log_kwargs:
-        min_sigma: 3
-        max_sigma: 10
-        num_sigma: 10
-        threshold: 0.2
-        overlap: 0.5
     depends:
       - frame: denoise.frame
   cache:
@@ -182,41 +177,24 @@ nodes:
       smooth_kwargs:
         sigma: 2
       merge_threshold: 0.9
+      merge_interval: 300
     depends:
       - new_fps: nmf.new_fps
       - new_trs: nmf.new_trs
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-
-  trace_component:
-    type: cala.nodes.traces.ingest_component
-    depends:
-      - traces: assets.traces
-      - new_traces: catalog.new_traces
-  footprint_component:
-    type: cala.nodes.footprints.ingest_component
-    depends:
-      - footprints: assets.footprints
-      - new_footprints: catalog.new_footprints
-  pix_component:
-    type: cala.nodes.pixel_stats.ingest_component
-    depends:
-      - pixel_stats: assets.pix_stats
-      - frames: assets.buffer
-      - new_traces: catalog.new_traces
-      - traces: assets.traces
-  comp_component:
-    type: cala.nodes.component_stats.ingest_component
-    depends:
-      - component_stats: assets.comp_stats
-      - traces: assets.traces
-      - new_traces: catalog.new_traces
-
-  overlaps_update:
-    type: cala.nodes.overlap.initialize
-    depends:
       - overlaps: assets.overlaps
-      - footprints: footprint_component.footprints
+  asset_update:
+    type: cala.nodes.detect.update_assets
+    depends:
+      - new_footprints: catalog.new_footprints
+      - new_traces: catalog.new_traces
+      - footprints: assets.footprints
+      - traces: assets.traces
+      - pixel_stats: assets.pix_stats
+      - component_stats: assets.comp_stats
+      - overlaps: assets.overlaps
+      - buffer: assets.buffer
   #  DETECT ENDS
 
   return:
