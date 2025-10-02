@@ -33,185 +33,17 @@ class Cataloger(Node):
         if not new_fps or not new_trs:
             return Footprints(), Traces()
 
-        if existing_fp.array is not None:
-            targets = existing_tr.array[AXIS.detect_coord] > (
-                existing_tr.array[AXIS.frame_coord].max() - self.preserve_age
-            )
-            existing_fp = existing_fp.array.where(targets, drop=True)
-            existing_tr = existing_tr.array.where(targets, drop=True)
-        else:
-            existing_fp = existing_fp.array
-            existing_tr = existing_tr.array
-
         new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
 
         merge_mat = self._merge_matrix(new_fps, new_trs)
-        num, label = connected_components(merge_mat.data)
-        combined_fps = []
-        combined_trs = []
+        new_fps, new_trs = _merge(new_fps, new_trs, merge_mat)
 
-        for lbl in set(label):
-            group = np.where(label == lbl)[0]
-            fps = new_fps.sel({AXIS.component_dim: group})
-            trs = new_trs.sel({AXIS.component_dim: group})
-            res = fps @ trs
-            new_fp, new_tr = self._recompose(res, new_fps[0].coords, new_trs[0].coords)
-
-            combined_fps.append(new_fp)
-            combined_trs.append(new_tr)
-
-        new_fps = xr.concat([fp.array for fp in combined_fps], dim=AXIS.component_dim)
-        new_trs = xr.concat([tr.array for tr in combined_trs], dim=AXIS.component_dim)
-
-        merge_mat = self._merge_matrix(new_fps, new_trs, existing_fp, existing_tr)
-        footprints = []
-        traces = []
-
-        # cannot use connected_components because it's not a square matrix
-        for i, dupes in enumerate(merge_mat.transpose(AXIS.component_dim, ...)):
-            if not any(dupes) or existing_fp is None or existing_tr is None:
-                footprint, trace = self._register(new_fps[i], new_trs[i])
-            else:
-                dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
-                fp = new_fps.sel({AXIS.component_dim: i})
-                tr = new_trs.sel({AXIS.component_dim: i})
-                footprint, trace = self._merge_with(fp, tr, existing_fp, existing_tr, dupe_ids)
-
-            footprints.append(footprint.array)
-            traces.append(trace.array)
-
-        footprints = xr.concat(
-            footprints,
-            dim=AXIS.component_dim,
-            coords=[AXIS.id_coord, AXIS.detect_coord],
-            combine_attrs=combine_attr_replaces,
-        )
-        traces = xr.concat(
-            traces,
-            dim=AXIS.component_dim,
-            coords=[AXIS.id_coord, AXIS.detect_coord],
-            combine_attrs=combine_attr_replaces,
-        )
+        known_fp, known_tr = _get_absorption_targets(existing_fp, existing_tr, self.preserve_age)
+        merge_mat = self._merge_matrix(new_fps, new_trs, known_fp, known_tr)
+        footprints, traces = _absorb(new_fps, new_trs, known_fp, known_tr, merge_mat)
 
         return Footprints.from_array(footprints), Traces.from_array(traces)
-
-    def _register(self, new_fp: xr.DataArray, new_tr: xr.DataArray) -> tuple[Footprint, Trace]:
-
-        new_id = create_id()
-
-        footprint = (
-            new_fp.expand_dims(AXIS.component_dim)
-            .assign_coords(
-                {
-                    AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                    AXIS.detect_coord: (
-                        AXIS.component_dim,
-                        [new_tr[AXIS.frame_coord].max().item()],
-                    ),
-                }
-            )
-            .isel({AXIS.component_dim: 0})
-        )
-        trace = (
-            new_tr.expand_dims(AXIS.component_dim)
-            .assign_coords(
-                {
-                    AXIS.id_coord: (AXIS.component_dim, [new_id]),
-                    AXIS.detect_coord: (
-                        AXIS.component_dim,
-                        [new_tr[AXIS.frame_coord].max().item()],
-                    ),
-                }
-            )
-            .isel({AXIS.component_dim: 0})
-        )
-
-        return Footprint.from_array(footprint), Trace.from_array(trace)
-
-    def _merge_with(
-        self,
-        new_fp: xr.DataArray,
-        new_tr: xr.DataArray,
-        cognate_fps: xr.DataArray,
-        cognate_trs: xr.DataArray,
-        dupe_ids: Iterable[Hashable],
-    ) -> tuple[Footprint, Trace]:
-        cognate_fp = cognate_fps.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
-        cognate_tr = cognate_trs.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
-
-        recreated_movie = cognate_fp @ cognate_tr
-        new_movie = new_fp @ new_tr
-        combined_movie = recreated_movie + new_movie
-        combined_movie = combined_movie.assign_coords(
-            {ax: combined_movie[ax] for ax in AXIS.spatial_dims}
-        )
-
-        a_new, c_new = self._recompose(combined_movie, new_fp.coords, new_tr.coords)
-        a_new.array.attrs["replaces"] = cognate_fp[AXIS.id_coord].values.tolist()
-        c_new.array.attrs["replaces"] = cognate_tr[AXIS.id_coord].values.tolist()
-
-        return self._register(a_new.array, c_new.array)
-
-    def _recompose(
-        self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
-    ) -> tuple[Footprint, Trace]:
-        # Reshape neighborhood to 2D matrix (time × space)
-        shape = movie.sum(dim=AXIS.frames_dim) > 0
-        slice_ = Movie.from_array(movie.where(shape.as_numpy(), 0, drop=True))
-
-        a, c = self._nmf(slice_)
-
-        slice_coords = slice_.array.reset_index(AXIS.frames_dim).reset_coords(drop=True).coords
-
-        a_new, c_new = self._reshape(
-            footprint=a,
-            trace=c,
-            fp_coords=fp_coords,
-            tr_coords=tr_coords,
-            slice_coords=slice_coords,
-        )
-
-        return a_new, c_new
-
-    def _nmf(self, movie: Movie) -> tuple[np.ndarray, np.ndarray]:
-
-        stacked = movie.array.stack({"space": AXIS.spatial_dims}).transpose(
-            AXIS.frames_dim, "space"
-        )
-        # Apply NMF (check how long nndsvd takes vs random)
-        model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
-
-        c = model.fit_transform(stacked.as_numpy())  # temporal component
-        a = model.components_  # spatial component
-
-        return a, c
-
-    def _reshape(
-        self,
-        footprint: np.ndarray,
-        trace: np.ndarray,
-        fp_coords: Coordinates,
-        tr_coords: Coordinates,
-        slice_coords: Coordinates,
-    ) -> tuple[Footprint, Trace]:
-        """Convert back to xarray with proper dimensions and coordinates"""
-
-        c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
-
-        a_new = xr.DataArray(
-            np.zeros(tuple(fp_coords.sizes.values())),
-            dims=tuple(fp_coords.sizes.keys()),
-            coords=fp_coords,
-        )
-
-        a_new.loc[slice_coords] = xr.DataArray(
-            footprint.squeeze().reshape(list(slice_coords[ax].size for ax in AXIS.spatial_dims)),
-            dims=AXIS.spatial_dims,
-            coords=slice_coords,
-        )
-
-        return Footprint.from_array(a_new), Trace.from_array(c_new)
 
     def _merge_matrix(
         self,
@@ -221,15 +53,23 @@ class Cataloger(Node):
         trs_base: xr.DataArray | None = None,
     ) -> xr.DataArray:
 
-        trs.data = gaussian_filter1d(trs.transpose(AXIS.component_dim, ...), **self.smooth_kwargs)
+        trs = xr.DataArray(
+            gaussian_filter1d(trs.transpose(AXIS.component_dim, ...), **self.smooth_kwargs),
+            dims=trs.dims,
+            coords=trs.coords,
+        )
 
         if fps_base is None:
             fps_base = fps.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
             trs_base = trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
         else:
             fps_base = fps_base.rename(AXIS.component_rename)
-            trs_base.data = gaussian_filter1d(
-                trs_base.transpose(AXIS.component_dim, ...), **self.smooth_kwargs
+            trs_base = xr.DataArray(
+                gaussian_filter1d(
+                    trs_base.transpose(AXIS.component_dim, ...), **self.smooth_kwargs
+                ),
+                dims=trs_base.dims,
+                coords=trs_base.coords,
             )
             trs_base = trs_base.rename(AXIS.component_rename)
 
@@ -239,17 +79,214 @@ class Cataloger(Node):
 
         overlaps = fps @ fps_base > 0
 
+        # calculate correlation for overlapping components only?
         corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
 
         return overlaps * corrs
 
-    def _expand_boundary(self, mask: xr.DataArray) -> xr.DataArray:
-        kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-        return xr.apply_ufunc(
-            lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
-            mask.astype(np.uint8),
-            input_core_dims=[AXIS.spatial_dims],
-            output_core_dims=[AXIS.spatial_dims],
-            vectorize=True,
-            dask="parallelized",
+
+def _get_absorption_targets(
+    existing_fp: Footprints, existing_tr: Traces, age_limit: int
+) -> tuple[xr.DataArray, xr.DataArray]:
+    if existing_fp.array is not None:
+        targets = existing_tr.array[AXIS.detect_coord] > (
+            existing_tr.array[AXIS.frame_coord].max() - age_limit
         )
+        known_fp = existing_fp.array.where(targets, drop=True)
+        known_tr = existing_tr.array.where(targets, drop=True)
+    else:
+        known_fp = existing_fp.array
+        known_tr = existing_tr.array
+    return known_fp, known_tr
+
+
+def _register(new_fp: xr.DataArray, new_tr: xr.DataArray) -> tuple[Footprint, Trace]:
+
+    new_id = create_id()
+
+    footprint = (
+        new_fp.expand_dims(AXIS.component_dim)
+        .assign_coords(
+            {
+                AXIS.id_coord: (AXIS.component_dim, [new_id]),
+                AXIS.detect_coord: (
+                    AXIS.component_dim,
+                    [new_tr[AXIS.frame_coord].max().item()],
+                ),
+            }
+        )
+        .isel({AXIS.component_dim: 0})
+    )
+    trace = (
+        new_tr.expand_dims(AXIS.component_dim)
+        .assign_coords(
+            {
+                AXIS.id_coord: (AXIS.component_dim, [new_id]),
+                AXIS.detect_coord: (
+                    AXIS.component_dim,
+                    [new_tr[AXIS.frame_coord].max().item()],
+                ),
+            }
+        )
+        .isel({AXIS.component_dim: 0})
+    )
+
+    return Footprint.from_array(footprint), Trace.from_array(trace)
+
+
+def _recompose(
+    movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
+) -> tuple[Footprint, Trace]:
+    # Reshape neighborhood to 2D matrix (time × space)
+    shape = movie.sum(dim=AXIS.frames_dim) > 0
+    slice_ = Movie.from_array(movie.where(shape.as_numpy(), 0, drop=True))
+
+    a, c = _nmf(slice_)
+
+    slice_coords = slice_.array.reset_index(AXIS.frames_dim).reset_coords(drop=True).coords
+
+    a_new, c_new = _reshape(
+        footprint=a,
+        trace=c,
+        fp_coords=fp_coords,
+        tr_coords=tr_coords,
+        slice_coords=slice_coords,
+    )
+
+    return a_new, c_new
+
+
+def _nmf(movie: Movie) -> tuple[np.ndarray, np.ndarray]:
+
+    stacked = movie.array.stack({"space": AXIS.spatial_dims}).transpose(AXIS.frames_dim, "space")
+    # Apply NMF (check how long nndsvd takes vs random)
+    model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
+
+    c = model.fit_transform(stacked.as_numpy())  # temporal component
+    a = model.components_  # spatial component
+
+    return a, c
+
+
+def _reshape(
+    footprint: np.ndarray,
+    trace: np.ndarray,
+    fp_coords: Coordinates,
+    tr_coords: Coordinates,
+    slice_coords: Coordinates,
+) -> tuple[Footprint, Trace]:
+    """Convert back to xarray with proper dimensions and coordinates"""
+
+    c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
+
+    a_new = xr.DataArray(
+        np.zeros(tuple(fp_coords.sizes.values())),
+        dims=tuple(fp_coords.sizes.keys()),
+        coords=fp_coords,
+    )
+
+    a_new.loc[slice_coords] = xr.DataArray(
+        footprint.squeeze().reshape(list(slice_coords[ax].size for ax in AXIS.spatial_dims)),
+        dims=AXIS.spatial_dims,
+        coords=slice_coords,
+    )
+
+    return Footprint.from_array(a_new), Trace.from_array(c_new)
+
+
+def _merge_with(
+    new_fp: xr.DataArray,
+    new_tr: xr.DataArray,
+    target_fps: xr.DataArray,
+    target_trs: xr.DataArray,
+    dupe_ids: Iterable[Hashable],
+) -> tuple[Footprint, Trace]:
+    target_fp = target_fps.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
+    target_tr = target_trs.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
+
+    recreated_movie = target_fp @ target_tr.dropna(dim=AXIS.frames_dim)
+    new_movie = new_fp @ new_tr
+    combined_movie = recreated_movie + new_movie
+    combined_movie = combined_movie.assign_coords(
+        {ax: combined_movie[ax] for ax in AXIS.spatial_dims}
+    )
+
+    a_new, c_new = _recompose(combined_movie, new_fp.coords, new_tr.coords)
+    a_new.array.attrs["replaces"] = target_fp[AXIS.id_coord].values.tolist()
+    c_new.array.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
+
+    return _register(a_new.array, c_new.array)
+
+
+def _expand_boundary(mask: xr.DataArray) -> xr.DataArray:
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    return xr.apply_ufunc(
+        lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
+        mask.astype(np.uint8),
+        input_core_dims=[AXIS.spatial_dims],
+        output_core_dims=[AXIS.spatial_dims],
+        vectorize=True,
+        dask="parallelized",
+    )
+
+
+def _merge(
+    footprints: xr.DataArray, traces: xr.DataArray, merge_matrix: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray]:
+    num, label = connected_components(merge_matrix.data)
+    combined_fps = []
+    combined_trs = []
+
+    for lbl in set(label):
+        group = np.where(label == lbl)[0]
+        fps = footprints.sel({AXIS.component_dim: group})
+        trs = traces.sel({AXIS.component_dim: group})
+        res = fps @ trs
+        new_fp, new_tr = _recompose(res, footprints[0].coords, traces[0].coords)
+
+        combined_fps.append(new_fp)
+        combined_trs.append(new_tr)
+
+    new_fps = xr.concat([fp.array for fp in combined_fps], dim=AXIS.component_dim)
+    new_trs = xr.concat([tr.array for tr in combined_trs], dim=AXIS.component_dim)
+
+    return new_fps, new_trs
+
+
+def _absorb(
+    new_fps: xr.DataArray,
+    new_trs: xr.DataArray,
+    known_fps: xr.DataArray,
+    known_trs: xr.DataArray,
+    merge_matrix: xr.DataArray,
+) -> tuple[xr.DataArray, xr.DataArray]:
+    footprints = []
+    traces = []
+
+    # cannot use connected_components because it's not a square matrix
+    for i, dupes in enumerate(merge_matrix.transpose(AXIS.component_dim, ...)):
+        if not any(dupes) or known_fps is None:
+            footprint, trace = _register(new_fps[i], new_trs[i])
+        else:
+            dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
+            fp = new_fps.sel({AXIS.component_dim: i})
+            tr = new_trs.sel({AXIS.component_dim: i})
+            footprint, trace = _merge_with(fp, tr, known_fps, known_trs, dupe_ids)
+
+        footprints.append(footprint.array)
+        traces.append(trace.array)
+
+    footprints = xr.concat(
+        footprints,
+        dim=AXIS.component_dim,
+        coords=[AXIS.id_coord, AXIS.detect_coord],
+        combine_attrs=combine_attr_replaces,
+    )
+    traces = xr.concat(
+        traces,
+        dim=AXIS.component_dim,
+        coords=[AXIS.id_coord, AXIS.detect_coord],
+        combine_attrs=combine_attr_replaces,
+    )
+
+    return footprints, traces

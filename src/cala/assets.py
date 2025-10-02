@@ -2,7 +2,7 @@ import contextlib
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar
+from typing import ClassVar, TypeVar, Any
 
 import numpy as np
 import xarray as xr
@@ -126,35 +126,18 @@ class Traces(Asset):
     def array(self) -> xr.DataArray:
         if self.zarr_path:
             try:
-                da = (
-                    xr.open_zarr(self.zarr_path)
-                    .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
-                    .to_dataarray()
-                    .drop_vars(["variable"])
-                    .isel(variable=0)
-                )
-                return da.assign_coords(
-                    {
-                        AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
-                        AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
-                    }
-                ).compute()
-
+                return self.load_zarr(isel_filter={AXIS.frames_dim: slice(-self.peek_size, None)})
             except FileNotFoundError:
-                return self.array_
-        else:
-            return self.array_
+                pass
+        return self.array_
 
     @array.setter
     def array(self, array: xr.DataArray) -> None:
         if self.zarr_path:
+            self.validate_array_schema(array)
             array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
         else:
             self.array_ = array
-
-    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
-        self.validate_array_schema(array)
-        array.to_zarr(self.zarr_path, **kwargs)
 
     def reset(self) -> None:
         self.array_ = None
@@ -164,6 +147,34 @@ class Traces(Asset):
                 shutil.rmtree(path)
             except FileNotFoundError:
                 contextlib.suppress(FileNotFoundError)
+
+    def full_array(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        if self.zarr_path:
+            try:
+                return self.load_zarr(isel_filter=isel_filter, sel_filter=sel_filter)
+            except FileNotFoundError:
+                pass
+        return self.array_.isel(isel_filter).sel(sel_filter)
+
+    def load_zarr(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        da = (
+            xr.open_zarr(self.zarr_path)
+            .isel(isel_filter)
+            .sel(sel_filter)
+            .to_dataarray()
+            .drop_vars(["variable"])
+            .isel(variable=0)
+        )
+        return da.assign_coords(
+            {
+                AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
+                AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
+            }
+        ).compute()
+
+    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
+        self.validate_array_schema(array)
+        array.to_zarr(self.zarr_path, **kwargs)
 
     @classmethod
     def from_array(

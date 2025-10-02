@@ -74,7 +74,8 @@ class SliceNMF(Node):
         return fps, trs
 
     def _get_energy(self, res: xr.DataArray) -> xr.DataArray:
-        # should technically be median but it's so slow
+        # should technically be median but it's so slow.
+        # now this whole thing could be just res.std(dim=AXIS.frames_dim)
         pixels_median = res.mean(dim=AXIS.frames_dim)
         V = res - pixels_median
 

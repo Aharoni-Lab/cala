@@ -177,13 +177,11 @@ nodes:
       smooth_kwargs:
         sigma: 2
       merge_threshold: 0.9
-      merge_interval: 300
     depends:
       - new_fps: nmf.new_fps
       - new_trs: nmf.new_trs
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-      - overlaps: assets.overlaps
   asset_update:
     type: cala.nodes.detect.update_assets
     depends:
