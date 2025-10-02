@@ -151,7 +151,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     :return:
     """
 
-    c = traces.load_zarr() if traces.zarr_path and traces.array is not None else traces.array
+    c = traces.full_array()
     c_det = new_traces.array
 
     if c_det is None:
@@ -179,7 +179,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     if merged_ids:
         if traces.zarr_path:
             invalid = c[AXIS.id_coord].isin(merged_ids)
-            traces.array = c.where(~invalid.compute(), drop=True)
+            traces.array = c.where(~invalid.compute(), drop=True).compute()
         else:
             intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
             c = (

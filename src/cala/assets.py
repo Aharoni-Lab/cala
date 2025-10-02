@@ -124,14 +124,8 @@ class Traces(Asset):
 
     @property
     def array(self) -> xr.DataArray:
-        if self.zarr_path:
-            try:
-                return self.load_zarr(
-                    isel_filter={AXIS.frames_dim: slice(-self.peek_size, None)}
-                ).compute()
-            except FileNotFoundError:
-                pass
-        return self.array_
+        peek_filter = {AXIS.frames_dim: slice(-self.peek_size, None)} if self.peek_size else None
+        return self.full_array(isel_filter=peek_filter)
 
     @array.setter
     def array(self, array: xr.DataArray) -> None:
@@ -156,7 +150,11 @@ class Traces(Asset):
                 return self.load_zarr(isel_filter=isel_filter, sel_filter=sel_filter).compute()
             except FileNotFoundError:
                 pass
-        return self.array_.isel(isel_filter).sel(sel_filter)
+        return (
+            self.array_.isel(isel_filter).sel(sel_filter)
+            if self.array_ is not None
+            else self.array_
+        )
 
     def load_zarr(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
         da = (
