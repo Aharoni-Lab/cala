@@ -52,10 +52,10 @@ def build(
 
     # Compute residual R = Y - [A,b][C;f]
     # if recently discovered (during the expansion phase), recalculate. otherwise, just append?!
-    if residuals.array is None:
-        R = Y - (A @ C)
-    else:
-        R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
+    # if residuals.array is None:
+    R = Y - (A @ C)
+    # else:
+    #     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
     residuals.array = R.clip(min=0)  # clipping is for the first n frames
 
     return residuals
@@ -144,7 +144,9 @@ def _update(
             recalc_area
         ) - A_recent @ C_recent.isel({AXIS.frames_dim: slice(None, -1)})
 
-        R = R.isel({AXIS.frames_dim: slice(1, None)}).where(~recalc_area, recalc, drop=False)
+        R = R.sel({AXIS.frame_coord: recalc[AXIS.frame_coord]}).where(
+            ~recalc_area, recalc, drop=False
+        )
     R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
 
     return xr.concat([R, R_latest], dim=AXIS.frames_dim)
