@@ -142,22 +142,13 @@ nodes:
 
   residual:
     type: cala.nodes.residual.build
+    params:
+      n_recalc: 4
     depends:
       - frames: assets.buffer
       - footprints: footprints_frame.footprints
       - traces: assets.traces
       - residuals: assets.residuals
-  cleanup:
-    type: cala.nodes.cleanup.purge_razed_components
-    params:
-      min_thicc: 3
-    depends:
-      - footprints: assets.footprints
-      - traces: assets.traces
-      - pix_stats: assets.pix_stats
-      - comp_stats: assets.comp_stats
-      - overlaps: assets.overlaps
-      - trigger: residual.movie
   # FRAME UPDATE ENDS
 
   # DETECT BEGINS
