@@ -241,9 +241,11 @@ def _merge(
         group = np.where(label == lbl)[0]
         fps = footprints.sel({AXIS.component_dim: group})
         trs = traces.sel({AXIS.component_dim: group})
-        res = fps @ trs
-        new_fp, new_tr = _recompose(res, footprints[0].coords, traces[0].coords)
-
+        if len(group) > 1:
+            res = fps @ trs
+            new_fp, new_tr = _recompose(res, footprints[0].coords, traces[0].coords)
+        else:
+            new_fp, new_tr = Footprint.from_array(fps[0]), Trace.from_array(trs[0])
         combined_fps.append(new_fp)
         combined_trs.append(new_tr)
 

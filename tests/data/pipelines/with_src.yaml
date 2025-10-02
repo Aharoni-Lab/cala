@@ -176,13 +176,13 @@ nodes:
       preserve_age: 100
       smooth_kwargs:
         sigma: 2
-      merge_threshold: 0.9
+      merge_threshold: 0.95
     depends:
       - new_fps: nmf.new_fps
       - new_trs: nmf.new_trs
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
-  asset_update:
+  detect_update:
     type: cala.nodes.detect.update_assets
     depends:
       - new_footprints: catalog.new_footprints
@@ -194,6 +194,31 @@ nodes:
       - overlaps: assets.overlaps
       - buffer: assets.buffer
   #  DETECT ENDS
+
+  merge:
+    type: cala.nodes.merge.merge_existing
+    params:
+      merge_interval: 500
+      merge_threshold: 0.95
+      smooth_kwargs:
+        sigma: 2
+    depends:
+      - shapes: assets.footprints
+      - traces: assets.traces
+      - overlaps: assets.overlaps
+      - trigger: detect_update.footprints
+  merge_update:
+    type: cala.nodes.detect.update_assets
+    depends:
+      - new_footprints: merge.footprints
+      - new_traces: merge.traces
+      - footprints: assets.footprints
+      - traces: assets.traces
+      - pixel_stats: assets.pix_stats
+      - component_stats: assets.comp_stats
+      - overlaps: assets.overlaps
+      - buffer: assets.buffer
+
 
   return:
     type: return
