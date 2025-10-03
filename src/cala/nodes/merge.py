@@ -8,7 +8,8 @@ from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Traces, Overlaps
 from cala.models import AXIS
-from cala.nodes.detect.catalog import _recompose
+from cala.nodes.detect.catalog import _recompose, _register
+from cala.util import combine_attr_replaces
 
 
 def merge_existing(
@@ -20,6 +21,10 @@ def merge_existing(
     smooth_kwargs: dict,
     trigger: bool = None,
 ) -> tuple[A[Footprints, Name("footprints")], A[Traces, Name("traces")]]:
+    """
+    merge old ass components with each other, if they missed their
+    natal window chance to get merged with their siamese twin
+    """
     if overlaps.array is None:
         return Footprints(), Traces()
 
@@ -29,7 +34,7 @@ def merge_existing(
         return Footprints(), Traces()
 
     # only merge old components
-    targets = traces.array[AXIS.detect_coord] < (
+    targets = traces.array[AXIS.detect_coord] <= (
         traces.array[AXIS.frame_coord].max() - merge_interval
     )
 
@@ -61,18 +66,32 @@ def merge_existing(
         group = np.where(label == lbl)[0]
         if len(group) <= 1:
             continue
-        fps = target_fps.sel({AXIS.component_dim: group})
-        trs = target_trs.sel({AXIS.component_dim: group})
+        fps = target_fps.isel({AXIS.component_dim: group})
+        trs = target_trs.isel({AXIS.component_dim: group})
         res = fps @ trs
         a_new, c_new = _recompose(res, target_fps[0].coords, target_trs[0].coords)
+        a_new, c_new = _register(a_new.array, c_new.array)
 
         a_new.array.attrs["replaces"] = fps[AXIS.id_coord].values.tolist()
         c_new.array.attrs["replaces"] = trs[AXIS.id_coord].values.tolist()
         combined_fps.append(a_new)
         combined_trs.append(c_new)
 
-    new_fps = xr.concat([fp.array for fp in combined_fps], dim=AXIS.component_dim)
-    new_trs = xr.concat([tr.array for tr in combined_trs], dim=AXIS.component_dim)
+    if len(combined_fps) == 0:
+        return Footprints(), Traces()
+
+    new_fps = xr.concat(
+        [fp.array for fp in combined_fps],
+        dim=AXIS.component_dim,
+        coords=[AXIS.id_coord, AXIS.detect_coord],
+        combine_attrs=combine_attr_replaces,
+    )
+    new_trs = xr.concat(
+        [tr.array for tr in combined_trs],
+        dim=AXIS.component_dim,
+        coords=[AXIS.id_coord, AXIS.detect_coord],
+        combine_attrs=combine_attr_replaces,
+    )
 
     return Footprints.from_array(new_fps), Traces.from_array(new_trs)
 
@@ -80,6 +99,9 @@ def merge_existing(
 def _filter_targets(
     target_ids: np.ndarray, shapes: Footprints, traces: Traces, overlaps: Overlaps, n_frames: int
 ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """
+    filter assets for old enough components
+    """
     target_ovs = (
         overlaps.array.set_xindex([AXIS.id_coord])
         .set_xindex(f"{AXIS.id_coord}'")
@@ -107,6 +129,9 @@ def _filter_targets(
 def _merge_matrix(
     traces: xr.DataArray, overlaps: xr.DataArray, smooth_kwargs: dict, threshold: float
 ) -> xr.DataArray:
+    """
+    get merge matrix to use for connected_components
+    """
     traces = xr.DataArray(
         gaussian_filter1d(traces.transpose(AXIS.component_dim, ...), **smooth_kwargs),
         dims=traces.dims,
