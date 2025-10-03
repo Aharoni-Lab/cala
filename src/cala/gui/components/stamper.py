@@ -71,7 +71,7 @@ def stamp(footprints: Footprints, new_traces: PopSnap, gain: float) -> DuckFrame
         dtype=int,
     )
 
-    for i, (color, code) in enumerate(COLOR_MAP.items()):
+    for i, (_, code) in enumerate(COLOR_MAP.items()):
         if i == A.sizes[AXIS.component_dim]:
             break
         partial = (

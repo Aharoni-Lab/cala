@@ -2,7 +2,7 @@ import contextlib
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import ClassVar, TypeVar, Any
+from typing import Any, ClassVar, TypeVar
 
 import numpy as np
 import xarray as xr

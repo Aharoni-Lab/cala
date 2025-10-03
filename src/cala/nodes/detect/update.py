@@ -2,7 +2,7 @@ from typing import Annotated as A
 
 from noob import Name
 
-from cala.assets import Footprints, Traces, PixStats, CompStats, Movie, Overlaps
+from cala.assets import CompStats, Footprints, Movie, Overlaps, PixStats, Traces
 from cala.nodes.component_stats import ingest_component as update_component_stats
 from cala.nodes.footprints import ingest_component as update_footprints
 from cala.nodes.overlap import initialize as update_overlap

@@ -136,7 +136,7 @@ class Footprinter:
                 dim=AXIS.component_dim,
             ).reset_index(AXIS.id_coord)
         else:
-            final_mask = mask.copy()
+            final_mask = mask
         return final_mask
 
 

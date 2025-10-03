@@ -5,7 +5,7 @@ from .glow_removal import GlowRemover
 from .lines import remove_freq, remove_mean
 from .motion import Anchor
 from .r_estimate import SizeEst
-from .wrap import package_frame, counter
+from .wrap import counter, package_frame
 
 __all__ = [
     "blur",
