@@ -164,7 +164,7 @@ nodes:
   catalog:
     type: cala.nodes.detect.Cataloger
     params:
-      preserve_age: 100
+      age_limit: 100
       smooth_kwargs:
         sigma: 2
       merge_threshold: 0.95
@@ -209,10 +209,3 @@ nodes:
       - component_stats: assets.comp_stats
       - overlaps: assets.overlaps
       - buffer: assets.buffer
-
-
-  return:
-    type: return
-    depends:
-      - raw: frame.value
-      - prep: glow.frame

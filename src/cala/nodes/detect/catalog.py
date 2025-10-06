@@ -18,7 +18,7 @@ from cala.util import combine_attr_replaces, create_id
 
 class Cataloger(Node):
     smooth_kwargs: dict
-    preserve_age: int
+    age_limit: int
     """Don't merge with new components if older than this number of frames."""
     merge_threshold: float
 
@@ -35,11 +35,10 @@ class Cataloger(Node):
 
         new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
-
         merge_mat = self._merge_matrix(new_fps, new_trs)
         new_fps, new_trs = _merge(new_fps, new_trs, merge_mat)
 
-        known_fp, known_tr = _get_absorption_targets(existing_fp, existing_tr, self.preserve_age)
+        known_fp, known_tr = _get_absorption_targets(existing_fp, existing_tr, self.age_limit)
         merge_mat = self._merge_matrix(new_fps, new_trs, known_fp, known_tr)
         footprints, traces = _absorb(new_fps, new_trs, known_fp, known_tr, merge_mat)
 
@@ -78,10 +77,8 @@ class Cataloger(Node):
         # fps = self._expand_boundary(fps > 0)
 
         overlaps = fps @ fps_base > 0
-
         # calculate correlation for overlapping components only?
         corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
-
         return overlaps * corrs
 
 

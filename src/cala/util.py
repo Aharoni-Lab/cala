@@ -9,8 +9,8 @@ def create_id() -> str:
 
 
 def combine_attr_replaces(attrs: Sequence[dict[str, list[str]]], context: None = None) -> dict:
-    repl = [item for attr in attrs for item in attr.get("replaces", [])]
-    return {"replaces": repl} if repl else {}
+    repl = {item for attr in attrs for item in attr.get("replaces", [])}
+    return {"replaces": list(repl)} if repl else {}
 
 
 def clear_dir(directory: Path | str) -> None:

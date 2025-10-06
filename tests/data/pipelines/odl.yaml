@@ -105,6 +105,7 @@ nodes:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
+      - index: counter.idx
   facetune:
     type: cala.nodes.cleanup.clear_overestimates
     params:
@@ -115,6 +116,8 @@ nodes:
 
   residual:
     type: cala.nodes.residual.build
+    params:
+      n_recalc: 5
     depends:
       - frames: assets.buffer
       - footprints: footprints_frame.footprints
@@ -146,6 +149,9 @@ nodes:
   catalog:
     type: cala.nodes.detect.Cataloger
     params:
+      age_limit: 100
+      smooth_kwargs:
+        sigma: 2
       merge_threshold: 0.8
     depends:
       - new_fps: nmf.new_fps

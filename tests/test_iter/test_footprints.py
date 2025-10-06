@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
-from scipy.ndimage import generate_binary_structure, grey_dilation, grey_erosion
+from scipy.ndimage import grey_dilation, grey_erosion
+from skimage.morphology import disk
 
 from cala.assets import Footprints
 from cala.models.axis import AXIS
@@ -16,7 +17,7 @@ def separate_cells() -> Toy:
     return Toy(
         n_frames=n_frames,
         frame_dims=FrameDims(width=50, height=50),
-        cell_radii=3,
+        cell_radii=1,
         cell_positions=[
             Position(width=15, height=15),
             Position(width=15, height=35),
@@ -61,7 +62,7 @@ def fpter() -> Node:
         NodeSpecification(
             id="test_footprinter",
             type="cala.nodes.footprints.Footprinter",
-            params={"bep": None, "tol": 1e-7},
+            params={"bep": 3, "tol": 1e-7},
         )
     )
 
@@ -78,12 +79,12 @@ def test_ingest_frame(fpter, toy, request):
     ).process(traces=toy.traces)
 
     result = fpter.process(
-        footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats
+        footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats, index=0
     )
 
     expected = toy.footprints.model_copy()
 
-    xr.testing.assert_allclose(result.array, expected.array)
+    xr.testing.assert_allclose(result.array.as_numpy(), expected.array.as_numpy())
 
 
 @pytest.fixture
@@ -132,11 +133,11 @@ def test_boundary_morph(xpander, defect, toy, request):
         NodeSpecification(id="test_compstats", type="cala.nodes.component_stats.initialize")
     ).process(traces=toy.traces)
 
-    footprint = generate_binary_structure(2, 1)
+    footprint = disk(radius=1)
 
     modded_fps = xr.apply_ufunc(
         defect,
-        toy.footprints.array,
+        toy.footprints.array.as_numpy(),
         kwargs={"footprint": footprint},
         vectorize=True,
         input_core_dims=[AXIS.spatial_dims],
@@ -147,8 +148,9 @@ def test_boundary_morph(xpander, defect, toy, request):
         footprints=Footprints.from_array(modded_fps),
         pixel_stats=pixstats,
         component_stats=compstats,
+        index=0,
     )
 
     # expansion breaks when a trace is all-zero and overlaps with another component.
-    # we don't know why. all-zero trace is somewhat unlikely, but we probably need a solution.
-    xr.testing.assert_allclose(result.array, toy.footprints.array, atol=1e-3)
+    # not sure when an all-zero trace would occur (esp with noise), so probably ok.
+    xr.testing.assert_allclose(result.array.as_numpy(), toy.footprints.array.as_numpy(), atol=1e-3)

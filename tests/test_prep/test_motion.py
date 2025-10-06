@@ -11,7 +11,6 @@ from cala.testing.toy import FrameDims, Position, Toy
     "params",
     [
         {
-            "upsample_factor": 10,
             "dog_kwargs": {"low_sigma": 3},
             "gauss_kwargs": {"ksize": (11, 11), "sigmaX": 20},
         }

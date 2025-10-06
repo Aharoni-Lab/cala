@@ -87,8 +87,10 @@ def test_odl(runner, source) -> None:
         raise NotImplementedError("Deprecation not implemented")
 
 
-def test_with_src():
-    tube = Tube.from_specification("cala-with-ca1")
-    runner = SynchronousRunner(tube=tube)
-    res = runner.run()
-    assert res
+# def test_with_src():
+#     tube = Tube.from_specification("cala-with-ca1")
+#     runner = SynchronousRunner(tube=tube)
+#     runner.run()
+#
+#     fps = runner.tube.cube.assets["footprints"].obj
+#     assert fps

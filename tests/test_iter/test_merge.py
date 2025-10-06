@@ -96,7 +96,7 @@ def test_merge_existing(toy: Toy, overlaps: Overlaps) -> None:
         smooth_kwargs={"sigma": 2},
     )
 
-    assert fp.array.attrs["replaces"] == ["cell_0", "cell_1"]
-    assert tr.array.attrs["replaces"] == ["cell_0", "cell_1"]
+    assert set(fp.array.attrs["replaces"]) == set(["cell_0", "cell_1"])
+    assert set(tr.array.attrs["replaces"]) == set(["cell_0", "cell_1"])
     assert fp.array.sizes[AXIS.component_dim] == 1
     assert tr.array.sizes == {AXIS.component_dim: 1, AXIS.frames_dim: interval}

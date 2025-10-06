@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
+from skimage.morphology import disk
 from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
@@ -102,7 +103,7 @@ class Footprinter:
                 mask = A > 0
 
     def _expansion_kernel(self) -> np.ndarray:
-        return cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+        return disk(radius=1)
 
     def _expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
         expanded = xr.apply_ufunc(

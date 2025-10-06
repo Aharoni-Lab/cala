@@ -151,7 +151,7 @@ def _filter_redundant(
 
     :param quantile: the higher, the more stringent
     """
-    A = footprints.array
+    A = footprints.array.as_numpy()
     c_t = traces.array.isel({AXIS.frames_dim: -1})
     y_t = A @ c_t
     # not sure whether to use y_t or reconstructed. recon probably makes more sense.

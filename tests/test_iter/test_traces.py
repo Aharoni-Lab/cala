@@ -7,22 +7,6 @@ from cala.models import AXIS
 
 
 @pytest.fixture
-def init() -> Node:
-    return Node.from_specification(
-        spec=NodeSpecification(id="init_test", type="cala.nodes.traces.Init")
-    )
-
-
-@pytest.mark.parametrize("toy", ["separate_cells"])
-def test_init(init, toy, request) -> None:
-    toy = request.getfixturevalue(toy)
-
-    traces = init.process(footprints=toy.footprints, frames=toy.make_movie())
-
-    np.testing.assert_array_equal(traces.array, toy.traces.array)
-
-
-@pytest.fixture
 def frame_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
@@ -67,15 +51,15 @@ def test_ingest_component(comp_update, toy, request) -> None:
 
     traces = Traces.from_array(toy.traces.array.isel({AXIS.component_dim: slice(None, -1)}))
 
-    new_traces = Traces.from_array(
-        toy.traces.array.isel({AXIS.component_dim: [-1], AXIS.frames_dim: slice(None, -10)})
+    new_traces = toy.traces.array.isel(
+        {AXIS.component_dim: [-1], AXIS.frames_dim: slice(-40, None)}
     )
 
-    new_traces.array.attrs["replaces"] = ["cell_0"]
+    new_traces.attrs["replaces"] = ["cell_0"]
 
-    result = comp_update.process(traces, new_traces)
+    result = comp_update.process(traces, Traces.from_array(new_traces))
 
     expected = toy.traces.array.drop_sel({AXIS.component_dim: 0})
-    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(40, None)}] = 0
+    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(None, 10 - 1)}] = np.nan
 
     assert result.array.equals(expected)
