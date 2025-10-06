@@ -5,7 +5,7 @@ from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Footprints, Residual, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
-from cala.nodes.detect.catalog import _register, _merge_with
+from cala.nodes.detect.catalog import _merge_with, _register
 from cala.testing.util import assert_scalar_multiple_arrays
 
 
