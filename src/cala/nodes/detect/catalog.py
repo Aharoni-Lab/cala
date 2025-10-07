@@ -8,6 +8,7 @@ from noob import Name
 from noob.node import Node
 from scipy.ndimage import gaussian_filter1d
 from scipy.sparse.csgraph import connected_components
+from skimage.measure import label
 from sklearn.decomposition import NMF
 from xarray import Coordinates
 
@@ -131,6 +132,32 @@ def _register(new_fp: xr.DataArray, new_tr: xr.DataArray) -> tuple[Footprint, Tr
     return Footprint.from_array(footprint), Trace.from_array(trace)
 
 
+def _register_batch(new_fps: xr.DataArray, new_trs: xr.DataArray) -> tuple[Footprints, Traces]:
+    count = new_fps.sizes[AXIS.component_dim]
+    new_ids = [create_id() for _ in range(count)]
+
+    footprints = new_fps.assign_coords(
+        {
+            AXIS.id_coord: (AXIS.component_dim, new_ids),
+            AXIS.detect_coord: (
+                AXIS.component_dim,
+                [new_trs[AXIS.frame_coord].max().item()] * count,
+            ),
+        }
+    )
+    traces = new_trs.assign_coords(
+        {
+            AXIS.id_coord: (AXIS.component_dim, new_ids),
+            AXIS.detect_coord: (
+                AXIS.component_dim,
+                [new_trs[AXIS.frame_coord].max().item()] * count,
+            ),
+        }
+    )
+
+    return Footprints.from_array(footprints), Traces.from_array(traces)
+
+
 def _recompose(
     movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
 ) -> tuple[Footprint, Trace]:
@@ -208,7 +235,11 @@ def _merge_with(
         {ax: combined_movie[ax] for ax in AXIS.spatial_dims}
     )
 
-    a_new, c_new = _recompose(combined_movie, new_fp.coords, new_tr.coords)
+    a_new, c_new = _recompose(
+        combined_movie,
+        new_fp.isel({AXIS.component_dim: 0}).coords,
+        new_tr.isel({AXIS.component_dim: 0}).coords,
+    )
     a_new.array.attrs["replaces"] = target_fp[AXIS.id_coord].values.tolist()
     c_new.array.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
 
@@ -262,18 +293,44 @@ def _absorb(
     footprints = []
     traces = []
 
-    # cannot use connected_components because it's not a square matrix
-    for i, dupes in enumerate(merge_matrix.transpose(AXIS.component_dim, ...)):
-        if not any(dupes) or known_fps is None:
-            footprint, trace = _register(new_fps[i], new_trs[i])
-        else:
-            dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
-            fp = new_fps.sel({AXIS.component_dim: i})
-            tr = new_trs.sel({AXIS.component_dim: i})
-            footprint, trace = _merge_with(fp, tr, known_fps, known_trs, dupe_ids)
+    merge_matrix.data = label(merge_matrix.as_numpy(), background=0, connectivity=1)
+    merge_matrix = merge_matrix.assign_coords(
+        {AXIS.component_dim: range(merge_matrix.sizes[AXIS.component_dim])}
+    )
+    indep_idxs = merge_matrix.where(merge_matrix.sum(f"{AXIS.component_dim}'") == 0, drop=True)[
+        AXIS.component_dim
+    ]
+    if indep_idxs.size > 0:
+        fps, trs = _register_batch(
+            new_fps=new_fps.isel({AXIS.component_dim: indep_idxs}),
+            new_trs=new_trs.isel({AXIS.component_dim: indep_idxs}),
+        )
+        footprints.append(fps.array)
+        traces.append(trs.array)
 
-        footprints.append(footprint.array)
-        traces.append(trace.array)
+    num = merge_matrix.max().item()
+    if num > 0:
+        for lbl in range(1, num + 1):
+            new_idxs, _known_idxs = np.where(merge_matrix == lbl)
+            known_ids = merge_matrix.where(merge_matrix == lbl, drop=True)[
+                f"{AXIS.id_coord}'"
+            ].values
+            fp = new_fps.sel({AXIS.component_dim: list(set(new_idxs))})
+            tr = new_trs.sel({AXIS.component_dim: list(set(new_idxs))})
+            footprint, trace = _merge_with(fp, tr, known_fps, known_trs, known_ids)
+
+            # # cannot use connected_components because it's not a square matrix
+            # for i, dupes in enumerate(merge_matrix.transpose(AXIS.component_dim, ...)):
+            #     if not any(dupes) or known_fps is None:
+            #         footprint, trace = _register(new_fps[i], new_trs[i])
+            #     else:
+            #         dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
+            #         fp = new_fps.sel({AXIS.component_dim: i})
+            #         tr = new_trs.sel({AXIS.component_dim: i})
+            #         footprint, trace = _merge_with(fp, tr, known_fps, known_trs, dupe_ids)
+
+            footprints.append(footprint.array)
+            traces.append(trace.array)
 
     footprints = xr.concat(
         footprints,
