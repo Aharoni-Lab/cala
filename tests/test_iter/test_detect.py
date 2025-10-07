@@ -62,9 +62,9 @@ class TestSliceNMF:
         fpt_arr = xr.concat([f.array for f in fpts], dim="component")
 
         expected = single_cell.footprints.array[0]
-        result = (fpt_arr.sum(dim="component") > 0).astype(int)
+        result = fpt_arr.sum(dim="component")
 
-        assert np.array_equal(expected.as_numpy(), result.as_numpy())
+        assert_scalar_multiple_arrays(expected.as_numpy(), result.as_numpy())
         for trc in trcs:
             assert_scalar_multiple_arrays(trc.array, single_cell.traces.array[0])
 
@@ -90,8 +90,8 @@ class TestCataloger:
 
         new_fp, new_tr = new_component
         fp, tr = _merge_with(
-            new_fp[0].array,
-            new_tr[0].array,
+            new_fp[0].array.expand_dims(dim="component"),
+            new_tr[0].array.expand_dims(dim="component"),
             single_cell.footprints.array,
             single_cell.traces.array,
             ["cell_0"],

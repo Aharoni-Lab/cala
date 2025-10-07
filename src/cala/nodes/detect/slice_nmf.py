@@ -66,7 +66,7 @@ class SliceNMF(Node):
             if (self.error_ / l1_norm) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
-                res = (res - comp_recon).clip(0)
+                res = (res - comp_recon).clip(self.error_ / l1_norm)
             else:
                 l0_norm = np.prod(slice_.shape)
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm

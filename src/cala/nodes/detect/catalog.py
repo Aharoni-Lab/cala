@@ -296,10 +296,14 @@ def _absorb(
     merge_matrix.data = label(merge_matrix.as_numpy(), background=0, connectivity=1)
     merge_matrix = merge_matrix.assign_coords(
         {AXIS.component_dim: range(merge_matrix.sizes[AXIS.component_dim])}
+    ).reset_index(AXIS.component_dim)
+    indep_idxs = (
+        merge_matrix.where(merge_matrix.sum(f"{AXIS.component_dim}'") == 0, drop=True)[
+            AXIS.component_dim
+        ].values
+        if known_fps is not None
+        else np.array(range(len(merge_matrix)))
     )
-    indep_idxs = merge_matrix.where(merge_matrix.sum(f"{AXIS.component_dim}'") == 0, drop=True)[
-        AXIS.component_dim
-    ]
     if indep_idxs.size > 0:
         fps, trs = _register_batch(
             new_fps=new_fps.isel({AXIS.component_dim: indep_idxs}),
@@ -309,7 +313,7 @@ def _absorb(
         traces.append(trs.array)
 
     num = merge_matrix.max().item()
-    if num > 0:
+    if num > 0 and known_fps is not None:
         for lbl in range(1, num + 1):
             new_idxs, _known_idxs = np.where(merge_matrix == lbl)
             known_ids = merge_matrix.where(merge_matrix == lbl, drop=True)[

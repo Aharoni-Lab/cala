@@ -9,11 +9,11 @@ from cala.models import AXIS
 
 @pytest.fixture(
     params=[
-        # "SingleCellSource",
-        # "TwoCellsSource",
-        # "SeparateSource",
-        # "TwoOverlappingSource",
-        # "GradualOnSource",
+        "SingleCellSource",
+        "TwoCellsSource",
+        "SeparateSource",
+        "TwoOverlappingSource",
+        "GradualOnSource",
         "SplitOffSource",
     ]
 )
@@ -79,7 +79,7 @@ def test_odl(runner, source) -> None:
         expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
         result = (fps.array @ trs.array).transpose(*expected.dims)
 
-        xr.testing.assert_allclose(expected, result, atol=1e-5, rtol=1e-5)
+        xr.testing.assert_allclose(expected, result.as_numpy(), atol=1e-5, rtol=1e-5)
 
     elif src_name == "SplitOffSource":
         expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
