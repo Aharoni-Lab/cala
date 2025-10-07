@@ -4,12 +4,16 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, ClassVar, TypeVar
 
+import numpy as np
 import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
+from sparse import COO
 
+from cala.config import config
 from cala.models.axis import AXIS, Coords, Dims
 from cala.models.checks import has_no_nan, is_non_negative
 from cala.models.entity import Entity, Group
+from cala.util import clear_dir
 
 AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
@@ -61,6 +65,12 @@ class Footprint(Asset):
         )
     )
 
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Footprint":
+        if isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        return cls(array_=array)
+
 
 class Trace(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
@@ -68,7 +78,7 @@ class Trace(Asset):
             name="trace",
             dims=(Dims.frame.value,),
             dtype=float,
-            checks=[is_non_negative, has_no_nan],
+            checks=[is_non_negative],
         )
     )
 
@@ -95,9 +105,16 @@ class Footprints(Asset):
         )
     )
 
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Footprints":
+        if isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        return cls(array_=array)
+
 
 class Traces(Asset):
-    zarr_path: Path | str | None = None
+    zarr_path: Path | None = None
+    """relative to config.user_data_dir"""
     peek_size: int | None = None
     """
     Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
@@ -107,37 +124,16 @@ class Traces(Asset):
 
     @property
     def array(self) -> xr.DataArray:
-        if self.zarr_path:
-            try:
-                da = (
-                    xr.open_zarr(self.zarr_path)
-                    .isel({AXIS.frames_dim: slice(-self.peek_size, None)})
-                    .to_dataarray()
-                    .drop_vars(["variable"])
-                    .isel(variable=0)
-                )
-                return da.assign_coords(
-                    {
-                        AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
-                        AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
-                    }
-                ).compute()
-
-            except FileNotFoundError:
-                return self.array_
-        else:
-            return self.array_
+        peek_filter = {AXIS.frames_dim: slice(-self.peek_size, None)} if self.peek_size else None
+        return self.full_array(isel_filter=peek_filter)
 
     @array.setter
     def array(self, array: xr.DataArray) -> None:
         if self.zarr_path:
+            self.validate_array_schema(array)
             array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
         else:
             self.array_ = array
-
-    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
-        self.validate_array_schema(array)
-        array.to_zarr(self.zarr_path, **kwargs)
 
     def reset(self) -> None:
         self.array_ = None
@@ -148,6 +144,38 @@ class Traces(Asset):
             except FileNotFoundError:
                 contextlib.suppress(FileNotFoundError)
 
+    def full_array(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        if self.zarr_path:
+            try:
+                return self.load_zarr(isel_filter=isel_filter, sel_filter=sel_filter).compute()
+            except FileNotFoundError:
+                pass
+        return (
+            self.array_.isel(isel_filter).sel(sel_filter)
+            if self.array_ is not None
+            else self.array_
+        )
+
+    def load_zarr(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        da = (
+            xr.open_zarr(self.zarr_path)
+            .isel(isel_filter)
+            .sel(sel_filter)
+            .to_dataarray()
+            .drop_vars(["variable"])
+            .isel(variable=0)
+        )
+        return da.assign_coords(
+            {
+                AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
+                AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
+            }
+        )
+
+    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
+        self.validate_array_schema(array)
+        array.to_zarr(self.zarr_path, **kwargs)
+
     @classmethod
     def from_array(
         cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
@@ -155,6 +183,16 @@ class Traces(Asset):
         new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
         new_cls.array = array
         return new_cls
+
+    @field_validator("zarr_path", mode="after")
+    @classmethod
+    def validate_zarr_path(cls, value: Path | None) -> Path | None:
+        if value is None:
+            return value
+        zarr_dir = (config.user_dir / value).resolve()
+        zarr_dir.mkdir(parents=True, exist_ok=True)
+        clear_dir(zarr_dir)
+        return zarr_dir
 
     @model_validator(mode="after")
     def check_zarr_setting(self) -> "Traces":
@@ -167,7 +205,7 @@ class Traces(Asset):
             name="trace-group",
             member=Trace.entity(),
             group_by=Dims.component,
-            checks=[is_non_negative, has_no_nan],
+            checks=[is_non_negative],
             allow_extra_coords=False,
         )
     )

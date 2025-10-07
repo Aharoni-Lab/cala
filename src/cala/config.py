@@ -82,7 +82,7 @@ class Config(BaseSettings, YAMLMixin):
     user_dir: Path = Field(default=Path(_dirs.user_data_dir))
 
     config_dir: Path = Field(
-        default=Path(_dirs.user_data_dir) / "config",
+        default=Path(_dirs.user_config_dir) / "config",
         description="Directory where config yaml files are stored",
     )
 

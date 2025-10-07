@@ -8,8 +8,8 @@ from cala.models import AXIS
 
 
 @pytest.fixture
-def path(tmp_path: str) -> Path:
-    return Path(tmp_path) / "assets"
+def path() -> Path:
+    return Path("assets")
 
 
 def test_assign_zarr(path, connected_cells):

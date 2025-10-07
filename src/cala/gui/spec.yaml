@@ -2,17 +2,31 @@ nodes:
   raw_movie:
     type: cala.gui.components.Encoder
     params:
-      frame_rate: 30
+      frame_rate: 24
     depends:
       - frame.value
-  prep_movie:
+  stable_movie:
     type: cala.gui.components.Encoder
     params:
-      frame_rate: 30
+      frame_rate: 24
     depends:
-      - flatten.frame
-#  component_count:
-#    type: cala.gui.components.component_counter
-#    depends:
-#      - index: counter.idx
-#      - traces: assets.traces
+      - motion.frame
+  deglowed:
+    type: cala.gui.components.Encoder
+    params:
+      frame_rate: 24
+    depends:
+      - glow.frame
+  shapes:
+    type: cala.gui.components.Stamper
+    params:
+      frame_rate: 24
+      gain: 3.0
+    depends:
+      - footprints: assets.footprints
+      - new_traces: trace_frame.latest_trace
+  component_count:
+    type: cala.gui.components.component_counter
+    depends:
+      - index: counter.idx
+      - traces: assets.traces

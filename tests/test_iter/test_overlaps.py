@@ -16,14 +16,14 @@ def init() -> Node:
 def test_init(init, separate_cells, connected_cells) -> None:
     overlap = init.process(overlaps=Overlaps(), footprints=separate_cells.footprints)
 
-    assert np.trace(overlap.array) == len(separate_cells.cell_ids)
-    assert np.all(np.triu(overlap.array, k=1) == 0)
+    assert np.trace(overlap.array.as_numpy()) == len(separate_cells.cell_ids)
+    assert np.all(np.triu(overlap.array.as_numpy(), k=1) == 0)
 
     result = init.process(overlaps=Overlaps(), footprints=connected_cells.footprints)
 
     expected = np.array([[1, 0, 1, 0], [0, 1, 1, 0], [1, 1, 1, 1], [0, 0, 1, 1]])
 
-    np.testing.assert_array_equal(result.array, expected)
+    np.testing.assert_array_equal(result.array.as_numpy(), expected)
 
 
 @pytest.fixture(scope="function")

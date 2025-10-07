@@ -38,9 +38,9 @@ nodes:
         - cala/msCam5.avi
         - cala/msCam6.avi
   counter:
-    type: cala.util.counter
+    type: cala.nodes.prep.counter
   frame:
-    type: cala.util.package_frame
+    type: cala.nodes.prep.package_frame
     depends:
       - frame: source.value
       - index: counter.idx

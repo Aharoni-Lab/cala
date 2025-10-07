@@ -30,21 +30,22 @@ class SliceNMF(Node):
     _logger = init_logger(__name__)
 
     def model_post_init(self, context: Any, /) -> None:
-        self.nmf_kwargs.update({"n_components": 1, "init": "nndsvd"})
+        self.nmf_kwargs.update({"n_components": 1, "init": "random"})
         self._model = NMF(**self.nmf_kwargs)
 
     def process(
         self, residuals: Residual, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
-        res = residuals.array.copy()
 
-        if res.sizes[AXIS.frames_dim] < self.min_frames:
+        if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return [], []
 
-        energy = self._get_energy(res)
+        energy = self._get_energy(residuals.array)
 
         fps = []
         trs = []
+
+        res = residuals.array.copy()
 
         while energy.max().item() >= self.detect_thresh:  # or use res directly
             # Find and analyze neighborhood of maximum variance
@@ -65,7 +66,7 @@ class SliceNMF(Node):
             if (self.error_ / l1_norm) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
-                res = (res - comp_recon).clip(0)
+                res = (res - comp_recon).clip(self.error_ / l1_norm)
             else:
                 l0_norm = np.prod(slice_.shape)
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm
@@ -73,7 +74,9 @@ class SliceNMF(Node):
         return fps, trs
 
     def _get_energy(self, res: xr.DataArray) -> xr.DataArray:
-        pixels_median = res.median(dim=AXIS.frames_dim)
+        # should technically be median but it's so slow.
+        # now this whole thing could be just res.std(dim=AXIS.frames_dim)
+        pixels_median = res.mean(dim=AXIS.frames_dim)
         V = res - pixels_median
 
         return np.sqrt((V**2).mean(dim=AXIS.frames_dim))

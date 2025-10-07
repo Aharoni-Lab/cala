@@ -1,6 +1,4 @@
-from pathlib import Path
-from shutil import rmtree
-from typing import Any
+from typing import Any, Literal
 
 import av
 import numpy as np
@@ -10,14 +8,7 @@ from noob.node import Node
 from cala.assets import Frame
 from cala.config import config
 from cala.models import AXIS
-
-
-def clear_dir(directory: Path | str) -> None:
-    for path in Path(directory).glob("**/*"):
-        if path.is_file():
-            path.unlink()
-        elif path.is_dir():
-            rmtree(path)
+from cala.util import clear_dir
 
 
 class EncodingError(Exception):
@@ -27,6 +18,8 @@ class EncodingError(Exception):
 
 class Encoder(Node):
     frame_rate: int
+
+    color: Literal["gray", "rgb24"] = "gray"
     _stream: VideoStream | None = None
     _container: av.container.OutputContainer | None = None
 
@@ -55,7 +48,7 @@ class Encoder(Node):
         self._stream.height = frame.sizes[AXIS.height_dim]
 
         try:
-            vid_frame = av.VideoFrame.from_ndarray(frame.to_numpy(), format="gray")
+            vid_frame = av.VideoFrame.from_ndarray(frame.to_numpy(), format=self.color)
             packets = self._stream.encode(vid_frame.reformat(format=self._stream.pix_fmt))
             for packet in packets:
                 self._container.mux(packet)

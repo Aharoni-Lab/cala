@@ -9,7 +9,7 @@ from cala.models import AXIS
 
 
 def build(
-    residuals: Residual, frames: Movie, footprints: Footprints, traces: Traces
+    residuals: Residual, frames: Movie, footprints: Footprints, traces: Traces, n_recalc: int
 ) -> A[Residual, Name("movie")]:
     """
     The computation follows the equation:
@@ -51,7 +51,11 @@ def build(
         traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
 
     # Compute residual R = Y - [A,b][C;f]
+    # if recently discovered (during the expansion phase), recalculate. otherwise, just append?!
+    # if residuals.array is None:
     R = Y - (A @ C)
+    # else:
+    #     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
     residuals.array = R.clip(min=0)  # clipping is for the first n frames
 
     return residuals
@@ -61,7 +65,6 @@ def _align_overestimates(
     A: xr.DataArray, C_latest: xr.DataArray, R_latest: xr.DataArray
 ) -> xr.DataArray:
     """
-
         Gotta be able to do at least ONE OF splitoff or gradualon.
 
         Negative residuals just need to go. There isn't much you can do with the value...?
@@ -111,9 +114,39 @@ def _align_overestimates(
         .reset_coords([AXIS.frame_coord, AXIS.timestamp_coord], drop=True)
     )
 
-    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC, kwargs={"neginf": 0})).clip(min=0)
+    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC.as_numpy(), kwargs={"neginf": 0})).clip(
+        min=0
+    )
 
 
 def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
     A_layer_mask = (A > 0).sum(dim=AXIS.component_dim)
     return A.where(A_layer_mask == 1, 0)
+
+
+def _update(
+    Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray, R: xr.DataArray, n_recalc: int
+) -> xr.DataArray:
+    targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].max() - n_recalc)
+
+    if any(targets):
+        target_ids = targets.where(targets, drop=True)[AXIS.id_coord].values
+
+        A_recent = (
+            A.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
+        )
+        recalc_area = (A_recent.sum(dim=AXIS.component_dim) > 0).as_numpy()
+        C_recent = (
+            C.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
+        )
+
+        recalc = Y.isel({AXIS.frames_dim: slice(None, -1)}).where(
+            recalc_area
+        ) - A_recent @ C_recent.isel({AXIS.frames_dim: slice(None, -1)})
+
+        R = R.sel({AXIS.frame_coord: recalc[AXIS.frame_coord]}).where(
+            ~recalc_area, recalc, drop=False
+        )
+    R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
+
+    return xr.concat([R, R_latest], dim=AXIS.frames_dim)

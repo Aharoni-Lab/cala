@@ -3,84 +3,11 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
-from numba import prange
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import Footprints, Frame, Movie, Overlaps, PopSnap, Traces
+from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
 from cala.models import AXIS
-
-
-class Init:
-    @process_method
-    def initialize(self, footprints: Footprints, frames: Movie) -> Traces:
-        """Learn temporal traces from footprints and frames."""
-        A = footprints.array
-        Y = frames.array
-
-        # Get frames to use and flatten them
-        flattened_frames = Y.stack({"pixels": AXIS.spatial_dims})
-        flattened_footprints = A.stack({"pixels": AXIS.spatial_dims})
-
-        # Process all components
-        temporal_traces = self._solve_all_component_traces(
-            flattened_footprints.values,
-            flattened_frames.values,
-            flattened_footprints.sizes[AXIS.component_dim],
-            flattened_frames.sizes[AXIS.frames_dim],
-        )
-
-        trace_coords = [
-            AXIS.id_coord,
-            AXIS.detect_coord,
-            AXIS.frame_coord,
-            AXIS.timestamp_coord,
-        ]
-        coords = {k: v for k, v in {**A.coords, **Y.coords}.items() if k in trace_coords}
-        return Traces.from_array(
-            xr.DataArray(temporal_traces, dims=(AXIS.component_dim, AXIS.frames_dim), coords=coords)
-        )
-
-    @staticmethod
-    def _solve_all_component_traces(
-        footprints: np.ndarray, frames: np.ndarray, n_components: int, n_frames: int
-    ) -> np.ndarray:
-        """Solve temporal traces for all components in parallel
-
-        Args:
-            footprints: Array of shape (n_components, height*width)
-            frames: Array of shape (n_frames, height*width)
-        Returns:
-            Array of shape (n_components, n_frames)
-        """
-        results = np.zeros((n_components, n_frames), dtype=frames.dtype)
-
-        # Parallel loop over components
-        for i in prange(n_components):
-            footprint = footprints[i]
-            active_pixels = footprint > 0
-
-            if np.any(active_pixels):
-                footprint_active = footprint[active_pixels]
-                frames_active = frames[:, active_pixels]
-                results[i] = Init._fast_nnls_vector(footprint_active, frames_active)
-
-        return results
-
-    @staticmethod
-    def _fast_nnls_vector(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-        """Specialized NNLS for single-variable case across multiple frames
-        A: footprint values (n_pixels,)
-        B: frame data matrix (n_frames, n_pixels)
-        Returns: brightness values for each frame (n_frames,)
-        """
-        ata = (A * A).sum()  # Compute once for all frames
-        if ata <= 0:
-            return np.zeros(B.shape[0], dtype=B.dtype)
-
-        # Vectorized computation for all frames
-        atb = A @ B.T  # dot product with each frame
-        return np.maximum(0, atb / ata)
 
 
 class FrameUpdate:
@@ -179,10 +106,10 @@ class FrameUpdate:
                 Shape: (components,)
         """
         # Step 1: Compute projection of current frame
-        u = A @ y
+        u = (A @ y).as_numpy()
 
         # Step 2: Compute gram matrix of spatial components
-        V = A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        V = (A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})).as_numpy()
 
         # Step 3: Extract diagonal elements for normalization
         V_diag = np.diag(V)
@@ -224,7 +151,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     :return:
     """
 
-    c = traces.array
+    c = traces.full_array()
     c_det = new_traces.array
 
     if c_det is None:
@@ -237,7 +164,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
         # if newly detected cells are truncated
         c_new = xr.DataArray(
-            np.zeros((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim])),
+            np.full((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim]), np.nan),
             dims=[AXIS.component_dim, AXIS.frames_dim],
             coords=c.isel({AXIS.component_dim: 0}).coords,
         )
@@ -250,14 +177,11 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
 
     merged_ids = c_det.attrs.get("replaces")
     if merged_ids:
-        intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
         if traces.zarr_path:
-            traces.array = (
-                traces.array.set_xindex(AXIS.id_coord)
-                .sel({AXIS.id_coord: intact_ids})
-                .reset_index(AXIS.id_coord)
-            )
+            invalid = c[AXIS.id_coord].isin(merged_ids)
+            traces.array = c.where(~invalid.compute(), drop=True).compute()
         else:
+            intact_ids = [id_ for id_ in c[AXIS.id_coord].values if id_ not in merged_ids]
             c = (
                 c.set_xindex(AXIS.id_coord)
                 .sel({AXIS.id_coord: intact_ids})

@@ -48,7 +48,10 @@ def start(gui_spec: Spec, request: Request) -> HTMLResponse:
         spec = TubeSpecification(**_tube_config)
         spec.assets = {**spec.assets, **gui_spec.assets}
         spec.nodes = {**spec.nodes, **gui_spec.nodes}
-        tube = Tube.from_specification(spec)
+        try:
+            tube = Tube.from_specification(spec)
+        except Exception as e:
+            print(e)
 
         global _runner
         _runner = BackgroundRunner(tube=tube)

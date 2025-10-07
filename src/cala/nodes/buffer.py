@@ -15,7 +15,7 @@ def fill_buffer(size: int, buffer: Movie, frame: Frame) -> A[Movie, Name("buffer
         return buffer
 
     buffered = (
-        buffer.array.transpose(AXIS.frames_dim, ...)[-size:]
+        buffer.array.transpose(AXIS.frames_dim, ...)[-size + 1 :]
         if buffer.array.sizes[AXIS.frames_dim] >= size
         else buffer.array
     )

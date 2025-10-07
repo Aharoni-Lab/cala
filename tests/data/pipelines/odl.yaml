@@ -29,9 +29,9 @@ nodes:
   source:
     type: cala.testing.SingleCellSource
   counter:
-    type: cala.util.counter
+    type: cala.nodes.prep.counter
   frame:
-    type: cala.util.package_frame
+    type: cala.nodes.prep.package_frame
     depends:
       - frame: source.value
       - index: counter.idx
@@ -63,6 +63,9 @@ nodes:
         overlap: 0.5
     depends:
       - frame: glow.frame
+  #PREPROCESS ENDS
+
+  # FRAME UPDATE BEGINS
   cache:
     type: cala.nodes.buffer.fill_buffer
     params:
@@ -70,14 +73,11 @@ nodes:
     depends:
       - buffer: assets.buffer
       - frame: glow.frame
-  #PREPROCESS ENDS
-
-  # FRAME UPDATE BEGINS
   trace_frame:
     type: cala.nodes.traces.FrameUpdate
     params:
-      tol: 0.001
-      max_iter: 100
+      tol: 0.0001
+      max_iter: 200
     depends:
       - traces: assets.traces
       - footprints: assets.footprints
@@ -100,11 +100,12 @@ nodes:
     params:
       bep: 1
       tol: 0.0001
-      max_iter: 100
+      max_iter: 200
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
+      - index: counter.idx
   facetune:
     type: cala.nodes.cleanup.clear_overestimates
     params:
@@ -115,6 +116,8 @@ nodes:
 
   residual:
     type: cala.nodes.residual.build
+    params:
+      n_recalc: 5
     depends:
       - frames: assets.buffer
       - footprints: footprints_frame.footprints
@@ -146,6 +149,9 @@ nodes:
   catalog:
     type: cala.nodes.detect.Cataloger
     params:
+      age_limit: 100
+      smooth_kwargs:
+        sigma: 2
       merge_threshold: 0.8
     depends:
       - new_fps: nmf.new_fps

@@ -1,7 +1,7 @@
 from cala.models import AXIS
+from cala.nodes.prep import package_frame
 from cala.nodes.prep.r_estimate import SizeEst
 from cala.testing.toy import Position
-from cala.util import package_frame
 
 
 def test_size_estim(separate_cells):

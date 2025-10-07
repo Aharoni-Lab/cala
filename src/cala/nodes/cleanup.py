@@ -70,7 +70,7 @@ def _filter_razed_ids(footprints: Footprints, min_thicc: int) -> A[list[str], Na
 
     eroded = xr.apply_ufunc(
         cv2.erode,
-        (A > 0).astype(np.uint8),
+        (A > 0).as_numpy().astype(np.uint8),
         kwargs={"kernel": kernel},
         vectorize=True,
         input_core_dims=[AXIS.spatial_dims],
@@ -151,7 +151,7 @@ def _filter_redundant(
 
     :param quantile: the higher, the more stringent
     """
-    A = footprints.array
+    A = footprints.array.as_numpy()
     c_t = traces.array.isel({AXIS.frames_dim: -1})
     y_t = A @ c_t
     # not sure whether to use y_t or reconstructed. recon probably makes more sense.

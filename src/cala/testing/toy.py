@@ -194,7 +194,7 @@ class Toy(BaseModel):
 
     def _build_movie(self, footprints: xr.DataArray, traces: xr.DataArray) -> xr.DataArray:
         movie = self._build_movie_template()
-        movie += (footprints @ traces).transpose(AXIS.frames_dim, *AXIS.spatial_dims)
+        movie += (footprints @ traces).transpose(AXIS.frames_dim, *AXIS.spatial_dims).as_numpy()
         return movie
 
     def make_movie(self) -> Movie:

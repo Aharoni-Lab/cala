@@ -11,7 +11,9 @@ from cala.nodes.residual import _align_overestimates, _find_unlayered_footprints
 @pytest.fixture(scope="function")
 def init() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="res_init_test", type="cala.nodes.residual.build")
+        spec=NodeSpecification(
+            id="res_init_test", type="cala.nodes.residual.build", params={"n_recalc": 5}
+        )
     )
 
 
@@ -38,7 +40,7 @@ def test_align_overestimates(single_cell) -> None:
 
     last_res = xr.zeros_like(last_frame)
     last_res.loc[{AXIS.width_coord: slice(single_cell.cell_positions[0].width, None)}] = -1
-    last_res = last_res.where(single_cell.footprints.array[0].values, 0)
+    last_res = last_res.where(single_cell.footprints.array[0].to_numpy(), 0)
 
     last_trace = single_cell.traces.array.isel({AXIS.frames_dim: -1})
 
@@ -46,7 +48,7 @@ def test_align_overestimates(single_cell) -> None:
 
     adjusted_traces = _align_overestimates(A=footprints, R_latest=last_res, C_latest=last_trace)
 
-    result = (footprints @ adjusted_traces).values
+    result = (footprints @ adjusted_traces).as_numpy().values
     expected = movie.array.isel({AXIS.frames_dim: -2}).values
 
     np.testing.assert_array_equal(result, expected)
