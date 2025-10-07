@@ -2,7 +2,7 @@ import contextlib
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar, Self
 
 import numpy as np
 import xarray as xr
@@ -19,6 +19,7 @@ AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
 
 class Asset(BaseModel):
+    validate_schema: bool = False
     array_: AssetType = None
     _entity: ClassVar[Entity]
 
@@ -46,13 +47,12 @@ class Asset(BaseModel):
     def entity(cls) -> Entity:
         return cls._entity
 
-    @field_validator("array_", mode="after")
-    @classmethod
-    def validate_array_schema(cls, value: xr.DataArray) -> AssetType:
-        if value is not None:
-            value.validate.against_schema(cls._entity.model)
+    @model_validator(mode="after")
+    def validate_array_schema(self) -> Self:
+        if self.validate_schema and self.array_ is not None:
+            self.array_.validate.against_schema(self._entity.model)
 
-        return value
+        return self
 
 
 class Footprint(Asset):
@@ -66,8 +66,8 @@ class Footprint(Asset):
     )
 
     @classmethod
-    def from_array(cls, array: xr.DataArray) -> "Footprint":
-        if isinstance(array.data, np.ndarray):
+    def from_array(cls, array: xr.DataArray, sparsify: bool = True) -> "Footprint":
+        if sparsify and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
@@ -106,8 +106,8 @@ class Footprints(Asset):
     )
 
     @classmethod
-    def from_array(cls, array: xr.DataArray) -> "Footprints":
-        if isinstance(array.data, np.ndarray):
+    def from_array(cls, array: xr.DataArray, sparsify: bool = True) -> "Footprints":
+        if sparsify and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
