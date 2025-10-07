@@ -319,16 +319,6 @@ def _absorb(
             tr = new_trs.sel({AXIS.component_dim: list(set(new_idxs))})
             footprint, trace = _merge_with(fp, tr, known_fps, known_trs, known_ids)
 
-            # # cannot use connected_components because it's not a square matrix
-            # for i, dupes in enumerate(merge_matrix.transpose(AXIS.component_dim, ...)):
-            #     if not any(dupes) or known_fps is None:
-            #         footprint, trace = _register(new_fps[i], new_trs[i])
-            #     else:
-            #         dupe_ids = dupes.where(dupes.as_numpy(), drop=True)[f"{AXIS.id_coord}'"].values
-            #         fp = new_fps.sel({AXIS.component_dim: i})
-            #         tr = new_trs.sel({AXIS.component_dim: i})
-            #         footprint, trace = _merge_with(fp, tr, known_fps, known_trs, dupe_ids)
-
             footprints.append(footprint.array)
             traces.append(trace.array)
 
