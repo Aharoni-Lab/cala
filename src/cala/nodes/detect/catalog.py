@@ -34,7 +34,7 @@ class Cataloger(Node):
         if not new_fps or not new_trs:
             return Footprints(), Traces()
 
-        new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
+        new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim).as_numpy()
         new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
         merge_mat = self._merge_matrix(new_fps, new_trs)
         new_fps, new_trs = _merge(new_fps, new_trs, merge_mat)
@@ -129,7 +129,7 @@ def _register(new_fp: xr.DataArray, new_tr: xr.DataArray) -> tuple[Footprint, Tr
         .isel({AXIS.component_dim: 0})
     )
 
-    return Footprint.from_array(footprint), Trace.from_array(trace)
+    return Footprint.from_array(footprint, sparsify=False), Trace.from_array(trace)
 
 
 def _register_batch(new_fps: xr.DataArray, new_trs: xr.DataArray) -> tuple[Footprints, Traces]:
@@ -155,7 +155,7 @@ def _register_batch(new_fps: xr.DataArray, new_trs: xr.DataArray) -> tuple[Footp
         }
     )
 
-    return Footprints.from_array(footprints), Traces.from_array(traces)
+    return Footprints.from_array(footprints, sparsify=False), Traces.from_array(traces)
 
 
 def _recompose(
@@ -163,7 +163,7 @@ def _recompose(
 ) -> tuple[Footprint, Trace]:
     # Reshape neighborhood to 2D matrix (time × space)
     shape = movie.sum(dim=AXIS.frames_dim) > 0
-    slice_ = Movie.from_array(movie.where(shape.as_numpy(), 0, drop=True))
+    slice_ = Movie.from_array(movie.where(shape, 0, drop=True))
 
     a, c = _nmf(slice_)
 
@@ -186,7 +186,7 @@ def _nmf(movie: Movie) -> tuple[np.ndarray, np.ndarray]:
     # Apply NMF (check how long nndsvd takes vs random)
     model = NMF(n_components=1, init="random", tol=1e-4, max_iter=200)
 
-    c = model.fit_transform(stacked.as_numpy())  # temporal component
+    c = model.fit_transform(stacked)  # temporal component
     a = model.components_  # spatial component
 
     return a, c
@@ -215,7 +215,7 @@ def _reshape(
         coords=slice_coords,
     )
 
-    return Footprint.from_array(a_new), Trace.from_array(c_new)
+    return Footprint.from_array(a_new, sparsify=False), Trace.from_array(c_new)
 
 
 def _merge_with(
@@ -273,7 +273,7 @@ def _merge(
             res = fps @ trs
             new_fp, new_tr = _recompose(res, footprints[0].coords, traces[0].coords)
         else:
-            new_fp, new_tr = Footprint.from_array(fps[0]), Trace.from_array(trs[0])
+            new_fp, new_tr = Footprint.from_array(fps[0], sparsify=False), Trace.from_array(trs[0])
         combined_fps.append(new_fp)
         combined_trs.append(new_tr)
 
@@ -293,7 +293,7 @@ def _absorb(
     footprints = []
     traces = []
 
-    merge_matrix.data = label(merge_matrix.as_numpy(), background=0, connectivity=1)
+    merge_matrix.data = label(merge_matrix, background=0, connectivity=1)
     merge_matrix = merge_matrix.assign_coords(
         {AXIS.component_dim: range(merge_matrix.sizes[AXIS.component_dim])}
     ).reset_index(AXIS.component_dim)
