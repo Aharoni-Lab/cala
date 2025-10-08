@@ -130,7 +130,7 @@ class Traces(Asset):
     @array.setter
     def array(self, array: xr.DataArray) -> None:
         if self.zarr_path:
-            self.validate_array_schema(array)
+            array.validate.against_schema(self._entity.model)
             array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
         else:
             self.array_ = array
@@ -173,7 +173,7 @@ class Traces(Asset):
         )
 
     def update(self, array: xr.DataArray, **kwargs: Any) -> None:
-        self.validate_array_schema(array)
+        array.validate.against_schema(self._entity.model)
         array.to_zarr(self.zarr_path, **kwargs)
 
     @classmethod
