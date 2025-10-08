@@ -31,7 +31,8 @@ def build(
             Shape: (frames × height × width)
     """
     if footprints.array is None or traces.array is None:
-        return Residual.from_array(frames.array)
+        residuals.array = frames.array
+        return residuals
 
     # Reshape frames to pixels x time
     Y = frames.array
@@ -44,19 +45,22 @@ def build(
     # Reshape footprints to (pixels x components)
     A = footprints.array
 
-    R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
-    if R_latest.min() < 0:
-        shifted_tr = _align_overestimates(A, C.isel({AXIS.frames_dim: -1}), R_latest)
+    # Compute residual R = Y - [A,b][C;f]
+    R_curr = Y.isel({AXIS.frames_dim: -1}) - xr.DataArray(
+        np.matmul(
+            A.transpose(*AXIS.spatial_dims, ...).data,
+            C.transpose(AXIS.component_dim, ...).isel({AXIS.frames_dim: -1}).data,
+        ),
+        dims=AXIS.spatial_dims,
+    )
+    if R_curr.min() < 0:
+        shifted_tr = _align_overestimates(A, C.isel({AXIS.frames_dim: -1}), R_curr)
         C.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
         traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
 
-    # Compute residual R = Y - [A,b][C;f]
-    # if recently discovered (during the expansion phase), recalculate. otherwise, just append?!
-    # if residuals.array is None:
-    R = Y - (A @ C)
-    # else:
-    #     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
-    residuals.array = R.clip(min=0)  # clipping is for the first n frames
+    # if recently discovered, set to zero (or a small number). otherwise, just append
+    R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
+    residuals.array = R  # clipping is for the first n frames
 
     return residuals
 
@@ -130,23 +134,16 @@ def _update(
     targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].max() - n_recalc)
 
     if any(targets):
-        target_ids = targets.where(targets, drop=True)[AXIS.id_coord].values
+        target_ids = targets.where(targets, drop=True)[AXIS.id_coord]
+        target_area = ~((A.where(target_ids, drop=True)).max(dim=AXIS.component_dim) > 0)
+        R *= target_area.as_numpy()
 
-        A_recent = (
-            A.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
-        )
-        recalc_area = (A_recent.sum(dim=AXIS.component_dim) > 0).as_numpy()
-        C_recent = (
-            C.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
-        )
+    R_curr = Y.isel({AXIS.frames_dim: -1}) - xr.DataArray(
+        np.matmul(
+            A.transpose(*AXIS.spatial_dims, ...).data,
+            C.transpose(AXIS.component_dim, ...).isel({AXIS.frames_dim: -1}).data,
+        ),
+        dims=AXIS.spatial_dims,
+    )
 
-        recalc = Y.isel({AXIS.frames_dim: slice(None, -1)}).where(
-            recalc_area
-        ) - A_recent @ C_recent.isel({AXIS.frames_dim: slice(None, -1)})
-
-        R = R.sel({AXIS.frame_coord: recalc[AXIS.frame_coord]}).where(
-            ~recalc_area, recalc, drop=False
-        )
-    R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
-
-    return xr.concat([R, R_latest], dim=AXIS.frames_dim)
+    return xr.concat([R, R_curr.clip(min=0)], dim=AXIS.frames_dim)
