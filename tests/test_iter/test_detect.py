@@ -2,10 +2,12 @@ import numpy as np
 import pytest
 import xarray as xr
 from noob.node import NodeSpecification
+from sklearn.decomposition import NMF
 
 from cala.assets import AXIS, Footprints, Residual, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
 from cala.nodes.detect.catalog import _merge_with, _register
+from cala.nodes.detect.slice_nmf import rank1nmf
 from cala.testing.util import assert_scalar_multiple_arrays
 
 
@@ -174,3 +176,20 @@ class TestCataloger:
         )
         # 2. the trace and footprint values are accurate (where they do exist)
         xr.testing.assert_allclose(result.as_numpy(), expected.as_numpy(), atol=1e-3)
+
+
+def test_rank1nmf(single_cell):
+    Y = single_cell.make_movie().array
+    R = Y.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+    R += np.random.randint(0, 2, R.shape)
+
+    shape = np.mean(R.values, axis=1).shape
+    a_res, c_res, err_res = rank1nmf(R.values, np.random.random(shape), iters=10)
+
+    nmf = NMF(n_components=1, init="random", max_iter=10, tol=1e-3)
+    a_exp = nmf.fit_transform(R.values)
+    c_exp = nmf.components_
+    err_exp = nmf.reconstruction_err_
+
+    assert_scalar_multiple_arrays(np.squeeze(a_exp), a_res)
+    assert_scalar_multiple_arrays(np.squeeze(c_exp), c_res)
