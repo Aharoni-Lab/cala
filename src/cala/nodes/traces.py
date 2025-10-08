@@ -1,8 +1,10 @@
+from logging import Logger
 from typing import Annotated as A
 
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
+from pydantic import BaseModel
 from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
@@ -10,12 +12,11 @@ from cala.logging import init_logger
 from cala.models import AXIS
 
 
-class FrameUpdate:
-    logger = init_logger(__name__)
+class FrameUpdate(BaseModel):
+    tol: float
+    max_iter: int
 
-    def __init__(self, tol: float, max_iter: int | None = None) -> None:
-        self.tol = tol
-        self.max_iter = max_iter
+    _logger: Logger = init_logger(__name__)
 
     @process_method
     def ingest_frame(
@@ -53,15 +54,22 @@ class FrameUpdate:
             return PopSnap()
 
         # Prepare inputs for the update algorithm
-        A = footprints.array.stack({"pixels": AXIS.spatial_dims})
+        A = footprints.array.stack({"pixels": AXIS.spatial_dims}).transpose("pixels", ...)
         y = frame.array.stack({"pixels": AXIS.spatial_dims})
-        c = traces.array.isel({AXIS.frames_dim: -1})
+        c = traces.array.isel({AXIS.frames_dim: -1}).copy()
+
+        AtA = (A @ A.rename(AXIS.component_rename)).to_numpy()
 
         _, labels = connected_components(
             csgraph=overlaps.array.data, directed=False, return_labels=True
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
-        updated_traces = self._update_traces(A, y, c.copy(), clusters)
+        C, noisyC = _update_traces(
+            y.values, A.data, c.values, AtA, iters=self.max_iter, tol=self.tol, groups=clusters
+        )
+        updated_traces = xr.DataArray(C, dims=c.dims, coords=c.coords).assign_coords(
+            {AXIS.frame_coord: y[AXIS.frame_coord], AXIS.timestamp_coord: y[AXIS.timestamp_coord]}
+        )
 
         if traces.zarr_path:
             updated_tr = updated_traces.expand_dims(AXIS.frames_dim).assign_coords(
@@ -79,11 +87,7 @@ class FrameUpdate:
         return PopSnap.from_array(updated_traces)
 
     def _update_traces(
-        self,
-        A: xr.DataArray,
-        y: xr.DataArray,
-        c: xr.DataArray,
-        clusters: list[np.ndarray],
+        self, A: xr.DataArray, y: xr.DataArray, c: xr.DataArray, clusters: list[np.ndarray]
     ) -> xr.DataArray:
         """
         Implementation of the temporal traces update algorithm.
@@ -137,10 +141,65 @@ class FrameUpdate:
 
             if np.linalg.norm(c - c_old) >= self.tol * np.linalg.norm(c_old) or maxed:
                 if maxed:
-                    self.logger.debug(msg="max_iter reached before converging.")
+                    self._logger.debug(msg="max_iter reached before converging.")
                 return xr.DataArray(
                     c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
                 ).assign_coords(y[AXIS.frames_dim].coords)
+
+
+def _update_traces(
+    y: np.ndarray,
+    A: np.ndarray,
+    noisyC: np.ndarray,
+    AtA: np.ndarray,
+    iters: int = 5,
+    tol: float = 1e-3,
+    groups: list[list[int]] = None,
+):
+    """
+    Solve C = argmin_C ||Yr-AC|| using block-coordinate decent
+    Parameters
+    ----------
+    y : array of float, shape (pixels,)
+        flattened array of raw data frame
+    A : sparse matrix of float, shape (pixels, comps)
+        neural shapes
+    noisyC : ndarray of float, shape (comps,)
+        Initial value of fluorescence intensities.
+    AtA : ndarray of float (comps, comps)
+        Overlap matrix of shapes A.
+    iters : int, optional
+        Maximal number of iterations.
+    tol : float, optional
+        Tolerance.
+    groups: list of lists
+        groups of components to update in parallel
+    """
+    AtY = A.T.dot(y)
+    num_iters = 0
+    C_old = np.zeros_like(noisyC)
+    C = noisyC.copy()
+
+    # faster than np.linalg.norm
+    def norm(c):
+        return np.sqrt(c.ravel().dot(c.ravel()))
+
+    while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
+        C_old[:] = C
+        if groups is None:
+            for m in range(len(AtY)):
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / (AtA[m, m] + np.finfo(C.dtype).eps)
+                C[m] = max(noisyC[m], 0)
+        else:
+            for m in groups:
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C)) / (
+                    AtA.diagonal()[m] + np.finfo(C.dtype).eps
+                )
+                C[m] = np.maximum(noisyC[m], 0)
+        num_iters += 1
+
+    # noisyC is just C with negative values (unclipped)
+    return C, noisyC
 
 
 def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
