@@ -9,10 +9,10 @@ def assert_scalar_multiple_arrays(a: xr.DataArray, b: xr.DataArray, /, rtol: flo
     if not 0 <= rtol <= 1:
         raise ValueError(f"rtol must be between 0 and 1, got {rtol}.")
 
-    abab = (a @ b) ** 2
-    aabb = a.dot(a) * b.dot(b)
+    abab = ((a @ b) ** 2).item()
+    aabb = (a.dot(a) * b.dot(b)).item()
 
-    assert abab > aabb * (1 - rtol)
+    assert abab > aabb * (1 - rtol), f"Threshold not met: {abab=} > {aabb * (1 - rtol)=}"
 
 
 def generate_text_image(
