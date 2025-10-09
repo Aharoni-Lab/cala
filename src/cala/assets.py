@@ -108,13 +108,13 @@ class Footprints(Asset):
     @Asset.array.setter
     def array(self, array: xr.DataArray) -> None:
         array.validate.against_schema(self._entity.model)
-        if isinstance(array.data, np.ndarray):
+        if array is not None and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         self.array_ = array
 
     @classmethod
     def from_array(cls, array: xr.DataArray) -> "Footprints":
-        if isinstance(array.data, np.ndarray):
+        if array is not None and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
