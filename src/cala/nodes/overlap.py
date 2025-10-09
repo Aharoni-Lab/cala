@@ -52,15 +52,15 @@ def ingest_component(
             .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
         )
 
-    if a_new[AXIS.id_coord].item() in V[AXIS.id_coord].values:
-        # trace REPLACEMENT
-        dim_idx = np.where(V[AXIS.id_coord].values == a_new[AXIS.id_coord].item())[0].tolist()
+    dupli = a_new[AXIS.id_coord].isin(V[AXIS.id_coord])
+    if np.any(dupli):
+        dim_idx = np.where(dupli)[0].tolist()
         V = V.drop_sel({AXIS.component_dim: dim_idx, f"{AXIS.component_dim}'": dim_idx})
 
     # Also have to remove the ID from A,
     # since it's been already added in footprints.component_ingest
     A = footprints.array
-    id_idx = np.where(A[AXIS.id_coord].values == a_new[AXIS.id_coord].item())[0].tolist()
+    id_idx = np.where(A[AXIS.id_coord].isin(a_new[AXIS.id_coord]))[0].tolist()
     A = A.drop_sel({AXIS.component_dim: id_idx})
 
     # Compute spatial overlaps between new and existing components
