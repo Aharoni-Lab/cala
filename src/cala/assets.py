@@ -105,9 +105,15 @@ class Footprints(Asset):
         )
     )
 
+    @Asset.array.setter
+    def array(self, array: xr.DataArray) -> None:
+        if isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        self.array_ = array
+
     @classmethod
-    def from_array(cls, array: xr.DataArray, sparsify: bool = True) -> "Footprints":
-        if sparsify and isinstance(array.data, np.ndarray):
+    def from_array(cls, array: xr.DataArray) -> "Footprints":
+        if isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 

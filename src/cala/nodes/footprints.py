@@ -35,9 +35,9 @@ class Footprinter(BaseModel):
             - p are the pixels where component i can be non-zero
 
         Args:
-            pixel_stats (PixelStats): Sufficient statistics W.
+            pixel_stats (PixStats): Sufficient statistics W.
                 Shape: (pixels × components)
-            component_stats (ComponentStats): Sufficient statistics M.
+            component_stats (CompStats): Sufficient statistics M.
                 Shape: (components × components)
         """
         if footprints.array is None:
