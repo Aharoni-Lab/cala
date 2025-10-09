@@ -4,12 +4,12 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import Footprints, Movie, Residual, Traces
+from cala.assets import Footprints, Movie, Residual, Traces, Frame
 from cala.models import AXIS
 
 
 def build(
-    residuals: Residual, frames: Movie, footprints: Footprints, traces: Traces, n_recalc: int
+    residuals: Residual, frame: Frame, footprints: Footprints, traces: Traces, n_recalc: int
 ) -> A[Residual, Name("movie")]:
     """
     The computation follows the equation:
@@ -31,32 +31,27 @@ def build(
             Shape: (frames × height × width)
     """
     if footprints.array is None or traces.array is None:
-        residuals.array = frames.array
+        if residuals.array is None:
+            residuals.array = frame.array.expand_dims(dim=AXIS.frames_dim)
+        else:
+            residuals.array = xr.concat(
+                [residuals.array, frame.array],
+                dim=AXIS.frames_dim,
+                coords=[AXIS.frame_coord, AXIS.timestamp_coord],
+            )
         return residuals
 
-    # Reshape frames to pixels x time
-    Y = frames.array
-
-    # Get temporal components [C; f]
-    C = traces.array.sel(
-        {AXIS.frame_coord: Y[AXIS.frame_coord].values.tolist()}
-    )  # components x time
-
-    # Reshape footprints to (pixels x components)
+    Y = frame.array
+    C = traces.array.isel({AXIS.frames_dim: -1})  # (components,)
     A = footprints.array
 
     # Compute residual R = Y - [A,b][C;f]
-    R_curr = Y.isel({AXIS.frames_dim: -1}) - xr.DataArray(
-        np.matmul(
-            A.transpose(*AXIS.spatial_dims, ...).data,
-            C.transpose(AXIS.component_dim, ...).isel({AXIS.frames_dim: -1}).data,
-        ),
-        dims=AXIS.spatial_dims,
+    R_curr = Y - xr.DataArray(
+        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data), dims=AXIS.spatial_dims
     )
     if R_curr.min() < 0:
-        shifted_tr = _align_overestimates(A, C.isel({AXIS.frames_dim: -1}), R_curr)
-        C.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
-        traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
+        C = _align_overestimates(A, C, R_curr)
+        traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = C
 
     # if recently discovered, set to zero (or a small number). otherwise, just append
     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
@@ -131,18 +126,15 @@ def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
 def _update(
     Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray, R: xr.DataArray, n_recalc: int
 ) -> xr.DataArray:
-    targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].max() - n_recalc)
+    targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].item() - n_recalc)
 
     if any(targets):
         target_ids = targets.where(targets)[AXIS.id_coord]
         target_area = ~((A.where(target_ids, drop=True)).max(dim=AXIS.component_dim) > 0)
         R *= target_area.as_numpy()
 
-    R_curr = Y.isel({AXIS.frames_dim: -1}) - xr.DataArray(
-        np.matmul(
-            A.transpose(*AXIS.spatial_dims, ...).data,
-            C.transpose(AXIS.component_dim, ...).isel({AXIS.frames_dim: -1}).data,
-        ),
+    R_curr = Y - xr.DataArray(
+        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data),
         dims=AXIS.spatial_dims,
     )
 
