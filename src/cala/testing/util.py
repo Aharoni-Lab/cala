@@ -1,11 +1,13 @@
+from typing import TypeVar
+
 import cv2
 import numpy as np
 import xarray as xr
 
+_TArray = TypeVar("_TArray", xr.DataArray, np.ndarray)
 
-def assert_scalar_multiple_arrays(
-    a: np.ndarray | xr.DataArray, b: np.ndarray | xr.DataArray, /, rtol: float = 1e-5
-) -> None:
+
+def assert_scalar_multiple_arrays(a: _TArray, b: _TArray, /, rtol: float = 1e-5) -> None:
     """
     Using the Pythagorean Theorem
     Only works with 1-D arrays. (see np.squeeze)
@@ -16,7 +18,10 @@ def assert_scalar_multiple_arrays(
     if not 0 <= rtol <= 1:
         raise ValueError(f"rtol must be between 0 and 1, got {rtol}.")
 
-    assert len(a.shape) == len(b.shape) == 1, f"Arrays must be 1-D. Given: {a.shape=}, {b.shape=}"
+    if isinstance(a, np.ndarray):
+        assert (
+            len(a.shape) == len(b.shape) == 1
+        ), f"Arrays must be 1-D. Given: {a.shape=}, {b.shape=}"
 
     abab = ((a @ b) ** 2).item()
     aabb = (a.dot(a) * b.dot(b)).item()

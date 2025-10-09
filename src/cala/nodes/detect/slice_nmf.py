@@ -40,33 +40,32 @@ class SliceNMF(Node):
         if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return [], []
 
-        energy = self._get_energy(residuals.array)
+        energy = self._get_energy(residuals.array)  # 0.008s
 
         fps = []
         trs = []
 
         res = residuals.array.copy()
 
-        while energy.max().item() >= self.detect_thresh:  # or use res directly
+        while np.max(energy) >= self.detect_thresh:
             # Find and analyze neighborhood of maximum variance
             slice_ = self._get_max_energy_slice(
                 arr=res, energy_landscape=energy, radius=detect_radius
             )
 
-            a_new, c_new = self._local_nmf(
+            a_new, c_new = self._local_nmf(  # 0.0019s
                 slice_=slice_,
                 spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
             )
 
-            l1_norm = slice_.sum().item()
-            comp_recon = a_new @ c_new
+            l1_norm = np.sum(slice_)
 
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
             if (self.error_ / l1_norm) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new, sparsify=False))
                 trs.append(Trace.from_array(c_new))
-                res = (res - comp_recon).clip(self.error_ / l1_norm)
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l1_norm
             else:
                 l0_norm = np.prod(slice_.shape)
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm
@@ -127,12 +126,9 @@ class SliceNMF(Node):
                 - Temporal component c_new (frames)
         """
         # Reshape neighborhood to 2D matrix (time × space)
-        R = slice_.stack(space=AXIS.spatial_dims).transpose(AXIS.frames_dim, "space")
+        R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
 
-        c = self._model.fit_transform(R)  # temporal component
-        a = self._model.components_  # spatial component
-
-        self.error_ = self._model.reconstruction_err_.item()
+        a, c, self.error_ = rank1nmf(R.values, np.mean(R.values, axis=1))
 
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
@@ -156,8 +152,32 @@ class SliceNMF(Node):
         )
 
         # normalize against the original video (as in whatever the residual used at the time)
-        factor = slice_.max() / a_new.max()
-        a_new = a_new * factor
-        c_new = c_new / factor
+        factor = slice_.data.max() / c_new.data.max()
+        a_new = a_new / factor
+        c_new = c_new * factor
 
         return a_new, c_new
+
+
+def rank1nmf(
+    Ypx: np.ndarray, ain: np.ndarray, iters: int = 10
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """
+    perform a fast rank 1 NMF
+
+    Ypx: (pixels, frames)
+    ain: (pixels)
+    """
+    eps = np.finfo(np.float32).eps
+    for t in range(iters):
+        cin_res = ain.dot(Ypx)
+        cin = np.maximum(cin_res, 0)
+        ain = np.maximum(Ypx.dot(cin), 0)
+        if t in (0, iters - 1):
+            ain /= np.sqrt(ain.dot(ain)) + eps
+        elif t % 2 == 0:
+            ain /= ain.dot(ain) + eps
+    cin_res = ain.dot(Ypx)
+    cin = np.maximum(cin_res, 0)
+    error = np.linalg.norm(Ypx - np.outer(ain, cin), "fro")
+    return ain, cin, error

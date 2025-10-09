@@ -61,7 +61,8 @@ class TestSliceNMF:
         if not fpts or not trcs:
             raise AssertionError("Failed to detect a new component")
 
-        fpt_arr = xr.concat([f.array for f in fpts], dim="component")
+        factors = [trc.array.data.max() for trc in trcs]
+        fpt_arr = xr.concat([f.array * m for f, m in zip(fpts, factors)], dim="component")
 
         expected = single_cell.footprints.array[0]
         result = fpt_arr.sum(dim="component")

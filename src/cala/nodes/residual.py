@@ -134,7 +134,7 @@ def _update(
     targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].max() - n_recalc)
 
     if any(targets):
-        target_ids = targets.where(targets, drop=True)[AXIS.id_coord]
+        target_ids = targets.where(targets)[AXIS.id_coord]
         target_area = ~((A.where(target_ids, drop=True)).max(dim=AXIS.component_dim) > 0)
         R *= target_area.as_numpy()
 
