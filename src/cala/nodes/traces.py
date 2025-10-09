@@ -72,13 +72,8 @@ class FrameUpdate(BaseModel):
         )
 
         if traces.zarr_path:
-            updated_tr = updated_traces.expand_dims(AXIS.frames_dim).assign_coords(
-                {
-                    AXIS.timestamp_coord: (
-                        AXIS.frames_dim,
-                        [updated_traces[AXIS.timestamp_coord].values],
-                    )
-                }
+            updated_tr = updated_traces.volumize.dim_with_coords(
+                dim=AXIS.frames_dim, coords=[AXIS.timestamp_coord]
             )
             traces.update(updated_tr, append_dim=AXIS.frames_dim)
         else:
