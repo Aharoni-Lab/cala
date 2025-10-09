@@ -80,11 +80,11 @@ def test_ingest_frame(fpter, toy, request):
 
     result = fpter.process(
         footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats, index=0
-    )
+    ).array
 
-    expected = toy.footprints.model_copy()
+    expected = toy.footprints.array.as_numpy()
 
-    xr.testing.assert_allclose(result.array.as_numpy(), expected.array.as_numpy())
+    xr.testing.assert_allclose(result, expected)
 
 
 @pytest.fixture

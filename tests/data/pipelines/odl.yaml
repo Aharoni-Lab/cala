@@ -102,7 +102,7 @@ nodes:
   residual:
     type: cala.nodes.residual.build
     params:
-      n_recalc: 4
+      n_recalc: 1
     depends:
       - frames: assets.buffer
       - footprints: footprints_frame.footprints

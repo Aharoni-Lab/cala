@@ -1,39 +1,23 @@
 from typing import Annotated as A
 
-import cv2
 import numpy as np
 import xarray as xr
 from noob import Name, process_method
-from skimage.morphology import disk
-from sparse import COO
+from pydantic import BaseModel
+from scipy.sparse import csc_matrix
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
 from cala.models import AXIS
 
 
-class Footprinter:
-    logger = init_logger(__name__)
+class Footprinter(BaseModel):
+    tol: float
+    max_iter: int | None = None
+    bep: int | None = None
+    ratio_lb: float = 0.15
 
-    def __init__(
-        self,
-        tol: float,
-        max_iter: int | None = None,
-        bep: int | None = None,
-        ratio_lb: float = 0.15,
-    ):
-        self.bep = bep
-        """
-        Number of pixels to explore the boundary of the footprint outside of the current footprint.
-        """
-
-        self.ratio_lb = ratio_lb
-        """
-        Ratio of the least bright pixel against the brightest pixel of a given footprint.
-        """
-
-        self.tol = tol
-        self.max_iter = max_iter
+    _logger = init_logger(__name__)
 
     @process_method
     def ingest_frame(
@@ -59,86 +43,22 @@ class Footprinter:
         if footprints.array is None:
             return footprints
 
-        A = footprints.array
+        A = footprints.array.stack(pixel=AXIS.spatial_dims).transpose("pixel", ...)
         M = component_stats.array
-        W = pixel_stats.array
+        W = pixel_stats.array.stack(pixel=AXIS.spatial_dims).transpose(AXIS.component_dim, ...)
 
-        plain_mask = A > 0
-        mask = self._build_mask(plain_mask, index=index)
-
-        # Expand M diagonal for broadcasting
-        M_diag = xr.apply_ufunc(
-            np.diag,
-            M,
-            input_core_dims=[M.dims],
-            output_core_dims=[[AXIS.component_dim]],
-            dask="allowed",
+        shapes, mask, _ = update_shapes(
+            CY=W.values,
+            CC=M.values,
+            Ab=A.data.tocsc(),
+            A_mask=[np.where(Ap.as_numpy() > 0)[0] for Ap in A.transpose(AXIS.component_dim, ...)],
         )
 
-        cnt = 0
-        while True:
-            AM = A.rename(AXIS.component_rename) @ M
-            numerator = W - AM
-
-            update = numerator / (M_diag + np.finfo(float).tiny)
-            A_new = (mask * (A + update)).clip(min=0)
-
-            step = (np.abs(A - A_new).sum() / np.prod(A.shape)).item()
-
-            cnt += 1
-            maxed = self.max_iter and (cnt == self.max_iter)
-
-            if step < self.tol or maxed:
-                A_final = A_new.where(
-                    A_new > A_new.max(AXIS.spatial_dims) * self.ratio_lb, 0, drop=False
-                )
-                if maxed:
-                    self.logger.debug(msg="max_iter reached before converging.")
-                    A_final = A_new.where(plain_mask, 0, drop=False)
-
-                footprints.array = A_final
-                return footprints
-            else:
-                A = A_new
-                mask = A > 0
-
-    def _expansion_kernel(self) -> np.ndarray:
-        return disk(radius=1)
-
-    def _expand_boundary(self, kernel: np.ndarray, mask: xr.DataArray) -> xr.DataArray:
-        expanded = xr.apply_ufunc(
-            lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
-            mask.as_numpy().astype(np.uint8),
-            input_core_dims=[AXIS.spatial_dims],
-            output_core_dims=[AXIS.spatial_dims],
-            vectorize=True,
-            dask="parallelized",
+        footprints.array = xr.DataArray(shapes.toarray(), dims=A.dims, coords=A.coords).unstack(
+            "pixel"
         )
-        expanded.data = COO.from_numpy(expanded.data)
-        return expanded
 
-    def _build_mask(self, mask: xr.DataArray, index: int) -> xr.DataArray:
-        expansion_left = (index - mask[AXIS.detect_coord] - self.bep) <= 0
-        expand_ids = expansion_left.where(expansion_left, drop=True)[AXIS.id_coord].values
-        no_expand_ids = expansion_left.where(~expansion_left, drop=True)[AXIS.id_coord].values
-
-        if expand_ids.size > 0:
-            kernel = self._expansion_kernel()
-
-            expanded_mask = self._expand_boundary(
-                kernel, mask.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: expand_ids})
-            )
-
-            final_mask = xr.concat(
-                [
-                    mask.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: no_expand_ids}),
-                    expanded_mask,
-                ],
-                dim=AXIS.component_dim,
-            ).reset_index(AXIS.id_coord)
-        else:
-            final_mask = mask
-        return final_mask
+        return footprints
 
 
 def ingest_component(
@@ -162,3 +82,103 @@ def ingest_component(
     footprints.array = xr.concat([a, a_det], dim=AXIS.component_dim, combine_attrs="drop")
 
     return footprints
+
+
+def update_shapes(
+    CY: np.ndarray,
+    CC: np.ndarray,
+    Ab: csc_matrix,
+    A_mask: list[np.ndarray],
+    Ab_dense: np.ndarray | None = None,
+    iters: int = 5,
+):
+    """
+    :param CY: suff stats (pixel,)
+    :param CC: suff stats (component), shape (comp, comp)
+    :param Ab: shape matrix (sparse), shape (pixel, comp)
+    :param A_mask: list of nonzero coordinates for each footprint list[(pixel,)]
+    :param Ab_dense: shape matrix (dense)
+    :param iters: number of iterations
+    """
+    D, M = Ab.shape
+
+    for _ in range(iters):  # it's presumably better to run just 1 iter but update more neurons
+        for m in range(M):
+            tmp = _update(Ab_dense=Ab_dense, Ab=Ab, CY=CY, CC=CC, m=m, ind_pixels=A_mask[m])
+            Ab_dense, Ab, A_mask = _normalize(
+                m=m, Ab=Ab, Ab_dense=Ab_dense, ind_A=A_mask, ind_pixels=A_mask[m], tmp=tmp
+            )
+
+    return Ab, A_mask, Ab_dense
+
+
+def _update(
+    Ab_dense: np.ndarray,
+    Ab: csc_matrix,
+    CY: np.ndarray,
+    CC: np.ndarray,
+    m: int,
+    ind_pixels: int,
+) -> np.ndarray:
+    """
+    Update a single footprint
+
+    :param Ab_dense: shape matrix (dense)
+    :param Ab: shape matrix (sparse)
+    :param CY: suff stats (pixel)
+    :param CC: suff stats (component)
+    :param m: neuron index
+    :param ind_pixels: index of cell
+    """
+    if Ab_dense is None:
+        result = np.maximum(
+            Ab.data[Ab.indptr[m] : Ab.indptr[m + 1]]
+            + (
+                (CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels])
+                / (CC[m, m] + np.finfo(CC.dtype).eps)
+            ),
+            0,
+        )
+    else:
+        result = np.maximum(
+            Ab_dense[ind_pixels, m]
+            + (
+                (CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m]))
+                / (CC[m, m] + np.finfo(CC.dtype).eps)
+            ),
+            0,
+        )
+
+    return result
+
+
+def _normalize(
+    m: int,
+    Ab: csc_matrix,
+    Ab_dense: np.ndarray | None,
+    ind_A: list[int],
+    ind_pixels: int,
+    tmp: np.ndarray,
+) -> tuple[np.ndarray, csc_matrix, list[int]]:
+    """
+    This only exists to prevent footprint values from blowing up / diminishing.
+    (Hopefully) Irrelevant since we normalize footprint to the actual pixel values.
+
+    :param m: neuron index
+    :param Ab: shape matrix (sparse)
+    :param Ab_dense: shape matrix (dense)
+    :param ind_A: shape matrix of cells
+    :param ind_pixels: shape array of a cell
+    :param tmp: updated shape - before normalization
+    """
+    if tmp.dot(tmp) > 0:
+        # tmp *= 1e-3 / min(1e-3, np.sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
+        if Ab_dense is not None:
+            Ab_dense[ind_pixels, m] = tmp  # / max(1, np.sqrt(tmp.dot(tmp)))
+            Ab.data[Ab.indptr[m] : Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
+        else:
+            # tmp = tmp / max(1, np.sqrt(tmp.dot(tmp)))
+            Ab.data[Ab.indptr[m] : Ab.indptr[m + 1]] = tmp
+        ind_A[m] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
+
+    return Ab_dense, Ab, ind_A
