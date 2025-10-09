@@ -9,7 +9,12 @@ from cala.models import AXIS
 
 
 def build(
-    residuals: Residual, frame: Frame, footprints: Footprints, traces: Traces, n_recalc: int
+    residuals: Residual,
+    frame: Frame,
+    footprints: Footprints,
+    traces: Traces,
+    size: int,
+    n_recalc: int,
 ) -> A[Residual, Name("movie")]:
     """
     The computation follows the equation:
@@ -55,7 +60,7 @@ def build(
 
     # if recently discovered, set to zero (or a small number). otherwise, just append
     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
-    residuals.array = R  # clipping is for the first n frames
+    residuals.array = R.isel({AXIS.frames_dim: slice(-size, None)})
 
     return residuals
 

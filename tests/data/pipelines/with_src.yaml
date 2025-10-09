@@ -34,16 +34,16 @@ nodes:
     type: cala.nodes.io.stream
     params:
       files:
-        - cala/msCam1.avi
-        - cala/msCam2.avi
-        - cala/msCam3.avi
-        - cala/msCam4.avi
-        - cala/msCam5.avi
-        - cala/msCam6.avi
-        - cala/msCam7.avi
-        - cala/msCam8.avi
-        - cala/msCam9.avi
-        - cala/msCam10.avi
+        - minian/msCam1.avi
+        - minian/msCam2.avi
+        - minian/msCam3.avi
+        - minian/msCam4.avi
+        - minian/msCam5.avi
+        - minian/msCam6.avi
+        - minian/msCam7.avi
+        - minian/msCam8.avi
+        - minian/msCam9.avi
+        - minian/msCam10.avi
   counter:
     type: cala.nodes.prep.counter
   frame:
@@ -143,6 +143,7 @@ nodes:
   residual:
     type: cala.nodes.residual.build
     params:
+      size: 100
       n_recalc: 4
     depends:
       - frame: glow.frame
