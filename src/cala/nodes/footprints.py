@@ -91,7 +91,7 @@ def update_shapes(
     A_mask: list[np.ndarray],
     Ab_dense: np.ndarray | None = None,
     iters: int = 5,
-):
+) -> tuple[csc_matrix, list[np.ndarray], np.ndarray]:
     """
     :param CY: suff stats (pixel,)
     :param CC: suff stats (component), shape (comp, comp)
@@ -156,7 +156,7 @@ def _normalize(
     m: int,
     Ab: csc_matrix,
     Ab_dense: np.ndarray | None,
-    ind_A: list[int],
+    ind_A: list[np.ndarray],
     ind_pixels: int,
     tmp: np.ndarray,
 ) -> tuple[np.ndarray, csc_matrix, list[int]]:

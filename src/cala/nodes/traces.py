@@ -150,7 +150,7 @@ def _update_traces(
     iters: int = 5,
     tol: float = 1e-3,
     groups: list[list[int]] = None,
-):
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Solve C = argmin_C ||Yr-AC|| using block-coordinate decent
     Parameters
@@ -176,7 +176,7 @@ def _update_traces(
     C = noisyC.copy()
 
     # faster than np.linalg.norm
-    def norm(c):
+    def norm(c: np.ndarray) -> float:
         return np.sqrt(c.ravel().dot(c.ravel()))
 
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):

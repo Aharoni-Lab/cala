@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import Footprints, Movie, Residual, Traces, Frame
+from cala.assets import Footprints, Frame, Residual, Traces
 from cala.models import AXIS
 
 

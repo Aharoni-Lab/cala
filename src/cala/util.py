@@ -38,11 +38,8 @@ def sp_matmul(
     """
 
     left = left.transpose(dim, ...)
+    right = left if right is None else right.transpose(dim, ...)
 
-    if right is None:
-        right = left
-    else:
-        right = right.transpose(dim, ...)
     val = np.matmul(
         np.reshape(left.data, (left.sizes[dim], -1)),
         np.reshape(right.data, (right.sizes[dim], -1)).T,
