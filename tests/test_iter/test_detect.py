@@ -2,10 +2,12 @@ import numpy as np
 import pytest
 import xarray as xr
 from noob.node import NodeSpecification
+from sklearn.decomposition import NMF
 
 from cala.assets import AXIS, Footprints, Residual, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
 from cala.nodes.detect.catalog import _merge_with, _register
+from cala.nodes.detect.slice_nmf import rank1nmf
 from cala.testing.util import assert_scalar_multiple_arrays
 
 
@@ -26,7 +28,13 @@ def cataloger():
         spec=NodeSpecification(
             id="test",
             type="cala.nodes.detect.Cataloger",
-            params={"age_limit": 100, "smooth_kwargs": {"sigma": 2}, "merge_threshold": 0.8},
+            params={
+                "age_limit": 100,
+                "smooth_kwargs": {"sigma": 2},
+                "merge_threshold": 0.8,
+                "val_threshold": 0.5,
+                "cnt_threshold": 5,
+            },
         )
     )
 
@@ -59,7 +67,8 @@ class TestSliceNMF:
         if not fpts or not trcs:
             raise AssertionError("Failed to detect a new component")
 
-        fpt_arr = xr.concat([f.array for f in fpts], dim="component")
+        factors = [trc.array.data.max() for trc in trcs]
+        fpt_arr = xr.concat([f.array * m for f, m in zip(fpts, factors)], dim="component")
 
         expected = single_cell.footprints.array[0]
         result = fpt_arr.sum(dim="component")
@@ -80,8 +89,8 @@ class TestCataloger:
         new_fp, new_tr = new_component
         fp, tr = _register(new_fp=new_fp[0].array, new_tr=new_tr[0].array)
 
-        assert np.array_equal(fp.array.as_numpy(), new_fp[0].array.as_numpy())
-        assert np.array_equal(tr.array, new_tr[0].array)
+        assert np.array_equal(fp.as_numpy(), new_fp[0].array.as_numpy())
+        assert np.array_equal(tr, new_tr[0].array)
 
     def test_merge_with(self, slice_nmf, cataloger, single_cell):
         new_component = slice_nmf.process(
@@ -98,9 +107,7 @@ class TestCataloger:
         )
 
         movie_result = (
-            (fp.array @ tr.array)
-            .reset_coords([AXIS.id_coord, AXIS.detect_coord], drop=True)
-            .as_numpy()
+            (fp @ tr).reset_coords([AXIS.id_coord, AXIS.detect_coord], drop=True).as_numpy()
         )
 
         movie_new_comp = new_fp[0].array @ new_tr[0].array
@@ -174,3 +181,20 @@ class TestCataloger:
         )
         # 2. the trace and footprint values are accurate (where they do exist)
         xr.testing.assert_allclose(result.as_numpy(), expected.as_numpy(), atol=1e-3)
+
+
+def test_rank1nmf(single_cell):
+    Y = single_cell.make_movie().array
+    R = Y.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+    R += np.random.randint(0, 2, R.shape)
+
+    shape = np.mean(R.values, axis=1).shape
+    a_res, c_res, err_res = rank1nmf(R.values, np.random.random(shape), iters=10)
+
+    nmf = NMF(n_components=1, init="random", max_iter=10, tol=1e-3)
+    a_exp = nmf.fit_transform(R.values)
+    c_exp = nmf.components_
+    err_exp = nmf.reconstruction_err_
+
+    assert_scalar_multiple_arrays(np.squeeze(a_exp), a_res)
+    assert_scalar_multiple_arrays(np.squeeze(c_exp), c_res)

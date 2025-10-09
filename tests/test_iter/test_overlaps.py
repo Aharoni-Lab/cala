@@ -37,7 +37,7 @@ def comp_update() -> Node:
 def test_ingest_component(init, comp_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
     base = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))
-    new = Footprint.from_array(toy.footprints.array.isel({AXIS.component_dim: -1}))
+    new = Footprint.from_array(toy.footprints.array.isel({AXIS.component_dim: [-1]}))
 
     pre_ingest = init.process(overlaps=Overlaps(), footprints=base)
 

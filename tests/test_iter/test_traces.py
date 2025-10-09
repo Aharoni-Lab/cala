@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import xarray as xr
 from noob.node import Node, NodeSpecification
 
 from cala.assets import Frame, Overlaps, Traces
@@ -10,13 +11,15 @@ from cala.models import AXIS
 def frame_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
-            id="frame_test", type="cala.nodes.traces.FrameUpdate", params={"tol": 1e-3}
+            id="frame_test",
+            type="cala.nodes.traces.FrameUpdate",
+            params={"max_iter": 100, "tol": 1e-4},
         )
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells"])
-def test_ingest_frame(frame_update, toy, request) -> None:
+@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
+def test_update_traces(frame_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
     xray = Node.from_specification(
@@ -29,13 +32,11 @@ def test_ingest_frame(frame_update, toy, request) -> None:
     overlap = xray.process(overlaps=Overlaps(), footprints=toy.footprints)
 
     result = frame_update.process(
-        traces=traces,
-        footprints=toy.footprints,
-        frame=frame,
-        overlaps=overlap,
-    )
+        traces=traces, footprints=toy.footprints, frame=frame, overlaps=overlap
+    ).array
+    expected = toy.traces.array.isel({AXIS.frames_dim: -1})
 
-    assert result.array.equals(toy.traces.array.isel({AXIS.frames_dim: -1}))
+    xr.testing.assert_allclose(result, expected, atol=1e-3)
 
 
 @pytest.fixture

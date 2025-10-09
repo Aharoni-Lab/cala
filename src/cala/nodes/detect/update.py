@@ -5,7 +5,7 @@ from noob import Name
 from cala.assets import CompStats, Footprints, Movie, Overlaps, PixStats, Traces
 from cala.nodes.component_stats import ingest_component as update_component_stats
 from cala.nodes.footprints import ingest_component as update_footprints
-from cala.nodes.overlap import initialize as update_overlap
+from cala.nodes.overlap import ingest_component as update_overlap
 from cala.nodes.pixel_stats import ingest_component as update_pixel_stats
 from cala.nodes.traces import ingest_component as update_traces
 
@@ -34,7 +34,9 @@ def update_assets(
     updated_component_stats = update_component_stats(
         component_stats=component_stats, traces=traces, new_traces=new_traces
     )
-    updated_overlaps = update_overlap(overlaps=overlaps, footprints=updated_shapes)
+    updated_overlaps = update_overlap(
+        overlaps=overlaps, footprints=footprints, new_footprints=new_footprints
+    )
 
     return (
         updated_traces,
