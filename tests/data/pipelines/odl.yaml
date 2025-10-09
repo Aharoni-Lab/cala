@@ -104,7 +104,7 @@ nodes:
     params:
       n_recalc: 1
     depends:
-      - frames: assets.buffer
+      - frame: glow.frame
       - footprints: footprints_frame.footprints
       - traces: assets.traces
       - residuals: assets.residuals
@@ -127,6 +127,8 @@ nodes:
       smooth_kwargs:
         sigma: 2
       merge_threshold: 0.95
+      val_threshold: 0.5
+      cnt_threshold: 5
     depends:
       - new_fps: nmf.new_fps
       - new_trs: nmf.new_trs
