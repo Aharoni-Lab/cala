@@ -80,7 +80,7 @@ def test_ingest_frame(fpter, toy, request):
 
     result = fpter.process(
         footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats, index=0
-    ).array
+    ).array.as_numpy()
 
     expected = toy.footprints.array.as_numpy()
 

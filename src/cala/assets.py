@@ -107,7 +107,8 @@ class Footprints(Asset):
 
     @Asset.array.setter
     def array(self, array: xr.DataArray) -> None:
-        array.validate.against_schema(self._entity.model)
+        if self.validate_schema:
+            array.validate.against_schema(self._entity.model)
         if array is not None and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         self.array_ = array

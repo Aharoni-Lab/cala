@@ -28,7 +28,13 @@ def cataloger():
         spec=NodeSpecification(
             id="test",
             type="cala.nodes.detect.Cataloger",
-            params={"age_limit": 100, "smooth_kwargs": {"sigma": 2}, "merge_threshold": 0.8},
+            params={
+                "age_limit": 100,
+                "smooth_kwargs": {"sigma": 2},
+                "merge_threshold": 0.8,
+                "val_threshold": 0.5,
+                "cnt_threshold": 5,
+            },
         )
     )
 
@@ -83,8 +89,8 @@ class TestCataloger:
         new_fp, new_tr = new_component
         fp, tr = _register(new_fp=new_fp[0].array, new_tr=new_tr[0].array)
 
-        assert np.array_equal(fp.array.as_numpy(), new_fp[0].array.as_numpy())
-        assert np.array_equal(tr.array, new_tr[0].array)
+        assert np.array_equal(fp.as_numpy(), new_fp[0].array.as_numpy())
+        assert np.array_equal(tr, new_tr[0].array)
 
     def test_merge_with(self, slice_nmf, cataloger, single_cell):
         new_component = slice_nmf.process(
@@ -101,9 +107,7 @@ class TestCataloger:
         )
 
         movie_result = (
-            (fp.array @ tr.array)
-            .reset_coords([AXIS.id_coord, AXIS.detect_coord], drop=True)
-            .as_numpy()
+            (fp @ tr).reset_coords([AXIS.id_coord, AXIS.detect_coord], drop=True).as_numpy()
         )
 
         movie_new_comp = new_fp[0].array @ new_tr[0].array
