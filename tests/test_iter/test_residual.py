@@ -37,7 +37,9 @@ def connected_cells() -> Toy:
 def init() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
-            id="res_init_test", type="cala.nodes.residual.build", params={"n_recalc": 5}
+            id="res_init_test",
+            type="cala.nodes.residual.build",
+            params={"size": 100, "n_recalc": 5},
         )
     )
 
