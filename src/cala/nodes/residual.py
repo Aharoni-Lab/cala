@@ -4,19 +4,28 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import Footprints, Frame, Residual, Traces
+from cala.assets import Footprints, Frame, Buffer, Traces
 from cala.models import AXIS
 
 
 def build(
-    residuals: Residual,
+    residuals: Buffer,
     frame: Frame,
     footprints: Footprints,
     traces: Traces,
     size: int,
     n_recalc: int,
-) -> A[Residual, Name("movie")]:
+) -> A[Buffer, Name("movie")]:
     """
+    Computes and maintains a buffer of residual signals.
+
+    This method implements the residual computation by subtracting the
+    reconstructed signal from the original data. It maintains only the
+    most recent frames as specified by the buffer length.
+
+    The residual buffer contains the recent history of unexplained variance
+    in the data after accounting for known components.
+
     The computation follows the equation:
         R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
         where:

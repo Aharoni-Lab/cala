@@ -293,18 +293,7 @@ class Overlaps(Asset):
     )
 
 
-class Residual(Asset):
-    """
-    Computes and maintains a buffer of residual signals.
-
-    This method implements the residual computation by subtracting the
-    reconstructed signal from the original data. It maintains only the
-    most recent frames as specified by the buffer length.
-
-    The residual buffer contains the recent history of unexplained variance
-    in the data after accounting for known components.
-    """
-
+class Buffer(Asset):
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="frame",

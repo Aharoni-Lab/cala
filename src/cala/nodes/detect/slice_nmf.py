@@ -9,7 +9,7 @@ from noob.node import Node
 from pydantic import Field, PrivateAttr
 from sklearn.decomposition import NMF
 
-from cala.assets import Footprint, Residual, Trace
+from cala.assets import Footprint, Buffer, Trace
 from cala.logging import init_logger
 from cala.models import AXIS
 
@@ -34,7 +34,7 @@ class SliceNMF(Node):
         self._model = NMF(**self.nmf_kwargs)
 
     def process(
-        self, residuals: Residual, detect_radius: int
+        self, residuals: Buffer, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
 
         if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:

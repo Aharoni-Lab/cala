@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Footprints, Frame, Residual, Traces
+from cala.assets import Footprints, Frame, Buffer, Traces
 from cala.models.axis import AXIS
 from cala.nodes.residual import _align_overestimates, _find_unlayered_footprints
 from cala.testing.toy import FrameDims, Position, Toy
@@ -45,7 +45,7 @@ def init() -> Node:
 
 
 def test_init(init, connected_cells) -> None:
-    residual = Residual()
+    residual = Buffer()
     gen = connected_cells.movie_gen()
 
     for _ in range(connected_cells.n_frames - 1):
