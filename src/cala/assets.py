@@ -294,6 +294,13 @@ class Overlaps(Asset):
 
 
 class Buffer(Asset):
+    """
+    Implements a fake ring buffer to avoid expensive copying that occurs with
+    numpy concat, append, and stack.
+
+    Works by preallocating a space twice the desired size.
+    """
+
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="frame",
@@ -303,3 +310,59 @@ class Buffer(Asset):
             allow_extra_coords=False,
         )
     )
+
+    validate_schema: bool = False
+    """Validation currently does not play nicely with this class."""
+
+    size: int
+    _full: bool = PrivateAttr(False)
+    _next: int = PrivateAttr(default=0)
+
+    def append(self, array: xr.DataArray) -> None:
+        self.array_.data[self._next] = array.data
+        self.array_.data[self._next + self.size] = array.data
+        for coord in [AXIS.frame_coord, AXIS.timestamp_coord]:
+            self.array_[coord].data[self._next] = array[coord].item()
+            self.array_[coord].data[self._next + self.size] = array[coord].item()
+
+        self._next = (self._next + 1) % self.size
+        if not self._full:
+            # check if this made the buffer full
+            self._full = self._next == 0
+
+    @property
+    def array(self) -> xr.DataArray:
+        if self._full:
+            out = self.array_.isel({AXIS.frames_dim: slice(self._next, self._next + self.size)})
+        else:
+            out = self.array_.isel({AXIS.frames_dim: slice(None, self._next)})
+        return out  # .assign_coords({AXIS.frame_coord: out[AXIS.frame_coord].astype(int)})
+
+    @array.setter
+    def array(self, array: xr.DataArray) -> None:
+        """
+        Build a new buffer array.
+        """
+        array = (
+            array.volumize.dim_with_coords(
+                dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
+            )
+            if AXIS.frames_dim not in array.dims
+            else array.isel({AXIS.frames_dim: slice(-self.size, None)})
+        )
+        fill_sizes = dict(array.sizes)
+        fill_sizes[AXIS.frames_dim] = self.size - array.sizes[AXIS.frames_dim]
+        fill = np.zeros(list(fill_sizes.values()))
+        filler = xr.DataArray(
+            fill,
+            dims=array.dims,
+            coords={
+                AXIS.frame_coord: (AXIS.frames_dim, [np.nan] * (fill_sizes[AXIS.frames_dim])),
+                AXIS.timestamp_coord: (AXIS.frames_dim, [""] * (fill_sizes[AXIS.frames_dim])),
+            },
+        )
+        buffer = xr.concat([array, filler] * 2, dim=AXIS.frames_dim)
+
+        self._full = array.sizes[AXIS.frames_dim] >= self.size
+        self._next = np.min((array.sizes[AXIS.frames_dim], self.size)) % self.size
+        self.array_ = buffer

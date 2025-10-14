@@ -9,7 +9,7 @@ from noob.node import Node
 from pydantic import Field, PrivateAttr
 from sklearn.decomposition import NMF
 
-from cala.assets import Footprint, Buffer, Trace
+from cala.assets import Buffer, Footprint, Trace
 from cala.logging import init_logger
 from cala.models import AXIS
 

@@ -1,9 +1,11 @@
 import os
+from datetime import datetime
 from pathlib import Path
 
 import pytest
+import xarray as xr
 
-from cala.assets import Traces
+from cala.assets import Buffer, Traces
 from cala.models import AXIS
 
 
@@ -70,3 +72,66 @@ def test_overwrite(connected_cells, separate_cells, path):
     sep_traces = separate_cells.traces.array
     zarr_traces.array = sep_traces
     assert zarr_traces.array.equals(sep_traces)
+
+
+# two cases of init:
+# 1. brick by brick
+# 2. lump dump
+
+# two cases of update
+# 1. append
+# 2. lump update
+
+
+def test_buffer_assign(connected_cells):
+    movie = connected_cells.make_movie().array
+    buff = Buffer(size=10)
+    buff.array = movie.isel({AXIS.frames_dim: -1})
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: [-1]}))
+
+    buff.array = movie.isel({AXIS.frames_dim: slice(-5, None)})
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-5, None)}))
+
+    buff.array = movie.isel({AXIS.frames_dim: slice(-10, None)})
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-10, None)}))
+
+    buff.array = movie.isel({AXIS.frames_dim: slice(-15, None)})
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-10, None)}))
+
+
+def test_buffer_append(connected_cells):
+    movie = connected_cells.make_movie().array
+    buff = Buffer(size=10)
+    buff.array = movie.isel({AXIS.frames_dim: 0})
+    buff.append(movie.isel({AXIS.frames_dim: 1}))
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(0, 2)}))
+
+    buff.array = movie.isel({AXIS.frames_dim: slice(None, 9)})
+    buff.append(movie.isel({AXIS.frames_dim: 9}))
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(0, 10)}))
+    buff.append(movie.isel({AXIS.frames_dim: 10}))
+    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(1, 11)}))
+
+
+def test_buffer_speed(single_cell):
+    movie = single_cell.make_movie().array
+    movie = xr.concat([movie, movie], dim=AXIS.frames_dim)
+    buff = Buffer(size=100)
+    buff.array = movie
+
+    start = datetime.now()
+    iter = 100
+    for _ in range(iter):
+        buff.append(movie.isel({AXIS.frames_dim: 0}))
+        buff.array
+    result = (datetime.now() - start) / iter
+
+    start = datetime.now()
+    for _ in range(iter):
+        xr.concat(
+            [movie.isel({AXIS.frames_dim: slice(1, None)}), movie.isel({AXIS.frames_dim: 0})],
+            dim=AXIS.frames_dim,
+        )
+    expected = (datetime.now() - start) / iter
+
+    assert result < expected
