@@ -4,7 +4,7 @@ import xarray as xr
 from noob.node import NodeSpecification
 from sklearn.decomposition import NMF
 
-from cala.assets import AXIS, Footprints, Buffer, Traces
+from cala.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
 from cala.nodes.detect.catalog import _merge_with, _register
 from cala.nodes.detect.slice_nmf import rank1nmf
@@ -82,7 +82,7 @@ class TestCataloger:
     @pytest.fixture(scope="function")
     def new_component(self, slice_nmf, single_cell):
         return slice_nmf.process(
-            Buffer.from_array(single_cell.make_movie().array), detect_radius=60
+            Buffer(size=100).from_array(single_cell.make_movie().array), detect_radius=60
         )
 
     def test_register(self, cataloger, new_component):

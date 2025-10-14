@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import CompStats, Footprints, Overlaps, PixStats, Buffer, Traces
+from cala.assets import Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
 from cala.models import AXIS
 
 
