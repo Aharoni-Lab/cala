@@ -2,7 +2,7 @@ from typing import Annotated as A
 
 from noob import Name
 
-from cala.assets import Frame, Buffer
+from cala.assets import Buffer, Frame
 from cala.models import AXIS
 
 

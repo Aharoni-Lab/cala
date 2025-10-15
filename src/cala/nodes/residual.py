@@ -57,11 +57,12 @@ def build(
     R_curr, flag = _find_overestimates(Y=Y, A=A, C=C)
     if flag:
         C = _align_overestimates(A, C, R_curr)
-        traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = C
+        traces.array.loc[{AXIS.frames_dim: -1}] = C
 
     # if recently discovered, set to zero (or a small number). otherwise, just append
     preserve_area = _get_new_estimators_area(A=A, C=C, n_recalc=n_recalc)
-    residuals.array_ *= preserve_area.as_numpy()
+    if preserve_area is not None:
+        residuals.array_ *= preserve_area.as_numpy()
     R_curr = _get_residuals(Y=Y, A=A, C=C)
     residuals.append(R_curr.clip(min=0))
 
@@ -78,7 +79,7 @@ def _find_overestimates(
     Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray
 ) -> tuple[xr.DataArray, bool]:
     R_curr = _get_residuals(Y, A, C)
-    return R_curr, R_curr.min() < 0
+    return R_curr, R_curr.min() < -np.finfo(np.float32).eps
 
 
 def _align_overestimates(

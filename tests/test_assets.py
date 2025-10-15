@@ -123,7 +123,7 @@ def test_buffer_speed(single_cell):
     iter = 100
     for _ in range(iter):
         buff.append(movie.isel({AXIS.frames_dim: 0}))
-        buff.array
+        _ = buff.array
     result = (datetime.now() - start) / iter
 
     start = datetime.now()

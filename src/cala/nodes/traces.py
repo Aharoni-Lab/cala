@@ -73,7 +73,7 @@ class FrameUpdate(BaseModel):
 
         if traces.zarr_path:
             updated_tr = updated_traces.volumize.dim_with_coords(
-                dim=AXIS.frames_dim, coords=[AXIS.timestamp_coord]
+                dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
             )
             traces.update(updated_tr, append_dim=AXIS.frames_dim)
         else:
@@ -202,7 +202,6 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
 
     :param traces:
     :param new_traces: Can be either a newly registered trace or an updated existing one.
-    :return:
     """
 
     c = traces.full_array()
@@ -216,7 +215,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
         return traces
 
     if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
-        # if newly detected cells are truncated
+        # if newly detected cells are truncated, pad with np.nans
         c_new = xr.DataArray(
             np.full((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim]), np.nan),
             dims=[AXIS.component_dim, AXIS.frames_dim],
@@ -227,7 +226,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
 
         c_new.loc[{AXIS.frames_dim: c_det[AXIS.frame_coord]}] = c_det
     else:
-        c_new = c_det.sel({AXIS.frame_coord: c[AXIS.frame_coord]})
+        c_new = c_det
 
     merged_ids = c_det.attrs.get("replaces")
     if merged_ids:
