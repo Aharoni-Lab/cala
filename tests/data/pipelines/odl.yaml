@@ -4,7 +4,9 @@ noob_version: 0.1.1.dev118+g64d81b7
 
 assets:
   buffer:
-    type: cala.assets.Movie
+    type: cala.assets.Buffer
+    params:
+      size: 100
     scope: runner
   footprints:
     type: cala.assets.Footprints
@@ -22,7 +24,9 @@ assets:
     type: cala.assets.Overlaps
     scope: runner
   residuals:
-    type: cala.assets.Residual
+    type: cala.assets.Buffer
+    params:
+      size: 100
     scope: runner
 
 nodes:
@@ -57,8 +61,6 @@ nodes:
       - frame: glow.frame
   cache:
     type: cala.nodes.buffer.fill_buffer
-    params:
-      size: 100
     depends:
       - buffer: assets.buffer
       - frame: glow.frame
@@ -102,7 +104,6 @@ nodes:
   residual:
     type: cala.nodes.residual.build
     params:
-      size: 100
       n_recalc: 1
     depends:
       - frame: glow.frame
