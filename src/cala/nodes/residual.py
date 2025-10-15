@@ -151,8 +151,11 @@ def _get_new_estimators_area(
     targets = C[AXIS.detect_coord].values >= (C[AXIS.frame_coord].item() - n_recalc)
 
     if any(targets):
-        target_coords = A.data[targets].nonzero()[1:]
-        target_area = np.ones(A.shape[1:])
+        idx = np.where(targets)[0]
+        nonzeros = A.data.nonzero()
+        target_mask = np.isin(nonzeros[0], idx)
+        target_coords = tuple(nonzero[target_mask] for nonzero in nonzeros[1:])
+        target_area = np.ones(A.shape[1:], dtype=bool)
         target_area[target_coords] = 0
         return xr.DataArray(target_area, dims=A.dims[1:])
     else:
