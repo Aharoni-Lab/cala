@@ -12,7 +12,7 @@ from cala.logging import init_logger
 from cala.models import AXIS
 
 
-class FrameUpdate(BaseModel):
+class Tracer(BaseModel):
     tol: float
     max_iter: int
 

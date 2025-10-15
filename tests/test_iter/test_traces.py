@@ -12,7 +12,7 @@ def frame_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
             id="frame_test",
-            type="cala.nodes.traces.FrameUpdate",
+            type="cala.nodes.traces.Tracer",
             params={"max_iter": 100, "tol": 1e-4},
         )
     )

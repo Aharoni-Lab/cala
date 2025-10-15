@@ -109,7 +109,7 @@ nodes:
 
   # FRAME UPDATE BEGINS
   trace_frame:
-    type: cala.nodes.traces.FrameUpdate
+    type: cala.nodes.traces.Tracer
     params:
       tol: 0.001
       max_iter: 100
