@@ -39,13 +39,13 @@ def init() -> Node:
         spec=NodeSpecification(
             id="res_init_test",
             type="cala.nodes.residual.build",
-            params={"size": 100, "n_recalc": 5},
+            params={"n_recalc": 5},
         )
     )
 
 
 def test_init(init, connected_cells) -> None:
-    residual = Buffer()
+    residual = Buffer(size=100)
     gen = connected_cells.movie_gen()
 
     for _ in range(connected_cells.n_frames - 1):

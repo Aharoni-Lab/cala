@@ -6,7 +6,7 @@ from cala.nodes.cleanup import _filter_redundant, clear_overestimates
 
 
 def test_clear_overestimates(single_cell) -> None:
-    residual = Buffer.from_array(single_cell.make_movie().array)
+    residual = Buffer.from_array(single_cell.make_movie().array, size=100)
     residual.array.loc[{AXIS.width_coord: slice(single_cell.cell_positions[0].width, None)}] *= -1
 
     result = clear_overestimates(
@@ -29,13 +29,11 @@ def test_erase_redundant(splitoff_cells) -> None:
 
     traces = splitoff_cells.traces
     dead_trace = xr.DataArray(
-        0.1,
+        [0.1] * traces.array.sizes[AXIS.frames_dim],
         dims=traces.array.isel({AXIS.component_dim: 1}).dims,
         coords=traces.array.isel({AXIS.component_dim: 1}).coords,
     ).assign_coords({AXIS.id_coord: "cell_2", AXIS.detect_coord: 77})
     traces.array = xr.concat([traces.array, dead_trace], dim=AXIS.component_dim)
-
-    # frame = Frame.from_array(footprints.array @ traces.array.isel({AXIS.frames_dim: -1}))
 
     result = _filter_redundant(
         footprints=footprints, traces=traces, min_life_in_frames=10, quantile=0.9

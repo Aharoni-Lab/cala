@@ -61,6 +61,6 @@ def test_ingest_component(comp_update, toy, request) -> None:
     result = comp_update.process(traces, Traces.from_array(new_traces))
 
     expected = toy.traces.array.drop_sel({AXIS.component_dim: 0})
-    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(None, 10 - 1)}] = np.nan
+    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(None, 10)}] = np.nan
 
     assert result.array.equals(expected)
