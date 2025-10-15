@@ -13,7 +13,6 @@ def build(
     frame: Frame,
     footprints: Footprints,
     traces: Traces,
-    size: int,
     n_recalc: int,
 ) -> A[Buffer, Name("movie")]:
     """
@@ -48,30 +47,38 @@ def build(
         if residuals.array is None:
             residuals.array = frame.array.expand_dims(dim=AXIS.frames_dim)
         else:
-            residuals.array = xr.concat(
-                [residuals.array, frame.array],
-                dim=AXIS.frames_dim,
-                coords=[AXIS.frame_coord, AXIS.timestamp_coord],
-            )
+            residuals.append(frame.array)
         return residuals
 
     Y = frame.array
     C = traces.array.isel({AXIS.frames_dim: -1})  # (components,)
     A = footprints.array
 
-    # Compute residual R = Y - [A,b][C;f]
-    R_curr = Y - xr.DataArray(
-        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data), dims=AXIS.spatial_dims
-    )
-    if R_curr.min() < 0:
+    R_curr, flag = _find_overestimates(Y=Y, A=A, C=C)
+    if flag:
         C = _align_overestimates(A, C, R_curr)
         traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = C
 
     # if recently discovered, set to zero (or a small number). otherwise, just append
-    R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
-    residuals.array = R.isel({AXIS.frames_dim: slice(-size, None)})
+    preserve_area = _get_new_estimators_area(A=A, C=C, n_recalc=n_recalc)
+    residuals.array_ *= preserve_area.as_numpy()
+    R_curr = _get_residuals(Y=Y, A=A, C=C)
+    residuals.append(R_curr.clip(min=0))
 
     return residuals
+
+
+def _get_residuals(Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray) -> xr.DataArray:
+    return Y - xr.DataArray(
+        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data), dims=AXIS.spatial_dims
+    )
+
+
+def _find_overestimates(
+    Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray
+) -> tuple[xr.DataArray, bool]:
+    R_curr = _get_residuals(Y, A, C)
+    return R_curr, R_curr.min() < 0
 
 
 def _align_overestimates(
@@ -137,19 +144,14 @@ def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
     return A.where(A_layer_mask == 1, 0)
 
 
-def _update(
-    Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray, R: xr.DataArray, n_recalc: int
-) -> xr.DataArray:
+def _get_new_estimators_area(
+    A: xr.DataArray, C: xr.DataArray, n_recalc: int
+) -> xr.DataArray | None:
     targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].item() - n_recalc)
 
     if any(targets):
         target_ids = targets.where(targets)[AXIS.id_coord]
         target_area = ~((A.where(target_ids, drop=True)).max(dim=AXIS.component_dim) > 0)
-        R *= target_area.as_numpy()
-
-    R_curr = Y - xr.DataArray(
-        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data),
-        dims=AXIS.spatial_dims,
-    )
-
-    return xr.concat([R, R_curr.clip(min=0)], dim=AXIS.frames_dim)
+        return target_area
+    else:
+        return None
