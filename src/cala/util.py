@@ -3,8 +3,8 @@ from pathlib import Path
 from shutil import rmtree
 from uuid import uuid4
 
-import numpy as np
 import xarray as xr
+from sparse import COO
 
 
 def create_id() -> str:
@@ -37,13 +37,15 @@ def sp_matmul(
     :param right:
     """
 
-    left = left.transpose(dim, ...)
-    right = left if right is None else right.transpose(dim, ...)
+    l = left.transpose(dim, ...).data.reshape((left.sizes[dim], -1)).tocsr()
+    if right is None:
+        right = left
+        r = l
+    else:
+        r = right.transpose(dim, ...).data.reshape((right.sizes[dim], -1)).tocsr()
 
-    val = np.matmul(
-        np.reshape(left.data, (left.sizes[dim], -1)),
-        np.reshape(right.data, (right.sizes[dim], -1)).T,
-    )
-    return xr.DataArray(val, dims=[dim, f"{dim}'"], coords=left[dim].coords).assign_coords(
-        right[dim].rename(rename_map).coords
-    )
+    val = l @ r.T
+
+    return xr.DataArray(
+        COO.from_scipy_sparse(val), dims=[dim, f"{dim}'"], coords=left[dim].coords
+    ).assign_coords(right[dim].rename(rename_map).coords)

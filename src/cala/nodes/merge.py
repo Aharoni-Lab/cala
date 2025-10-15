@@ -3,7 +3,7 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Overlaps, Traces

@@ -148,11 +148,12 @@ def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
 def _get_new_estimators_area(
     A: xr.DataArray, C: xr.DataArray, n_recalc: int
 ) -> xr.DataArray | None:
-    targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].item() - n_recalc)
+    targets = C[AXIS.detect_coord].values >= (C[AXIS.frame_coord].item() - n_recalc)
 
     if any(targets):
-        target_ids = targets.where(targets)[AXIS.id_coord]
-        target_area = ~((A.where(target_ids, drop=True)).max(dim=AXIS.component_dim) > 0)
-        return target_area
+        target_coords = A.data[targets].nonzero()[1:]
+        target_area = np.ones(A.shape[1:])
+        target_area[target_coords] = 0
+        return xr.DataArray(target_area, dims=A.dims[1:])
     else:
         return None
