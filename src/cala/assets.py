@@ -331,7 +331,9 @@ class Buffer(Asset):
             self._full = self._next == 0
 
     @property
-    def array(self) -> xr.DataArray:
+    def array(self) -> xr.DataArray | None:
+        if self.array_ is None:
+            return None
         if self._full:
             out = self.array_.isel({AXIS.frames_dim: slice(self._next, self._next + self.size)})
         else:
@@ -366,3 +368,9 @@ class Buffer(Asset):
         self._full = array.sizes[AXIS.frames_dim] >= self.size
         self._next = np.min((array.sizes[AXIS.frames_dim], self.size)) % self.size
         self.array_ = buffer
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray, size: int) -> Self:
+        buffer = cls(size=size)
+        buffer.array = array
+        return buffer
