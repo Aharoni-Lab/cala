@@ -140,9 +140,12 @@ def _align_overestimates(
     )
 
 
-def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
-    A_layer_mask = (A > 0).sum(dim=AXIS.component_dim)
-    return A.where(A_layer_mask == 1, 0)
+def _find_unlayered_footprints(A: COO) -> coo_matrix:
+    coords = A.nonzero()[1]
+    pixels, counts = np.unique(coords, return_counts=True)
+    mask = pixels[counts == 1]
+    vals = A.data[np.isin(coords, mask)]
+    return coo_matrix((vals, (np.zeros_like(mask), mask)), shape=(1, A.shape[1]))
 
 
 def _get_new_estimators_area(

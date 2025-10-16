@@ -92,6 +92,8 @@ def test_align_overestimates(single_cell) -> None:
 
 
 def test_find_exposed_footprints(connected_cells) -> None:
-    footprints = connected_cells.footprints
-    result = _find_unlayered_footprints(footprints.array)
-    assert result.sum(dim=AXIS.component_dim).max().item() == footprints.array.max().item()
+    footprints = connected_cells.footprints.array
+    result = _find_unlayered_footprints(
+        footprints.data.reshape((footprints.sizes[AXIS.component_dim], -1))
+    )
+    assert result.max().item() == footprints.max().item()
