@@ -43,19 +43,21 @@ class Footprinter(BaseModel):
         if footprints.array is None:
             return footprints
 
-        A = footprints.array.stack(pixel=AXIS.spatial_dims).transpose("pixel", ...)
+        A = footprints.array.transpose(AXIS.component_dim, ...)
+        A_arr = A.data.reshape((A.sizes[AXIS.component_dim], -1)).tocsc()
         M = component_stats.array
-        W = pixel_stats.array.stack(pixel=AXIS.spatial_dims).transpose(AXIS.component_dim, ...)
+        W = pixel_stats.array.transpose(AXIS.component_dim, ...)
+        W_arr = W.data.reshape((W.sizes[AXIS.component_dim], -1))
 
         shapes, mask, _ = update_shapes(
-            CY=W.values,
+            CY=W_arr,
             CC=M.values,
-            Ab=A.data.tocsc(),
-            A_mask=[np.where(Ap.as_numpy() > 0)[0] for Ap in A.transpose(AXIS.component_dim, ...)],
+            Ab=A_arr.T.tocsc(),
+            A_mask=[Ap.nonzero()[0] for Ap in A_arr],
         )
 
-        footprints.array = xr.DataArray(shapes.toarray(), dims=A.dims, coords=A.coords).unstack(
-            "pixel"
+        footprints.array = xr.DataArray(
+            shapes.T.toarray().reshape(A.shape), dims=A.dims, coords=A.coords
         )
 
         return footprints
@@ -93,7 +95,7 @@ def update_shapes(
     iters: int = 5,
 ) -> tuple[csc_matrix, list[np.ndarray], np.ndarray]:
     """
-    :param CY: suff stats (pixel,)
+    :param CY: suff stats (comp, pixel)
     :param CC: suff stats (component), shape (comp, comp)
     :param Ab: shape matrix (sparse), shape (pixel, comp)
     :param A_mask: list of nonzero coordinates for each footprint list[(pixel,)]

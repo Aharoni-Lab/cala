@@ -224,7 +224,9 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
         c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
         c_new[AXIS.detect_coord] = c_det[AXIS.detect_coord]
 
-        c_new.loc[{AXIS.frames_dim: c_det[AXIS.frame_coord]}] = c_det
+        c_new.loc[
+            {AXIS.frames_dim: slice(c.sizes[AXIS.frames_dim] - c_det.sizes[AXIS.frames_dim], None)}
+        ] = c_det
     else:
         c_new = c_det
 
