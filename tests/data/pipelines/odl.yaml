@@ -41,22 +41,14 @@ nodes:
       - index: counter.idx
 
   #PREPROCESS BEGINS
-  hotpix:
-    type: cala.nodes.prep.blur
-    params:
-      method: median
-      kwargs:
-        ksize: 3
-    depends:
-      - frame: frame.value
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: hotpix.frame
+      - frame: frame.value
   size_est:
     type: cala.nodes.prep.SizeEst
     params:
-      hardset_radius: 6
+      hardset_radius: 5
     depends:
       - frame: glow.frame
   cache:
