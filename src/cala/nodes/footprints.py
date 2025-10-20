@@ -56,6 +56,9 @@ class Footprinter(BaseModel):
             A_mask=[Ap.nonzero()[0] for Ap in A_arr],
         )
 
+        # maybe this happens before footprint update?
+        shapes[shapes <= self.ratio_lb] = 0
+
         footprints.array = xr.DataArray(
             shapes.T.toarray().reshape(A.shape), dims=A.dims, coords=A.coords
         )
