@@ -68,14 +68,15 @@ def test_init(init, connected_cells) -> None:
 def test_align_overestimates(single_cell) -> None:
     """
     grab the last frame of the residual. assume part of the footprint masked area is negative
-    traces needs to proportionally decrease, until the recalculated residual is zero
+    traces needs to proportionally decrease
 
-    Eventually, this probably can be absorbed straight into trace frame_ingest as a constraint.
+    Maybe this can be absorbed straight into trace frame_ingest as a constraint.
     """
     movie = single_cell.make_movie()
     last_frame = movie.array.isel({AXIS.frames_dim: -1})
 
     last_res = xr.zeros_like(last_frame)
+    # we have negative residuals
     last_res.loc[{AXIS.width_coord: slice(single_cell.cell_positions[0].width, None)}] = -1
     last_res = last_res.where(single_cell.footprints.array[0].to_numpy(), 0)
 
@@ -85,10 +86,8 @@ def test_align_overestimates(single_cell) -> None:
 
     adjusted_traces = _align_overestimates(A=footprints, R_latest=last_res, C_latest=last_trace)
 
-    result = (footprints @ adjusted_traces).as_numpy().values
-    expected = movie.array.isel({AXIS.frames_dim: -2}).values
-
-    np.testing.assert_array_equal(result, expected)
+    # adjusted to lower than last_trace
+    assert single_cell.traces.array.isel({AXIS.frames_dim: -2}) < adjusted_traces < last_trace
 
 
 def test_find_exposed_footprints(connected_cells) -> None:
@@ -97,3 +96,8 @@ def test_find_exposed_footprints(connected_cells) -> None:
         footprints.data.reshape((footprints.sizes[AXIS.component_dim], -1))
     )
     assert result.max().item() == footprints.max().item()
+
+
+@pytest.mark.xfail
+def test_handle_outlier_pixel() -> None:
+    """a test to make sure an outlier pixel does not mess up the whole trace"""

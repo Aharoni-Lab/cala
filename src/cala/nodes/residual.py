@@ -112,7 +112,6 @@ def _find_unlayered_footprints(A: COO) -> np.ndarray:
     ret = np.zeros(A.shape[1])
     ret[locs] = vals
     return ret
-    # return coo_matrix((vals, (np.zeros_like(mask), mask)), shape=(1, A.shape[1])).toarray()
 
 
 def _get_new_estimators_area(
