@@ -3,6 +3,7 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name
+from sparse import COO
 
 from cala.assets import Buffer, Footprints, Frame, Traces
 from cala.models import AXIS
@@ -64,6 +65,7 @@ def build(
     if preserve_area is not None:
         residuals.array_ *= preserve_area.as_numpy()
     R_curr = _get_residuals(Y=Y, A=A, C=C)
+    # we're not fully modifying for the negative minimum, so we need to clip
     residuals.append(R_curr.clip(min=0))
 
     return residuals
@@ -86,66 +88,31 @@ def _align_overestimates(
     A: xr.DataArray, C_latest: xr.DataArray, R_latest: xr.DataArray
 ) -> xr.DataArray:
     """
-        Gotta be able to do at least ONE OF splitoff or gradualon.
-
-        Negative residuals just need to go. There isn't much you can do with the value...?
-
-        Two cases: (A & B Overlapping)
-        1. GradualOn: Know A. B turns ON
-            -> trace tries to chase (increases)
-            -> footprint tries to chase
-            -> residual becomes negative at A-B
-                -> should just decrease, positive at A^B
-                -> actually... should decrease (just more steeply)
-
-        2. SplitOff: Know AB. B turns OFF
-            -> trace tries to chase (decreases)
-            -> footprint tries to chase
-            -> residual becomes positive at A-B
-                -> should increase, negative at A^B
-                -> this should just decrease, MORE negative at B-A
-                -> this going to zero makes sense
-            OR
-            keep B, remove A-B
-
-            R = Y - A @ C
-
-        What about the past frame residuals after?
-
-        for GradualOn, nothing should go to zero.
-        for SplitOff, a chunk needs to go to zero.
-
-            So... how about we do something like (if it's been on for a long time,
-            we become less likely to purge it?)
-
-    We subsequently clip R minimum to zero, since all significant negative residual spots
-    have been removed, and the remaining negative spots are noise level.
-
     !!We're assuming there's no completely occluded component. This might be a problem eventually!!
     """
+    A_pix = A.data.reshape((A.sizes[AXIS.component_dim], -1)).tocsr()
+    R = R_latest.values
+    unlayered_stamp = _find_unlayered_footprints(A_pix)  # same up to here
 
-    unlayered_footprints = _find_unlayered_footprints(A)
-    # if unlayered_footprints.max(dim=AXIS.spatial_dims).min() == 0:
-    #     raise ValueError("There are at least one completely occluded components.")
+    R_rel = unlayered_stamp * np.minimum(R, 0).reshape(1, -1)  # same up to here to 2e-6 and nan
+    RA = A_pix.power(-1).multiply(R_rel).tocsr()  # same up to here to 2e-6 and neginf
+    dC = RA.minimum(0).sum(axis=1)  # .nanmin(axis=1, explicit=True)
+    # divide by the number of active pixels to normalize negative (prevents outliers)
+    dC_norm = np.asarray(dC).squeeze() / np.array([a.nnz for a in RA])
 
-    R_rel = R_latest.where((R_latest < 0) * unlayered_footprints.max(dim=AXIS.component_dim))
-    dC = (
-        (R_rel / A)
-        .min(dim=AXIS.spatial_dims)
-        .reset_coords([AXIS.frame_coord, AXIS.timestamp_coord], drop=True)
-    )
-
-    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC.as_numpy(), kwargs={"neginf": 0})).clip(
-        min=0
-    )
+    return (C_latest + dC_norm).clip(min=0)
 
 
-def _find_unlayered_footprints(A: COO) -> coo_matrix:
+def _find_unlayered_footprints(A: COO) -> np.ndarray:
     coords = A.nonzero()[1]
     pixels, counts = np.unique(coords, return_counts=True)
-    mask = pixels[counts == 1]
-    vals = A.data[np.isin(coords, mask)]
-    return coo_matrix((vals, (np.zeros_like(mask), mask)), shape=(1, A.shape[1]))
+    mask = np.isin(coords, pixels[counts == 1])
+    vals = A.data[mask]
+    locs = coords[mask]
+    ret = np.zeros(A.shape[1])
+    ret[locs] = vals
+    return ret
+    # return coo_matrix((vals, (np.zeros_like(mask), mask)), shape=(1, A.shape[1])).toarray()
 
 
 def _get_new_estimators_area(
