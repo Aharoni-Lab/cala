@@ -136,6 +136,9 @@ class Toy(BaseModel):
         )
 
         shape = disk(radius)
+        shape[:radius, :radius] *= 2
+        shape[radius:, :radius] *= 3
+        shape[radius:, radius:] *= 4
 
         width_slice = slice(position.width - radius, position.width + radius + 1)
         height_slice = slice(position.height - radius, position.height + radius + 1)
