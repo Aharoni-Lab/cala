@@ -1,4 +1,4 @@
-from collections.abc import Hashable, Iterable
+from collections.abc import Iterable
 from itertools import compress
 from typing import Annotated as A
 
@@ -9,6 +9,7 @@ from noob import Name
 from noob.node import Node
 from pydantic import Field
 from scipy.ndimage import gaussian_filter1d
+from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from skimage.measure import label
 from xarray import Coordinates
@@ -44,7 +45,9 @@ class Cataloger(Node):
         merge_mat = self._merge_matrix(new_fps, new_trs)
         new_fps, new_trs = _merge(new_fps, new_trs, merge_mat)
 
-        known_fp, known_tr = _get_absorption_targets(existing_fp, existing_tr, self.age_limit)
+        known_fp, known_tr = _get_absorption_targets(
+            existing_fp.array, existing_tr.array, self.age_limit
+        )
         merge_mat = self._merge_matrix(new_fps, new_trs, known_fp, known_tr)
         footprints, traces = self._absorb(new_fps, new_trs, known_fp, known_tr, merge_mat)
         # footprints = self._smooth(shapes)
@@ -57,7 +60,7 @@ class Cataloger(Node):
         self,
         fps: xr.DataArray,
         trs: xr.DataArray,
-        fps_base: xr.DataArray | None = None,
+        fps_base: csr_matrix | None = None,
         trs_base: xr.DataArray | None = None,
     ) -> xr.DataArray:
         fps = fps.stack(pixels=AXIS.spatial_dims)
@@ -68,10 +71,9 @@ class Cataloger(Node):
         )
 
         if fps_base is None:
-            fps_base = fps.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+            fps_base = fps.data
             trs_base = trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
         else:
-            fps_base = fps_base.stack(pixels=AXIS.spatial_dims).rename(AXIS.component_rename)
             trs_base = xr.DataArray(
                 gaussian_filter1d(
                     trs_base.transpose(AXIS.component_dim, ...), **self.smooth_kwargs
@@ -81,7 +83,7 @@ class Cataloger(Node):
             )
             trs_base = trs_base.rename(AXIS.component_rename)
 
-        overlaps = np.matmul(fps.data, fps_base.data.T) > 0
+        overlaps = fps.data @ fps_base.T > 0
         # corr is fast. (~1ms to 4ms)
         corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
         return xr.DataArray(overlaps * corrs.values, dims=corrs.dims, coords=corrs.coords)
@@ -90,7 +92,7 @@ class Cataloger(Node):
         self,
         new_fps: xr.DataArray,
         new_trs: xr.DataArray,
-        known_fps: xr.DataArray,
+        known_fps: csr_matrix,
         known_trs: xr.DataArray,
         merge_matrix: xr.DataArray,
     ) -> tuple[xr.DataArray | None, xr.DataArray | None]:
@@ -120,12 +122,9 @@ class Cataloger(Node):
         if num > 0 and known_fps is not None:
             for lbl in range(1, num + 1):
                 new_idxs, _known_idxs = np.where(merge_matrix == lbl)
-                known_ids = merge_matrix.where(merge_matrix == lbl, drop=True)[
-                    f"{AXIS.id_coord}'"
-                ].values
                 fp = new_fps.sel({AXIS.component_dim: list(set(new_idxs))})
                 tr = new_trs.sel({AXIS.component_dim: list(set(new_idxs))})
-                footprint, trace = _merge_with(fp, tr, known_fps, known_trs, known_ids)
+                footprint, trace = _merge_with(fp, tr, known_fps, known_trs, _known_idxs)
 
                 footprints.append(footprint)
                 traces.append(trace)
@@ -154,17 +153,19 @@ class Cataloger(Node):
 
 
 def _get_absorption_targets(
-    existing_fp: Footprints, existing_tr: Traces, age_limit: int
-) -> tuple[xr.DataArray, xr.DataArray]:
-    if existing_fp.array is not None:
-        targets = existing_tr.array[AXIS.detect_coord] > (
-            existing_tr.array[AXIS.frame_coord].max() - age_limit
+    existing_fp: xr.DataArray, existing_tr: xr.DataArray, age_limit: int
+) -> tuple[csr_matrix, xr.DataArray]:
+    if existing_fp is not None:
+        targets = existing_tr[AXIS.detect_coord].values > (
+            existing_tr[AXIS.frame_coord].values.max() - age_limit
         )
-        known_fp = existing_fp.array.where(targets, drop=True)
-        known_tr = existing_tr.array.where(targets, drop=True)
+        known_fp = existing_fp.data.reshape((existing_fp.sizes[AXIS.component_dim], -1)).tocsr()[
+            targets
+        ]
+        known_tr = existing_tr[targets]
     else:
-        known_fp = existing_fp.array
-        known_tr = existing_tr.array
+        known_fp = existing_fp
+        known_tr = existing_tr
     return known_fp, known_tr
 
 
@@ -287,23 +288,22 @@ def _reshape(
 def _merge_with(
     new_fp: xr.DataArray,
     new_tr: xr.DataArray,
-    target_fps: xr.DataArray,
+    target_fps: csr_matrix,
     target_trs: xr.DataArray,
-    dupe_ids: Iterable[Hashable],
+    dupl_idx: Iterable[int],
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    target_fp = target_fps.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
-    target_tr = target_trs.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: dupe_ids})
+    target_fp = target_fps[dupl_idx]
+    target_tr = target_trs[dupl_idx]
 
-    recreated_movie = np.matmul(
-        target_fp.transpose(*AXIS.spatial_dims, ...).data,
-        target_tr.dropna(dim=AXIS.frames_dim).data,
-    )
+    recreated_movie = target_fp.T @ target_tr.dropna(dim=AXIS.frames_dim).data
+
     new_movie = np.matmul(
         new_fp.transpose(*AXIS.spatial_dims, ...).data,
         new_tr.dropna(dim=AXIS.frames_dim).data,
     )
     combined_movie = xr.DataArray(
-        recreated_movie + new_movie, dims=[*AXIS.spatial_dims, AXIS.frames_dim]
+        recreated_movie.reshape(new_movie.shape) + new_movie,
+        dims=[*AXIS.spatial_dims, AXIS.frames_dim],
     )
 
     a_new, c_new = _recompose(
@@ -311,7 +311,7 @@ def _merge_with(
         new_fp.isel({AXIS.component_dim: 0}).coords,
         new_tr.isel({AXIS.component_dim: 0}).coords,
     )
-    a_new.attrs["replaces"] = target_fp[AXIS.id_coord].values.tolist()
+    a_new.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
     c_new.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
 
     return _register(a_new, c_new)
