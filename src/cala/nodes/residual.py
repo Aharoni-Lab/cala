@@ -3,7 +3,7 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name
-from sparse import COO
+from scipy.sparse import csr_matrix
 
 from cala.assets import Buffer, Footprints, Frame, Traces
 from cala.models import AXIS
@@ -54,27 +54,28 @@ def build(
     Y = frame.array
     C = traces.array.isel({AXIS.frames_dim: -1})  # (components,)
     A = footprints.array
+    A_pix = (
+        A.transpose(AXIS.component_dim, ...).data.reshape((A.sizes[AXIS.component_dim], -1)).tocsr()
+    )
 
-    R_curr, flag = _find_overestimates(Y=Y, A=A, C=C)
+    R_curr, flag = _find_overestimates(Y=Y, A=A_pix, C=C)
     if flag:
-        C = _align_overestimates(A, C, R_curr)
+        C = _align_overestimates(A_pix=A_pix, C_latest=C, R_latest=R_curr)
         traces.array.loc[{AXIS.frames_dim: -1}] = C
 
     # if recently discovered, set to zero (or a small number). otherwise, just append
     preserve_area = _get_new_estimators_area(A=A, C=C, n_recalc=n_recalc)
     if preserve_area is not None:
         residuals.array_ *= preserve_area.as_numpy()
-    R_curr = _get_residuals(Y=Y, A=A, C=C)
+    R_curr = _get_residuals(Y=Y, A=A_pix, C=C)
     # we're not fully modifying for the negative minimum, so we need to clip
     residuals.append(R_curr.clip(min=0))
 
     return residuals
 
 
-def _get_residuals(Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray) -> xr.DataArray:
-    return Y - xr.DataArray(
-        np.matmul(A.transpose(*AXIS.spatial_dims, ...).data, C.data), dims=AXIS.spatial_dims
-    )
+def _get_residuals(Y: xr.DataArray, A: csr_matrix, C: xr.DataArray) -> xr.DataArray:
+    return Y - xr.DataArray((C.data @ A).reshape(Y.shape), dims=AXIS.spatial_dims)
 
 
 def _find_overestimates(
@@ -85,12 +86,11 @@ def _find_overestimates(
 
 
 def _align_overestimates(
-    A: xr.DataArray, C_latest: xr.DataArray, R_latest: xr.DataArray
+    A_pix: csr_matrix, C_latest: xr.DataArray, R_latest: xr.DataArray
 ) -> xr.DataArray:
     """
     !!We're assuming there's no completely occluded component. This might be a problem eventually!!
     """
-    A_pix = A.data.reshape((A.sizes[AXIS.component_dim], -1)).tocsr()
     R = R_latest.values
     unlayered_stamp = _find_unlayered_footprints(A_pix)  # same up to here
 
@@ -103,7 +103,7 @@ def _align_overestimates(
     return (C_latest + dC_norm).clip(min=0)
 
 
-def _find_unlayered_footprints(A: COO) -> np.ndarray:
+def _find_unlayered_footprints(A: csr_matrix) -> np.ndarray:
     coords = A.nonzero()[1]
     pixels, counts = np.unique(coords, return_counts=True)
     mask = np.isin(coords, pixels[counts == 1])
