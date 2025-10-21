@@ -136,6 +136,9 @@ class Toy(BaseModel):
         )
 
         shape = disk(radius)
+        shape[:radius, :radius] *= 2
+        shape[radius:, :radius] *= 3
+        shape[radius:, radius:] *= 4
 
         width_slice = slice(position.width - radius, position.width + radius + 1)
         height_slice = slice(position.height - radius, position.height + radius + 1)
@@ -146,7 +149,8 @@ class Toy(BaseModel):
             {
                 AXIS.id_coord: (AXIS.component_dim, [id_]),
                 AXIS.detect_coord: (AXIS.component_dim, [detected_on]),
-                **{ax: footprint[ax] for ax in AXIS.spatial_dims},
+                AXIS.width_coord: (AXIS.width_dim, footprint[AXIS.width_dim].data),
+                AXIS.height_coord: (AXIS.height_dim, footprint[AXIS.height_dim].data),
             }
         )
 
@@ -170,7 +174,7 @@ class Toy(BaseModel):
                 {
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
                     AXIS.detect_coord: (AXIS.component_dim, [detected_on]),
-                    AXIS.frames_dim: range(trace.size),
+                    AXIS.frame_coord: (AXIS.frames_dim, range(trace.size)),
                 }
             )
         )

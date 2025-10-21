@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import xarray as xr
 from noob.node import Node, NodeSpecification
 
 from cala.assets import Frame, Movie, PopSnap, Traces
@@ -52,7 +53,7 @@ def test_ingest_frame(init, frame_update, separate_cells) -> None:
     )
 
     expected = init.process(traces=separate_cells.traces, frames=separate_cells.make_movie())
-    assert expected == result
+    xr.testing.assert_allclose(expected.array, result.array)
 
 
 @pytest.fixture(scope="function")

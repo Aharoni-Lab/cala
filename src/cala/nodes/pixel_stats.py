@@ -68,7 +68,7 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
         return pixel_stats
 
     # Compute scaling factors
-    frame_idx = frame.array.coords[AXIS.frame_coord].item()
+    frame_idx = frame.array[AXIS.frame_coord].item()
     prev_scale = frame_idx / (frame_idx + 1)
     new_scale = 1 / (frame_idx + 1)
 

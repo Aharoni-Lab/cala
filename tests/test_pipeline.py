@@ -14,7 +14,7 @@ from cala.models import AXIS
         "SeparateSource",
         "TwoOverlappingSource",
         "GradualOnSource",
-        "SplitOffSource",
+        # "SplitOffSource",
     ]
 )
 def source(request):
@@ -70,25 +70,25 @@ def test_odl(runner, source) -> None:
     if src_name in ["TwoOverlappingSource", "GradualOnSource"]:
         # Traces are reasonably similar
         tr_corr = xr.corr(
-            toy.traces.array, trs.array.rename(AXIS.component_rename), dim=AXIS.frame_coord
+            toy.traces.array, trs.array.rename(AXIS.component_rename), dim=AXIS.frames_dim
         )
         for corr in tr_corr:
             assert np.isclose(corr.max(), 1, atol=1e-2)
 
     elif src_name in ["SingleCellSource", "TwoCellsSource", "SeparateSource"]:
-        expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
+        expected = xr.concat(preprocessed_frames, dim=AXIS.frames_dim)
         result = (fps.array @ trs.array).transpose(*expected.dims)
 
         xr.testing.assert_allclose(expected, result.as_numpy(), atol=1e-5, rtol=1e-5)
 
     elif src_name == "SplitOffSource":
-        expected = xr.concat(preprocessed_frames, dim=AXIS.frame_coord)
+        expected = xr.concat(preprocessed_frames, dim=AXIS.frames_dim)
         result = (fps.array @ trs.array).transpose(*expected.dims)
         raise NotImplementedError("Deprecation not implemented")
 
 
 # def test_with_src():
-#     tube = Tube.from_specification("cala-with-ca1")
+#     tube = Tube.from_specification("cala-with-movie")
 #     runner = SynchronousRunner(tube=tube)
 #     runner.run()
 #

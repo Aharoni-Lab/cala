@@ -3,15 +3,29 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name
+from scipy.sparse import csr_matrix
 
-from cala.assets import Footprints, Movie, Residual, Traces
+from cala.assets import Buffer, Footprints, Frame, Traces
 from cala.models import AXIS
 
 
 def build(
-    residuals: Residual, frames: Movie, footprints: Footprints, traces: Traces, n_recalc: int
-) -> A[Residual, Name("movie")]:
+    residuals: Buffer,
+    frame: Frame,
+    footprints: Footprints,
+    traces: Traces,
+    n_recalc: int,
+) -> A[Buffer, Name("movie")]:
     """
+    Computes and maintains a buffer of residual signals.
+
+    This method implements the residual computation by subtracting the
+    reconstructed signal from the original data. It maintains only the
+    most recent frames as specified by the buffer length.
+
+    The residual buffer contains the recent history of unexplained variance
+    in the data after accounting for known components.
+
     The computation follows the equation:
         R_buf = [Y − [A, b][C; f]][:, t′ − l_b + 1 : t′]
         where:
@@ -31,122 +45,87 @@ def build(
             Shape: (frames × height × width)
     """
     if footprints.array is None or traces.array is None:
-        return Residual.from_array(frames.array)
+        if residuals.array is None:
+            residuals.array = frame.array.expand_dims(dim=AXIS.frames_dim)
+        else:
+            residuals.append(frame.array)
+        return residuals
 
-    # Reshape frames to pixels x time
-    Y = frames.array
-
-    # Get temporal components [C; f]
-    C = traces.array.sel(
-        {AXIS.frame_coord: Y[AXIS.frame_coord].values.tolist()}
-    )  # components x time
-
-    # Reshape footprints to (pixels x components)
+    Y = frame.array
+    C = traces.array.isel({AXIS.frames_dim: -1})  # (components,)
     A = footprints.array
+    A_pix = (
+        A.transpose(AXIS.component_dim, ...).data.reshape((A.sizes[AXIS.component_dim], -1)).tocsr()
+    )
 
-    R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
-    if R_latest.min() < 0:
-        shifted_tr = _align_overestimates(A, C.isel({AXIS.frames_dim: -1}), R_latest)
-        C.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
-        traces.array.loc[{AXIS.frames_dim: C[AXIS.frame_coord].max()}] = shifted_tr
+    R_curr, flag = _find_overestimates(Y=Y, A=A_pix, C=C)
+    if flag:
+        C = _align_overestimates(A_pix=A_pix, C_latest=C, R_latest=R_curr)
+        traces.array.loc[{AXIS.frames_dim: -1}] = C
 
-    # Compute residual R = Y - [A,b][C;f]
-    # if recently discovered (during the expansion phase), recalculate. otherwise, just append?!
-    # if residuals.array is None:
-    R = Y - (A @ C)
-    # else:
-    #     R = _update(Y, A, C, residuals.array, n_recalc=n_recalc)
-    residuals.array = R.clip(min=0)  # clipping is for the first n frames
+    # if recently discovered, set to zero (or a small number). otherwise, just append
+    preserve_area = _get_new_estimators_area(A=A, C=C, n_recalc=n_recalc)
+    if preserve_area is not None:
+        residuals.array_ *= preserve_area.as_numpy()
+    R_curr = _get_residuals(Y=Y, A=A_pix, C=C)
+    # we're not fully modifying for the negative minimum, so we need to clip
+    residuals.append(R_curr.clip(min=0))
 
     return residuals
 
 
+def _get_residuals(Y: xr.DataArray, A: csr_matrix, C: xr.DataArray) -> xr.DataArray:
+    return Y - xr.DataArray((C.data @ A).reshape(Y.shape), dims=AXIS.spatial_dims)
+
+
+def _find_overestimates(
+    Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray
+) -> tuple[xr.DataArray, bool]:
+    R_curr = _get_residuals(Y, A, C)
+    return R_curr, R_curr.min() < -np.finfo(np.float32).eps
+
+
 def _align_overestimates(
-    A: xr.DataArray, C_latest: xr.DataArray, R_latest: xr.DataArray
+    A_pix: csr_matrix, C_latest: xr.DataArray, R_latest: xr.DataArray
 ) -> xr.DataArray:
     """
-        Gotta be able to do at least ONE OF splitoff or gradualon.
-
-        Negative residuals just need to go. There isn't much you can do with the value...?
-
-        Two cases: (A & B Overlapping)
-        1. GradualOn: Know A. B turns ON
-            -> trace tries to chase (increases)
-            -> footprint tries to chase
-            -> residual becomes negative at A-B
-                -> should just decrease, positive at A^B
-                -> actually... should decrease (just more steeply)
-
-        2. SplitOff: Know AB. B turns OFF
-            -> trace tries to chase (decreases)
-            -> footprint tries to chase
-            -> residual becomes positive at A-B
-                -> should increase, negative at A^B
-                -> this should just decrease, MORE negative at B-A
-                -> this going to zero makes sense
-            OR
-            keep B, remove A-B
-
-            R = Y - A @ C
-
-        What about the past frame residuals after?
-
-        for GradualOn, nothing should go to zero.
-        for SplitOff, a chunk needs to go to zero.
-
-            So... how about we do something like (if it's been on for a long time,
-            we become less likely to purge it?)
-
-    We subsequently clip R minimum to zero, since all significant negative residual spots
-    have been removed, and the remaining negative spots are noise level.
-
     !!We're assuming there's no completely occluded component. This might be a problem eventually!!
     """
+    R = R_latest.values
+    unlayered_stamp = _find_unlayered_footprints(A_pix)  # same up to here
 
-    unlayered_footprints = _find_unlayered_footprints(A)
-    # if unlayered_footprints.max(dim=AXIS.spatial_dims).min() == 0:
-    #     raise ValueError("There are at least one completely occluded components.")
+    R_rel = unlayered_stamp * np.minimum(R, 0).reshape(1, -1)  # same up to here to 2e-6 and nan
+    RA = A_pix.power(-1).multiply(R_rel).tocsr()  # same up to here to 2e-6 and neginf
+    dC = RA.minimum(0).sum(axis=1)  # .nanmin(axis=1, explicit=True)
+    # divide by the number of active pixels to normalize negative (prevents outliers)
+    dC_norm = np.asarray(dC).squeeze() / np.array([a.nnz for a in RA])
 
-    R_rel = R_latest.where((R_latest < 0) * unlayered_footprints.max(dim=AXIS.component_dim))
-    dC = (
-        (R_rel / A)
-        .min(dim=AXIS.spatial_dims)
-        .reset_coords([AXIS.frame_coord, AXIS.timestamp_coord], drop=True)
-    )
-
-    return (C_latest + xr.apply_ufunc(np.nan_to_num, dC.as_numpy(), kwargs={"neginf": 0})).clip(
-        min=0
-    )
+    return (C_latest + dC_norm).clip(min=0)
 
 
-def _find_unlayered_footprints(A: xr.DataArray) -> xr.DataArray:
-    A_layer_mask = (A > 0).sum(dim=AXIS.component_dim)
-    return A.where(A_layer_mask == 1, 0)
+def _find_unlayered_footprints(A: csr_matrix) -> np.ndarray:
+    coords = A.nonzero()[1]
+    pixels, counts = np.unique(coords, return_counts=True)
+    mask = np.isin(coords, pixels[counts == 1])
+    vals = A.data[mask]
+    locs = coords[mask]
+    ret = np.zeros(A.shape[1])
+    ret[locs] = vals
+    return ret
 
 
-def _update(
-    Y: xr.DataArray, A: xr.DataArray, C: xr.DataArray, R: xr.DataArray, n_recalc: int
-) -> xr.DataArray:
-    targets = C[AXIS.detect_coord] >= (C[AXIS.frame_coord].max() - n_recalc)
+def _get_new_estimators_area(
+    A: xr.DataArray, C: xr.DataArray, n_recalc: int
+) -> xr.DataArray | None:
+    targets = C[AXIS.detect_coord].values >= (C[AXIS.frame_coord].item() - n_recalc)
 
     if any(targets):
-        target_ids = targets.where(targets, drop=True)[AXIS.id_coord].values
-
-        A_recent = (
-            A.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
-        )
-        recalc_area = (A_recent.sum(dim=AXIS.component_dim) > 0).as_numpy()
-        C_recent = (
-            C.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: target_ids}).reset_index(AXIS.id_coord)
-        )
-
-        recalc = Y.isel({AXIS.frames_dim: slice(None, -1)}).where(
-            recalc_area
-        ) - A_recent @ C_recent.isel({AXIS.frames_dim: slice(None, -1)})
-
-        R = R.sel({AXIS.frame_coord: recalc[AXIS.frame_coord]}).where(
-            ~recalc_area, recalc, drop=False
-        )
-    R_latest = Y.isel({AXIS.frames_dim: -1}) - (A @ C.isel({AXIS.frames_dim: -1}))
-
-    return xr.concat([R, R_latest], dim=AXIS.frames_dim)
+        idx = np.where(targets)[0]
+        nonzeros = A.data.nonzero()
+        target_mask = np.isin(nonzeros[0], idx)
+        target_coords = tuple(nonzero[target_mask] for nonzero in nonzeros[1:])
+        target_area = np.ones(A.shape[1:], dtype=bool)
+        target_area[target_coords] = 0
+        return xr.DataArray(target_area, dims=A.dims[1:])
+    else:
+        return None

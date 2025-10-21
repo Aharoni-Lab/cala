@@ -2,7 +2,7 @@ import contextlib
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar, Self, TypeVar
 
 import numpy as np
 import xarray as xr
@@ -19,6 +19,7 @@ AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
 
 class Asset(BaseModel):
+    validate_schema: bool = False
     array_: AssetType = None
     _entity: ClassVar[Entity]
 
@@ -46,13 +47,12 @@ class Asset(BaseModel):
     def entity(cls) -> Entity:
         return cls._entity
 
-    @field_validator("array_", mode="after")
-    @classmethod
-    def validate_array_schema(cls, value: xr.DataArray) -> AssetType:
-        if value is not None:
-            value.validate.against_schema(cls._entity.model)
+    @model_validator(mode="after")
+    def validate_array_schema(self) -> Self:
+        if self.validate_schema and self.array_ is not None:
+            self.array_.validate.against_schema(self._entity.model)
 
-        return value
+        return self
 
 
 class Footprint(Asset):
@@ -66,8 +66,8 @@ class Footprint(Asset):
     )
 
     @classmethod
-    def from_array(cls, array: xr.DataArray) -> "Footprint":
-        if isinstance(array.data, np.ndarray):
+    def from_array(cls, array: xr.DataArray, sparsify: bool = True) -> "Footprint":
+        if sparsify and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
@@ -105,9 +105,17 @@ class Footprints(Asset):
         )
     )
 
+    @Asset.array.setter
+    def array(self, array: xr.DataArray) -> None:
+        if self.validate_schema:
+            array.validate.against_schema(self._entity.model)
+        if array is not None and isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
+        self.array_ = array
+
     @classmethod
     def from_array(cls, array: xr.DataArray) -> "Footprints":
-        if isinstance(array.data, np.ndarray):
+        if array is not None and isinstance(array.data, np.ndarray):
             array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
@@ -130,7 +138,8 @@ class Traces(Asset):
     @array.setter
     def array(self, array: xr.DataArray) -> None:
         if self.zarr_path:
-            self.validate_array_schema(array)
+            if self.validate_schema:
+                array.validate.against_schema(self._entity.model)
             array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
         else:
             self.array_ = array
@@ -173,7 +182,8 @@ class Traces(Asset):
         )
 
     def update(self, array: xr.DataArray, **kwargs: Any) -> None:
-        self.validate_array_schema(array)
+        if self.validate_schema:
+            array.validate.against_schema(self._entity.model)
         array.to_zarr(self.zarr_path, **kwargs)
 
     @classmethod
@@ -283,16 +293,12 @@ class Overlaps(Asset):
     )
 
 
-class Residual(Asset):
+class Buffer(Asset):
     """
-    Computes and maintains a buffer of residual signals.
+    Implements a fake ring buffer to avoid expensive copying that occurs with
+    numpy concat, append, and stack.
 
-    This method implements the residual computation by subtracting the
-    reconstructed signal from the original data. It maintains only the
-    most recent frames as specified by the buffer length.
-
-    The residual buffer contains the recent history of unexplained variance
-    in the data after accounting for known components.
+    Works by preallocating a space twice the desired size.
     """
 
     _entity: ClassVar[Entity] = PrivateAttr(
@@ -304,3 +310,68 @@ class Residual(Asset):
             allow_extra_coords=False,
         )
     )
+
+    validate_schema: bool = False
+    """Validation currently does not play nicely with this class."""
+
+    size: int
+    _full: bool = PrivateAttr(False)
+    _next: int = PrivateAttr(default=0)
+
+    def append(self, array: xr.DataArray) -> None:
+        self.array_.data[self._next] = array.data
+        self.array_.data[self._next + self.size] = array.data
+        for coord in [AXIS.frame_coord, AXIS.timestamp_coord]:
+            self.array_[coord].data[self._next] = array[coord].item()
+            self.array_[coord].data[self._next + self.size] = array[coord].item()
+
+        self._next = (self._next + 1) % self.size
+        if not self._full:
+            # check if this made the buffer full
+            self._full = self._next == 0
+
+    @property
+    def array(self) -> xr.DataArray | None:
+        if self.array_ is None:
+            return None
+        if self._full:
+            out = self.array_.isel({AXIS.frames_dim: slice(self._next, self._next + self.size)})
+        else:
+            out = self.array_.isel({AXIS.frames_dim: slice(None, self._next)})
+        # kinda expensive. maybe float is fine?
+        return out  # .assign_coords({AXIS.frame_coord: out[AXIS.frame_coord].astype(int)})
+
+    @array.setter
+    def array(self, array: xr.DataArray) -> None:
+        """
+        Build a new buffer array.
+        """
+        array = (
+            array.volumize.dim_with_coords(
+                dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
+            )
+            if AXIS.frames_dim not in array.dims
+            else array.isel({AXIS.frames_dim: slice(-self.size, None)})
+        )
+        fill_sizes = dict(array.sizes)
+        fill_sizes[AXIS.frames_dim] = self.size - array.sizes[AXIS.frames_dim]
+        fill = np.zeros(list(fill_sizes.values()))
+        filler = xr.DataArray(
+            fill,
+            dims=array.dims,
+            coords={
+                AXIS.frame_coord: (AXIS.frames_dim, [np.nan] * (fill_sizes[AXIS.frames_dim])),
+                AXIS.timestamp_coord: (AXIS.frames_dim, [""] * (fill_sizes[AXIS.frames_dim])),
+            },
+        )
+        buffer = xr.concat([array, filler] * 2, dim=AXIS.frames_dim)
+
+        self._full = array.sizes[AXIS.frames_dim] >= self.size
+        self._next = np.min((array.sizes[AXIS.frames_dim], self.size)) % self.size
+        self.array_ = buffer
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray, size: int) -> Self:
+        buffer = cls(size=size)
+        buffer.array = array
+        return buffer

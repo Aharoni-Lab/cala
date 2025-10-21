@@ -52,7 +52,7 @@ def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) 
         return component_stats
 
     # Compute scaling factors
-    frame_idx = frame.array.coords[AXIS.frame_coord].item()
+    frame_idx = frame.array[AXIS.frame_coord].item()
     prev_scale = frame_idx / (frame_idx + 1)
     new_scale = 1 / (frame_idx + 1)
 

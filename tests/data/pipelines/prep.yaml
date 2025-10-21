@@ -25,7 +25,6 @@ nodes:
       - frame: source.value
       - index: counter.idx
 
-  #PREPROCESS BEGINS
   hotpix:
     type: cala.nodes.prep.blur
     params:
@@ -51,11 +50,18 @@ nodes:
     type: cala.nodes.prep.Anchor
     depends:
       - frame: lines.frame
-  #  denoise:
-  #    type: cala.nodes.prep.Restore
-  #    depends:
-  #      - frame: motion.frame
+  denoise:
+    type: cala.nodes.prep.blur
+    params:
+      method: median
+      kwargs:
+        ksize: 7
+    depends:
+      - frame: motion.frame
   glow:
     type: cala.nodes.prep.GlowRemover
     depends:
-      - frame: motion.frame
+      - frame: denoise.frame
+  return:
+    type: return
+    depends: glow.frame

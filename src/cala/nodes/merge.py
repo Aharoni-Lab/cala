@@ -3,12 +3,12 @@ from typing import Annotated as A
 import numpy as np
 import xarray as xr
 from noob import Name
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Overlaps, Traces
 from cala.models import AXIS
-from cala.nodes.detect.catalog import _recompose, _register
+from cala.nodes.detect.catalog import _recompose, _register_batch
 from cala.util import combine_attr_replaces
 
 
@@ -68,12 +68,15 @@ def merge_existing(
             continue
         fps = target_fps.isel({AXIS.component_dim: group})
         trs = target_trs.isel({AXIS.component_dim: group})
-        res = fps @ trs
+        res = xr.DataArray(
+            np.matmul(fps.transpose(*AXIS.spatial_dims, ...).data, trs.data),
+            dims=[*AXIS.spatial_dims, AXIS.frames_dim],
+        )
         a_new, c_new = _recompose(res, target_fps[0].coords, target_trs[0].coords)
-        a_new, c_new = _register(a_new.array, c_new.array)
 
-        a_new.array.attrs["replaces"] = fps[AXIS.id_coord].values.tolist()
-        c_new.array.attrs["replaces"] = trs[AXIS.id_coord].values.tolist()
+        a_new.attrs["replaces"] = fps[AXIS.id_coord].values.tolist()
+        c_new.attrs["replaces"] = trs[AXIS.id_coord].values.tolist()
+
         combined_fps.append(a_new)
         combined_trs.append(c_new)
 
@@ -81,17 +84,18 @@ def merge_existing(
         return Footprints(), Traces()
 
     new_fps = xr.concat(
-        [fp.array for fp in combined_fps],
+        combined_fps,
         dim=AXIS.component_dim,
         coords=[AXIS.id_coord, AXIS.detect_coord],
         combine_attrs=combine_attr_replaces,
     )
     new_trs = xr.concat(
-        [tr.array for tr in combined_trs],
+        combined_trs,
         dim=AXIS.component_dim,
         coords=[AXIS.id_coord, AXIS.detect_coord],
         combine_attrs=combine_attr_replaces,
     )
+    new_fps, new_trs = _register_batch(new_fps, new_trs)
 
     return Footprints.from_array(new_fps), Traces.from_array(new_trs)
 

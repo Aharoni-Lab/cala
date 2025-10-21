@@ -5,12 +5,12 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import CompStats, Footprints, Overlaps, PixStats, Residual, Traces
+from cala.assets import Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
 from cala.models import AXIS
 
 
 def clear_overestimates(
-    footprints: Footprints, residuals: Residual, nmf_error: float
+    footprints: Footprints, residuals: Buffer, nmf_error: float
 ) -> A[Footprints, Name("footprints")]:
     """
     Remove all sections of the footprints that cause negative residuals.

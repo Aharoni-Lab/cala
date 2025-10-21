@@ -18,7 +18,7 @@ class Axis:
     id_coord: str = "id_"
     timestamp_coord: str = "timestamp"
     detect_coord: str = "detected_on"
-    frame_coord: str = "frame"
+    frame_coord: str = "frame_idx"
     width_coord: str = "width"
     height_coord: str = "height"
 
