@@ -42,7 +42,8 @@ def cataloger():
 class TestSliceNMF:
     def test_process(self, slice_nmf, single_cell):
         new_component = slice_nmf.process(
-            Buffer.from_array(single_cell.make_movie().array, size=100),
+            residuals=Buffer.from_array(single_cell.make_movie().array, size=100),
+            energy=single_cell.make_movie().array.std(dim=AXIS.frames_dim),
             detect_radius=single_cell.cell_radii[0] * 2,
         )
         if new_component:
@@ -62,7 +63,9 @@ class TestSliceNMF:
             )
         )
         fpts, trcs = nmf.process(
-            Buffer.from_array(single_cell.make_movie().array, size=100), detect_radius=10
+            residuals=Buffer.from_array(single_cell.make_movie().array, size=100),
+            energy=single_cell.make_movie().array.std(dim=AXIS.frames_dim),
+            detect_radius=10,
         )
         if not fpts or not trcs:
             raise AssertionError("Failed to detect a new component")
@@ -83,7 +86,9 @@ class TestCataloger:
     def new_component(self, slice_nmf, single_cell):
         buff = Buffer(size=100)
         buff.array = single_cell.make_movie().array
-        return slice_nmf.process(buff, detect_radius=60)
+        return slice_nmf.process(
+            residuals=buff, energy=buff.array.std(dim=AXIS.frames_dim), detect_radius=60
+        )
 
     def test_register(self, cataloger, new_component):
         new_fp, new_tr = new_component
@@ -95,7 +100,9 @@ class TestCataloger:
     def test_merge_with(self, slice_nmf, cataloger, single_cell):
         buff = Buffer(size=100)
         buff.array = single_cell.make_movie().array
-        new_component = slice_nmf.process(buff, detect_radius=10)
+        new_component = slice_nmf.process(
+            buff, energy=buff.array.std(dim=AXIS.frames_dim), detect_radius=10
+        )
 
         new_fp, new_tr = new_component
         fp, tr = _merge_with(
@@ -123,7 +130,7 @@ class TestCataloger:
         """
         buff = Buffer(size=100)
         buff.array = separate_cells.make_movie().array
-        fps, trs = slice_nmf.process(buff, detect_radius=5)
+        fps, trs = slice_nmf.process(buff, buff.array.std(dim=AXIS.frames_dim), detect_radius=5)
 
         # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(
@@ -147,7 +154,9 @@ class TestCataloger:
         test cataloging separate cells. nmf supposed to fail with radius=25 (grabs too many cells)
         """
         movie = separate_cells.make_movie().array
-        fps, trs = slice_nmf.process(Buffer.from_array(movie, size=100), detect_radius=25)
+        fps, trs = slice_nmf.process(
+            Buffer.from_array(movie, size=100), movie.std(dim=AXIS.frames_dim), detect_radius=25
+        )
 
         # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(
@@ -161,7 +170,9 @@ class TestCataloger:
         trial with connected cells 🙏
         """
         movie = connected_cells.make_movie().array
-        fps, trs = slice_nmf.process(Buffer.from_array(movie, size=100), detect_radius=4)
+        fps, trs = slice_nmf.process(
+            Buffer.from_array(movie, size=100), movie.std(dim=AXIS.frames_dim), detect_radius=4
+        )
 
         # NOTE: by manually putting in connected_cells,
         # we're forcing a double-detection in this test

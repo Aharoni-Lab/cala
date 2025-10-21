@@ -143,9 +143,7 @@ nodes:
       - index: counter.idx
 
   residual:
-    type: cala.nodes.residual.build
-    params:
-      n_recalc: 1
+    type: cala.nodes.residual.Residuer
     depends:
       - frame: glow.frame
       - footprints: footprints_frame.footprints
@@ -162,6 +160,7 @@ nodes:
       reprod_tol: 0.005
     depends:
       - residuals: residual.movie
+      - energy: residual.std
       - detect_radius: size_est.radius
   catalog:
     type: cala.nodes.detect.Cataloger
