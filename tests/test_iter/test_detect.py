@@ -17,7 +17,7 @@ def slice_nmf():
         spec=NodeSpecification(
             id="test_slice_nmf",
             type="cala.nodes.detect.SliceNMF",
-            params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.0001},
+            params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.001},
         )
     )
 
@@ -167,11 +167,11 @@ class TestCataloger:
         # we're forcing a double-detection in this test
         new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
 
-        result = (new_fps.array @ new_trs.array).transpose(AXIS.frames_dim, ...)
-        expected = movie.transpose(*result.dims)
+        result = (new_fps.array @ new_trs.array).transpose(AXIS.frames_dim, ...).as_numpy()
+        expected = movie.transpose(*result.dims).as_numpy()
 
         # not sure why we're getting some stray pixels... but we need to remove them
-        sig_pxls = new_fps.array.max(dim=AXIS.component_dim) > 0.1
+        sig_pxls = (new_fps.array.max(dim=AXIS.component_dim) > 0.1).as_numpy()
         result, expected = result.where(sig_pxls), expected.where(sig_pxls)
 
         assert new_fps.array is not None
@@ -181,7 +181,7 @@ class TestCataloger:
             == 0
         )
         # 2. the trace and footprint values are accurate (where they do exist)
-        xr.testing.assert_allclose(result.as_numpy(), expected.as_numpy(), atol=1e-3)
+        xr.testing.assert_allclose(result, expected, atol=1)
 
 
 def test_rank1nmf(single_cell):

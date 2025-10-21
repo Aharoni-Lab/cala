@@ -83,8 +83,11 @@ def test_align_overestimates(single_cell) -> None:
     last_trace = single_cell.traces.array.isel({AXIS.frames_dim: -1})
 
     footprints = single_cell.footprints.array
+    shapes_sparse = footprints.data.reshape((footprints.sizes[AXIS.component_dim], -1)).tocsr()
 
-    adjusted_traces = _align_overestimates(A=footprints, R_latest=last_res, C_latest=last_trace)
+    adjusted_traces = _align_overestimates(
+        A_pix=shapes_sparse, R_latest=last_res, C_latest=last_trace
+    )
 
     # adjusted to lower than last_trace
     assert single_cell.traces.array.isel({AXIS.frames_dim: -2}) < adjusted_traces < last_trace

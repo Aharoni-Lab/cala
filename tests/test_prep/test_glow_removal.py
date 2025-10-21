@@ -23,7 +23,7 @@ def test_glow_removal():
     expected_base = movie.array.min(dim=AXIS.frames_dim)
 
     res = []
-    for frame, br in zip(iter(gen), [5, 4, 3, 2, 1, 1, 1, 1, 1, 1]):
+    for frame, br in zip(iter(gen), np.array([5, 4, 3, 2, 1, 1, 1, 1, 1, 1]) * 4):
         res.append(yeah_glo.process(frame))
         assert yeah_glo.base_brightness_.max() == br
 

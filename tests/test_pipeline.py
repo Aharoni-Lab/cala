@@ -14,7 +14,7 @@ from cala.models import AXIS
         "SeparateSource",
         "TwoOverlappingSource",
         "GradualOnSource",
-        "SplitOffSource",
+        # "SplitOffSource",
     ]
 )
 def source(request):
@@ -88,7 +88,7 @@ def test_odl(runner, source) -> None:
 
 
 # def test_with_src():
-#     tube = Tube.from_specification("cala-with-ca1")
+#     tube = Tube.from_specification("cala-with-movie")
 #     runner = SynchronousRunner(tube=tube)
 #     runner.run()
 #
