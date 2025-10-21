@@ -338,6 +338,7 @@ class Buffer(Asset):
             out = self.array_.isel({AXIS.frames_dim: slice(self._next, self._next + self.size)})
         else:
             out = self.array_.isel({AXIS.frames_dim: slice(None, self._next)})
+        # kinda expensive. maybe float is fine?
         return out  # .assign_coords({AXIS.frame_coord: out[AXIS.frame_coord].astype(int)})
 
     @array.setter

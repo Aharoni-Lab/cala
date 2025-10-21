@@ -26,6 +26,7 @@ class Cataloger(Node):
     merge_threshold: float
     val_threshold: float = Field(gt=0, lt=1)
     cnt_threshold: int = Field(gt=0)
+    """must have cnt-number of pixels that are above the val-value"""
 
     def process(
         self,
@@ -46,8 +47,11 @@ class Cataloger(Node):
         known_fp, known_tr = _get_absorption_targets(existing_fp, existing_tr, self.age_limit)
         merge_mat = self._merge_matrix(new_fps, new_trs, known_fp, known_tr)
         footprints, traces = self._absorb(new_fps, new_trs, known_fp, known_tr, merge_mat)
+        # footprints = self._smooth(shapes)
 
         return Footprints.from_array(footprints), Traces.from_array(traces)
+
+    def _smooth(self, shapes: xr.DataArray) -> xr.DataArray: ...
 
     def _merge_matrix(
         self,

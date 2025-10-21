@@ -37,14 +37,14 @@ def sp_matmul(
     :param right:
     """
 
-    l = left.transpose(dim, ...).data.reshape((left.sizes[dim], -1)).tocsr()
+    ll = left.transpose(dim, ...).data.reshape((left.sizes[dim], -1)).tocsr()
     if right is None:
         right = left
-        r = l
+        rr = ll
     else:
-        r = right.transpose(dim, ...).data.reshape((right.sizes[dim], -1)).tocsr()
+        rr = right.transpose(dim, ...).data.reshape((right.sizes[dim], -1)).tocsr()
 
-    val = l @ r.T
+    val = ll @ rr.T
 
     return xr.DataArray(
         COO.from_scipy_sparse(val), dims=[dim, f"{dim}'"], coords=left[dim].coords
