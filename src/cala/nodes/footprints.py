@@ -5,6 +5,7 @@ import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
 from scipy.sparse import csc_matrix
+from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
@@ -61,7 +62,7 @@ class Footprinter(BaseModel):
         shapes.data[shapes.data < self.ratio_lb] = 0
 
         footprints.array = xr.DataArray(
-            shapes.T.toarray().reshape(A.shape), dims=A.dims, coords=A.coords
+            COO.from_scipy_sparse(shapes.T).reshape(A.shape), dims=A.dims, coords=A.coords
         )
 
         return footprints
