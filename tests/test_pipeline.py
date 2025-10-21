@@ -14,7 +14,7 @@ from cala.models import AXIS
         "SeparateSource",
         "TwoOverlappingSource",
         "GradualOnSource",
-        # "SplitOffSource",
+        "SplitOffSource",
     ]
 )
 def source(request):
