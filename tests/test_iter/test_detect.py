@@ -104,13 +104,15 @@ class TestCataloger:
             buff, energy=buff.array.std(dim=AXIS.frames_dim), detect_radius=10
         )
 
+        A = single_cell.footprints.array
+
         new_fp, new_tr = new_component
         fp, tr = _merge_with(
             new_fp[0].array.expand_dims(dim="component"),
             new_tr[0].array.expand_dims(dim="component"),
-            single_cell.footprints.array,
+            A.data.reshape((A.shape[0], -1)).tocsr(),
             single_cell.traces.array,
-            ["cell_0"],
+            [0],
         )
 
         movie_result = (

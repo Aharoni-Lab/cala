@@ -4,6 +4,7 @@ from shutil import rmtree
 from uuid import uuid4
 
 import xarray as xr
+from numpydantic.ndarray import NDArray
 from sparse import COO
 
 
@@ -37,15 +38,20 @@ def sp_matmul(
     :param right:
     """
 
-    ll = left.transpose(dim, ...).data.reshape((left.sizes[dim], -1)).tocsr()
+    ll = stack_sparse(left, dim).tocsr()
+
     if right is None:
         right = left
         rr = ll
     else:
-        rr = right.transpose(dim, ...).data.reshape((right.sizes[dim], -1)).tocsr()
+        rr = stack_sparse(right, dim).tocsr()
 
     val = ll @ rr.T
 
     return xr.DataArray(
         COO.from_scipy_sparse(val), dims=[dim, f"{dim}'"], coords=left[dim].coords
     ).assign_coords(right[dim].rename(rename_map).coords)
+
+
+def stack_sparse(da: xr.DataArray, dim: str) -> NDArray:
+    return da.transpose(dim, ...).data.reshape((da.sizes[dim], -1))
