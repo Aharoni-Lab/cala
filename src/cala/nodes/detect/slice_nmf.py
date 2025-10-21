@@ -6,8 +6,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 from noob.node import Node
-from pydantic import Field, PrivateAttr
-from sklearn.decomposition import NMF
+from pydantic import Field
 
 from cala.assets import Buffer, Footprint, Trace
 from cala.logging import init_logger
@@ -25,13 +24,8 @@ class SliceNMF(Node):
     nmf_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     error_: float = Field(None)
-    _model: NMF = PrivateAttr(None)
 
     _logger = init_logger(__name__)
-
-    def model_post_init(self, context: Any, /) -> None:
-        self.nmf_kwargs.update({"n_components": 1, "init": "random"})
-        self._model = NMF(**self.nmf_kwargs)
 
     def process(
         self, residuals: Buffer, detect_radius: int
