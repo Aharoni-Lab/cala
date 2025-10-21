@@ -28,13 +28,11 @@ class SliceNMF(Node):
     _logger = init_logger(__name__)
 
     def process(
-        self, residuals: Buffer, detect_radius: int
+        self, residuals: Buffer, energy: xr.DataArray, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
 
         if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return [], []
-
-        energy = self._get_energy(residuals.array)
 
         fps = []
         trs = []
@@ -67,14 +65,6 @@ class SliceNMF(Node):
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = l0_error
 
         return fps, trs
-
-    def _get_energy(self, res: xr.DataArray) -> xr.DataArray:
-        # should technically be median but it's so slow.
-        # now this whole thing could be just res.std(dim=AXIS.frames_dim)
-        pixels_median = res.mean(dim=AXIS.frames_dim)
-        V = res - pixels_median
-
-        return np.sqrt((V**2).mean(dim=AXIS.frames_dim))
 
     def _get_max_energy_slice(
         self,
