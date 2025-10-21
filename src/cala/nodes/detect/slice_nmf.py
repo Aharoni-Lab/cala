@@ -40,7 +40,7 @@ class SliceNMF(Node):
         if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
             return [], []
 
-        energy = self._get_energy(residuals.array)  # 0.008s
+        energy = self._get_energy(residuals.array)
 
         fps = []
         trs = []
@@ -58,17 +58,19 @@ class SliceNMF(Node):
                 spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
             )
 
-            l1_norm = np.sum(slice_)
+            l1_norm = np.sum(slice_.values)
+            l1_error = self.error_ / l1_norm
+            l0_norm = np.prod(slice_.shape).astype(float)
+            l0_error = self.error_ / l0_norm
 
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
-            if (self.error_ / l1_norm) <= self.reprod_tol:
+            if min(l1_error, l0_error) <= self.reprod_tol:
                 fps.append(Footprint.from_array(a_new, sparsify=False))
                 trs.append(Trace.from_array(c_new))
-                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l1_norm
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = l1_error
             else:
-                l0_norm = np.prod(slice_.shape)
-                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = self.error_ / l0_norm
+                res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = l0_error
 
         return fps, trs
 
@@ -126,9 +128,16 @@ class SliceNMF(Node):
                 - Temporal component c_new (frames)
         """
         # Reshape neighborhood to 2D matrix (time × space)
-        R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+        R = (
+            slice_.transpose(AXIS.frames_dim, ...)
+            .data.reshape((slice_.sizes[AXIS.frames_dim], -1))
+            .T
+        )
 
-        a, c, self.error_ = rank1nmf(R.values, np.mean(R.values, axis=1))
+        mean_R = np.mean(R, axis=1)
+        # nan_mask = np.isnan(mean_R)
+
+        a, c, self.error_ = rank1nmf(R, mean_R)
 
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
@@ -167,6 +176,9 @@ def rank1nmf(
 
     Ypx: (pixels, frames)
     ain: (pixels)
+    iters: valid only by period of 4 (seems like i mod 4 = 2 gives good results.
+        mod 4 = 3 is marginally better.)
+
     """
     eps = np.finfo(np.float32).eps
     for t in range(iters):
