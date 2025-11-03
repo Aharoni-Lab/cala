@@ -18,6 +18,10 @@ class MovieSource(BaseModel):
     _toy: Toy = PrivateAttr(None)
     _traces: list[np.ndarray] = PrivateAttr(None)
 
+    @property
+    def toy(self) -> Toy:
+        return self._toy
+
     def _build_toy(self) -> Toy:
         return Toy(
             n_frames=self.n_frames,

@@ -10,7 +10,7 @@ from .config import (
     yaml_config,
 )
 from .meta import monkeypatch_session
-from .toys import connected_cells, separate_cells, single_cell, splitoff_cells
+from .toys import four_connected_cells, four_separate_cells, single_cell, splitoff_cells
 
 __all__ = [
     "monkeypatch_session",
@@ -24,7 +24,7 @@ __all__ = [
     "yaml_config",
     "cwd_to_pytest_base",
     "single_cell",
-    "separate_cells",
-    "connected_cells",
+    "four_separate_cells",
+    "four_connected_cells",
     "splitoff_cells",
 ]

@@ -87,6 +87,7 @@ nodes:
       bep: 0
       tol: 0.0001
       max_iter: 5
+      ratio_lb: 0.10
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value

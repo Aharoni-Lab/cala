@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from itertools import compress
 from typing import Annotated as A
 
-import cv2
 import numpy as np
 import xarray as xr
 from noob import Name
@@ -40,16 +39,16 @@ class Cataloger(Node):
         if not new_fps or not new_trs:
             return Footprints(), Traces()
 
-        new_fps = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
-        new_trs = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
-        merge_mat = self._merge_matrix(new_fps, new_trs)
-        new_fps, new_trs = _merge(new_fps, new_trs, merge_mat)
+        shape_chunks = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
+        trace_chunks = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
+        merge_mat = self._merge_matrix(shape_chunks, trace_chunks)
+        new_shapes, new_traces = _merge(shape_chunks, trace_chunks, merge_mat)
 
         known_fp, known_tr = _get_absorption_targets(
             existing_fp.array, existing_tr.array, self.age_limit
         )
-        merge_mat = self._merge_matrix(new_fps, new_trs, known_fp, known_tr)
-        footprints, traces = self._absorb(new_fps, new_trs, known_fp, known_tr, merge_mat)
+        merge_mat = self._merge_matrix(new_shapes, new_traces, known_fp, known_tr)
+        footprints, traces = self._absorb(new_shapes, new_traces, known_fp, known_tr, merge_mat)
         # footprints = self._smooth(shapes)
 
         return Footprints.from_array(footprints), Traces.from_array(traces)
@@ -315,18 +314,6 @@ def _merge_with(
     c_new.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
 
     return _register(a_new, c_new)
-
-
-def _expand_boundary(mask: xr.DataArray) -> xr.DataArray:
-    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-    return xr.apply_ufunc(
-        lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),
-        mask.astype(np.uint8),
-        input_core_dims=[AXIS.spatial_dims],
-        output_core_dims=[AXIS.spatial_dims],
-        vectorize=True,
-        dask="parallelized",
-    )
 
 
 def _merge(

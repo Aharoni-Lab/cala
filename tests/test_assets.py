@@ -14,26 +14,28 @@ def path() -> Path:
     return Path("assets")
 
 
-def test_assign_zarr(path, connected_cells):
+def test_assign_zarr(path, four_connected_cells):
     zarr_traces = Traces(zarr_path=path, peek_size=100)
-    traces = connected_cells.traces.array
+    traces = four_connected_cells.traces.array
     zarr_traces.array = traces
     print(os.listdir(zarr_traces.zarr_path))
     assert zarr_traces.array_ is None  # not in memory
     assert zarr_traces.array.equals(traces)
 
 
-def test_from_array(connected_cells, path):
-    traces = connected_cells.traces.array
-    zarr_traces = Traces.from_array(traces, path, peek_size=connected_cells.n_frames)
+def test_from_array(four_connected_cells, path):
+    traces = four_connected_cells.traces.array
+    zarr_traces = Traces.from_array(traces, path, peek_size=four_connected_cells.n_frames)
     assert zarr_traces.array_ is None
     assert zarr_traces.array.equals(traces)
 
 
 @pytest.mark.parametrize("peek_shift", [-1, 0, 1])
-def test_peek(connected_cells, path, peek_shift):
-    traces = connected_cells.traces.array
-    zarr_traces = Traces.from_array(traces, path, peek_size=connected_cells.n_frames + peek_shift)
+def test_peek(four_connected_cells, path, peek_shift):
+    traces = four_connected_cells.traces.array
+    zarr_traces = Traces.from_array(
+        traces, path, peek_size=four_connected_cells.n_frames + peek_shift
+    )
     if peek_shift >= 0:
         assert zarr_traces.array.equals(traces)
     else:
@@ -41,11 +43,11 @@ def test_peek(connected_cells, path, peek_shift):
             assert zarr_traces.array.equals(traces)
 
 
-def test_ingest_frame(path, connected_cells):
-    traces = connected_cells.traces.array
+def test_ingest_frame(path, four_connected_cells):
+    traces = four_connected_cells.traces.array
     old_traces = traces.isel({AXIS.frames_dim: slice(None, -1)})
-    zarr_traces = Traces.from_array(old_traces, path, peek_size=connected_cells.n_frames)
-    new_traces = connected_cells.traces.array.isel({AXIS.frames_dim: [-1]})
+    zarr_traces = Traces.from_array(old_traces, path, peek_size=four_connected_cells.n_frames)
+    new_traces = four_connected_cells.traces.array.isel({AXIS.frames_dim: [-1]})
 
     zarr_traces.update(new_traces, append_dim=AXIS.frames_dim)
     # new_traces.to_zarr(zarr_traces.zarr_path, append_dim=AXIS.frames_dim)
@@ -53,11 +55,11 @@ def test_ingest_frame(path, connected_cells):
     assert zarr_traces.array.equals(traces)
 
 
-def test_ingest_component(connected_cells, path):
-    traces = connected_cells.traces.array
+def test_ingest_component(four_connected_cells, path):
+    traces = four_connected_cells.traces.array
     old_traces = traces.isel({AXIS.component_dim: slice(None, -1)})
-    zarr_traces = Traces.from_array(old_traces, path, peek_size=connected_cells.n_frames)
-    new_traces = connected_cells.traces.array.isel({AXIS.component_dim: [-1]})
+    zarr_traces = Traces.from_array(old_traces, path, peek_size=four_connected_cells.n_frames)
+    new_traces = four_connected_cells.traces.array.isel({AXIS.component_dim: [-1]})
 
     zarr_traces.update(new_traces, append_dim=AXIS.component_dim)
     # new_traces.to_zarr(zarr_traces.zarr_path, append_dim=AXIS.component_dim)
@@ -65,11 +67,11 @@ def test_ingest_component(connected_cells, path):
     assert zarr_traces.array.equals(traces)
 
 
-def test_overwrite(connected_cells, separate_cells, path):
-    conn_traces = connected_cells.traces.array
-    zarr_traces = Traces.from_array(conn_traces, path, peek_size=connected_cells.n_frames)
+def test_overwrite(four_connected_cells, four_separate_cells, path):
+    conn_traces = four_connected_cells.traces.array
+    zarr_traces = Traces.from_array(conn_traces, path, peek_size=four_connected_cells.n_frames)
 
-    sep_traces = separate_cells.traces.array
+    sep_traces = four_separate_cells.traces.array
     zarr_traces.array = sep_traces
     assert zarr_traces.array.equals(sep_traces)
 
@@ -83,8 +85,8 @@ def test_overwrite(connected_cells, separate_cells, path):
 # 2. lump update
 
 
-def test_buffer_assign(connected_cells):
-    movie = connected_cells.make_movie().array
+def test_buffer_assign(four_connected_cells):
+    movie = four_connected_cells.make_movie().array
     buff = Buffer(size=10)
     buff.array = movie.isel({AXIS.frames_dim: -1})
     assert buff.array.equals(movie.isel({AXIS.frames_dim: [-1]}))
@@ -99,8 +101,8 @@ def test_buffer_assign(connected_cells):
     assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-10, None)}))
 
 
-def test_buffer_append(connected_cells):
-    movie = connected_cells.make_movie().array
+def test_buffer_append(four_connected_cells):
+    movie = four_connected_cells.make_movie().array
     buff = Buffer(size=10)
     buff.array = movie.isel({AXIS.frames_dim: 0})
     buff.append(movie.isel({AXIS.frames_dim: 1}))
