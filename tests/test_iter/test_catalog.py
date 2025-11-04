@@ -5,8 +5,9 @@ from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
-from cala.nodes.detect.catalog import _merge_component, _register
-from cala.nodes.detect.catalog_depr import CatalogerDepr
+from cala.nodes.detect.catalog import _absorb_component, _register, _merge_candidates
+from cala.testing.catalog_depr import CatalogerDepr
+from cala.testing.util import split_footprint, expand_boundary
 
 
 @pytest.fixture(scope="module")
@@ -48,28 +49,123 @@ def catalog_depr(cataloger):
     return CatalogerDepr(**model)
 
 
-@pytest.fixture(scope="function")
-def new_component(slice_nmf, single_cell):
-    buff = Buffer(size=100)
-    buff.array = single_cell.make_movie().array
-    return slice_nmf.process(
-        residuals=buff, energy=buff.array.std(dim=AXIS.frames_dim), detect_radius=60
-    )
+def test_register(single_cell, cataloger):
+    """
+    Can register a component with its footprint and trace,
+    adding appropriate dimensions and coordinates
 
+    """
+    footprints = single_cell.footprints.array.drop_vars([AXIS.id_coord, AXIS.detect_coord])
+    traces = single_cell.traces.array.drop_vars([AXIS.id_coord, AXIS.detect_coord])
+    fp, tr = _register(shapes=footprints, tracks=traces)
 
-def test_register(cataloger, new_component):
-    new_fp, new_tr = new_component
-    fp, tr = _register(shapes=new_fp[0].array, tracks=new_tr[0].array)
-
-    assert np.array_equal(fp[0].as_numpy(), new_fp[0].array.as_numpy())
-    assert np.array_equal(tr[0], new_tr[0].array)
+    # values do not change
+    assert np.array_equal(fp.to_numpy(), footprints.to_numpy())
+    assert np.array_equal(tr.to_numpy(), traces.to_numpy())
+    # get coordinates
     assert fp[AXIS.id_coord].item() == tr[AXIS.id_coord].item()
     assert (
-        fp[AXIS.detect_coord].item() == tr[AXIS.detect_coord].item() == tr[AXIS.detect_coord].max()
+        fp[AXIS.detect_coord].item()
+        == tr[AXIS.detect_coord].item()
+        == tr[AXIS.detect_coord].max().item()
     )
 
 
-def test_merge_with(slice_nmf, cataloger, single_cell):
+@pytest.fixture(
+    params=[
+        pytest.param(("single_cell", 16), id="single_cell"),
+        pytest.param(("two_cells", 16), id="two_cells"),
+        pytest.param(("two_connected_cells", 16), id="two_connected_cells"),
+        pytest.param(("four_separate_cells", 5), id="four_separate_cells"),
+        pytest.param(("four_connected_cells", 5), id="four_connected_cells"),
+    ]
+)
+def chunks_setup(request):
+    return {"id": request.param[0], "n_split": request.param[1]}
+
+
+@pytest.fixture
+def chunks(slice_nmf, request, chunks_setup):
+    toy = request.getfixturevalue(chunks_setup["id"])
+    footprints = toy.footprints.array.as_numpy().transpose(AXIS.component_dim, ...)
+    traces = toy.traces.array.as_numpy().transpose(AXIS.component_dim, ...)
+
+    shape_chunks = []
+    trace_chunks = []
+
+    for shape, trace in zip(footprints, traces):
+        shapes = split_footprint(shape, chunks_setup["n_split"])
+        border = expand_boundary(shapes > 0)
+        shapes += border * 1e-17
+        tracks = xr.concat([trace] * len(shapes), dim=AXIS.component_dim)
+
+        shape_chunks.append(shapes)
+        trace_chunks.append(tracks)
+
+    return xr.concat(shape_chunks, dim=AXIS.component_dim), xr.concat(
+        trace_chunks, dim=AXIS.component_dim
+    )
+
+
+def test_monopartite_merge_matrix(cataloger, chunks, catalog_depr, chunks_setup):
+    """
+    Should be able to accurately detect which candidate shapes
+    qualify for merge with each other
+
+    """
+    merge_matrix = cataloger._monopartite_merge_matrix(*chunks)
+    merge_matrix_depr = catalog_depr._merge_matrix(*chunks)
+    assert merge_matrix.equals(merge_matrix_depr)
+    # need a better way to do this... check # of diagonal boxes, maybe?
+
+
+def test_merge_candidates(cataloger, catalog_depr, chunks, request, chunks_setup):
+    """
+    A set of incoming candidates should get properly merged with each other
+    Tested by checking recreated movies from merged shape against original movie
+
+    """
+    fp_chunks, tr_chunks = chunks
+    fp_chunks = fp_chunks.drop_vars([AXIS.id_coord, AXIS.detect_coord])
+    tr_chunks = tr_chunks.drop_vars([AXIS.id_coord, AXIS.detect_coord])
+
+    merge_matrix = cataloger._monopartite_merge_matrix(fp_chunks, tr_chunks)
+    footprints, traces = _merge_candidates(fp_chunks, tr_chunks, merge_matrix)
+
+    model = request.getfixturevalue(chunks_setup["id"])
+    assert len(footprints) == model.n_components
+
+    movie = model.make_movie().array
+    xr.testing.assert_allclose(movie, traces @ footprints)
+
+
+def test_bipartite_merge_groups(cataloger, chunks, request, chunks_setup):
+    """
+    Should be able to accurately detect which candidate shapes
+    qualify to get absorbed into a known existing component
+
+    """
+    model = request.getfixturevalue(chunks_setup["id"])
+    footprints = (
+        model.footprints.array.transpose(AXIS.component_dim, ...)
+        .data.reshape((model.footprints.array.sizes[AXIS.component_dim], -1))
+        .tocsr()
+    )
+    traces = model.traces.array.as_numpy().transpose(AXIS.component_dim, ...)
+    fp_chunks, tr_chunks = chunks
+    merge_groups = cataloger._bipartite_merge_groups(fp_chunks, tr_chunks, footprints, traces)
+
+    expect_grp, expect_cnt = np.unique(fp_chunks[AXIS.id_coord].values, return_counts=True)
+    result_grp, result_cnt = np.unique(merge_groups, return_counts=True)
+
+    if expect_cnt.size == 1:
+        assert result_cnt.size == 1
+    else:
+        assert np.array_equal(expect_cnt, result_cnt[result_grp > 0])
+
+
+def test_absorb_component(slice_nmf, cataloger, single_cell):
+    """ """
     buff = Buffer(size=100)
     buff.array = single_cell.make_movie().array
     new_component = slice_nmf.process(
@@ -79,7 +175,7 @@ def test_merge_with(slice_nmf, cataloger, single_cell):
     A = single_cell.footprints.array
 
     new_fp, new_tr = new_component
-    fp, tr = _merge_component(
+    fp, tr = _absorb_component(
         new_fp[0].array.expand_dims(dim="component"),
         new_tr[0].array.expand_dims(dim="component"),
         A.data.reshape((A.shape[0], -1)).tocsr(),
@@ -167,20 +263,3 @@ def test_process_connected(slice_nmf, cataloger, four_connected_cells):
     )
     # 2. the trace and footprint values are accurate (where they do exist)
     xr.testing.assert_allclose(result, expected, atol=1)
-
-
-@pytest.mark.parametrize(
-    "toy,num_conns", [("four_separate_cells", 0), ("four_connected_cells", 36)]
-)
-def test_mono_merge_matrix(slice_nmf, cataloger, toy, num_conns, request, catalog_depr):
-    toy = request.getfixturevalue(toy)
-    movie = toy.make_movie().array
-    new_fps, new_trs = slice_nmf.process(
-        Buffer.from_array(movie, size=100), movie.std(dim=AXIS.frames_dim), detect_radius=4
-    )
-    shape_chunks = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
-    trace_chunks = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
-    merge_mat = cataloger._monopartite_merge_matrix(shape_chunks, trace_chunks)
-    merge_mat_depr = catalog_depr._merge_matrix(shape_chunks, trace_chunks)
-    assert np.sum(merge_mat) - np.trace(merge_mat) == num_conns
-    assert merge_mat.equals(merge_mat_depr)
