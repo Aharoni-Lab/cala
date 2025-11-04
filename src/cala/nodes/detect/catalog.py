@@ -42,7 +42,7 @@ class Cataloger(Node):
         shape_chunks = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         trace_chunks = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
         merge_mat = self._monopartite_merge_matrix(shape_chunks, trace_chunks)
-        new_shapes, new_traces = _merge(shape_chunks, trace_chunks, merge_mat)
+        new_shapes, new_traces = _merge_candidates(shape_chunks, trace_chunks, merge_mat)
 
         known_fp, known_tr = _get_absorption_targets(
             existing_fp.array, existing_tr.array, self.age_limit
@@ -99,7 +99,7 @@ class Cataloger(Node):
 
         smooth_trs = _smooth_traces(trs, self.smooth_kwargs)
         trs2 = smooth_trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
-        return self._merge_matrix(fps, trs, fps2, trs2)
+        return self._merge_matrix(fps, smooth_trs, fps2, trs2)
 
     def _bipartite_merge_groups(
         self,
@@ -145,7 +145,7 @@ class Cataloger(Node):
                 new_idxs, _known_idxs = np.where(merge_matrix == lbl)
                 fp = new_fps.sel({AXIS.component_dim: list(set(new_idxs))})
                 tr = new_trs.sel({AXIS.component_dim: list(set(new_idxs))})
-                footprint, trace = _merge_component(fp, tr, known_fps, known_trs, _known_idxs)
+                footprint, trace = _absorb_component(fp, tr, known_fps, known_trs, _known_idxs)
 
                 footprints.append(footprint)
                 traces.append(trace)
@@ -218,6 +218,11 @@ def _get_absorption_targets(
 
 
 def _register(shapes: xr.DataArray, tracks: xr.DataArray) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    Give appropriate coordinates and assign id and detected_on to component
+    shape and trace matrix
+
+    """
     if AXIS.component_dim not in shapes.dims:
         shapes = shapes.expand_dims(AXIS.component_dim)
         tracks = tracks.expand_dims(AXIS.component_dim)
@@ -293,13 +298,22 @@ def _reshape(
     return a_new, c_new
 
 
-def _merge_component(
+def _absorb_component(
     new_fp: xr.DataArray,
     new_tr: xr.DataArray,
     target_fps: csr_matrix,
     target_trs: xr.DataArray,
     dupl_idx: Iterable[int],
 ) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    Absorb new components into target component by performing
+    rank-1 NMF against a combined movie of the two components
+
+    Adds attribute "replaces" to indicate the target component
+    involved in the process, which later will to be replaced by the
+    new combined component.
+
+    """
     target_fp = target_fps[dupl_idx]
     target_tr = target_trs[dupl_idx]
 
@@ -342,9 +356,14 @@ def _create_component_movie(
     return movie
 
 
-def _merge(
+def _merge_candidates(
     footprints: xr.DataArray, traces: xr.DataArray, merge_matrix: xr.DataArray
 ) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    Merge a single set of candidate components with each other,
+    according to the merge_matrix.
+
+    """
     num, labels = connected_components(merge_matrix.data)
     combined_fps = []
     combined_trs = []
