@@ -6,6 +6,7 @@ from cala.testing import (
     SingleCellSource,
     SplitOffSource,
     GradualOnSource,
+    TwoOverlappingSource,
     TwoCellsSource,
 )
 from cala.testing.toy import Toy
@@ -19,13 +20,13 @@ def single_cell() -> Toy:
 
 @pytest.fixture
 def two_cells() -> Toy:
-    source = SingleCellSource()
+    source = TwoCellsSource()
     return source.toy
 
 
 @pytest.fixture
 def two_connected_cells() -> Toy:
-    source = TwoCellsSource()
+    source = TwoOverlappingSource()
     return source.toy
 
 
