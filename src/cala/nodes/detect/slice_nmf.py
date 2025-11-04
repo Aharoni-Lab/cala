@@ -11,6 +11,7 @@ from pydantic import Field
 from cala.assets import Buffer, Footprint, Trace
 from cala.logging import init_logger
 from cala.models import AXIS
+from cala.util import rank1nmf
 
 
 class SliceNMF(Node):
@@ -150,30 +151,3 @@ class SliceNMF(Node):
         c_new = c_new * factor
 
         return a_new, c_new
-
-
-def rank1nmf(
-    Ypx: np.ndarray, ain: np.ndarray, iters: int = 10
-) -> tuple[np.ndarray, np.ndarray, float]:
-    """
-    perform a fast rank 1 NMF
-
-    Ypx: (pixels, frames)
-    ain: (pixels)
-    iters: valid only by period of 4 (seems like i mod 4 = 2 gives good results.
-        mod 4 = 3 is marginally better.)
-
-    """
-    eps = np.finfo(np.float32).eps
-    for t in range(iters):
-        cin_res = ain.dot(Ypx)
-        cin = np.maximum(cin_res, 0)
-        ain = np.maximum(Ypx.dot(cin), 0)
-        if t in (0, iters - 1):
-            ain /= np.sqrt(ain.dot(ain)) + eps
-        elif t % 2 == 0:
-            ain /= ain.dot(ain) + eps
-    cin_res = ain.dot(Ypx)
-    cin = np.maximum(cin_res, 0)
-    error = np.linalg.norm(Ypx - np.outer(ain, cin), "fro")
-    return ain, cin, error

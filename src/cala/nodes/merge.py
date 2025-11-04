@@ -8,7 +8,7 @@ from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Overlaps, Traces
 from cala.models import AXIS
-from cala.nodes.detect.catalog import _recompose, _register_batch
+from cala.nodes.detect.catalog import _recompose, _register
 from cala.util import combine_attr_replaces
 
 
@@ -95,7 +95,7 @@ def merge_existing(
         coords=[AXIS.id_coord, AXIS.detect_coord],
         combine_attrs=combine_attr_replaces,
     )
-    new_fps, new_trs = _register_batch(new_fps, new_trs)
+    new_fps, new_trs = _register(new_fps, new_trs)
 
     return Footprints.from_array(new_fps), Traces.from_array(new_trs)
 

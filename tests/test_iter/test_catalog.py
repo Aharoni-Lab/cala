@@ -5,7 +5,8 @@ from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
-from cala.nodes.detect.catalog import _merge_with, _register
+from cala.nodes.detect.catalog import _merge_component, _register
+from cala.nodes.detect.catalog_depr import CatalogerDepr
 
 
 @pytest.fixture(scope="module")
@@ -36,6 +37,17 @@ def cataloger():
     )
 
 
+@pytest.fixture(scope="module")
+def catalog_depr(cataloger):
+    """
+    Source of truth for cataloger (before optimization but things were correct)
+
+    """
+    model = cataloger.model_dump()
+    model["spec"]["type"] = model["spec"]["type_"]
+    return CatalogerDepr(**model)
+
+
 @pytest.fixture(scope="function")
 def new_component(slice_nmf, single_cell):
     buff = Buffer(size=100)
@@ -47,10 +59,10 @@ def new_component(slice_nmf, single_cell):
 
 def test_register(cataloger, new_component):
     new_fp, new_tr = new_component
-    fp, tr = _register(new_fp=new_fp[0].array, new_tr=new_tr[0].array)
+    fp, tr = _register(shapes=new_fp[0].array, tracks=new_tr[0].array)
 
-    assert np.array_equal(fp.as_numpy(), new_fp[0].array.as_numpy())
-    assert np.array_equal(tr, new_tr[0].array)
+    assert np.array_equal(fp[0].as_numpy(), new_fp[0].array.as_numpy())
+    assert np.array_equal(tr[0], new_tr[0].array)
     assert fp[AXIS.id_coord].item() == tr[AXIS.id_coord].item()
     assert (
         fp[AXIS.detect_coord].item() == tr[AXIS.detect_coord].item() == tr[AXIS.detect_coord].max()
@@ -67,7 +79,7 @@ def test_merge_with(slice_nmf, cataloger, single_cell):
     A = single_cell.footprints.array
 
     new_fp, new_tr = new_component
-    fp, tr = _merge_with(
+    fp, tr = _merge_component(
         new_fp[0].array.expand_dims(dim="component"),
         new_tr[0].array.expand_dims(dim="component"),
         A.data.reshape((A.shape[0], -1)).tocsr(),
@@ -75,7 +87,7 @@ def test_merge_with(slice_nmf, cataloger, single_cell):
         [0],
     )
 
-    movie_result = (fp @ tr).reset_coords([AXIS.id_coord, AXIS.detect_coord], drop=True).as_numpy()
+    movie_result = (fp @ tr).as_numpy()
 
     movie_new_comp = new_fp[0].array @ new_tr[0].array
     movie_expected = (single_cell.make_movie().array + movie_new_comp).transpose(*movie_result.dims)
@@ -160,7 +172,7 @@ def test_process_connected(slice_nmf, cataloger, four_connected_cells):
 @pytest.mark.parametrize(
     "toy,num_conns", [("four_separate_cells", 0), ("four_connected_cells", 36)]
 )
-def test_merge_matrix_shapes(slice_nmf, cataloger, toy, num_conns, request):
+def test_mono_merge_matrix(slice_nmf, cataloger, toy, num_conns, request, catalog_depr):
     toy = request.getfixturevalue(toy)
     movie = toy.make_movie().array
     new_fps, new_trs = slice_nmf.process(
@@ -168,5 +180,7 @@ def test_merge_matrix_shapes(slice_nmf, cataloger, toy, num_conns, request):
     )
     shape_chunks = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
     trace_chunks = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
-    merge_mat = cataloger._merge_matrix(shape_chunks, trace_chunks)
+    merge_mat = cataloger._monopartite_merge_matrix(shape_chunks, trace_chunks)
+    merge_mat_depr = catalog_depr._merge_matrix(shape_chunks, trace_chunks)
     assert np.sum(merge_mat) - np.trace(merge_mat) == num_conns
+    assert merge_mat.equals(merge_mat_depr)
