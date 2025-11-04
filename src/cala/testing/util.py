@@ -82,6 +82,11 @@ def split_2d(
 
 
 def split_footprint(shape: xr.DataArray, n_chunks: int) -> xr.DataArray:
+    """
+    Split footprints into square chunks and return a DataArray of them,
+    concatenated by components.
+
+    """
     results = []
     chunks, coords = split_2d(shape, n_chunks)
     for chunk, coord in zip(chunks, coords):
@@ -92,6 +97,10 @@ def split_footprint(shape: xr.DataArray, n_chunks: int) -> xr.DataArray:
 
 
 def expand_boundary(footprints: xr.DataArray) -> xr.DataArray:
+    """
+    Perform a binary rectangular dilation for each footprint.
+
+    """
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     return xr.apply_ufunc(
         lambda x: cv2.morphologyEx(x, cv2.MORPH_DILATE, kernel, iterations=1),

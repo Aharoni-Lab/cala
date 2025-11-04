@@ -115,8 +115,8 @@ class SeparateSource(MovieSource):
             Position(width=35, height=35),
         ]
         self._traces = [
-            np.zeros(self.n_frames, dtype=float),
-            np.ones(self.n_frames, dtype=float),
+            np.clip(np.random.normal(loc=0.3, scale=0.1, size=self.n_frames), 0, None),
+            np.clip(np.random.normal(loc=1, scale=0.1, size=self.n_frames), 0, None),
             np.array(range(self.n_frames), dtype=float),
             np.array([0, *range(self.n_frames - 1, 0, -1)], dtype=float),
         ]
@@ -141,8 +141,8 @@ class ConnectedSource(MovieSource):
             Position(width=35, height=35),
         ]
         self._traces = [
-            np.zeros(self.n_frames, dtype=float),
-            np.ones(self.n_frames, dtype=float),
+            np.clip(np.random.normal(loc=0.3, scale=0.1, size=self.n_frames), 0, None),
+            np.clip(np.random.normal(loc=1, scale=0.1, size=self.n_frames), 0, None),
             np.array(range(self.n_frames), dtype=float),
             np.array([0, *range(self.n_frames - 1, 0, -1)], dtype=float),
         ]
