@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import xarray as xr
 from noob.node import Node, NodeSpecification
 
 from cala.assets import Frame, PopSnap, Traces
@@ -59,7 +60,7 @@ def test_ingest_frame(init, frame_update, four_separate_cells) -> None:
 
     expected = init.process(four_separate_cells.traces)
 
-    assert expected == result
+    xr.testing.assert_allclose(expected.array, result.array)
 
 
 @pytest.fixture
@@ -90,4 +91,4 @@ def test_ingest_component(init, comp_update, four_separate_cells):
 
     expected = init.process(four_separate_cells.traces)
 
-    assert expected == result
+    xr.testing.assert_allclose(expected.array, result.array)

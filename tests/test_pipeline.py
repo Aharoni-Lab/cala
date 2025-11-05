@@ -85,12 +85,3 @@ def test_odl(runner, source) -> None:
         expected = xr.concat(preprocessed_frames, dim=AXIS.frames_dim)
         result = (fps.array @ trs.array).transpose(*expected.dims)
         raise NotImplementedError("Deprecation not implemented")
-
-
-# def test_with_src():
-#     tube = Tube.from_specification("cala-with-movie")
-#     runner = SynchronousRunner(tube=tube)
-#     runner.run()
-#
-#     fps = runner.tube.cube.assets["footprints"].obj
-#     assert fps

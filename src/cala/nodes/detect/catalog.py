@@ -135,7 +135,7 @@ class Cataloger(Node):
         known_fps: csr_matrix,
         known_trs: xr.DataArray,
         merge_matrix: xr.DataArray,
-    ) -> tuple[xr.DataArray | None, xr.DataArray | None]:
+    ) -> tuple[list[xr.DataArray], list[xr.DataArray]]:
         footprints = []
         traces = []
 
@@ -247,6 +247,11 @@ def _register(shapes: xr.DataArray, tracks: xr.DataArray) -> tuple[xr.DataArray,
 def _recompose(
     movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
 ) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    Recompose the movie to a single component using a rank-1 NMF,
+    with the coordinates of the absorbing component.
+
+    """
     # Reshape neighborhood to 2D matrix (time × space)
     movie = movie.assign_coords({ax: movie[ax] for ax in AXIS.spatial_dims})
     shape = xr.DataArray(

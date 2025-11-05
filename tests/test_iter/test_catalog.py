@@ -191,75 +191,17 @@ def test_absorb_component(slice_nmf, cataloger, single_cell):
     xr.testing.assert_allclose(movie_result, movie_expected)
 
 
-def test_process_pass(slice_nmf, cataloger, four_separate_cells):
-    """
-    test cataloging separate cells. ideal case with cell_radius=5
-    """
-    buff = Buffer(size=100)
-    buff.array = four_separate_cells.make_movie().array
-    fps, trs = slice_nmf.process(buff, buff.array.std(dim=AXIS.frames_dim), detect_radius=5)
+def test_process(cataloger, chunks, chunks_setup, request):
+    model = request.getfixturevalue(chunks_setup["id"])
+    footprints, traces = model.footprints, model.traces
+    fp_chunks, tr_chunks = chunks
+    fp_chunks = [Footprints.from_array(fp_chunks.drop_vars([AXIS.id_coord, AXIS.detect_coord]))]
+    tr_chunks = [Traces.from_array(tr_chunks.drop_vars([AXIS.id_coord, AXIS.detect_coord]))]
 
-    # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
-    new_fps, new_trs = cataloger.process(
-        fps, trs, four_separate_cells.footprints, four_separate_cells.traces
-    )
+    new_fps, new_trs = cataloger.process(fp_chunks, tr_chunks, footprints, traces)
 
-    result = new_fps.array @ new_trs.array
-
-    # would not detect cell_0 and cell_1 since they're uniform
-    detected = ["cell_2", "cell_3"]
-    expected = (
-        four_separate_cells.footprints.array.set_xindex(AXIS.id_coord).sel(
-            {AXIS.id_coord: detected}
-        )
-        @ four_separate_cells.traces.array.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: detected})
-    ).transpose(*result.dims) * 2
-
-    assert set(new_fps.array.attrs.get("replaces")) == set(detected)
+    result = new_trs.array @ new_fps.array
+    # result is double the original movie, since the incoming chunks have been
+    # merged with the existing.
+    expected = traces.array @ footprints.array * 2
     xr.testing.assert_allclose(result.as_numpy(), expected.as_numpy())
-
-
-def test_process_fail(slice_nmf, cataloger, four_separate_cells):
-    """
-    test cataloging separate cells. nmf supposed to fail with radius=25 (grabs too many cells)
-    """
-    movie = four_separate_cells.make_movie().array
-    fps, trs = slice_nmf.process(
-        Buffer.from_array(movie, size=100), movie.std(dim=AXIS.frames_dim), detect_radius=25
-    )
-
-    # NOTE: by manually putting in separate_cells, we're forcing a double-detection in this test
-    new_fps, new_trs = cataloger.process(
-        fps, trs, four_separate_cells.footprints, four_separate_cells.traces
-    )
-
-    assert new_fps.array is None and new_trs.array is None
-
-
-def test_process_connected(slice_nmf, cataloger, four_connected_cells):
-    """
-    trial with connected cells 🙏
-    """
-    movie = four_connected_cells.make_movie().array
-    fps, trs = slice_nmf.process(
-        Buffer.from_array(movie, size=100), movie.std(dim=AXIS.frames_dim), detect_radius=4
-    )
-
-    # NOTE: by manually putting in connected_cells,
-    # we're forcing a double-detection in this test
-    new_fps, new_trs = cataloger.process(fps, trs, Footprints(), Traces())
-
-    result = (new_fps.array @ new_trs.array).transpose(AXIS.frames_dim, ...).as_numpy()
-    expected = movie.transpose(*result.dims).as_numpy()
-
-    # not sure why we're getting some stray pixels... but we need to remove them
-    sig_pxls = (new_fps.array.max(dim=AXIS.component_dim) > 0.1).as_numpy()
-    result, expected = result.where(sig_pxls), expected.where(sig_pxls)
-
-    assert new_fps.array is not None
-    # 1. the footprints do not overlap
-    assert np.all(
-        np.triu((new_fps.array @ new_fps.array.rename(AXIS.component_rename)).as_numpy(), 1) == 0
-    )
-    # 2. the trace and footprint values are accurate (where they do exist)
-    xr.testing.assert_allclose(result, expected, atol=1)

@@ -82,11 +82,10 @@ def test_ingest_component(init, comp_update, four_separate_cells):
         new_traces=Traces.from_array(
             four_separate_cells.traces.array.isel({AXIS.component_dim: slice(-2, None)})
         ),
-        traces=four_separate_cells.traces,
     )
 
     expected = init.process(
         traces=four_separate_cells.traces, frames=four_separate_cells.make_movie()
     )
 
-    assert expected == result
+    xr.testing.assert_allclose(expected.array, result.array)
