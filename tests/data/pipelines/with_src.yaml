@@ -15,7 +15,7 @@ assets:
     type: cala.assets.Traces
     scope: runner
     params:
-      zarr_path: traces/
+      #      zarr_path: traces/
       peek_size: 100
   pix_stats:
     type: cala.assets.PixStats
