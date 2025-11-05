@@ -10,6 +10,7 @@ from scipy.sparse.csgraph import connected_components
 from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
 from cala.models import AXIS
+from cala.util import norm
 
 
 class Tracer(BaseModel):
@@ -174,10 +175,6 @@ def _update_traces(
     num_iters = 0
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
-
-    # faster than np.linalg.norm
-    def norm(c: np.ndarray) -> float:
-        return np.sqrt(c.ravel().dot(c.ravel()))
 
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
         C_old[:] = C

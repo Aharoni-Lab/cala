@@ -107,3 +107,8 @@ def rank1nmf(
     cin = np.maximum(cin_res, 0)
     error = np.linalg.norm(Ypx - np.outer(ain, cin), "fro")
     return ain, cin, error
+
+
+def norm(c: np.ndarray) -> float:
+    """Faster than np.linalg.norm"""
+    return np.sqrt(c.ravel().dot(c.ravel()))
