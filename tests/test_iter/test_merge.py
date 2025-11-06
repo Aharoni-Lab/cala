@@ -58,7 +58,8 @@
 #
 # def test_merge_matrix(toy: Toy, overlaps: Overlaps) -> None:
 #     mm = _merge_matrix(
-#         traces=toy.traces.array, overlaps=overlaps.array, smooth_kwargs={"sigma": 2}, threshold=0.9
+#         traces=toy.traces.array, overlaps=overlaps.array,
+#         smooth_kwargs={"sigma": 2}, threshold=0.9
 #     ).as_numpy()
 #     # expect 1 and 2 to merge, rest stand alone
 #     assert np.array_equal(connected_components(mm)[1], [0, 0, 1, 2, 3, 4])
@@ -68,7 +69,8 @@
 #     age_limit = 700
 #
 #     traces = toy.traces
-#     targets = traces.array[AXIS.detect_coord] <= (traces.array[AXIS.frame_coord].max() - age_limit)
+#     targets = traces.array[AXIS.detect_coord] <=
+#     (traces.array[AXIS.frame_coord].max() - age_limit)
 #
 #     target_ids = targets.where(targets, drop=True)[AXIS.id_coord].values
 #

@@ -16,7 +16,7 @@ from xarray import Coordinates
 
 from cala.assets import Footprint, Footprints, Trace, Traces
 from cala.models import AXIS
-from cala.util import combine_attr_replaces, create_id, rank1nmf, concat_components
+from cala.util import combine_attr_replaces, concat_components, create_id, rank1nmf
 
 
 class Cataloger(Node):

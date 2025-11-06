@@ -1,7 +1,6 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from shutil import rmtree
-from typing import Callable
 from uuid import uuid4
 
 import numpy as np

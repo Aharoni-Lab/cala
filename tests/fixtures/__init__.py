@@ -13,11 +13,11 @@ from .meta import monkeypatch_session
 from .toys import (
     four_connected_cells,
     four_separate_cells,
+    gradualon_cells,
     single_cell,
     splitoff_cells,
-    two_connected_cells,
-    gradualon_cells,
     two_cells,
+    two_connected_cells,
 )
 
 __all__ = [

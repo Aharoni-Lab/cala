@@ -1,6 +1,6 @@
 from collections.abc import Generator
-from typing import Annotated as A, Literal
-from typing import Self
+from typing import Annotated as A
+from typing import Literal, Self
 
 import numpy as np
 from noob import Name, process_method

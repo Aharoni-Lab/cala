@@ -2,12 +2,12 @@ import pytest
 
 from cala.testing import (
     ConnectedSource,
+    GradualOnSource,
     SeparateSource,
     SingleCellSource,
     SplitOffSource,
-    GradualOnSource,
-    TwoOverlappingSource,
     TwoCellsSource,
+    TwoOverlappingSource,
 )
 from cala.testing.toy import Toy
 

@@ -7,7 +7,7 @@ from cala.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.detect import Cataloger, SliceNMF
 from cala.nodes.detect.catalog import _register
 from cala.testing.catalog_depr import CatalogerDepr
-from cala.testing.util import split_footprint, expand_boundary
+from cala.testing.util import expand_boundary, split_footprint
 
 
 @pytest.fixture(scope="module")
