@@ -37,7 +37,7 @@ nodes:
   frame:
     type: cala.nodes.prep.package_frame
     depends:
-      - frame: source.value
+      - frame: source.frame
       - index: counter.idx
 
   #PREPROCESS BEGINS

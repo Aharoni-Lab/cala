@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:0f4f59018aa95cc2a3cda96a551bd3b39af2b5c70a9c8863f2242be07808af2d"
+content_hash = "sha256:68f2cd4f887a77af253a18c01590866b2fd460982b397836133b8fa09d808e17"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1811,11 +1811,10 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev154"
+version = "0.1.1.dev208"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "node-enabled"
-revision = "d5dc6044870dfbc2a46a76a76a31e7138aef1280"
+revision = "6f9512e57e10e142335ccddf64a599d85edc73d6"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",

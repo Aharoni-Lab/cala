@@ -46,8 +46,8 @@ def results(runner, source):
     preprocessed_frames = []
     for fr in gen:
         preprocessed_frames.append(fr["prep"].array)
-        fps = runner.tube.cube.assets["footprints"].obj
-        trs = runner.tube.cube.assets["traces"].obj
+        fps = runner.tube.state.assets["footprints"].obj
+        trs = runner.tube.state.assets["traces"].obj
 
     return {
         "model": toy,
