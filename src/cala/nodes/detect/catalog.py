@@ -49,7 +49,7 @@ class Cataloger(Node):
         known_fp, known_tr = _get_absorption_targets(
             existing_fp.array, existing_tr.array, self.age_limit
         )
-        is_absorbing = known_fp is not None
+        is_absorbing = known_fp is not None and known_fp.size > 0
         merge_groups = None
         merged_fps = []
         merged_trs = []
@@ -170,6 +170,9 @@ class Cataloger(Node):
     ) -> tuple[list[xr.DataArray], list[xr.DataArray]]:
         footprints = []
         traces = []
+
+        if merge_matrix.size == 0:
+            breakpoint()
 
         num_merge_groups = merge_matrix.max().item()
         if num_merge_groups > 0:
