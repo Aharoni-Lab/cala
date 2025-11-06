@@ -98,6 +98,7 @@ def test_footprint_similarity(results):
     the expected footprints as the approach progresses.
 
     """
+    raise NotImplementedError()
 
 
 @pytest.mark.xfail
@@ -108,6 +109,7 @@ def test_reconstructed_movie(results):
     progresses.
 
     """
+    raise NotImplementedError()
     # elif src_name in ["SingleCellSource", "TwoCellsSource", "SeparateSource"]:
     # expected = xr.concat(preprocessed_frames, dim=AXIS.frames_dim)
     # result = (fps.array @ trs.array).transpose(*expected.dims)

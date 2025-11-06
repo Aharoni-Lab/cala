@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from itertools import compress
 from typing import Annotated as A
 
+import cv2
 import numpy as np
 import xarray as xr
 from noob import Name
@@ -19,7 +20,8 @@ from cala.util import combine_attr_replaces, create_id, rank1nmf, concat_compone
 
 
 class Cataloger(Node):
-    smooth_kwargs: dict
+    trace_smooth_kwargs: dict
+    shape_smooth_kwargs: dict
     age_limit: int
     """Don't merge with new components if older than this number of frames."""
     merge_threshold: float
@@ -42,7 +44,7 @@ class Cataloger(Node):
         shape_chunks = xr.concat([fp.array for fp in new_fps], dim=AXIS.component_dim)
         trace_chunks = xr.concat([tr.array for tr in new_trs], dim=AXIS.component_dim)
         merge_mat = self._monopartite_merge_matrix(shape_chunks, trace_chunks)
-        new_shapes, new_traces = _merge_candidates(shape_chunks, trace_chunks, merge_mat)
+        new_shapes, new_traces = self._merge_candidates(shape_chunks, trace_chunks, merge_mat)
 
         known_fp, known_tr = _get_absorption_targets(
             existing_fp.array, existing_tr.array, self.age_limit
@@ -97,9 +99,39 @@ class Cataloger(Node):
         fps = fps.stack(pixels=AXIS.spatial_dims)
         fps2 = fps.data
 
-        smooth_trs = _smooth_traces(trs, self.smooth_kwargs)
+        smooth_trs = _smooth_traces(trs, self.trace_smooth_kwargs)
         trs2 = smooth_trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
         return self._merge_matrix(fps, smooth_trs, fps2, trs2)
+
+    def _merge_candidates(
+        self, footprints: xr.DataArray, traces: xr.DataArray, merge_matrix: xr.DataArray
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Merge a single set of candidate components with each other,
+        according to the merge_matrix.
+
+        """
+        num, labels = connected_components(merge_matrix.data)
+        combined_fps = []
+        combined_trs = []
+
+        for lbl in set(labels):
+            group = np.where(labels == lbl)[0]
+            fps = footprints.sel({AXIS.component_dim: group})
+            trs = traces.sel({AXIS.component_dim: group})
+            if len(group) > 1:
+                mov = xr.DataArray(
+                    _create_component_movie(fps, trs), dims=[*AXIS.spatial_dims, AXIS.frames_dim]
+                )
+                new_fp, new_tr = self._recompose(mov, footprints[0].coords, traces[0].coords)
+            else:
+                new_fp, new_tr = fps[0], trs[0]
+            combined_fps.append(new_fp)
+            combined_trs.append(new_tr)
+
+        new_fps, new_trs = concat_components(combined_fps, combined_trs)
+
+        return new_fps, new_trs
 
     def _bipartite_merge_groups(
         self,
@@ -115,8 +147,8 @@ class Cataloger(Node):
 
         """
         fps1 = candidate_fps.stack(pixels=AXIS.spatial_dims)
-        trs1 = _smooth_traces(candidate_trs, self.smooth_kwargs)
-        smooth_ante = _smooth_traces(target_trs, self.smooth_kwargs)
+        trs1 = _smooth_traces(candidate_trs, self.trace_smooth_kwargs)
+        smooth_ante = _smooth_traces(target_trs, self.trace_smooth_kwargs)
         trs2 = smooth_ante.rename(AXIS.component_rename)
 
         mat = self._merge_matrix(fps1, trs1, target_fps, trs2)
@@ -142,15 +174,54 @@ class Cataloger(Node):
         num_merge_groups = merge_matrix.max().item()
         if num_merge_groups > 0:
             for lbl in range(1, num_merge_groups + 1):
-                new_idxs, _known_idxs = np.where(merge_matrix == lbl)
-                fp = new_fps.sel({AXIS.component_dim: list(set(new_idxs))})
-                tr = new_trs.sel({AXIS.component_dim: list(set(new_idxs))})
-                footprint, trace = _absorb_component(fp, tr, known_fps, known_trs, _known_idxs)
+                new_idx, known_idx = np.where(merge_matrix == lbl)
+                new_idx, known_idx = np.unique(new_idx), np.unique(known_idx)
+                fp = new_fps.sel({AXIS.component_dim: new_idx})
+                tr = new_trs.sel({AXIS.component_dim: new_idx})
+                footprint, trace = self._absorb_component(fp, tr, known_fps, known_trs, known_idx)
 
                 footprints.append(footprint)
                 traces.append(trace)
 
         return footprints, traces
+
+    def _absorb_component(
+        self,
+        insert_fps: xr.DataArray,
+        insert_trs: xr.DataArray,
+        absorber_fps: csr_matrix,
+        absorber_trs: xr.DataArray,
+        absorber_idx: Iterable[int],
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Absorb new components into target component by performing
+        rank-1 NMF against a combined movie of the two components
+
+        Adds attribute "replaces" to indicate the target component
+        involved in the process, which later will to be replaced by the
+        new combined component.
+
+        """
+        absorber_fp = absorber_fps[absorber_idx]
+        absorber_tr = absorber_trs[absorber_idx]
+
+        absorber_movie = _create_component_movie(absorber_fp, absorber_tr)
+        insert_movie = _create_component_movie(insert_fps, insert_trs)
+
+        combined_movie = xr.DataArray(
+            absorber_movie.reshape(insert_movie.shape) + insert_movie,
+            dims=[*AXIS.spatial_dims, AXIS.frames_dim],
+        )
+
+        a_new, c_new = self._recompose(
+            combined_movie,
+            insert_fps.isel({AXIS.component_dim: 0}).coords,
+            insert_trs.isel({AXIS.component_dim: 0}).coords,
+        )
+        a_new.attrs["replaces"] = absorber_tr[AXIS.id_coord].values.tolist()
+        c_new.attrs["replaces"] = absorber_tr[AXIS.id_coord].values.tolist()
+
+        return _register(a_new, c_new)
 
     def _quality_control(
         self, footprints: list[xr.DataArray], traces: list[xr.DataArray]
@@ -164,6 +235,71 @@ class Cataloger(Node):
         traces = list(compress(traces, mask))
 
         return footprints, traces
+
+    def _recompose(
+        self, movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Recompose the movie to a single component using a rank-1 NMF,
+        with the coordinates of the absorbing component.
+
+        """
+        movie = movie.assign_coords({ax: movie[ax] for ax in AXIS.spatial_dims})
+        shape = xr.DataArray(
+            np.sum(movie.transpose(AXIS.frames_dim, ...).data, axis=0) > 0, dims=AXIS.spatial_dims
+        )
+        slice_ = movie.where(shape.as_numpy(), 0, drop=True)
+        R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+
+        a, c, error = rank1nmf(R.values, np.mean(R.values, axis=1))
+
+        a_new, c_new = self._reshape(
+            footprint=a,
+            trace=c,
+            fp_coords=fp_coords,
+            tr_coords=tr_coords,
+            slice_coords=slice_.coords,
+        )
+
+        factor = slice_.data.max() / c_new.data.max()
+        a_new = a_new / factor
+        c_new = c_new * factor
+
+        return a_new, c_new
+
+    def _reshape(
+        self,
+        footprint: np.ndarray,
+        trace: np.ndarray,
+        fp_coords: Coordinates,
+        tr_coords: Coordinates,
+        slice_coords: Coordinates,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Convert back to xarray with proper dimensions and coordinates"""
+
+        c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
+
+        a_new = xr.DataArray(
+            np.zeros(tuple(fp_coords.sizes.values())),
+            dims=tuple(fp_coords.sizes.keys()),
+            coords=fp_coords,
+        )
+
+        smooth_footprint = _smooth_footprint(
+            footprint.squeeze().reshape(list(slice_coords[ax].size for ax in AXIS.spatial_dims)),
+            self.shape_smooth_kwargs,
+        )
+
+        a_new.loc[slice_coords] = xr.DataArray(
+            smooth_footprint, dims=AXIS.spatial_dims, coords=slice_coords
+        )
+
+        return a_new, c_new
+
+
+def _smooth_footprint(footprint: np.ndarray, smooth_kwargs: dict) -> np.ndarray:
+    """Apply Gaussian smoothing to a footprint"""
+    return cv2.GaussianBlur(footprint, **smooth_kwargs)
 
 
 def _smooth_traces(traces: xr.DataArray, smooth_kwargs: dict) -> xr.DataArray:
@@ -244,103 +380,6 @@ def _register(shapes: xr.DataArray, tracks: xr.DataArray) -> tuple[xr.DataArray,
     return footprints, traces
 
 
-def _recompose(
-    movie: xr.DataArray, fp_coords: Coordinates, tr_coords: Coordinates
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """
-    Recompose the movie to a single component using a rank-1 NMF,
-    with the coordinates of the absorbing component.
-
-    """
-    # Reshape neighborhood to 2D matrix (time × space)
-    movie = movie.assign_coords({ax: movie[ax] for ax in AXIS.spatial_dims})
-    shape = xr.DataArray(
-        np.sum(movie.transpose(AXIS.frames_dim, ...).data, axis=0) > 0, dims=AXIS.spatial_dims
-    )
-    slice_ = movie.where(shape.as_numpy(), 0, drop=True)
-    R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
-
-    a, c, error = rank1nmf(R.values, np.mean(R.values, axis=1))
-
-    a_new, c_new = _reshape(
-        footprint=a,
-        trace=c,
-        fp_coords=fp_coords,
-        tr_coords=tr_coords,
-        slice_coords=slice_.coords,
-    )
-
-    factor = slice_.data.max() / c_new.data.max()
-    a_new = a_new / factor
-    c_new = c_new * factor
-
-    return a_new, c_new
-
-
-def _reshape(
-    footprint: np.ndarray,
-    trace: np.ndarray,
-    fp_coords: Coordinates,
-    tr_coords: Coordinates,
-    slice_coords: Coordinates,
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """Convert back to xarray with proper dimensions and coordinates"""
-
-    c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
-
-    a_new = xr.DataArray(
-        np.zeros(tuple(fp_coords.sizes.values())),
-        dims=tuple(fp_coords.sizes.keys()),
-        coords=fp_coords,
-    )
-
-    a_new.loc[slice_coords] = xr.DataArray(
-        footprint.squeeze().reshape(list(slice_coords[ax].size for ax in AXIS.spatial_dims)),
-        dims=AXIS.spatial_dims,
-        coords=slice_coords,
-    )
-
-    return a_new, c_new
-
-
-def _absorb_component(
-    new_fp: xr.DataArray,
-    new_tr: xr.DataArray,
-    target_fps: csr_matrix,
-    target_trs: xr.DataArray,
-    dupl_idx: Iterable[int],
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """
-    Absorb new components into target component by performing
-    rank-1 NMF against a combined movie of the two components
-
-    Adds attribute "replaces" to indicate the target component
-    involved in the process, which later will to be replaced by the
-    new combined component.
-
-    """
-    target_fp = target_fps[dupl_idx]
-    target_tr = target_trs[dupl_idx]
-
-    recreated_movie = _create_component_movie(target_fp, target_tr)
-    new_movie = _create_component_movie(new_fp, new_tr)
-
-    combined_movie = xr.DataArray(
-        recreated_movie.reshape(new_movie.shape) + new_movie,
-        dims=[*AXIS.spatial_dims, AXIS.frames_dim],
-    )
-
-    a_new, c_new = _recompose(
-        combined_movie,
-        new_fp.isel({AXIS.component_dim: 0}).coords,
-        new_tr.isel({AXIS.component_dim: 0}).coords,
-    )
-    a_new.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
-    c_new.attrs["replaces"] = target_tr[AXIS.id_coord].values.tolist()
-
-    return _register(a_new, c_new)
-
-
 def _create_component_movie(
     footprint: xr.DataArray | csr_matrix,  # Can be xr.DataArray or csr_matrix
     trace: xr.DataArray,
@@ -359,34 +398,3 @@ def _create_component_movie(
             clean_trace,
         )
     return movie
-
-
-def _merge_candidates(
-    footprints: xr.DataArray, traces: xr.DataArray, merge_matrix: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """
-    Merge a single set of candidate components with each other,
-    according to the merge_matrix.
-
-    """
-    num, labels = connected_components(merge_matrix.data)
-    combined_fps = []
-    combined_trs = []
-
-    for lbl in set(labels):
-        group = np.where(labels == lbl)[0]
-        fps = footprints.sel({AXIS.component_dim: group})
-        trs = traces.sel({AXIS.component_dim: group})
-        if len(group) > 1:
-            mov = xr.DataArray(
-                _create_component_movie(fps, trs), dims=[*AXIS.spatial_dims, AXIS.frames_dim]
-            )
-            new_fp, new_tr = _recompose(mov, footprints[0].coords, traces[0].coords)
-        else:
-            new_fp, new_tr = fps[0], trs[0]
-        combined_fps.append(new_fp)
-        combined_trs.append(new_tr)
-
-    new_fps, new_trs = concat_components(combined_fps, combined_trs)
-
-    return new_fps, new_trs
