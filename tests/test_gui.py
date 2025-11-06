@@ -12,9 +12,9 @@ def test_deps_spec():
     raise NotImplementedError("Write me")
 
 
-def test_stamper(connected_cells) -> None:
-    fp = connected_cells.footprints
-    trs = connected_cells.traces
+def test_stamper(four_connected_cells) -> None:
+    fp = four_connected_cells.footprints
+    trs = four_connected_cells.traces
     tr = PopSnap.from_array(trs.array.isel({AXIS.frames_dim: -1}))
     frame = stamp(fp, tr, gain=1)
 

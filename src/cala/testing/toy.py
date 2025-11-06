@@ -121,6 +121,10 @@ class Toy(BaseModel):
         self._footprints = self._build_footprints()
         self._traces = self._build_traces()
 
+    @property
+    def n_components(self) -> int:
+        return len(self.cell_positions)
+
     def _build_movie_template(self) -> xr.DataArray:
         return xr.DataArray(
             np.zeros((self.n_frames, self.frame_dims.height, self.frame_dims.width)),

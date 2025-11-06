@@ -13,13 +13,13 @@ def init() -> Node:
     )
 
 
-def test_init(init, separate_cells, connected_cells) -> None:
-    overlap = init.process(overlaps=Overlaps(), footprints=separate_cells.footprints)
+def test_init(init, four_separate_cells, four_connected_cells) -> None:
+    overlap = init.process(overlaps=Overlaps(), footprints=four_separate_cells.footprints)
 
-    assert np.trace(overlap.array.as_numpy()) == len(separate_cells.cell_ids)
+    assert np.trace(overlap.array.as_numpy()) == len(four_separate_cells.cell_ids)
     assert np.all(np.triu(overlap.array.as_numpy(), k=1) == 0)
 
-    result = init.process(overlaps=Overlaps(), footprints=connected_cells.footprints)
+    result = init.process(overlaps=Overlaps(), footprints=four_connected_cells.footprints)
 
     expected = np.array([[1, 0, 1, 0], [0, 1, 1, 0], [1, 1, 1, 1], [0, 0, 1, 1]])
 
@@ -33,7 +33,7 @@ def comp_update() -> Node:
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
+@pytest.mark.parametrize("toy", ["four_separate_cells", "four_connected_cells"])
 def test_ingest_component(init, comp_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
     base = Footprints.from_array(toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)}))

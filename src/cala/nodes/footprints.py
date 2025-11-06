@@ -5,6 +5,7 @@ import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
 from scipy.sparse import csc_matrix
+from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
@@ -44,6 +45,7 @@ class Footprinter(BaseModel):
             return footprints
 
         A = footprints.array.transpose(AXIS.component_dim, ...)
+        # gotta convert to csc twice...otherwise COO tries to compile numba 😭
         A_arr = A.data.reshape((A.sizes[AXIS.component_dim], -1)).tocsc()
         M = component_stats.array
         W = pixel_stats.array.transpose(AXIS.component_dim, ...)
@@ -57,10 +59,10 @@ class Footprinter(BaseModel):
         )
 
         # maybe this happens before footprint update?
-        shapes[shapes <= self.ratio_lb] = 0
+        shapes.data[shapes.data < self.ratio_lb] = 0
 
         footprints.array = xr.DataArray(
-            shapes.T.toarray().reshape(A.shape), dims=A.dims, coords=A.coords
+            COO.from_scipy_sparse(shapes.T).reshape(A.shape), dims=A.dims, coords=A.coords
         )
 
         return footprints

@@ -18,7 +18,7 @@ def frame_update() -> Node:
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells", "connected_cells"])
+@pytest.mark.parametrize("toy", ["four_separate_cells", "four_connected_cells"])
 def test_update_traces(frame_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 
@@ -46,7 +46,7 @@ def comp_update() -> Node:
     )
 
 
-@pytest.mark.parametrize("toy", ["separate_cells"])
+@pytest.mark.parametrize("toy", ["four_separate_cells"])
 def test_ingest_component(comp_update, toy, request) -> None:
     toy = request.getfixturevalue(toy)
 

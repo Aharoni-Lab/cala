@@ -1,10 +1,14 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from shutil import rmtree
 from uuid import uuid4
 
+import numpy as np
 import xarray as xr
+from numpydantic.ndarray import NDArray
 from sparse import COO
+
+from cala.models import AXIS
 
 
 def create_id() -> str:
@@ -37,15 +41,73 @@ def sp_matmul(
     :param right:
     """
 
-    ll = left.transpose(dim, ...).data.reshape((left.sizes[dim], -1)).tocsr()
+    ll = stack_sparse(left, dim).tocsr()
+
     if right is None:
         right = left
         rr = ll
     else:
-        rr = right.transpose(dim, ...).data.reshape((right.sizes[dim], -1)).tocsr()
+        rr = stack_sparse(right, dim).tocsr()
 
     val = ll @ rr.T
 
     return xr.DataArray(
         COO.from_scipy_sparse(val), dims=[dim, f"{dim}'"], coords=left[dim].coords
     ).assign_coords(right[dim].rename(rename_map).coords)
+
+
+def stack_sparse(da: xr.DataArray, dim: str) -> NDArray:
+    return da.transpose(dim, ...).data.reshape((da.sizes[dim], -1))
+
+
+def concat_components(
+    footprints: list[xr.DataArray],
+    traces: list[xr.DataArray],
+    coords: list[str] = None,
+    combine_attrs: Callable | str = "override",
+) -> tuple[xr.DataArray, xr.DataArray]:
+    """
+    A convenience function for concatenating footprints and traces
+    simultaneously by components.
+
+    """
+    coords = [] if coords is None else coords
+
+    footprints = xr.concat(
+        footprints, dim=AXIS.component_dim, coords=coords, combine_attrs=combine_attrs
+    )
+    traces = xr.concat(traces, dim=AXIS.component_dim, coords=coords, combine_attrs=combine_attrs)
+
+    return footprints, traces
+
+
+def rank1nmf(
+    Ypx: np.ndarray, ain: np.ndarray, iters: int = 10
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """
+    perform a fast rank 1 NMF
+
+    Ypx: (pixels, frames)
+    ain: (pixels)
+    iters: valid only by period of 4 (seems like i mod 4 = 2 gives good results.
+        mod 4 = 3 is marginally better.)
+
+    """
+    eps = np.finfo(np.float32).eps
+    for t in range(iters):
+        cin_res = ain.dot(Ypx)
+        cin = np.maximum(cin_res, 0)
+        ain = np.maximum(Ypx.dot(cin), 0)
+        if t in (0, iters - 1):
+            ain /= np.sqrt(ain.dot(ain)) + eps
+        elif t % 2 == 0:
+            ain /= ain.dot(ain) + eps
+    cin_res = ain.dot(Ypx)
+    cin = np.maximum(cin_res, 0)
+    error = np.linalg.norm(Ypx - np.outer(ain, cin), "fro")
+    return ain, cin, error
+
+
+def norm(c: np.ndarray) -> float:
+    """Faster than np.linalg.norm"""
+    return np.sqrt(c.ravel().dot(c.ravel()))

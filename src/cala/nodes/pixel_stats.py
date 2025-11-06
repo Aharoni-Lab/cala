@@ -86,7 +86,7 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
 
 
 def ingest_component(
-    pixel_stats: PixStats, frames: Movie, new_traces: Traces, traces: Traces
+    pixel_stats: PixStats, frames: Movie, new_traces: Traces, traces: Traces = None
 ) -> PixStats:
     """Update pixel statistics with new components.
 
