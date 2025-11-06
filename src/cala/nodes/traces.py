@@ -10,7 +10,7 @@ from scipy.sparse.csgraph import connected_components
 from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
 from cala.models import AXIS
-from cala.util import norm
+from cala.util import norm, stack_sparse
 
 
 class Tracer(BaseModel):
@@ -55,21 +55,24 @@ class Tracer(BaseModel):
             return PopSnap()
 
         # Prepare inputs for the update algorithm
-        A = footprints.array.stack({"pixels": AXIS.spatial_dims}).transpose("pixels", ...)
-        y = frame.array.stack({"pixels": AXIS.spatial_dims})
+        A = stack_sparse(footprints.array, AXIS.component_dim).tocsr().T
+        y = frame.array.data.reshape((-1,))
         c = traces.array.isel({AXIS.frames_dim: -1}).copy()
 
-        AtA = (A @ A.rename(AXIS.component_rename)).to_numpy()
+        AtA = (A.T @ A).toarray()
 
         _, labels = connected_components(
             csgraph=overlaps.array.data, directed=False, return_labels=True
         )
         clusters = [np.where(labels == label)[0] for label in np.unique(labels)]
         C, noisyC = _update_traces(
-            y.values, A.data, c.values, AtA, iters=self.max_iter, tol=self.tol, groups=clusters
+            y, A, c.values, AtA, iters=self.max_iter, tol=self.tol, groups=clusters
         )
         updated_traces = xr.DataArray(C, dims=c.dims, coords=c.coords).assign_coords(
-            {AXIS.frame_coord: y[AXIS.frame_coord], AXIS.timestamp_coord: y[AXIS.timestamp_coord]}
+            {
+                AXIS.frame_coord: frame.array[AXIS.frame_coord],
+                AXIS.timestamp_coord: frame.array[AXIS.timestamp_coord],
+            }
         )
 
         if traces.zarr_path:

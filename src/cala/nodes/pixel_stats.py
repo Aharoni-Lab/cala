@@ -78,6 +78,8 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
 
     # Update pixel-component statistics W_t
     # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
+    # We only access the footprint area, so we can drastically reduce the calc
+    # pixel_stats should be sparse, too, I think.
     W_update = prev_scale * W + new_scale * y_t @ c_t
 
     pixel_stats.array = W_update.reset_coords([AXIS.timestamp_coord, AXIS.frame_coord], drop=True)

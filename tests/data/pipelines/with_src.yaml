@@ -141,7 +141,6 @@ nodes:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
-      - index: counter.idx
 
   residual:
     type: cala.nodes.residual.Residuer

@@ -22,7 +22,7 @@ class Footprinter(BaseModel):
 
     @process_method
     def ingest_frame(
-        self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats, index: int
+        self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats
     ) -> A[Footprints, Name("footprints")]:
         """
         Update spatial footprints using sufficient statistics.

@@ -171,9 +171,6 @@ class Cataloger(Node):
         footprints = []
         traces = []
 
-        if merge_matrix.size == 0:
-            breakpoint()
-
         num_merge_groups = merge_matrix.max().item()
         if num_merge_groups > 0:
             for lbl in range(1, num_merge_groups + 1):
