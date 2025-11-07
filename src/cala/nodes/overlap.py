@@ -1,9 +1,11 @@
 import numpy as np
 import xarray as xr
+from sparse import COO
+from xarray import Coordinates
 
 from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
-from cala.util import sp_matmul
+from cala.util import sp_matmul, stack_sparse
 
 
 def initialize(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
@@ -31,64 +33,104 @@ def ingest_component(
         footprints (Footprints): Current spatial footprints [A, b]
         new_footprints (Footprints): Newly detected spatial components
     """
-    if new_footprints.array is None:
+    no_new = new_footprints.array is None
+    if no_new:
         return overlaps
 
-    elif overlaps.array is None or overlaps.array.size == 1:
-        return initialize(overlaps, footprints)
+    no_overlaps = overlaps.array is None
+    if no_overlaps:
+        return initialize(overlaps, new_footprints)
 
-    V = overlaps.array
+    A = stack_sparse(footprints.array, AXIS.component_dim).tocsr()
+    V = overlaps.array.data.tocsr()
 
-    a_new = new_footprints.array.transpose(AXIS.component_dim, ...)
+    a_new = new_footprints.array
 
     merged_ids = a_new.attrs.get("replaces", [])
-    intact_ids = [id_ for id_ in V[AXIS.id_coord].values if id_ not in merged_ids]
+    intact_mask = ~np.isin(overlaps.array[AXIS.id_coord].values, merged_ids)
+    V_side = overlaps.array[AXIS.component_dim]
 
     if merged_ids:
-        V = (
-            V.set_xindex(AXIS.id_coord)
-            .set_xindex(f"{AXIS.id_coord}'")
-            .sel({AXIS.id_coord: intact_ids, f"{AXIS.id_coord}'": intact_ids})
-            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
-        )
+        A = A[intact_mask]
+        V = V[intact_mask].T[intact_mask]  # symmetric matrix
+        V_side = V_side[intact_mask]
 
-    dupli = a_new[AXIS.id_coord].isin(V[AXIS.id_coord])
-    if np.any(dupli):
-        dim_idx = np.where(dupli)[0].tolist()
-        V = V.drop_sel({AXIS.component_dim: dim_idx, f"{AXIS.component_dim}'": dim_idx})
-
-    # Also have to remove the ID from A,
-    # since it's been already added in footprints.component_ingest
-    A = footprints.array
-    id_idx = np.where(A[AXIS.id_coord].isin(a_new[AXIS.id_coord]))[0].tolist()
-    A = A.drop_sel({AXIS.component_dim: id_idx})
+    a_sparse = stack_sparse(a_new, AXIS.component_dim).tocsr()
 
     # Compute spatial overlaps between new and existing components
-    bl_overlap = sp_matmul(
-        left=A, right=a_new, dim=AXIS.component_dim, rename_map=AXIS.component_rename
-    )
-    tr_overlap = xr.DataArray(
-        bl_overlap.data,
-        dims=[f"{AXIS.component_dim}'", AXIS.component_dim],
-        coords=a_new[AXIS.component_dim].coords,
-    ).assign_coords(A[AXIS.component_dim].rename(AXIS.component_rename).coords)
+    v_topright = (A @ a_sparse.T).nonzero()
+    v_bottleft = v_topright[::-1]
 
     # Compute overlaps between new components themselves
-    new_overlaps = sp_matmul(left=a_new, dim=AXIS.component_dim, rename_map=AXIS.component_rename)
+    v_botright = a_sparse @ a_sparse.T
 
     # Construct the new overlap matrix by blocks
-    # [existing_overlaps    og_new_overlaps.T]
-    # [og_new_overlaps        new_overlaps   ]
+    # [     V      v_topright]
+    # [v_bottleft  v_botright]
+    updated_overlaps = assemble_sparse_bool(
+        V.nonzero(), v_topright, v_bottleft, v_botright.nonzero(), V.shape, v_botright.shape
+    )
 
-    # First concatenate horizontally: [existing_overlaps, old_new_overlaps]
-    top_block = xr.concat([V.astype(float), tr_overlap], dim=AXIS.component_dim)
-
-    # Then concatenate vertically with [new_overlaps, new_overlaps]
-    bottom_block = xr.concat([bl_overlap, new_overlaps], dim=AXIS.component_dim)
-
-    # Finally combine top and bottom blocks
-    updated_overlaps = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
-
-    overlaps.array = updated_overlaps > 0
+    overlaps.array = overlap_format(updated_overlaps, V_side, a_new)
 
     return overlaps
+
+
+def overlap_format(array: COO, V_comp: xr.DataArray, a_new_comp: xr.DataArray) -> xr.DataArray:
+    prim_coords = concatenate_coordinates(V_comp.coords, a_new_comp.coords)
+    seco_coords = concatenate_coordinates(
+        V_comp.rename(AXIS.component_rename).coords, a_new_comp.rename(AXIS.component_rename).coords
+    )
+    return xr.DataArray(
+        array,
+        dims=(AXIS.component_dim, f"{AXIS.component_dim}'"),
+        coords={k: (AXIS.component_dim, v) for k, v in prim_coords.items()},
+    ).assign_coords({k: (f"{AXIS.component_dim}'", v) for k, v in seco_coords.items()})
+
+
+def concatenate_coordinates(left: Coordinates, right: Coordinates) -> dict:
+    l = {k: v.values for k, v in left.items()}
+    r = {k: v.values for k, v in right.items()}
+
+    combined = {k: np.concatenate([l[k], r[k]]) for k in l}
+    return combined
+
+
+def assemble_sparse_bool(
+    top_left: tuple[np.ndarray, np.ndarray],
+    top_right: tuple[np.ndarray, np.ndarray],
+    bottom_left: tuple[np.ndarray, np.ndarray],
+    bottom_right: tuple[np.ndarray, np.ndarray],
+    init_shape: tuple[int, int],
+    attach_shape: tuple[int, int],
+) -> COO:
+    """
+    Assemble a sparse boolean array with four coordinates in the format of
+    scipy.sparse.sp_matrix.nonzero()
+
+    """
+    x_coords = top_left[0]
+    y_coords = top_left[1]
+    x_coords = np.concatenate([x_coords, top_right[0]])
+    y_coords = np.concatenate([y_coords, top_right[1] + init_shape[1]])
+    x_coords = np.concatenate([x_coords, bottom_left[0] + init_shape[0]])
+    y_coords = np.concatenate([y_coords, bottom_left[1]])
+    x_coords = np.concatenate([x_coords, bottom_right[0] + init_shape[0]])
+    y_coords = np.concatenate([y_coords, bottom_right[1] + init_shape[1]])
+
+    final_shape = tuple(x1 + x2 for x1, x2 in zip(init_shape, attach_shape))
+    return COO(coords=(x_coords, y_coords), shape=final_shape, data=1)
+
+
+def assemble_square(
+    top_left: np.ndarray, top_right: np.ndarray, bottom_left: np.ndarray, bottom_right: np.ndarray
+) -> np.ndarray:
+    """
+    Assemble four 2D arrays into a single 2D array, with one in each corner.
+
+    """
+    top_block = np.hstack([top_left, top_right])
+    bottom_block = np.hstack([bottom_left, bottom_right])
+
+    # Finally combine top and bottom blocks
+    return np.vstack([top_block, bottom_block])

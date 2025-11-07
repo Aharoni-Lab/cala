@@ -40,6 +40,10 @@ def runner(tube, request):
 
 @pytest.fixture(scope="module")
 def results(runner, source):
+    """
+    Let's maybe add handling similar traces? (ex. tanh and exp)
+
+    """
     gen = runner.iter(n=source.instance.n_frames)
     toy = source.instance.toy.model_copy()
     src_name = source.spec.type_.split(".")[-1]

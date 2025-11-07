@@ -46,7 +46,7 @@ class SliceNMF(Node):
                 arr=res, energy_landscape=energy, radius=detect_radius
             )
 
-            a_new, c_new = self._local_nmf(  # 0.0019s
+            a_new, c_new = self._local_nmf(
                 slice_=slice_,
                 spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
             )
