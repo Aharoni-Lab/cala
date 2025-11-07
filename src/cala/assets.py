@@ -21,6 +21,7 @@ AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 class Asset(BaseModel):
     validate_schema: bool = False
     array_: AssetType = None
+    sparsify: ClassVar[bool] = False
     _entity: ClassVar[Entity]
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
@@ -31,10 +32,16 @@ class Asset(BaseModel):
 
     @array.setter
     def array(self, value: xr.DataArray) -> None:
+        if self.validate_schema:
+            value.validate.against_schema(self._entity.model)
+        if self.sparsify and isinstance(value.data, np.ndarray):
+            value.data = COO.from_numpy(value.data)
         self.array_ = value
 
     @classmethod
-    def from_array(cls, array: xr.DataArray) -> "Asset":
+    def from_array(cls, array: xr.DataArray) -> Self:
+        if cls.sparsify and isinstance(array.data, np.ndarray):
+            array.data = COO.from_numpy(array.data)
         return cls(array_=array)
 
     def reset(self) -> None:
@@ -64,12 +71,6 @@ class Footprint(Asset):
             checks=[is_non_negative, has_no_nan],
         )
     )
-
-    @classmethod
-    def from_array(cls, array: xr.DataArray, sparsify: bool = True) -> "Footprint":
-        if sparsify and isinstance(array.data, np.ndarray):
-            array.data = COO.from_numpy(array.data)
-        return cls(array_=array)
 
 
 class Trace(Asset):
@@ -104,20 +105,7 @@ class Footprints(Asset):
             allow_extra_coords=False,
         )
     )
-
-    @Asset.array.setter
-    def array(self, array: xr.DataArray) -> None:
-        if self.validate_schema:
-            array.validate.against_schema(self._entity.model)
-        if array is not None and isinstance(array.data, np.ndarray):
-            array.data = COO.from_numpy(array.data)
-        self.array_ = array
-
-    @classmethod
-    def from_array(cls, array: xr.DataArray) -> "Footprints":
-        if array is not None and isinstance(array.data, np.ndarray):
-            array.data = COO.from_numpy(array.data)
-        return cls(array_=array)
+    sparsify = True
 
 
 class Traces(Asset):
@@ -279,6 +267,7 @@ class PixStats(Asset):
             allow_extra_coords=False,
         )
     )
+    sparsify = True
 
 
 class Overlaps(Asset):

@@ -1,6 +1,6 @@
 import xarray as xr
 
-from cala.assets import Frame, Movie, PixStats, PopSnap, Traces
+from cala.assets import Frame, Movie, PixStats, PopSnap, Traces, Footprints
 from cala.models import AXIS
 
 
@@ -42,7 +42,9 @@ def initialize(traces: Traces, frames: Movie) -> PixStats:
     return pixel_stats_
 
 
-def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> PixStats:
+def ingest_frame(
+    pixel_stats: PixStats, frame: Frame, new_traces: PopSnap, footprints: Footprints
+) -> PixStats:
     """
     Update pixel statistics using current frame and component.
 
@@ -76,6 +78,15 @@ def ingest_frame(pixel_stats: PixStats, frame: Frame, new_traces: PopSnap) -> Pi
     W = pixel_stats.array
     c_t = new_traces.array  # New frame traces
 
+    # A = footprints.array.transpose(AXIS.component_dim, ...)
+    # coords = A.data.nonzero()
+    # comps = coords[0]
+    # segments = {}
+    # for comp in np.unique(comps):
+    #     segments[comp] = [
+    #         coords[1][np.where(comps == comp)[0]],
+    #         coords[2][np.where(comps == comp)[0]],
+    #     ]
     # Update pixel-component statistics W_t
     # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
     # We only access the footprint area, so we can drastically reduce the calc

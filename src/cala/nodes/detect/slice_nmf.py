@@ -59,7 +59,7 @@ class SliceNMF(Node):
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
             if min(l1_error, l0_error) <= self.reprod_tol:
-                fps.append(Footprint.from_array(a_new, sparsify=False))
+                fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = l1_error
             else:
