@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
+from cala.assets import PixStats, CompStats
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -69,13 +70,17 @@ def test_ingest_frame(fpter, toy, request):
 
     pixstats = Node.from_specification(
         NodeSpecification(id="test_pixstats", type="cala.nodes.pixel_stats.initialize")
-    ).process(traces=toy.traces, frames=toy.make_movie())
+    ).process(
+        traces=toy.traces.array, frames=toy.make_movie().array, footprints=toy.footprints.array
+    )
     compstats = Node.from_specification(
         NodeSpecification(id="test_compstats", type="cala.nodes.component_stats.initialize")
-    ).process(traces=toy.traces)
+    ).process(traces=toy.traces.array)
 
     result = fpter.process(
-        footprints=toy.footprints, pixel_stats=pixstats, component_stats=compstats
+        footprints=toy.footprints,
+        pixel_stats=PixStats.from_array(pixstats),
+        component_stats=CompStats.from_array(compstats),
     ).array.as_numpy()
 
     expected = toy.footprints.array.as_numpy()
