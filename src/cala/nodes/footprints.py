@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
-from scipy.sparse import csc_matrix
+from scipy.sparse import csc_matrix, csr_matrix
 from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
@@ -52,7 +52,7 @@ class Footprinter(BaseModel):
         W_arr = W.data.reshape((W.sizes[AXIS.component_dim], -1))
 
         shapes, mask, _ = update_shapes(
-            CY=W_arr,
+            CY=W_arr.tocsr(),
             CC=M.values,
             Ab=A_arr.T.tocsc(),
             A_mask=[Ap.nonzero()[0] for Ap in A_arr],
@@ -92,7 +92,7 @@ def ingest_component(
 
 
 def update_shapes(
-    CY: np.ndarray,
+    CY: csr_matrix,
     CC: np.ndarray,
     Ab: csc_matrix,
     A_mask: list[np.ndarray],
@@ -122,7 +122,7 @@ def update_shapes(
 def _update(
     Ab_dense: np.ndarray,
     Ab: csc_matrix,
-    CY: np.ndarray,
+    CY: csr_matrix,
     CC: np.ndarray,
     m: int,
     ind_pixels: int,
@@ -178,7 +178,7 @@ def _normalize(
     :param ind_pixels: shape array of a cell
     :param tmp: updated shape - before normalization
     """
-    if tmp.dot(tmp) > 0:
+    if tmp.dot(tmp.T) > 0:
         # tmp *= 1e-3 / min(1e-3, np.sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
         if Ab_dense is not None:
             Ab_dense[ind_pixels, m] = tmp  # / max(1, np.sqrt(tmp.dot(tmp)))
