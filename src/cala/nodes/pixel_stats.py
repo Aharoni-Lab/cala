@@ -1,45 +1,10 @@
+import numpy as np
 import xarray as xr
+from scipy.sparse import csr_matrix
+from sparse import COO
 
 from cala.assets import Frame, Movie, PixStats, PopSnap, Traces, Footprints
 from cala.models import AXIS
-
-
-def initialize(traces: Traces, frames: Movie) -> PixStats:
-    """
-    This transformer calculates the correlation between each pixel's temporal trace
-    and each component's temporal activity. The computation provides a measure of
-    how well each pixel's activity aligns with each component.
-
-    The computation follows the equation:
-
-        W = Y[:, 1:t']C^T/t'
-
-        where:
-        - Y is the data matrix (pixels × time)
-        - C is the temporal components matrix (components × time)
-        - t' is the current timestep
-        - W is the resulting pixel statistics (pixels × components)
-
-    The result W represents the temporal correlation between each pixel
-    and each component, normalized by the number of timepoints.
-
-    Args:
-        traces (Traces): Temporal traces of all detected fluorescent components.
-            Shape: (components × time)
-        frames (Movie): Stack of frames up to current timestep.
-            Shape: (frames × height × width)
-    """
-    Y = frames.array
-
-    t_prime = Y[AXIS.frame_coord].max().item() + 1
-
-    C = traces.array  # components x time
-
-    # Compute W = Y[:, 1:t']C^T/t'
-    W = Y @ C.T / t_prime
-
-    pixel_stats_ = PixStats.from_array(W)
-    return pixel_stats_
 
 
 def ingest_frame(
@@ -66,40 +31,43 @@ def ingest_frame(
         new_traces (PopSnap): Current temporal component c_t.
             Shape: (components)
     """
-    if new_traces.array is None:
+    y_t = frame.array
+    W = pixel_stats.array
+    c_t = new_traces.array
+    A = footprints.array
+
+    if c_t is None:
         return pixel_stats
 
     # Compute scaling factors
-    frame_idx = frame.array[AXIS.frame_coord].item()
+    frame_idx = y_t[AXIS.frame_coord].item()
     prev_scale = frame_idx / (frame_idx + 1)
     new_scale = 1 / (frame_idx + 1)
 
-    y_t = frame.array
-    W = pixel_stats.array
-    c_t = new_traces.array  # New frame traces
-
-    # A = footprints.array.transpose(AXIS.component_dim, ...)
-    # coords = A.data.nonzero()
-    # comps = coords[0]
-    # segments = {}
-    # for comp in np.unique(comps):
-    #     segments[comp] = [
-    #         coords[1][np.where(comps == comp)[0]],
-    #         coords[2][np.where(comps == comp)[0]],
-    #     ]
     # Update pixel-component statistics W_t
     # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
     # We only access the footprint area, so we can drastically reduce the calc
-    # pixel_stats should be sparse, too, I think.
-    W_update = prev_scale * W + new_scale * y_t @ c_t
+    y_flat = y_t.data.reshape(1, -1)
+    n_components = A.sizes[AXIS.component_dim]
+    A_sparse = A.data.reshape((n_components, -1)).tocsr()
+    W_sparse = W.data.reshape((n_components, -1)).tocsr() * prev_scale
+    mask_coords = A_sparse.nonzero()
+    for i in range(n_components):
+        idx = np.where(mask_coords[0] == i)[0]
+        coords = np.zeros_like(idx), mask_coords[1][idx]
+        data = y_flat[coords] * c_t.values[i] * new_scale
+        target_masked = csr_matrix((data, coords), shape=y_flat.shape)
+        W_sparse[i] += target_masked
 
-    pixel_stats.array = W_update.reset_coords([AXIS.timestamp_coord, AXIS.frame_coord], drop=True)
+    CY = COO.from_scipy_sparse(W_sparse).reshape(W.shape)
+
+    pixel_stats.array = xr.DataArray(CY, dims=W.dims, coords=W.coords)
 
     return pixel_stats
 
 
 def ingest_component(
-    pixel_stats: PixStats, frames: Movie, new_traces: Traces, traces: Traces = None
+    pixel_stats: PixStats, frames: Movie, new_traces: Traces, new_footprints: Footprints
 ) -> PixStats:
     """Update pixel statistics with new components.
 
@@ -117,13 +85,16 @@ def ingest_component(
     Returns:
         PixelStater: Updated pixel statistics matrix
     """
+    a_new = new_footprints.array
     c_new = new_traces.array
+    W = pixel_stats.array
+    Y = frames.array
+
     if c_new is None:
         return pixel_stats
 
-    W = pixel_stats.array
     if W is None:
-        pixel_stats.array = initialize(traces, frames).array
+        pixel_stats.array = initialize(c_new, Y, a_new)
         return pixel_stats
 
     # Compute scaling factor (1/t)
@@ -132,13 +103,67 @@ def ingest_component(
 
     # Compute outer product of frame and new traces
     # (1/t)Y_buf c_new^T
-    new_stats = scale * (frames.array @ c_new)
+    CY = outer_with_sparse_mask(masks=a_new, target=Y, right=c_new, scalar=scale)
+    w_new = xr.DataArray(COO.from_numpy(CY), dims=a_new.dims, coords=a_new.coords)
 
     merged_ids = c_new.attrs.get("replaces")
     if merged_ids:
-        intact_ids = [id_ for id_ in W[AXIS.id_coord].values if id_ not in merged_ids]
-        W = W.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+        intact_mask = ~np.isin(W[AXIS.id_coord].values, merged_ids)
+        W = W[intact_mask]
 
-    pixel_stats.array = xr.concat([W, new_stats], dim=AXIS.component_dim)
+    pixel_stats.array = xr.concat([W, w_new], dim=AXIS.component_dim)
 
     return pixel_stats
+
+
+def initialize(
+    traces: xr.DataArray, frames: xr.DataArray, footprints: xr.DataArray
+) -> xr.DataArray:
+    """
+    This transformer calculates the correlation between each pixel's temporal trace
+    and each component's temporal activity. The computation provides a measure of
+    how well each pixel's activity aligns with each component.
+
+    The computation follows the equation:
+
+        W = Y[:, 1:t']C^T/t'
+
+        where:
+        - Y is the data matrix (pixels × time)
+        - C is the temporal components matrix (components × time)
+        - t' is the current timestep
+        - W is the resulting pixel statistics (pixels × components)
+
+    The result W represents the temporal correlation between each pixel
+    and each component, normalized by the number of timepoints.
+
+    Args:
+        traces (Traces): Temporal traces of all detected fluorescent components.
+            Shape: (components × time)
+        frames (Movie): Stack of frames up to current timestep.
+            Shape: (frames × height × width)
+    """
+    t_prime = frames[AXIS.frame_coord].max().item() + 1
+    CY = outer_with_sparse_mask(masks=footprints, target=frames, right=traces, scalar=1 / t_prime)
+
+    return xr.DataArray(CY, dims=footprints.dims, coords=footprints.coords)
+
+
+def outer_with_sparse_mask(
+    masks: xr.DataArray, target: xr.DataArray, right: xr.DataArray, scalar: int = None
+) -> np.ndarray:
+    n_frames = target.sizes[AXIS.frames_dim]
+    target_flat = target.data.reshape((n_frames, -1))
+    n_components = masks.sizes[AXIS.component_dim]
+    A_sparse = masks.data.reshape((n_components, -1)).tocsr()
+    mask_coords = A_sparse.nonzero()
+
+    cy = []
+    for i in range(n_components):
+        idx = np.where(mask_coords[0] == i)[0]
+        coords = (np.repeat(np.arange(n_frames), len(idx)), np.tile(mask_coords[1][idx], n_frames))
+        data = np.concatenate([fr[mask_coords[1][idx]] for fr in target_flat]) * scalar
+        target_masked = csr_matrix((data, coords), shape=target_flat.shape)
+        cy.append((target_masked.T @ right.values[i]).reshape(masks.shape[1:]))
+
+    return np.stack(cy)
