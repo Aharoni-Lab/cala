@@ -4,12 +4,13 @@ import numpy as np
 import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
-from scipy.sparse import csc_matrix, csr_matrix
+from scipy.sparse import csc_matrix, vstack
 from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
 from cala.models import AXIS
+from cala.util import concatenate_coordinates
 
 
 class Footprinter(BaseModel):
@@ -52,7 +53,7 @@ class Footprinter(BaseModel):
         W_arr = W.data.reshape((W.sizes[AXIS.component_dim], -1))
 
         shapes, mask, _ = update_shapes(
-            CY=W_arr.tocsr(),
+            CY=W_arr,
             CC=M.values,
             Ab=A_arr.T.tocsc(),
             A_mask=[Ap.nonzero()[0] for Ap in A_arr],
@@ -75,24 +76,41 @@ def ingest_component(
         return footprints
 
     a = footprints.array
-    a_det = new_footprints.array
+    a_new = new_footprints.array
 
     if footprints.array is None:
-        footprints.array = a_det
+        footprints.array = a_new
         return footprints
 
-    merged_ids = a_det.attrs.get("replaces")
-    if merged_ids:
-        intact_ids = [id_ for id_ in a[AXIS.id_coord].values if id_ not in merged_ids]
-        a = a.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+    a_val = a.data.reshape((a.sizes[AXIS.component_dim], -1)).tocsr()
+    a_ids = a[AXIS.id_coord].values
+    a_side = a[AXIS.component_dim]
+    a_new_val = a_new.data.reshape((a_new.sizes[AXIS.component_dim], -1)).tocsr()
 
-    footprints.array = xr.concat([a, a_det], dim=AXIS.component_dim, combine_attrs="drop")
+    merged_ids = a_new.attrs.get("replaces")
+    if merged_ids:
+        intact_mask = ~np.isin(a_ids, merged_ids)
+        a_val = a_val[intact_mask]
+        a_side = a_side[intact_mask]
+
+    data = vstack([a_val, a_new_val])
+    coords = concatenate_coordinates(a_side.coords, a_new[AXIS.component_dim].coords)
+
+    footprints.array = (
+        xr.DataArray(
+            COO.from_scipy_sparse(data).reshape((data.shape[0], *a.shape[1:])),
+            dims=a.dims,
+            coords={k: (AXIS.component_dim, v) for k, v in coords.items()},
+        )
+        .assign_coords(a[AXIS.width_coord].coords)
+        .assign_coords(a[AXIS.height_coord].coords)
+    )
 
     return footprints
 
 
 def update_shapes(
-    CY: csr_matrix,
+    CY: np.ndarray,
     CC: np.ndarray,
     Ab: csc_matrix,
     A_mask: list[np.ndarray],
@@ -122,7 +140,7 @@ def update_shapes(
 def _update(
     Ab_dense: np.ndarray,
     Ab: csc_matrix,
-    CY: csr_matrix,
+    CY: np.ndarray,
     CC: np.ndarray,
     m: int,
     ind_pixels: int,
@@ -178,7 +196,7 @@ def _normalize(
     :param ind_pixels: shape array of a cell
     :param tmp: updated shape - before normalization
     """
-    if tmp.dot(tmp.T) > 0:
+    if tmp.dot(tmp) > 0:
         # tmp *= 1e-3 / min(1e-3, np.sqrt(tmp.dot(tmp)) + np.finfo(float).eps)
         if Ab_dense is not None:
             Ab_dense[ind_pixels, m] = tmp  # / max(1, np.sqrt(tmp.dot(tmp)))

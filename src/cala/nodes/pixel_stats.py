@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 from scipy.sparse import csr_matrix
-from sparse import COO
 
 from cala.assets import Frame, Movie, PixStats, PopSnap, Traces, Footprints
 from cala.models import AXIS
@@ -47,19 +46,22 @@ def ingest_frame(
     # Update pixel-component statistics W_t
     # W_t = ((t-1)/t)W_{t-1} + (1/t)y_t c_t^T
     # We only access the footprint area, so we can drastically reduce the calc
-    y_flat = y_t.data.reshape(1, -1)
+    y_flat = y_t.data.flatten()
     n_components = A.sizes[AXIS.component_dim]
     A_sparse = A.data.reshape((n_components, -1)).tocsr()
-    W_sparse = W.data.reshape((n_components, -1)).tocsr() * prev_scale
+    W_flat = W.data.reshape((n_components, -1)) * prev_scale
     mask_coords = A_sparse.nonzero()
+
     for i in range(n_components):
         idx = np.where(mask_coords[0] == i)[0]
-        coords = np.zeros_like(idx), mask_coords[1][idx]
+        coords = mask_coords[1][idx]
         data = y_flat[coords] * c_t.values[i] * new_scale
-        target_masked = csr_matrix((data, coords), shape=y_flat.shape)
-        W_sparse[i] += target_masked
+        # target_masked = csr_matrix((data, coords), shape=y_flat.shape)
+        target_masked = np.zeros(y_flat.shape)
+        target_masked[coords] = data
+        W_flat[i] += target_masked
 
-    CY = COO.from_scipy_sparse(W_sparse).reshape(W.shape)
+    CY = W_flat.reshape(W.shape)
 
     pixel_stats.array = xr.DataArray(CY, dims=W.dims, coords=W.coords)
 
@@ -104,7 +106,7 @@ def ingest_component(
     # Compute outer product of frame and new traces
     # (1/t)Y_buf c_new^T
     CY = outer_with_sparse_mask(masks=a_new, target=Y, right=c_new, scalar=scale)
-    w_new = xr.DataArray(COO.from_numpy(CY), dims=a_new.dims, coords=a_new.coords)
+    w_new = xr.DataArray(CY, dims=a_new.dims, coords=a_new.coords)
 
     merged_ids = c_new.attrs.get("replaces")
     if merged_ids:

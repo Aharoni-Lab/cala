@@ -1,11 +1,10 @@
 import numpy as np
 import xarray as xr
 from sparse import COO
-from xarray import Coordinates
 
 from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
-from cala.util import sp_matmul, stack_sparse
+from cala.util import sp_matmul, stack_sparse, concatenate_coordinates
 
 
 def initialize(overlaps: Overlaps, footprints: Footprints) -> Overlaps:
@@ -86,14 +85,6 @@ def overlap_format(array: COO, V_comp: xr.DataArray, a_new_comp: xr.DataArray) -
         dims=(AXIS.component_dim, f"{AXIS.component_dim}'"),
         coords={k: (AXIS.component_dim, v) for k, v in prim_coords.items()},
     ).assign_coords({k: (f"{AXIS.component_dim}'", v) for k, v in seco_coords.items()})
-
-
-def concatenate_coordinates(left: Coordinates, right: Coordinates) -> dict:
-    l = {k: v.values for k, v in left.items()}
-    r = {k: v.values for k, v in right.items()}
-
-    combined = {k: np.concatenate([l[k], r[k]]) for k in l}
-    return combined
 
 
 def assemble_sparse_bool(

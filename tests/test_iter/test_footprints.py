@@ -3,7 +3,9 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import PixStats, CompStats
+from cala.assets import PixStats, CompStats, Footprints
+from cala.models import AXIS
+from cala.nodes.footprints import ingest_component
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -86,3 +88,22 @@ def test_ingest_frame(fpter, toy, request):
     expected = toy.footprints.array.as_numpy()
 
     xr.testing.assert_allclose(result, expected)
+
+
+@pytest.mark.parametrize("toy", ["four_separate_cells"])
+def test_ingest_component(toy, request) -> None:
+    toy = request.getfixturevalue(toy)
+
+    footprints = toy.footprints.array.isel({AXIS.component_dim: slice(None, -1)})
+
+    new_footprints = toy.footprints.array.isel({AXIS.component_dim: [-1]})
+
+    new_footprints.attrs["replaces"] = ["cell_0"]
+
+    result = ingest_component(
+        Footprints.from_array(footprints), Footprints.from_array(new_footprints)
+    )
+
+    expected = toy.footprints.array.drop_sel({AXIS.component_dim: 0})
+
+    assert result.array.equals(expected)

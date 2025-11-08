@@ -10,6 +10,8 @@ assets:
     scope: runner
   footprints:
     type: cala.assets.Footprints
+    params:
+      sparsify: True
     scope: runner
   traces:
     type: cala.assets.Traces
@@ -124,6 +126,7 @@ nodes:
       - pixel_stats: assets.pix_stats
       - frame: glow.frame
       - new_traces: trace_frame.latest_trace
+      - footprints: assets.footprints
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:

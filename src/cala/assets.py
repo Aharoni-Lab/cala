@@ -267,7 +267,6 @@ class PixStats(Asset):
             allow_extra_coords=False,
         )
     )
-    sparsify = True
 
 
 class Overlaps(Asset):
