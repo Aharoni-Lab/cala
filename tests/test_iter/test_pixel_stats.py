@@ -1,9 +1,8 @@
 import pytest
-import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, PopSnap, Traces, Footprints, PixStats
+from cala.assets import Footprints, Frame, PixStats, PopSnap, Traces
 from cala.models import AXIS
 
 

@@ -115,8 +115,8 @@ def norm(c: np.ndarray) -> float:
 
 
 def concatenate_coordinates(left: Coordinates, right: Coordinates) -> dict:
-    l = {k: v.values for k, v in left.items()}
-    r = {k: v.values for k, v in right.items()}
+    ll = {k: v.values for k, v in left.items()}
+    rr = {k: v.values for k, v in right.items()}
 
-    combined = {k: np.concatenate([l[k], r[k]]) for k in l}
+    combined = {k: np.concatenate([ll[k], rr[k]]) for k in ll}
     return combined

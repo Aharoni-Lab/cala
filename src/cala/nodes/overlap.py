@@ -4,7 +4,7 @@ from sparse import COO
 
 from cala.assets import Footprints, Overlaps
 from cala.models import AXIS
-from cala.util import sp_matmul, stack_sparse, concatenate_coordinates
+from cala.util import concatenate_coordinates, sp_matmul, stack_sparse
 
 
 def initialize(overlaps: Overlaps, footprints: Footprints) -> Overlaps:

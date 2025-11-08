@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from scipy.sparse import csr_matrix
 
-from cala.assets import Frame, Movie, PixStats, PopSnap, Traces, Footprints
+from cala.assets import Footprints, Frame, Movie, PixStats, PopSnap, Traces
 from cala.models import AXIS
 
 
