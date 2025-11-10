@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -23,6 +24,11 @@ def main(spec: str, gui: Annotated[bool, typer.Option()] = False) -> None:
     if gui:
         uvicorn.run("cala.main:app", reload=False, reload_dirs=[Path(__file__).parent])
     else:
+        start = datetime.now()
         tube = Tube.from_specification(spec)
         runner = SynchronousRunner(tube=tube)
-        runner.run()
+        try:
+            runner.run()
+        finally:
+            end = datetime.now()
+            print(f"Finished in {end - start}")
