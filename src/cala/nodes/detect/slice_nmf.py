@@ -46,7 +46,7 @@ class SliceNMF(Node):
                 arr=res, energy_landscape=energy, radius=detect_radius
             )
 
-            a_new, c_new = self._local_nmf(  # 0.0019s
+            a_new, c_new = self._local_nmf(
                 slice_=slice_,
                 spatial_sizes={k: v for k, v in res.sizes.items() if k in AXIS.spatial_dims},
             )
@@ -59,7 +59,7 @@ class SliceNMF(Node):
             energy.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = 0
 
             if min(l1_error, l0_error) <= self.reprod_tol:
-                fps.append(Footprint.from_array(a_new, sparsify=False))
+                fps.append(Footprint.from_array(a_new))
                 trs.append(Trace.from_array(c_new))
                 res.loc[{ax: slice_.coords[ax] for ax in AXIS.spatial_dims}] = l1_error
             else:

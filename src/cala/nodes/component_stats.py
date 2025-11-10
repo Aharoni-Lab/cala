@@ -1,31 +1,8 @@
+import numpy as np
 import xarray as xr
 
 from cala.assets import CompStats, Frame, PopSnap, Traces
 from cala.models import AXIS
-
-
-def initialize(traces: Traces) -> CompStats:
-    """
-    calculates the correlation matrix between temporal components
-    using their activity traces. The correlation is computed as a normalized
-    outer product of the temporal components.
-
-        The computation follows the equation:  M = C @ C.T / t'
-        where:
-        - C is the temporal components matrix (components × time)
-        - t' is the current timestep
-        - M is the resulting correlation matrix (components × components)
-    """
-    # Get temporal components C
-    # components x time
-    C = traces.array
-
-    frame_idx = C[AXIS.frame_coord].max().item()
-
-    # Compute M = C * C.T / t'
-    M = C @ C.rename(AXIS.component_rename) / (frame_idx + 1)
-
-    return CompStats.from_array(M)
 
 
 def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) -> CompStats:
@@ -86,36 +63,28 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
         traces (Traces): Current temporal traces in buffer
         new_traces (Traces): Newly detected temporal components
     """
-    if new_traces.array is None:
-        return component_stats
-
-    # Get current frame index (starting with 1)
-    t = new_traces.array[AXIS.frame_coord].max().item() + 1
-
     c_new = new_traces.array
+    c_buf = traces.array
     M = component_stats.array
 
-    if M is None or M.size == 1:
-        component_stats.array = initialize(traces).array
+    no_new = c_new is None
+    if no_new:
+        return component_stats
+
+    no_M = M is None
+    if no_M:
+        component_stats.array = initialize(c_new)
         return component_stats
 
     merged_ids = c_new.attrs.get("replaces", [])
-    intact_ids = [id_ for id_ in M[AXIS.id_coord].values if id_ not in merged_ids]
+    intact_mask = ~np.isin(M[AXIS.id_coord].values, merged_ids)
 
     if merged_ids:
-        M = (
-            M.set_xindex(AXIS.id_coord)
-            .set_xindex(f"{AXIS.id_coord}'")
-            .sel({AXIS.id_coord: intact_ids, f"{AXIS.id_coord}'": intact_ids})
-            .reset_index([AXIS.id_coord, f"{AXIS.id_coord}'"])
-        )
+        c_buf = c_buf[intact_mask]
+        M = M[intact_mask].T[intact_mask]  # symmetric matrix
 
-    # think i also have to remove the ID from c_buf,
-    # since it's been already added in trace.component_ingest
-    c_buf = traces.array
-    c_buf = (
-        c_buf.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
-    )
+    # Get current frame index (starting with 1)
+    t = c_new[AXIS.frame_coord].max().item() + 1
 
     # Compute cross-correlation between buffer and new components
     # C_buf^T c_new
@@ -136,3 +105,24 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
     component_stats.array = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
 
     return component_stats
+
+
+def initialize(traces: xr.DataArray) -> xr.DataArray:
+    """
+    calculates the correlation matrix between temporal components
+    using their activity traces. The correlation is computed as a normalized
+    outer product of the temporal components.
+
+        The computation follows the equation:  M = C @ C.T / t'
+        where:
+        - C is the temporal components matrix (components × time)
+        - t' is the current timestep
+        - M is the resulting correlation matrix (components × components)
+    """
+    # Get temporal components C
+    # components x time
+
+    frame_idx = traces[AXIS.frame_coord].max().item()
+
+    # Compute M = C * C.T / t'
+    return traces @ traces.rename(AXIS.component_rename) / (frame_idx + 1)

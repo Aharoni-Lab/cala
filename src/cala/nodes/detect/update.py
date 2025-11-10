@@ -26,17 +26,19 @@ def update_assets(
     A[CompStats, Name("component_stats")],
     A[Overlaps, Name("overlaps")],
 ]:
-    updated_traces = update_traces(traces=traces, new_traces=new_traces)
-    updated_shapes = update_footprints(footprints=footprints, new_footprints=new_footprints)
+    updated_overlaps = update_overlap(
+        overlaps=overlaps, footprints=footprints, new_footprints=new_footprints
+    )
     updated_pixel_stats = update_pixel_stats(
-        pixel_stats=pixel_stats, frames=buffer, traces=traces, new_traces=new_traces
+        pixel_stats=pixel_stats, frames=buffer, new_traces=new_traces, new_footprints=new_footprints
     )
     updated_component_stats = update_component_stats(
         component_stats=component_stats, traces=traces, new_traces=new_traces
     )
-    updated_overlaps = update_overlap(
-        overlaps=overlaps, footprints=footprints, new_footprints=new_footprints
-    )
+    # Shapes and Traces must be updated last to ensure the assets do not include
+    # the new components before we update the others.
+    updated_shapes = update_footprints(footprints=footprints, new_footprints=new_footprints)
+    updated_traces = update_traces(traces=traces, new_traces=new_traces)
 
     return (
         updated_traces,

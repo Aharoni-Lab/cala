@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 from numpydantic.ndarray import NDArray
 from sparse import COO
+from xarray import Coordinates
 
 from cala.models import AXIS
 
@@ -111,3 +112,11 @@ def rank1nmf(
 def norm(c: np.ndarray) -> float:
     """Faster than np.linalg.norm"""
     return np.sqrt(c.ravel().dot(c.ravel()))
+
+
+def concatenate_coordinates(left: Coordinates, right: Coordinates) -> dict:
+    ll = {k: v.values for k, v in left.items()}
+    rr = {k: v.values for k, v in right.items()}
+
+    combined = {k: np.concatenate([ll[k], rr[k]]) for k in ll}
+    return combined

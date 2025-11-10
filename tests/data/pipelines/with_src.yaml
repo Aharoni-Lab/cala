@@ -10,6 +10,8 @@ assets:
     scope: runner
   footprints:
     type: cala.assets.Footprints
+    params:
+      sparsify: True
     scope: runner
   traces:
     type: cala.assets.Traces
@@ -40,14 +42,14 @@ nodes:
       files:
         - minian/msCam1.avi
         - minian/msCam2.avi
-  #        - minian/msCam3.avi
-  #        - minian/msCam4.avi
-  #        - minian/msCam5.avi
-  #        - minian/msCam6.avi
-  #        - minian/msCam7.avi
-  #        - minian/msCam8.avi
-  #        - minian/msCam9.avi
-  #        - minian/msCam10.avi
+        - minian/msCam3.avi
+        - minian/msCam4.avi
+        - minian/msCam5.avi
+        - minian/msCam6.avi
+        - minian/msCam7.avi
+        - minian/msCam8.avi
+        - minian/msCam9.avi
+        - minian/msCam10.avi
   counter:
     type: cala.nodes.prep.counter
   frame:
@@ -124,6 +126,7 @@ nodes:
       - pixel_stats: assets.pix_stats
       - frame: glow.frame
       - new_traces: trace_frame.latest_trace
+      - footprints: assets.footprints
   comp_frame:
     type: cala.nodes.component_stats.ingest_frame
     depends:
@@ -136,11 +139,11 @@ nodes:
       bep: 0
       tol: 0.0001
       max_iter: 5
+      ratio_lb: 0.10
     depends:
       - footprints: assets.footprints
       - pixel_stats: pix_frame.value
       - component_stats: comp_frame.value
-      - index: counter.idx
 
   residual:
     type: cala.nodes.residual.Residuer
@@ -166,7 +169,10 @@ nodes:
     type: cala.nodes.detect.Cataloger
     params:
       age_limit: 100
-      smooth_kwargs:
+      shape_smooth_kwargs:
+        ksize: [ 5, 5 ]
+        sigmaX: 0
+      trace_smooth_kwargs:
         sigma: 2
       merge_threshold: 0.95
       val_threshold: 0.5
@@ -189,26 +195,26 @@ nodes:
       - buffer: assets.buffer
   #  DETECT ENDS
 
-  merge:
-    type: cala.nodes.merge.merge_existing
-    params:
-      merge_interval: 500
-      merge_threshold: 0.95
-      smooth_kwargs:
-        sigma: 2
-    depends:
-      - shapes: assets.footprints
-      - traces: assets.traces
-      - overlaps: assets.overlaps
-      - trigger: detect_update.footprints
-  merge_update:
-    type: cala.nodes.detect.update_assets
-    depends:
-      - new_footprints: merge.footprints
-      - new_traces: merge.traces
-      - footprints: assets.footprints
-      - traces: assets.traces
-      - pixel_stats: assets.pix_stats
-      - component_stats: assets.comp_stats
-      - overlaps: assets.overlaps
-      - buffer: assets.buffer
+#  merge:
+#    type: cala.nodes.merge.merge_existing
+#    params:
+#      merge_interval: 500
+#      merge_threshold: 0.95
+#      smooth_kwargs:
+#        sigma: 2
+#    depends:
+#      - shapes: assets.footprints
+#      - traces: assets.traces
+#      - overlaps: assets.overlaps
+#      - trigger: detect_update.footprints
+#  merge_update:
+#    type: cala.nodes.detect.update_assets
+#    depends:
+#      - new_footprints: merge.footprints
+#      - new_traces: merge.traces
+#      - footprints: assets.footprints
+#      - traces: assets.traces
+#      - pixel_stats: assets.pix_stats
+#      - component_stats: assets.comp_stats
+#      - overlaps: assets.overlaps
+#      - buffer: assets.buffer

@@ -1,9 +1,8 @@
-import numpy as np
 import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, Movie, PopSnap, Traces
+from cala.assets import Footprints, Frame, PixStats, PopSnap, Traces
 from cala.models import AXIS
 
 
@@ -15,20 +14,26 @@ def init() -> Node:
 
 
 def test_init(init, four_separate_cells) -> None:
-    result = init.process(
-        traces=four_separate_cells.traces, frames=four_separate_cells.make_movie()
+    traces = four_separate_cells.traces.array
+    movie = four_separate_cells.make_movie().array
+    footprints = four_separate_cells.footprints.array
+
+    results = init.process(
+        traces=traces,
+        frames=movie,
+        footprints=four_separate_cells.footprints.array,
     )
 
-    movie = four_separate_cells.make_movie()
-
-    for id_, trace in zip(
-        four_separate_cells.cell_ids,
-        four_separate_cells.traces.array.transpose(AXIS.component_dim, ...),
+    for result, trace, shape in zip(
+        results.transpose(AXIS.component_dim, ...),
+        traces.transpose(AXIS.component_dim, ...),
+        footprints.transpose(AXIS.component_dim, ...),
     ):
-        assert np.all(
-            result.array.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: id_})
-            == (trace @ movie.array) / four_separate_cells.n_frames
-        )
+        # it's going to be only identical where the footprint exists
+        # and otherwise zero
+        mask = shape > 0
+        expected = xr.where(mask, (trace @ movie) / four_separate_cells.n_frames, 0)
+        xr.testing.assert_allclose(result.as_numpy(), expected.as_numpy())
 
 
 @pytest.fixture(scope="function")
@@ -39,26 +44,25 @@ def frame_update() -> Node:
 
 
 def test_ingest_frame(init, frame_update, four_separate_cells) -> None:
+    traces = four_separate_cells.traces.array
+    movie = four_separate_cells.make_movie().array
+    footprints = four_separate_cells.footprints.array
 
     pre_ingest = init.process(
-        traces=Traces.from_array(
-            four_separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
-        ),
-        frames=Movie.from_array(
-            four_separate_cells.make_movie().array.isel({AXIS.frames_dim: slice(None, -1)})
-        ),
+        traces=traces.isel({AXIS.frames_dim: slice(None, -1)}),
+        frames=movie.isel({AXIS.frames_dim: slice(None, -1)}),
+        footprints=footprints,
     )
 
     result = frame_update.process(
-        pixel_stats=pre_ingest,
-        frame=Frame.from_array(four_separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        new_traces=PopSnap.from_array(four_separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
-    )
+        pixel_stats=PixStats.from_array(pre_ingest),
+        frame=Frame.from_array(movie.isel({AXIS.frames_dim: -1})),
+        new_traces=PopSnap.from_array(traces.isel({AXIS.frames_dim: -1})),
+        footprints=Footprints.from_array(footprints),
+    ).array
 
-    expected = init.process(
-        traces=four_separate_cells.traces, frames=four_separate_cells.make_movie()
-    )
-    xr.testing.assert_allclose(expected.array, result.array)
+    expected = init.process(traces=traces, frames=movie, footprints=footprints)
+    xr.testing.assert_allclose(expected, result.as_numpy())
 
 
 @pytest.fixture(scope="function")
@@ -69,23 +73,26 @@ def comp_update() -> Node:
 
 
 def test_ingest_component(init, comp_update, four_separate_cells):
+    slice_idx = -2
+    traces = four_separate_cells.traces.array
+    footprints = four_separate_cells.footprints.array
+    movie = four_separate_cells.make_movie()
+
     pre_ingest = init.process(
-        traces=Traces.from_array(
-            four_separate_cells.traces.array.isel({AXIS.component_dim: slice(None, -2)})
-        ),
-        frames=four_separate_cells.make_movie(),
+        traces=traces.isel({AXIS.component_dim: slice(None, slice_idx)}),
+        frames=movie.array,
+        footprints=footprints.isel({AXIS.component_dim: slice(None, slice_idx)}),
     )
 
     result = comp_update.process(
-        pixel_stats=pre_ingest,
-        frames=four_separate_cells.make_movie(),
-        new_traces=Traces.from_array(
-            four_separate_cells.traces.array.isel({AXIS.component_dim: slice(-2, None)})
+        pixel_stats=PixStats.from_array(pre_ingest),
+        frames=movie,
+        new_traces=Traces.from_array(traces.isel({AXIS.component_dim: slice(slice_idx, None)})),
+        new_footprints=Footprints.from_array(
+            footprints.isel({AXIS.component_dim: slice(slice_idx, None)})
         ),
-    )
+    ).array
 
-    expected = init.process(
-        traces=four_separate_cells.traces, frames=four_separate_cells.make_movie()
-    )
+    expected = init.process(traces=traces, frames=movie.array, footprints=footprints)
 
-    xr.testing.assert_allclose(expected.array, result.array)
+    xr.testing.assert_allclose(expected.as_numpy(), result.as_numpy())

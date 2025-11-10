@@ -4,12 +4,13 @@ import numpy as np
 import xarray as xr
 from noob import Name, process_method
 from pydantic import BaseModel
-from scipy.sparse import csc_matrix
+from scipy.sparse import csc_matrix, vstack
 from sparse import COO
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.logging import init_logger
 from cala.models import AXIS
+from cala.util import concatenate_coordinates
 
 
 class Footprinter(BaseModel):
@@ -22,7 +23,7 @@ class Footprinter(BaseModel):
 
     @process_method
     def ingest_frame(
-        self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats, index: int
+        self, footprints: Footprints, pixel_stats: PixStats, component_stats: CompStats
     ) -> A[Footprints, Name("footprints")]:
         """
         Update spatial footprints using sufficient statistics.
@@ -75,18 +76,35 @@ def ingest_component(
         return footprints
 
     a = footprints.array
-    a_det = new_footprints.array
+    a_new = new_footprints.array
 
     if footprints.array is None:
-        footprints.array = a_det
+        footprints.array = a_new
         return footprints
 
-    merged_ids = a_det.attrs.get("replaces")
-    if merged_ids:
-        intact_ids = [id_ for id_ in a[AXIS.id_coord].values if id_ not in merged_ids]
-        a = a.set_xindex(AXIS.id_coord).sel({AXIS.id_coord: intact_ids}).reset_index(AXIS.id_coord)
+    a_val = a.data.reshape((a.sizes[AXIS.component_dim], -1)).tocsr()
+    a_ids = a[AXIS.id_coord].values
+    a_side = a[AXIS.component_dim]
+    a_new_val = a_new.data.reshape((a_new.sizes[AXIS.component_dim], -1)).tocsr()
 
-    footprints.array = xr.concat([a, a_det], dim=AXIS.component_dim, combine_attrs="drop")
+    merged_ids = a_new.attrs.get("replaces")
+    if merged_ids:
+        intact_mask = ~np.isin(a_ids, merged_ids)
+        a_val = a_val[intact_mask]
+        a_side = a_side[intact_mask]
+
+    data = vstack([a_val, a_new_val])
+    coords = concatenate_coordinates(a_side.coords, a_new[AXIS.component_dim].coords)
+
+    footprints.array = (
+        xr.DataArray(
+            COO.from_scipy_sparse(data).reshape((data.shape[0], *a.shape[1:])),
+            dims=a.dims,
+            coords={k: (AXIS.component_dim, v) for k, v in coords.items()},
+        )
+        .assign_coords(a[AXIS.width_coord].coords)
+        .assign_coords(a[AXIS.height_coord].coords)
+    )
 
     return footprints
 
