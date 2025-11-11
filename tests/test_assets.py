@@ -90,11 +90,11 @@ def test_zarr_append_frame(four_connected_cells, tmp_path, peek_size, flush_inte
     zarr_traces.array = traces[:, :0]  # just initializing zarr
 
     # array smaller than flush_interval. does not flush.
-    zarr_traces.zarr_append(traces, dim=AXIS.frames_dim)
+    zarr_traces.append(traces, dim=AXIS.frames_dim)
     assert zarr_traces.array_.sizes[AXIS.frames_dim] == n_frames
 
     # array larger than flush_interval. flushes down to peek_size.
-    zarr_traces.zarr_append(traces, dim=AXIS.frames_dim)
+    zarr_traces.append(traces, dim=AXIS.frames_dim)
     assert zarr_traces.array_.sizes[AXIS.frames_dim] == peek_size
 
 
@@ -110,7 +110,7 @@ def test_zarr_append_component(four_connected_cells, tmp_path, flush_interval):
 
     zarr_traces = Traces(zarr_path=tmp_path, peek_size=20, flush_interval=flush_interval)
     zarr_traces.array = traces[:-1, :]  # forgot the last component! Also, got flushed.
-    zarr_traces.zarr_append(traces[-1:, :], dim=AXIS.component_dim)  # appendee needs to be 2D
+    zarr_traces.append(traces[-1:, :], dim=AXIS.component_dim)  # appendee needs to be 2D
 
     assert zarr_traces.array_[AXIS.component_dim].equals(traces[AXIS.component_dim])
     assert zarr_traces.load_zarr()[AXIS.component_dim].equals(traces[AXIS.component_dim])

@@ -144,11 +144,22 @@ class Footprints(Asset):
 
 class Traces(Asset):
     peek_size: int
-    """
-    How many epochs to return when called.
-    
-    """
+    """How many epochs to return when called."""
     flush_interval: int | None = None
+    """How many epochs to wait until next flush"""
+
+    _deprecated: list = PrivateAttr(default_factory=list)
+    """
+    Deprecated, or replaced component idx.
+    Since zarr does not support efficiently removing rows and columns,
+    there's no easy way to remove a column when a component has been 
+    removed or replaced. Instead, we "mask" it with this "deprecated"
+    flag.
+
+    When arrays are called, these are filtered out. When new epochs are
+    added, these are added in with nan values. 
+    """
+
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
@@ -205,7 +216,7 @@ class Traces(Asset):
         else:
             self.array_ = array
 
-    def zarr_append(self, array: xr.DataArray, dim: str) -> None:
+    def append(self, array: xr.DataArray, dim: str) -> None:
         """
         Since we cannot simply append to zarr array in memory using xarray syntax,
         we provide a convenience method for appending to zarr array and in-memory array
@@ -217,15 +228,22 @@ class Traces(Asset):
 
         if dim == AXIS.frames_dim:
             self.array_ = xr.concat([self.array_, array], dim=AXIS.frames_dim)
-            if self.array_.sizes[AXIS.frames_dim] > self.flush_interval:
-                self._flush_zarr()
+
+            if self.zarr_path:
+                if self.array_.sizes[AXIS.frames_dim] > self.flush_interval:
+                    self._flush_zarr()
+
         elif dim == AXIS.component_dim:
-            self.array_ = xr.concat(
-                [self.array_, array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})], dim=dim
-            )
-            array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
-                self.zarr_path, append_dim=dim
-            )
+            if self.zarr_path:
+                self.array_ = xr.concat(
+                    [self.array_, array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})],
+                    dim=dim,
+                )
+                array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+                    self.zarr_path, append_dim=dim
+                )
+            else:
+                self.array_ = xr.concat([self.array_, array], dim=dim, combine_attrs="drop")
 
     def _flush_zarr(self) -> None:
         """
@@ -236,6 +254,12 @@ class Traces(Asset):
             self.zarr_path, append_dim=AXIS.frames_dim
         )
         self.array_ = self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+
+    def deprecate(self, del_mask: np.ndarray) -> None:
+        if self.zarr_path:
+            ...
+        else:
+            self.array_ = self.array_[~del_mask]
 
     @classmethod
     def from_array(cls, array: xr.DataArray) -> "Traces":

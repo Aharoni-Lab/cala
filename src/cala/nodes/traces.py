@@ -79,9 +79,9 @@ class Tracer(BaseModel):
             updated_tr = updated_traces.volumize.dim_with_coords(
                 dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
             )
-            traces.update(updated_tr, append_dim=AXIS.frames_dim)
+            traces.append(updated_tr, dim=AXIS.frames_dim)
         else:
-            traces.array = xr.concat([traces.full_array(), updated_traces], dim=AXIS.frames_dim)
+            traces.append(updated_traces, dim=AXIS.frames_dim)
 
         return PopSnap.from_array(updated_traces)
 
@@ -204,44 +204,47 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
     :param new_traces: Can be either a newly registered trace or an updated existing one.
     """
 
-    c = traces.full_array()
-    c_det = new_traces.array
+    c_new = new_traces.array
 
-    if c_det is None:
+    if c_new is None:
         return traces
 
-    if c is None:
-        traces.array = c_det
+    if traces.array is None:
+        traces.array = c_new
         return traces
 
-    if c.sizes[AXIS.frames_dim] > c_det.sizes[AXIS.frames_dim]:
-        # if newly detected cells are truncated, pad with np.nans
-        c_new = xr.DataArray(
-            np.full((c_det.sizes[AXIS.component_dim], c.sizes[AXIS.frames_dim]), np.nan),
-            dims=[AXIS.component_dim, AXIS.frames_dim],
-            coords=c.isel({AXIS.component_dim: 0}).coords,
-        )
-        c_new[AXIS.id_coord] = c_det[AXIS.id_coord]
-        c_new[AXIS.detect_coord] = c_det[AXIS.detect_coord]
+    total_frames = traces.sizes[AXIS.frames_dim]
+    new_n_frames = c_new.sizes[AXIS.frames_dim]
 
-        c_new.loc[
-            {AXIS.frames_dim: slice(c.sizes[AXIS.frames_dim] - c_det.sizes[AXIS.frames_dim], None)}
-        ] = c_det
-    else:
-        c_new = c_det
-
-    merged_ids = c_det.attrs.get("replaces")
+    merged_ids = c_new.attrs.get("replaces")
     if merged_ids:
-        if traces.zarr_path:
-            invalid = c[AXIS.id_coord].isin(merged_ids)
-            traces.array = c.where(~invalid.compute(), drop=True).compute()
-        else:
-            intact_mask = ~np.isin(c[AXIS.id_coord].values, merged_ids)
-            c = c[intact_mask]
+        del_mask = np.isin(traces.array[AXIS.id_coord].values, merged_ids)
+        traces.deprecate(del_mask)
 
-    if traces.zarr_path:
-        traces.update(c_new, append_dim=AXIS.component_dim)
+    if total_frames > new_n_frames:
+        # if newly detected cells are truncated, pad with np.nans
+        c_pad = _pad_history(c_new, total_frames, np.nan)
     else:
-        traces.array = xr.concat([c, c_new], dim=AXIS.component_dim, combine_attrs="drop")
+        c_pad = c_new
+
+    traces.append(c_pad, dim=AXIS.component_dim)
 
     return traces
+
+
+def _pad_history(traces: xr.DataArray, total_nframes: int, value: float = np.nan) -> xr.DataArray:
+    """
+    Pad unknown historical epochs with values...
+
+    """
+    new_nframes = traces.sizes[AXIS.frames_dim]
+
+    c_new = xr.DataArray(
+        np.full((traces.sizes[AXIS.component_dim], total_nframes), value),
+        dims=[AXIS.component_dim, AXIS.frames_dim],
+        coords=traces[AXIS.component_dim].coords,
+    )
+
+    c_new.loc[{AXIS.frames_dim: slice(total_nframes - new_nframes, None)}] = traces
+
+    return c_new
