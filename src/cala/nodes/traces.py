@@ -81,7 +81,7 @@ class Tracer(BaseModel):
             )
             traces.update(updated_tr, append_dim=AXIS.frames_dim)
         else:
-            traces.array = xr.concat([traces.array, updated_traces], dim=AXIS.frames_dim)
+            traces.array = xr.concat([traces.full_array(), updated_traces], dim=AXIS.frames_dim)
 
         return PopSnap.from_array(updated_traces)
 
