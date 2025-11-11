@@ -83,17 +83,18 @@ def test_ingest_component(comp_update, toy, request, zarr_setup, tmp_path) -> No
     zarr_setup["zarr_path"] = tmp_path if zarr_setup["zarr_path"] else None
 
     traces = Traces(array_=None, **zarr_setup)
-    traces.array = toy.traces.array.isel({AXIS.component_dim: slice(None, -1)})
+    traces.array = toy.traces.array_.isel({AXIS.component_dim: slice(None, -1)})
 
-    new_traces = toy.traces.array.isel(
+    new_traces = toy.traces.array_.isel(
         {AXIS.component_dim: [-1], AXIS.frames_dim: slice(-zarr_setup["peek_size"], None)}
     )
 
     new_traces.attrs["replaces"] = ["cell_0"]
-
     result = comp_update.process(traces, Traces.from_array(new_traces))
 
     expected = toy.traces.array.drop_sel({AXIS.component_dim: 0})
-    expected.loc[{AXIS.component_dim: -1, AXIS.frames_dim: slice(None, 10)}] = np.nan
+    expected.loc[
+        {AXIS.component_dim: -1, AXIS.frames_dim: slice(None, -zarr_setup["peek_size"])}
+    ] = np.nan
 
-    assert result.array_.equals(expected)
+    assert result.full_array().equals(expected)

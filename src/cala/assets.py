@@ -143,12 +143,12 @@ class Footprints(Asset):
 
 
 class Traces(Asset):
-    peek_size: int
+    peek_size: int = None
     """How many epochs to return when called."""
     flush_interval: int | None = None
     """How many epochs to wait until next flush"""
 
-    _deprecated: list = PrivateAttr(default_factory=list)
+    _deprecated: list[str] = PrivateAttr(default_factory=list)
     """
     Deprecated, or replaced component idx.
     Since zarr does not support efficiently removing rows and columns,
@@ -197,7 +197,11 @@ class Traces(Asset):
 
     @property
     def array(self) -> xr.DataArray:
-        return self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+        return (
+            self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+            if self.array_ is not None
+            else self.array_
+        )
 
     @array.setter
     def array(self, array: xr.DataArray) -> None:
@@ -248,18 +252,37 @@ class Traces(Asset):
     def _flush_zarr(self) -> None:
         """
         Flushes traces older than peek_size to zarr array.
+        Needs to append nans to deprecated components, since they get deleted
+        in in-memory array, but persist in zarr array.
 
+
+        Could do this much more elegantly by pre-allocating .array_
         """
-        self.array_.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
-            self.zarr_path, append_dim=AXIS.frames_dim
-        )
+        raw_zarr = self.load_zarr()
+        to_flush = self.array_.isel({AXIS.frames_dim: slice(None, -self.peek_size)})
+        if self._deprecated:
+            zarr_ids = raw_zarr[AXIS.id_coord].values
+            zarr_detects = raw_zarr[AXIS.detect_coord].values
+            intact_mask = ~np.isin(zarr_ids, self._deprecated)
+            n_flush = to_flush.sizes[AXIS.frames_dim]
+            prealloc = xr.DataArray(
+                np.full((raw_zarr.sizes[AXIS.component_dim], n_flush), np.nan),
+                dims=[AXIS.component_dim, AXIS.frames_dim],
+                coords={
+                    AXIS.id_coord: (AXIS.component_dim, zarr_ids),
+                    AXIS.detect_coord: (AXIS.component_dim, zarr_detects),
+                },
+            ).assign_coords(to_flush[AXIS.frames_dim].coords)
+            prealloc.loc[intact_mask] = to_flush
+            prealloc.to_zarr(self.zarr_path, append_dim=AXIS.frames_dim)
+        else:
+            to_flush.to_zarr(self.zarr_path, append_dim=AXIS.frames_dim)
         self.array_ = self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
 
-    def deprecate(self, del_mask: np.ndarray) -> None:
+    def keep(self, intact_mask: np.ndarray) -> None:
         if self.zarr_path:
-            ...
-        else:
-            self.array_ = self.array_[~del_mask]
+            self._deprecated.extend(self.array_[AXIS.id_coord].values[~intact_mask])
+        self.array_ = self.array_[intact_mask]
 
     @classmethod
     def from_array(cls, array: xr.DataArray) -> "Traces":
@@ -274,9 +297,11 @@ class Traces(Asset):
 
     def full_array(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
         if self.zarr_path:
-            return xr.concat(
-                [self.load_zarr(isel_filter, sel_filter), self.array_], dim=AXIS.frames_dim
-            ).compute()
+            raw_zarr = self.load_zarr(isel_filter, sel_filter)
+            zarr_ids = raw_zarr[AXIS.id_coord].values
+            intact_mask = ~np.isin(zarr_ids, self._deprecated)
+
+            return xr.concat([raw_zarr[intact_mask], self.array_], dim=AXIS.frames_dim).compute()
         else:
             return self.array_.isel(isel_filter).sel(sel_filter)
 

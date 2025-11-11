@@ -218,8 +218,8 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
 
     merged_ids = c_new.attrs.get("replaces")
     if merged_ids:
-        del_mask = np.isin(traces.array[AXIS.id_coord].values, merged_ids)
-        traces.deprecate(del_mask)
+        intact_mask = ~np.isin(traces.array[AXIS.id_coord].values, merged_ids)
+        traces.keep(intact_mask)
 
     if total_frames > new_n_frames:
         # if newly detected cells are truncated, pad with np.nans
