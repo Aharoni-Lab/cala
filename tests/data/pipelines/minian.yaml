@@ -42,15 +42,15 @@ nodes:
     params:
       files:
         - minian/msCam1.avi
-  #        - minian/msCam2.avi
-  #        - minian/msCam3.avi
-  #        - minian/msCam4.avi
-  #        - minian/msCam5.avi
-  #        - minian/msCam6.avi
-  #        - minian/msCam7.avi
-  #        - minian/msCam8.avi
-  #        - minian/msCam9.avi
-  #        - minian/msCam10.avi
+        - minian/msCam2.avi
+        - minian/msCam3.avi
+        - minian/msCam4.avi
+        - minian/msCam5.avi
+        - minian/msCam6.avi
+        - minian/msCam7.avi
+        - minian/msCam8.avi
+        - minian/msCam9.avi
+        - minian/msCam10.avi
   counter:
     type: cala.nodes.prep.counter
   frame:
