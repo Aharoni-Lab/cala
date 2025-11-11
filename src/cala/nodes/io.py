@@ -130,7 +130,7 @@ def save_asset(
         try:
             asset.full_array().to_zarr(zarr_dir)  # for Traces
         except AttributeError:
-            asset.array.to_zarr(zarr_dir, mode="w")
+            asset.array.as_numpy().to_zarr(zarr_dir, mode="w")
     return None
 
 
