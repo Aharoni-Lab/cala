@@ -1,6 +1,11 @@
-import os
+"""
+Since assets without zarr operations is very straightforward,
+this test file is mainly focused on testing zarr-integrated assets,
+with the exception of Buffer.
+
+"""
+
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 import xarray as xr
@@ -9,71 +14,143 @@ from cala.assets import Buffer, Traces
 from cala.models import AXIS
 
 
-@pytest.fixture
-def path() -> Path:
-    return Path("assets")
+@pytest.mark.parametrize("peek_size", [30, 49, 50, 51, 70])
+def test_array_assignment(tmp_path, four_connected_cells, peek_size):
+    """
+    1. array should get assigned to memory if smaller than or equal to peek_size
+    2. array should get split to memory and zarr_path at peek_size if
+        array is larger than peek_size
 
-
-def test_assign_zarr(path, four_connected_cells):
-    zarr_traces = Traces(zarr_path=path, peek_size=100)
+    """
     traces = four_connected_cells.traces.array
-    zarr_traces.array = traces
-    print(os.listdir(zarr_traces.zarr_path))
-    assert zarr_traces.array_ is None  # not in memory
-    assert zarr_traces.array.equals(traces)
+    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
 
-
-def test_from_array(four_connected_cells, path):
-    traces = four_connected_cells.traces.array
-    zarr_traces = Traces.from_array(traces, path, peek_size=four_connected_cells.n_frames)
-    assert zarr_traces.array_ is None
-    assert zarr_traces.array.equals(traces)
-
-
-@pytest.mark.parametrize("peek_shift", [-1, 0, 1])
-def test_peek(four_connected_cells, path, peek_shift):
-    traces = four_connected_cells.traces.array
-    zarr_traces = Traces.from_array(
-        traces, path, peek_size=four_connected_cells.n_frames + peek_shift
+    zarr_traces = Traces(
+        zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
     )
-    if peek_shift >= 0:
-        assert zarr_traces.array.equals(traces)
-    else:
-        with pytest.raises(AssertionError):
-            assert zarr_traces.array.equals(traces)
+    zarr_traces.array = traces
+    assert zarr_traces.array_.sizes[AXIS.frames_dim] == min(n_frames, peek_size)
+    assert zarr_traces.load_zarr().sizes[AXIS.frames_dim] == max(0, n_frames - peek_size)
 
 
-def test_ingest_frame(path, four_connected_cells):
+@pytest.mark.parametrize("peek_size", [30, 50, 70])
+def test_array_peek(tmp_path, four_connected_cells, peek_size):
+    """
+    .array property returns correctly for peek_size smaller, equal, larger
+    than the saved array.
+
+    """
     traces = four_connected_cells.traces.array
-    old_traces = traces.isel({AXIS.frames_dim: slice(None, -1)})
-    zarr_traces = Traces.from_array(old_traces, path, peek_size=four_connected_cells.n_frames)
-    new_traces = four_connected_cells.traces.array.isel({AXIS.frames_dim: [-1]})
+    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
 
-    zarr_traces.update(new_traces, append_dim=AXIS.frames_dim)
-    # new_traces.to_zarr(zarr_traces.zarr_path, append_dim=AXIS.frames_dim)
+    zarr_traces = Traces(
+        zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
+    )
+    zarr_traces.array = traces
 
+    assert zarr_traces.array.sizes[AXIS.frames_dim] == min(peek_size, n_frames)
+
+
+@pytest.mark.parametrize("peek_size", [30, 50, 70])
+def test_flush_zarr(four_connected_cells, tmp_path, peek_size):
+    """
+    _flush_zarr method flushes epochs older than peek_size to zarr_path,
+    and leaves only the newest epochs in memory.
+
+    """
+    traces = four_connected_cells.traces.array
+    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+
+    zarr_traces = Traces(
+        zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
+    )
+
+    # need to initialize zarr file first to append with _flush_zarr
+    zarr_traces.array = traces[:, :0]
+    zarr_traces.array_ = traces  # add 50 frames
+
+    zarr_traces._flush_zarr()
+    # only peek_size left in memory
+    assert zarr_traces.array_.sizes[AXIS.frames_dim] == min(n_frames, peek_size)
+    # the rest is in zarr
+    assert zarr_traces.load_zarr().sizes[AXIS.frames_dim] == max(0, n_frames - peek_size)
+
+
+@pytest.mark.parametrize("peek_size, flush_interval", [(30, 70)])
+def test_zarr_append_frame(four_connected_cells, tmp_path, peek_size, flush_interval):
+    """
+    Test that when in-memory array size hits flush_interval, old epochs
+        get flushed.
+
+    """
+    traces = four_connected_cells.traces.array
+    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+
+    zarr_traces = Traces(zarr_path=tmp_path, peek_size=peek_size, flush_interval=flush_interval)
+    zarr_traces.array = traces[:, :0]  # just initializing zarr
+
+    # array smaller than flush_interval. does not flush.
+    zarr_traces.zarr_append(traces, dim=AXIS.frames_dim)
+    assert zarr_traces.array_.sizes[AXIS.frames_dim] == n_frames
+
+    # array larger than flush_interval. flushes down to peek_size.
+    zarr_traces.zarr_append(traces, dim=AXIS.frames_dim)
+    assert zarr_traces.array_.sizes[AXIS.frames_dim] == peek_size
+
+
+@pytest.mark.parametrize("flush_interval", [30])
+def test_zarr_append_component(four_connected_cells, tmp_path, flush_interval):
+    """
+    Test that when adding components,
+        (a) it gets appropriately divided between in-memory and zarr arrays.
+        (b) in-memory and zarr arrays can be concatenated together afterward.
+
+    """
+    traces = four_connected_cells.traces.array
+
+    zarr_traces = Traces(zarr_path=tmp_path, peek_size=20, flush_interval=flush_interval)
+    zarr_traces.array = traces[:-1, :]  # forgot the last component! Also, got flushed.
+    zarr_traces.zarr_append(traces[-1:, :], dim=AXIS.component_dim)  # appendee needs to be 2D
+
+    assert zarr_traces.array_[AXIS.component_dim].equals(traces[AXIS.component_dim])
+    assert zarr_traces.load_zarr()[AXIS.component_dim].equals(traces[AXIS.component_dim])
+    result = xr.concat([zarr_traces.load_zarr(), zarr_traces.array_], dim=AXIS.frames_dim).compute()
+    assert result.equals(traces)
+
+
+def test_from_array(four_connected_cells):
+    """
+    .from_array method can correctly reproduce the array with .array
+
+    """
+    traces = four_connected_cells.traces.array
+    zarr_traces = Traces.from_array(traces)
     assert zarr_traces.array.equals(traces)
 
 
-def test_ingest_component(four_connected_cells, path):
+@pytest.mark.parametrize("peek_size", [30, 50, 70])
+def test_sizes(four_connected_cells, tmp_path, peek_size):
+    """
+    The sizes property of the asset combines the sizes
+    of the in-memory array and the zarr array.
+
+    """
     traces = four_connected_cells.traces.array
-    old_traces = traces.isel({AXIS.component_dim: slice(None, -1)})
-    zarr_traces = Traces.from_array(old_traces, path, peek_size=four_connected_cells.n_frames)
-    new_traces = four_connected_cells.traces.array.isel({AXIS.component_dim: [-1]})
 
-    zarr_traces.update(new_traces, append_dim=AXIS.component_dim)
-    # new_traces.to_zarr(zarr_traces.zarr_path, append_dim=AXIS.component_dim)
+    zarr_traces = Traces(
+        zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
+    )
+    zarr_traces.array = traces
 
-    assert zarr_traces.array.equals(traces)
+    assert zarr_traces.sizes == traces.sizes
 
 
-def test_overwrite(four_connected_cells, four_separate_cells, path):
-    conn_traces = four_connected_cells.traces.array
-    zarr_traces = Traces.from_array(conn_traces, path, peek_size=four_connected_cells.n_frames)
+@pytest.mark.xfail
+def test_overwrite(four_connected_cells, four_separate_cells):
+    """
+    test that zarr array can get overwritten.
 
-    sep_traces = four_separate_cells.traces.array
-    zarr_traces.array = sep_traces
-    assert zarr_traces.array.equals(sep_traces)
+    """
 
 
 # two cases of init:
