@@ -239,11 +239,12 @@ class Traces(Asset):
 
         elif dim == AXIS.component_dim:
             if self.zarr_path:
+                n_in_memory = self.array_.sizes[AXIS.frames_dim]
                 self.array_ = xr.concat(
-                    [self.array_, array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})],
+                    [self.array_, array.isel({AXIS.frames_dim: slice(-n_in_memory, None)})],
                     dim=dim,
                 )
-                array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+                array.isel({AXIS.frames_dim: slice(None, -n_in_memory)}).to_zarr(
                     self.zarr_path, append_dim=dim
                 )
             else:
