@@ -192,15 +192,23 @@ nodes:
       - buffer: assets.buffer
   #  DETECT ENDS
 
-  persist:
+  save_trace:
     type: cala.nodes.io.save_asset
     params:
-      target_epoch: 800 #5999  formula: 1000 * n_chunks - 1
+      target_epoch: 999 #5999  formula: 1000 * n_chunks - 1
       path: traces/
     depends:
       - asset: assets.traces
       - curr_epoch: counter.idx
 
+  save_shape:
+    type: cala.nodes.io.save_asset
+    params:
+      target_epoch: 999 #5999  formula: 1000 * n_chunks - 1
+      path: footprints/
+    depends:
+      - asset: assets.footprints
+      - curr_epoch: counter.idx
 
   return:
     type: return
