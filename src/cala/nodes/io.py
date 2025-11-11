@@ -1,13 +1,17 @@
 from abc import abstractmethod
 from collections.abc import Generator
+from glob import glob
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Literal
 
 import cv2
+from natsort import natsorted
 from numpy.typing import NDArray
 from skimage import io
 
+from cala.assets import Asset
 from cala.config import config
+from cala.util import clear_dir
 
 
 class Stream(Protocol):
@@ -80,18 +84,30 @@ def stream_videos(video_paths: list[Path]) -> Generator[NDArray]:
         current_stream.close()
 
 
-def stream(files: list[str | Path]) -> Generator[NDArray, None, None]:
+def stream(
+    files: list[str | Path] = None,
+    subdir: str | Path = None,
+    extension: Literal[".avi"] = None,
+    prefix: str | None = None,
+) -> Generator[NDArray, None, None]:
     """
     Create a video stream from the provided video files.
 
     Args:
         files: List of file paths
+        subdir: Directory path. Ignored if files is populated.
+        extension: File extension. Ignored if files is populated.
+        prefix: File prefix. Ignored if files is populated.
 
     Returns:
         Stream: A stream that yields video frames
     """
-    file_paths = [Path(f) if isinstance(f, str) else f for f in files]
-    suffix = {path.suffix.lower() for path in file_paths}
+    if files:
+        file_paths = [Path(f) if isinstance(f, str) else f for f in files]
+        suffix = {path.suffix.lower() for path in file_paths}
+    else:
+        files = natsort_paths(subdir, extension, prefix)
+        suffix = {extension}
 
     image_format = {".tif", ".tiff"}
     video_format = {".mp4", ".avi", ".webm"}
@@ -102,3 +118,29 @@ def stream(files: list[str | Path]) -> Generator[NDArray, None, None]:
         yield from stream_images(files)
     else:
         raise ValueError(f"Unsupported file format: {suffix}")
+
+
+def save_asset(
+    asset: Asset, target_epoch: int, curr_epoch: int, path: str | Path | None = None
+) -> None:
+    if target_epoch == curr_epoch:
+        if path:
+            zarr_dir = (config.user_dir / path).resolve()
+        else:
+            zarr_dir = config.user_dir / asset.zarr_path
+
+        zarr_dir.mkdir(parents=True, exist_ok=True)
+        clear_dir(zarr_dir)
+        try:
+            asset.full_array().to_zarr(zarr_dir)  # for Traces
+        except AttributeError:
+            asset.array.to_zarr(zarr_dir, mode="w")
+    return None
+
+
+def natsort_paths(
+    subdir: str | Path, extension: Literal[".avi"], prefix: str | None = None
+) -> list[str]:
+    prefix = prefix or ""
+    video_dir = config.video_dir / subdir
+    return natsorted(glob(f"{str(video_dir)}/{prefix}*{extension}"))

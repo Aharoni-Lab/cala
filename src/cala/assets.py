@@ -22,6 +22,8 @@ class Asset(BaseModel):
     validate_schema: bool = False
     array_: AssetType = None
     sparsify: ClassVar[bool] = False
+    zarr_path: Path | None = None
+    """relative to config.user_data_dir"""
     _entity: ClassVar[Entity]
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
@@ -60,6 +62,16 @@ class Asset(BaseModel):
             self.array_.validate.against_schema(self._entity.model)
 
         return self
+
+    @field_validator("zarr_path", mode="after")
+    @classmethod
+    def validate_zarr_path(cls, value: Path | None) -> Path | None:
+        if value is None:
+            return value
+        zarr_dir = (config.user_dir / value).resolve()
+        zarr_dir.mkdir(parents=True, exist_ok=True)
+        clear_dir(zarr_dir)
+        return zarr_dir
 
 
 class Footprint(Asset):
@@ -109,8 +121,6 @@ class Footprints(Asset):
 
 
 class Traces(Asset):
-    zarr_path: Path | None = None
-    """relative to config.user_data_dir"""
     peek_size: int | None = None
     """
     Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
@@ -181,16 +191,6 @@ class Traces(Asset):
         new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
         new_cls.array = array
         return new_cls
-
-    @field_validator("zarr_path", mode="after")
-    @classmethod
-    def validate_zarr_path(cls, value: Path | None) -> Path | None:
-        if value is None:
-            return value
-        zarr_dir = (config.user_dir / value).resolve()
-        zarr_dir.mkdir(parents=True, exist_ok=True)
-        clear_dir(zarr_dir)
-        return zarr_dir
 
     @model_validator(mode="after")
     def check_zarr_setting(self) -> "Traces":

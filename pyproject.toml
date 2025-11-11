@@ -35,6 +35,7 @@ dependencies = [
     "typer>=0.15.3",
     "xarray-validate>=0.0.2",
     "noob @ git+https://github.com/miniscope/noob.git",
+    "natsort>=8.4.0",
 ]
 keywords = [
     "pipeline",

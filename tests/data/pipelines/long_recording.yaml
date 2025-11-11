@@ -197,6 +197,20 @@ nodes:
       - buffer: assets.buffer
   #  DETECT ENDS
 
+  persist:
+    type: cala.nodes.io.save_asset
+    params:
+      target_epoch: 800 #5999  formula: 1000 * n_chunks - 1
+      path: traces/
+    depends:
+      - asset: assets.traces
+      - curr_epoch: counter.idx
+
+
+  return:
+    type: return
+    depends: downsample.frame
+
 #  merge:
 #    type: cala.nodes.merge.merge_existing
 #    params:
