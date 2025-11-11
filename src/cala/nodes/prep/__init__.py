@@ -1,5 +1,6 @@
 from .background_removal import remove_background
 from .denoise import Restore, blur
+from .downsample import downsample
 from .flatten import butter
 from .glow_removal import GlowRemover
 from .lines import remove_freq, remove_mean
@@ -19,4 +20,5 @@ __all__ = [
     "Restore",
     "package_frame",
     "counter",
+    "downsample",
 ]
