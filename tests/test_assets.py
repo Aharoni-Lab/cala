@@ -7,6 +7,7 @@ with the exception of Buffer.
 
 from datetime import datetime
 
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -116,6 +117,23 @@ def test_zarr_append_component(four_connected_cells, tmp_path, flush_interval):
     assert zarr_traces.load_zarr()[AXIS.component_dim].equals(traces[AXIS.component_dim])
     result = xr.concat([zarr_traces.load_zarr(), zarr_traces.array_], dim=AXIS.frames_dim).compute()
     assert result.equals(traces)
+
+
+@pytest.mark.parametrize("flush_interval", [30])
+def test_flush_after_deprecated(four_connected_cells, tmp_path, flush_interval) -> None:
+    traces = four_connected_cells.traces.array
+    peek_size = 20
+    zarr_traces = Traces(zarr_path=tmp_path, peek_size=peek_size, flush_interval=flush_interval)
+    zarr_traces.array = traces
+
+    merged_ids = zarr_traces.array[AXIS.id_coord].values[0]
+    intact_mask = ~np.isin(zarr_traces.array[AXIS.id_coord].values, merged_ids)
+    zarr_traces.keep(intact_mask)
+    zarr_traces.append(traces[intact_mask], dim=AXIS.frames_dim)
+
+    assert zarr_traces.full_array().equals(
+        xr.concat([traces] * 2, dim=AXIS.frames_dim)[intact_mask]
+    )
 
 
 def test_from_array(four_connected_cells):
