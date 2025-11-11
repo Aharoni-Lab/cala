@@ -221,11 +221,7 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
         intact_mask = ~np.isin(traces.array[AXIS.id_coord].values, merged_ids)
         traces.keep(intact_mask)
 
-    if total_frames > new_n_frames:
-        # if newly detected cells are truncated, pad with np.nans
-        c_pad = _pad_history(c_new, total_frames, np.nan)
-    else:
-        c_pad = c_new
+    c_pad = _pad_history(c_new, total_frames, np.nan) if total_frames > new_n_frames else c_new
 
     traces.append(c_pad, dim=AXIS.component_dim)
 
