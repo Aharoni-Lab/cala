@@ -2,7 +2,7 @@ import contextlib
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar, Self, TypeVar
+from typing import ClassVar, Self, TypeVar
 
 import numpy as np
 import xarray as xr
@@ -48,6 +48,12 @@ class Asset(BaseModel):
 
     def reset(self) -> None:
         self.array_ = None
+        if self.zarr_path:
+            path = Path(self.zarr_path)
+            try:
+                shutil.rmtree(path)
+            except FileNotFoundError:
+                contextlib.suppress(FileNotFoundError)
 
     def __eq__(self, other: "Asset") -> bool:
         return self.array.equals(other.array)
@@ -72,6 +78,22 @@ class Asset(BaseModel):
         zarr_dir.mkdir(parents=True, exist_ok=True)
         clear_dir(zarr_dir)
         return zarr_dir
+
+    def load_zarr(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        da = (
+            xr.open_zarr(self.zarr_path)
+            .isel(isel_filter)
+            .sel(sel_filter)
+            .to_dataarray()
+            .drop_vars(["variable"])
+            .isel(variable=0)
+        )
+        return da.assign_coords(
+            {
+                AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
+                AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
+            }
+        )
 
 
 class Footprint(Asset):
@@ -121,83 +143,12 @@ class Footprints(Asset):
 
 
 class Traces(Asset):
-    peek_size: int | None = None
+    peek_size: int
     """
-    Traces(array=array, path=path) -> saves to zarr (should be set in this asset, and leave
-    untouched in nodes.)
-    Traces.array -> loads from zarr
+    How many epochs to return when called.
+    
     """
-
-    @property
-    def array(self) -> xr.DataArray:
-        peek_filter = {AXIS.frames_dim: slice(-self.peek_size, None)} if self.peek_size else None
-        return self.full_array(isel_filter=peek_filter)
-
-    @array.setter
-    def array(self, array: xr.DataArray) -> None:
-        if self.zarr_path:
-            if self.validate_schema:
-                array.validate.against_schema(self._entity.model)
-            array.to_zarr(self.zarr_path, mode="w")  # need to make sure it can overwrite
-        else:
-            self.array_ = array
-
-    def reset(self) -> None:
-        self.array_ = None
-        if self.zarr_path:
-            path = Path(self.zarr_path)
-            try:
-                shutil.rmtree(path)
-            except FileNotFoundError:
-                contextlib.suppress(FileNotFoundError)
-
-    def full_array(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
-        if self.zarr_path:
-            try:
-                return self.load_zarr(isel_filter=isel_filter, sel_filter=sel_filter).compute()
-            except FileNotFoundError:
-                pass
-        return (
-            self.array_.isel(isel_filter).sel(sel_filter)
-            if self.array_ is not None
-            else self.array_
-        )
-
-    def load_zarr(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
-        da = (
-            xr.open_zarr(self.zarr_path)
-            .isel(isel_filter)
-            .sel(sel_filter)
-            .to_dataarray()
-            .drop_vars(["variable"])
-            .isel(variable=0)
-        )
-        return da.assign_coords(
-            {
-                AXIS.id_coord: lambda ds: da[AXIS.id_coord].astype(str),
-                AXIS.timestamp_coord: lambda ds: da[AXIS.timestamp_coord].astype(str),
-            }
-        )
-
-    def update(self, array: xr.DataArray, **kwargs: Any) -> None:
-        if self.validate_schema:
-            array.validate.against_schema(self._entity.model)
-        array.to_zarr(self.zarr_path, **kwargs)
-
-    @classmethod
-    def from_array(
-        cls, array: xr.DataArray, zarr_path: Path | str | None = None, peek_size: int | None = None
-    ) -> "Traces":
-        new_cls = cls(zarr_path=zarr_path, peek_size=peek_size)
-        new_cls.array = array
-        return new_cls
-
-    @model_validator(mode="after")
-    def check_zarr_setting(self) -> "Traces":
-        if self.zarr_path:
-            assert self.peek_size, "peek_size must be set for zarr."
-        return self
-
+    flush_interval: int | None = None
     _entity: ClassVar[Entity] = PrivateAttr(
         Group(
             name="trace-group",
@@ -207,6 +158,103 @@ class Traces(Asset):
             allow_extra_coords=False,
         )
     )
+
+    @model_validator(mode="after")
+    def flush_conditions(self) -> Self:
+        assert (self.flush_interval and self.zarr_path) or (
+            not self.flush_interval and not self.zarr_path
+        ), "zarr_path and flush_interval should either be both provided or neither."
+        if self.flush_interval:
+            assert self.flush_interval > self.peek_size, (
+                f"flush_interval must be larger than peek_size. "
+                f"Provided: {self.flush_interval = }, {self.peek_size = }"
+            )
+        return self
+
+    @property
+    def sizes(self) -> dict[str, int]:
+        if self.zarr_path:
+            total_size = {}
+            for key, val in self.array_.sizes.items():
+                if key == AXIS.frames_dim:
+                    total_size[key] = val + self.load_zarr().sizes[key]
+                else:
+                    total_size[key] = val
+            return total_size
+        else:
+            return self.array_.sizes
+
+    @property
+    def array(self) -> xr.DataArray:
+        return self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+
+    @array.setter
+    def array(self, array: xr.DataArray) -> None:
+        """
+        In case zarr_path is defined, if array is larger than peek_size,
+        the epochs older than -peek_size gets flushed to zarr array.
+
+        """
+        if self.validate_schema:
+            array.validate.against_schema(self._entity.model)
+        if self.zarr_path:
+            self.array_ = array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+            array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+                self.zarr_path, mode="w"
+            )
+        else:
+            self.array_ = array
+
+    def zarr_append(self, array: xr.DataArray, dim: str) -> None:
+        """
+        Since we cannot simply append to zarr array in memory using xarray syntax,
+        we provide a convenience method for appending to zarr array and in-memory array
+        in a streamlined manner.
+
+        Incoming arrays have to be 2-dimensional.
+
+        """
+
+        if dim == AXIS.frames_dim:
+            self.array_ = xr.concat([self.array_, array], dim=AXIS.frames_dim)
+            if self.array_.sizes[AXIS.frames_dim] > self.flush_interval:
+                self._flush_zarr()
+        elif dim == AXIS.component_dim:
+            self.array_ = xr.concat(
+                [self.array_, array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})], dim=dim
+            )
+            array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+                self.zarr_path, append_dim=dim
+            )
+
+    def _flush_zarr(self) -> None:
+        """
+        Flushes traces older than peek_size to zarr array.
+
+        """
+        self.array_.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+            self.zarr_path, append_dim=AXIS.frames_dim
+        )
+        self.array_ = self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+
+    @classmethod
+    def from_array(cls, array: xr.DataArray) -> "Traces":
+        """
+        This is only really used for typing / auto-validation purposes,
+        so we don't really have to worry about specifying the parameters.
+
+        """
+        new_cls = cls(peek_size=array.sizes[AXIS.frames_dim])
+        new_cls.array = array
+        return new_cls
+
+    def full_array(self, isel_filter: dict = None, sel_filter: dict = None) -> xr.DataArray:
+        if self.zarr_path:
+            return xr.concat(
+                [self.load_zarr(isel_filter, sel_filter), self.array_], dim=AXIS.frames_dim
+            ).compute()
+        else:
+            return self.array_.isel(isel_filter).sel(sel_filter)
 
 
 class Movie(Asset):
