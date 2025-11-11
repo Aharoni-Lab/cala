@@ -39,13 +39,8 @@ nodes:
   source:
     type: cala.nodes.io.stream
     params:
-      files:
-        - long_recording/1.avi
-        - long_recording/2.avi
-        - long_recording/3.avi
-        - long_recording/4.avi
-        - long_recording/5.avi
-        - long_recording/6.avi
+      subdir: long_recording
+      extension: .avi
   counter:
     type: cala.nodes.prep.counter
   frame:
@@ -161,7 +156,7 @@ nodes:
     type: cala.nodes.detect.SliceNMF
     params:
       min_frames: 100
-      detect_thresh: 10.0
+      detect_thresh: 8.0
       reprod_tol: 0.005
     depends:
       - residuals: residual.movie
