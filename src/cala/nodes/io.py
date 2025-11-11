@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections.abc import Generator
 from glob import glob
 from pathlib import Path
-from typing import Protocol, Literal
+from typing import Literal, Protocol
 
 import cv2
 from natsort import natsorted
@@ -124,11 +124,7 @@ def save_asset(
     asset: Asset, target_epoch: int, curr_epoch: int, path: str | Path | None = None
 ) -> None:
     if target_epoch == curr_epoch:
-        if path:
-            zarr_dir = (config.user_dir / path).resolve()
-        else:
-            zarr_dir = config.user_dir / asset.zarr_path
-
+        zarr_dir = (config.user_dir / path).resolve() if path else config.user_dir / asset.zarr_path
         zarr_dir.mkdir(parents=True, exist_ok=True)
         clear_dir(zarr_dir)
         try:
