@@ -11,7 +11,6 @@ from skimage import io
 
 from cala.assets import Asset
 from cala.config import config
-from cala.util import clear_dir
 
 
 class Stream(Protocol):
@@ -120,18 +119,14 @@ def stream(
         raise ValueError(f"Unsupported file format: {suffix}")
 
 
-def save_asset(
-    asset: Asset, target_epoch: int, curr_epoch: int, path: str | Path | None = None
-) -> None:
+def save_asset(asset: Asset, target_epoch: int, curr_epoch: int, path: str | Path) -> Asset:
     if target_epoch == curr_epoch:
-        zarr_dir = (config.user_dir / path).resolve() if path else config.user_dir / asset.zarr_path
-        zarr_dir.mkdir(parents=True, exist_ok=True)
-        clear_dir(zarr_dir)
+        zarr_dir = config.user_dir
         try:
-            asset.full_array().to_zarr(zarr_dir)  # for Traces
+            asset.full_array().to_zarr(zarr_dir / path, mode="w")  # for Traces
         except AttributeError:
-            asset.array.as_numpy().to_zarr(zarr_dir, mode="w")
-    return None
+            asset.array.as_numpy().to_zarr(zarr_dir / path, mode="w")
+    return asset
 
 
 def natsort_paths(
