@@ -15,7 +15,7 @@ cli = typer.Typer()
 
 try:
     app = get_app()
-except TypeError as e:
+except (TypeError, RuntimeError) as e:
     logger.warning(f"Failed to load gui app: {e}")
 
 
