@@ -110,3 +110,26 @@ def expand_boundary(footprints: xr.DataArray) -> xr.DataArray:
         vectorize=True,
         dask="parallelized",
     )
+
+
+def total_gradient_magnitude(I: np.ndarray) -> float:
+    """
+    Calculates the total gradient magnitude c(I) = || |nabla I| ||_F for a 2D array I.
+
+    This function computes the Frobenius norm of the pixel-wise gradient magnitude map,
+    which is a common measure of total image variation or signal energy.
+
+    Args:
+        I (np.ndarray): The 2D input array (e.g., an image).
+
+    Returns:
+        float: The Frobenius norm of the gradient magnitude map.
+    """
+    if I.ndim != 2:
+        raise ValueError("Input array I must be 2-dimensional.")
+
+    grad_y, grad_x = np.gradient(I)
+    grad_magnitude_map = np.sqrt(grad_x**2 + grad_y**2)
+    c_I = np.linalg.norm(grad_magnitude_map, ord="fro")
+
+    return c_I
