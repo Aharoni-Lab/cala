@@ -233,8 +233,7 @@ class Traces(Asset):
         if dim == AXIS.frames_dim:
             self.array_ = xr.concat([self.array_, array], dim=AXIS.frames_dim)
 
-            is_overflowing = self.array_.sizes[AXIS.frames_dim] > self.flush_interval
-            if self.zarr_path and is_overflowing:
+            if self.zarr_path and self.array_.sizes[AXIS.frames_dim] > self.flush_interval:
                 self._flush_zarr()
 
         elif dim == AXIS.component_dim:

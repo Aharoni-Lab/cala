@@ -196,8 +196,8 @@ nodes:
   save_trace:
     type: cala.nodes.io.save_asset
     params:
-      target_epoch: 999 #5999  formula: 1000 * n_chunks - 1
-      path: traces/
+      target_epoch: 855999 #  formula: 1000 * n_chunks - 1
+      path: traces_fin/
     depends:
       - asset: assets.traces
       - curr_epoch: counter.idx
@@ -205,15 +205,11 @@ nodes:
   save_shape:
     type: cala.nodes.io.save_asset
     params:
-      target_epoch: 999 #5999  formula: 1000 * n_chunks - 1
-      path: footprints/
+      target_epoch: 855999 #  formula: 1000 * n_chunks - 1
+      path: footprints_fin/
     depends:
       - asset: assets.footprints
       - curr_epoch: counter.idx
-
-  return:
-    type: return
-    depends: downsample.frame
 
 #  merge:
 #    type: cala.nodes.merge.merge_existing
