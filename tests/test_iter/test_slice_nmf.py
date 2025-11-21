@@ -5,8 +5,8 @@ from noob.node import NodeSpecification
 from sklearn.decomposition import NMF
 
 from cala.assets import AXIS, Buffer
-from cala.nodes.detect import SliceNMF
-from cala.nodes.detect.slice_nmf import rank1nmf
+from cala.nodes.segment import SliceNMF
+from cala.nodes.segment.slice_nmf import rank1nmf
 from cala.testing.util import assert_scalar_multiple_arrays
 
 
@@ -15,7 +15,7 @@ def slice_nmf():
     return SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
-            type="cala.nodes.detect.SliceNMF",
+            type="cala.nodes.segment.SliceNMF",
             params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.001},
         )
     )
@@ -30,7 +30,7 @@ def test_process(slice_nmf, single_cell):
     if new_component:
         new_fp, new_tr = new_component
     else:
-        raise AssertionError("Failed to detect a new component")
+        raise AssertionError("Failed to segment a new component")
 
     for new, old in zip([new_fp[0], new_tr[0]], [single_cell.footprints, single_cell.traces]):
         assert_scalar_multiple_arrays(new.array.as_numpy(), old.array.as_numpy())
@@ -40,7 +40,7 @@ def test_chunks(single_cell):
     nmf = SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
-            type="cala.nodes.detect.SliceNMF",
+            type="cala.nodes.segment.SliceNMF",
             params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.001},
         )
     )
@@ -50,7 +50,7 @@ def test_chunks(single_cell):
         detect_radius=10,
     )
     if not fpts or not trcs:
-        raise AssertionError("Failed to detect a new component")
+        raise AssertionError("Failed to segment a new component")
 
     factors = [trc.array.data.max() for trc in trcs]
     fpt_arr = xr.concat([f.array * m for f, m in zip(fpts, factors)], dim="component")
