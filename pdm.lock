@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:68f2cd4f887a77af253a18c01590866b2fd460982b397836133b8fa09d808e17"
+content_hash = "sha256:d02754f2363ec34c50db0fe7d4a94b017e21816863471a002e007ed0fd85e128"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1716,6 +1716,16 @@ files = [
 ]
 
 [[package]]
+name = "natsort"
+version = "8.4.0"
+requires_python = ">=3.7"
+summary = "Simple yet flexible natural sorting in Python."
+files = [
+    {file = "natsort-8.4.0-py3-none-any.whl", hash = "sha256:4732914fb471f56b5cce04d7bae6f164a592c7712e1c85f9ef585e197299521c"},
+    {file = "natsort-8.4.0.tar.gz", hash = "sha256:45312c4a0e5507593da193dedd04abb1469253b601ecaf63445ad80f0a1ea581"},
+]
+
+[[package]]
 name = "nbclient"
 version = "0.10.2"
 requires_python = ">=3.9.0"
@@ -1811,10 +1821,11 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev208"
+version = "0.1.1.dev209"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-revision = "6f9512e57e10e142335ccddf64a599d85edc73d6"
+ref = "scheduler-optimize"
+revision = "1cafe617372795c5bfe9c6953416b309572e1676"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",

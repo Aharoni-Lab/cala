@@ -8,7 +8,7 @@ from scipy.sparse.csgraph import connected_components
 
 from cala.assets import Footprints, Overlaps, Traces
 from cala.models import AXIS
-from cala.nodes.detect.catalog import _recompose, _register
+from cala.nodes.segment.catalog import _recompose, _register
 from cala.util import combine_attr_replaces
 
 

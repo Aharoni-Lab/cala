@@ -4,8 +4,8 @@ import xarray as xr
 from noob.node import NodeSpecification
 
 from cala.assets import AXIS, Buffer, Footprints, Traces
-from cala.nodes.detect import Cataloger, SliceNMF
-from cala.nodes.detect.catalog import _register
+from cala.nodes.segment import Cataloger, SliceNMF
+from cala.nodes.segment.catalog import _register
 from cala.testing.catalog_depr import CatalogerDepr
 from cala.testing.util import expand_boundary, split_footprint
 
@@ -15,7 +15,7 @@ def slice_nmf():
     return SliceNMF.from_specification(
         spec=NodeSpecification(
             id="test_slice_nmf",
-            type="cala.nodes.detect.SliceNMF",
+            type="cala.nodes.segment.SliceNMF",
             params={"min_frames": 10, "detect_thresh": 1, "reprod_tol": 0.001},
         )
     )
@@ -26,7 +26,7 @@ def cataloger():
     return Cataloger.from_specification(
         spec=NodeSpecification(
             id="test",
-            type="cala.nodes.detect.Cataloger",
+            type="cala.nodes.segment.Cataloger",
             params={
                 "age_limit": 100,
                 "trace_smooth_kwargs": {"sigma": 2},
