@@ -157,7 +157,7 @@ nodes:
 
   # DETECT BEGINS
   nmf:
-    type: cala.nodes.detect.SliceNMF
+    type: cala.nodes.segment.SliceNMF
     params:
       min_frames: 100
       detect_thresh: 3.0
@@ -167,7 +167,7 @@ nodes:
       - energy: residual.std
       - detect_radius: size_est.radius
   catalog:
-    type: cala.nodes.detect.Cataloger
+    type: cala.nodes.segment.Cataloger
     params:
       age_limit: 100
       shape_smooth_kwargs:
@@ -184,7 +184,7 @@ nodes:
       - existing_fp: assets.footprints
       - existing_tr: assets.traces
   detect_update:
-    type: cala.nodes.detect.update_assets
+    type: cala.nodes.segment.update_assets
     depends:
       - new_footprints: catalog.new_footprints
       - new_traces: catalog.new_traces
@@ -209,7 +209,7 @@ nodes:
 #      - overlaps: assets.overlaps
 #      - trigger: detect_update.footprints
 #  merge_update:
-#    type: cala.nodes.detect.update_assets
+#    type: cala.nodes.segment.update_assets
 #    depends:
 #      - new_footprints: merge.footprints
 #      - new_traces: merge.traces

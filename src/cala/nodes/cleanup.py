@@ -169,19 +169,3 @@ def _filter_redundant(
             keep_ids.append(a[AXIS.id_coord].item())
 
     return keep_ids
-
-
-def merge_components(
-    footprints: Footprints,
-    traces: Traces,
-) -> A[Footprints, Name("footprints")]:
-    """
-    Merge existing components
-
-    1. dilate footprints (to consider adjacent components)
-    2. find overlaps
-    3. send to cataloger??
-    4. then send to all component ingestion
-
-    nvm, let's just do it in cataloger.
-    """

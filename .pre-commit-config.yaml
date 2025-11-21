@@ -17,7 +17,7 @@ repos:
         name: pdm-format
         entry: pdm format
         language: system
-        types: [python]
+        types: [ python ]
         pass_filenames: false
         always_run: true
 #  - repo: https://github.com/pre-commit/mirrors-mypy
