@@ -12,7 +12,7 @@ def frame_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
             id="frame_test",
-            type="cala.nodes.traces.Tracer",
+            type="cala.nodes.omf.traces.Tracer",
             params={"max_iter": 100, "tol": 1e-4},
         )
     )
@@ -36,7 +36,7 @@ def test_ingest_frame(frame_update, toy, zarr_setup, request, tmp_path) -> None:
     zarr_setup["zarr_path"] = tmp_path if zarr_setup["zarr_path"] else None
 
     xray = Node.from_specification(
-        spec=NodeSpecification(id="test", type="cala.nodes.overlap.initialize")
+        spec=NodeSpecification(id="test", type="cala.nodes.omf.overlap.initialize")
     )
 
     traces = Traces(array_=None, **zarr_setup)
@@ -56,7 +56,7 @@ def test_ingest_frame(frame_update, toy, zarr_setup, request, tmp_path) -> None:
 @pytest.fixture
 def comp_update() -> Node:
     return Node.from_specification(
-        NodeSpecification(id="comp_test", type="cala.nodes.traces.ingest_component")
+        NodeSpecification(id="comp_test", type="cala.nodes.omf.traces.ingest_component")
     )
 
 

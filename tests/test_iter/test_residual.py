@@ -5,7 +5,7 @@ from noob.node import Node, NodeSpecification
 
 from cala.assets import Buffer, Footprints, Frame, Traces
 from cala.models.axis import AXIS
-from cala.nodes.residual import _align_overestimates, _find_unlayered_footprints
+from cala.nodes.omf.residual import _align_overestimates, _find_unlayered_footprints
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -38,7 +38,7 @@ def init() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
             id="res_init_test",
-            type="cala.nodes.residual.Residuer",
+            type="cala.nodes.omf.residual.Residuer",
         )
     )
 

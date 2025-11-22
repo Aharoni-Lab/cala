@@ -101,7 +101,7 @@ nodes:
     depends:
       - frame: downsample.frame
   cache:
-    type: cala.nodes.buffer.fill_buffer
+    type: cala.nodes.omf.pixel_stats.fill_buffer
     depends:
       - buffer: assets.buffer
       - frame: downsample.frame
@@ -109,7 +109,7 @@ nodes:
 
   # FRAME UPDATE BEGINS
   trace_frame:
-    type: cala.nodes.traces.Tracer
+    type: cala.nodes.omf.traces.Tracer
     params:
       tol: 0.001
       max_iter: 100
@@ -119,20 +119,20 @@ nodes:
       - frame: downsample.frame
       - overlaps: assets.overlaps
   pix_frame:
-    type: cala.nodes.pixel_stats.ingest_frame
+    type: cala.nodes.omf.pixel_stats.ingest_frame
     depends:
       - pixel_stats: assets.pix_stats
       - frame: downsample.frame
       - new_traces: trace_frame.latest_trace
       - footprints: assets.footprints
   comp_frame:
-    type: cala.nodes.component_stats.ingest_frame
+    type: cala.nodes.omf.component_stats.ingest_frame
     depends:
       - component_stats: assets.comp_stats
       - frame: downsample.frame
       - new_traces: trace_frame.latest_trace
   footprints_frame:
-    type: cala.nodes.footprints.Footprinter
+    type: cala.nodes.omf.footprints.Footprinter
     params:
       bep: 0
       tol: 0.0001
@@ -144,7 +144,7 @@ nodes:
       - component_stats: comp_frame.value
 
   residual:
-    type: cala.nodes.residual.Residuer
+    type: cala.nodes.omf.residual.Residuer
     depends:
       - frame: downsample.frame
       - footprints: footprints_frame.footprints

@@ -1,5 +1,5 @@
 from .catalog import Cataloger
+from .persist import update_assets
 from .slice_nmf import SliceNMF
-from .update import update_assets
 
 __all__ = ["SliceNMF", "Cataloger", "update_assets"]

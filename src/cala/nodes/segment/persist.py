@@ -3,11 +3,11 @@ from typing import Annotated as A
 from noob import Name
 
 from cala.assets import CompStats, Footprints, Movie, Overlaps, PixStats, Traces
-from cala.nodes.component_stats import ingest_component as update_component_stats
-from cala.nodes.footprints import ingest_component as update_footprints
-from cala.nodes.overlap import ingest_component as update_overlap
-from cala.nodes.pixel_stats import ingest_component as update_pixel_stats
-from cala.nodes.traces import ingest_component as update_traces
+from cala.nodes.omf.component_stats import ingest_component as update_component_stats
+from cala.nodes.omf.footprints import ingest_component as update_footprints
+from cala.nodes.omf.overlap import ingest_component as update_overlap
+from cala.nodes.omf.pixel_stats import ingest_component as update_pixel_stats
+from cala.nodes.omf.traces import ingest_component as update_traces
 
 
 def update_assets(

@@ -9,7 +9,7 @@ from cala.models import AXIS
 @pytest.fixture(scope="function")
 def init() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="ov_init_test", type="cala.nodes.overlap.initialize")
+        spec=NodeSpecification(id="ov_init_test", type="cala.nodes.omf.overlap.initialize")
     )
 
 
@@ -29,7 +29,7 @@ def test_init(init, four_separate_cells, four_connected_cells) -> None:
 @pytest.fixture(scope="function")
 def comp_update() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="ov_init_test", type="cala.nodes.overlap.ingest_component")
+        spec=NodeSpecification(id="ov_init_test", type="cala.nodes.omf.overlap.ingest_component")
     )
 
 

@@ -1,8 +1,11 @@
+from typing import Annotated as A
+
 import numpy as np
 import xarray as xr
+from noob import Name
 from scipy.sparse import csr_matrix
 
-from cala.assets import Footprints, Frame, Movie, PixStats, PopSnap, Traces
+from cala.assets import Buffer, Footprints, Frame, Movie, PixStats, PopSnap, Traces
 from cala.models import AXIS
 
 
@@ -116,6 +119,17 @@ def ingest_component(
     pixel_stats.array = xr.concat([W, w_new], dim=AXIS.component_dim)
 
     return pixel_stats
+
+
+def fill_buffer(buffer: Buffer, frame: Frame) -> A[Buffer, Name("buffer")]:
+    if buffer.array is None:
+        buffer.array = frame.array.volumize.dim_with_coords(
+            dim=AXIS.frames_dim, coords=[AXIS.timestamp_coord]
+        )
+        return buffer
+
+    buffer.append(frame.array)
+    return buffer
 
 
 def initialize(

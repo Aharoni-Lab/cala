@@ -10,7 +10,7 @@ from cala.models import AXIS
 @pytest.fixture
 def init() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="cs_init_test", type="cala.nodes.component_stats.initialize")
+        spec=NodeSpecification(id="cs_init_test", type="cala.nodes.omf.component_stats.initialize")
     )
 
 
@@ -42,7 +42,9 @@ def test_init(init, four_separate_cells) -> None:
 @pytest.fixture
 def frame_update() -> Node:
     return Node.from_specification(
-        spec=NodeSpecification(id="cs_frame_test", type="cala.nodes.component_stats.ingest_frame")
+        spec=NodeSpecification(
+            id="cs_frame_test", type="cala.nodes.omf.component_stats.ingest_frame"
+        )
     )
 
 
@@ -65,7 +67,7 @@ def test_ingest_frame(init, frame_update, four_separate_cells) -> None:
 def comp_update() -> Node:
     return Node.from_specification(
         spec=NodeSpecification(
-            id="cs_comp_test", type="cala.nodes.component_stats.ingest_component"
+            id="cs_comp_test", type="cala.nodes.omf.component_stats.ingest_component"
         )
     )
 

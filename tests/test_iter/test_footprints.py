@@ -5,7 +5,7 @@ from noob.node import Node, NodeSpecification
 
 from cala.assets import CompStats, Footprints, PixStats
 from cala.models import AXIS
-from cala.nodes.footprints import ingest_component
+from cala.nodes.omf.footprints import ingest_component
 from cala.testing.toy import FrameDims, Position, Toy
 
 
@@ -60,7 +60,7 @@ def fpter() -> Node:
     return Node.from_specification(
         NodeSpecification(
             id="test_footprinter",
-            type="cala.nodes.footprints.Footprinter",
+            type="cala.nodes.omf.footprints.Footprinter",
             params={"bep": 0, "tol": 1e-7},
         )
     )
@@ -71,12 +71,12 @@ def test_ingest_frame(fpter, toy, request):
     toy = request.getfixturevalue(toy)
 
     pixstats = Node.from_specification(
-        NodeSpecification(id="test_pixstats", type="cala.nodes.pixel_stats.initialize")
+        NodeSpecification(id="test_pixstats", type="cala.nodes.omf.pixel_stats.initialize")
     ).process(
         traces=toy.traces.array, frames=toy.make_movie().array, footprints=toy.footprints.array
     )
     compstats = Node.from_specification(
-        NodeSpecification(id="test_compstats", type="cala.nodes.component_stats.initialize")
+        NodeSpecification(id="test_compstats", type="cala.nodes.omf.component_stats.initialize")
     ).process(traces=toy.traces.array)
 
     result = fpter.process(
