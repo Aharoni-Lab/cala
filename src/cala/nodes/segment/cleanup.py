@@ -7,27 +7,6 @@ from cala.assets import Buffer, CompStats, Footprints, Overlaps, PixStats, Trace
 from cala.models import AXIS
 
 
-def clear_overestimates(
-    footprints: Footprints, residuals: Buffer, nmf_error: float
-) -> A[Footprints, Name("footprints")]:
-    """
-    Remove all sections of the footprints that cause negative residuals.
-
-    This occurs by:
-    1. find "significant" negative residual spots that is more than a noise level, and thus
-    cannot be clipped to zero. !!!! (only of the latest frame, and then go back to trace update..?)
-    2. all footprint values at these spots go to zero.
-    """
-    if residuals.array is None:
-        return footprints
-    R_min = residuals.array.isel({AXIS.frames_dim: -1}).reset_coords(
-        [AXIS.frame_coord, AXIS.timestamp_coord], drop=True
-    )
-    tuned_fp = footprints.array.where(R_min > -nmf_error, 0, drop=False)
-
-    return tuned_fp
-
-
 def deprecate_components(
     footprints: Footprints,
     traces: Traces,
@@ -70,3 +49,24 @@ def find_inactive() -> list[str]:
         some % of the minimum of the total brightness contributions from all components?
         - but what if the component is completely occluded sometimes?
     """
+
+
+def clear_overestimates(
+    footprints: Footprints, residuals: Buffer, nmf_error: float
+) -> A[Footprints, Name("footprints")]:
+    """
+    Remove all sections of the footprints that cause negative residuals.
+
+    This occurs by:
+    1. find "significant" negative residual spots that is more than a noise level, and thus
+    cannot be clipped to zero. !!!! (only of the latest frame, and then go back to trace update..?)
+    2. all footprint values at these spots go to zero.
+    """
+    if residuals.array is None:
+        return footprints
+    R_min = residuals.array.isel({AXIS.frames_dim: -1}).reset_coords(
+        [AXIS.frame_coord, AXIS.timestamp_coord], drop=True
+    )
+    tuned_fp = footprints.array.where(R_min > -nmf_error, 0, drop=False)
+
+    return tuned_fp
