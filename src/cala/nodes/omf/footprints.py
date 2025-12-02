@@ -14,9 +14,7 @@ from cala.util import concatenate_coordinates
 
 
 class Footprinter(BaseModel):
-    tol: float
-    max_iter: int | None = None
-    bep: int | None = None
+    max_iter: int
     ratio_lb: float = 0.15
 
     _logger = init_logger(__name__)
@@ -27,6 +25,8 @@ class Footprinter(BaseModel):
     ) -> A[Footprints, Name("footprints")]:
         """
         Update spatial footprints using sufficient statistics.
+        We don't use tolerance since Frobenius norm is too expensive to
+        calculate with the entire footprints stack.
 
             Ã[p, i] = max(Ã[p, i] + (W[p, i] - Ã[p, :]M[:, i])/M[i, i], 0)
 

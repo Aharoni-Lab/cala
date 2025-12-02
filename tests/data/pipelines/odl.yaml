@@ -64,58 +64,26 @@ nodes:
       - frame: glow.frame
   #PREPROCESS ENDS
 
-  # FRAME UPDATE BEGINS
-  trace_frame:
-    type: cala.nodes.omf.traces.Tracer
+  ingest:
+    type: tube
     params:
-      tol: 0.001
-      max_iter: 100
+      tube: ingest-loop
     depends:
+      - frame: glow.frame
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: glow.frame
       - overlaps: assets.overlaps
-  pix_frame:
-    type: cala.nodes.omf.pixel_stats.ingest_frame
-    depends:
-      - pixel_stats: assets.pix_stats
-      - frame: glow.frame
-      - new_traces: trace_frame.latest_trace
-      - footprints: assets.footprints
-  comp_frame:
-    type: cala.nodes.omf.component_stats.ingest_frame
-    depends:
-      - component_stats: assets.comp_stats
-      - frame: glow.frame
-      - new_traces: trace_frame.latest_trace
-  footprints_frame:
-    type: cala.nodes.omf.footprints.Footprinter
-    params:
-      bep: 0
-      tol: 0.0001
-      max_iter: 5
-      ratio_lb: 0.10
-    depends:
-      - footprints: assets.footprints
-      - pixel_stats: pix_frame.value
-      - component_stats: comp_frame.value
-
-  residual:
-    type: cala.nodes.omf.residual.Residuer
-    depends:
-      - frame: glow.frame
-      - footprints: footprints_frame.footprints
-      - traces: assets.traces
+      - pix_stats: assets.pix_stats
+      - comp_stats: assets.comp_stats
       - residuals: assets.residuals
-  # FRAME UPDATE ENDS
 
   segment:
     type: tube
     params:
       tube: segment-loop
     depends:
-      - residual: residual.movie
-      - energy: residual.std
+      - residual: assets.residuals
+      - energy: ingest.value
       - radius: radius.radius
       - footprints: assets.footprints
       - traces: assets.traces

@@ -61,7 +61,7 @@ def fpter() -> Node:
         NodeSpecification(
             id="test_footprinter",
             type="cala.nodes.omf.footprints.Footprinter",
-            params={"bep": 0, "tol": 1e-7},
+            params={"max_iter": 5, "ratio_lb": 0.10},
         )
     )
 

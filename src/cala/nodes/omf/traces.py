@@ -85,66 +85,6 @@ class Tracer(BaseModel):
 
         return PopSnap.from_array(updated_traces)
 
-    def _update_traces(
-        self, A: xr.DataArray, y: xr.DataArray, c: xr.DataArray, clusters: list[np.ndarray]
-    ) -> xr.DataArray:
-        """
-        Implementation of the temporal traces update algorithm.
-
-        This function uses block coordinate descent to update temporal traces
-        for overlapping components together while maintaining non-negativity constraints.
-
-        Args:
-            A (xr.DataArray): Spatial footprints matrix [A, b].
-                Shape: (components × pixels)
-            y (xr.DataArray): Current data frame.
-                Shape: (pixels,)
-            c (xr.DataArray): Last value of temporal traces. (just used for shape)
-                Shape: (components,)
-            clusters (list[np.ndarray]): list of groups that each contain component indices that
-                have overlapping footprints.
-
-        Returns:
-            xr.DataArray: Updated temporal traces satisfying non-negativity constraints.
-                Shape: (components,)
-        """
-        # Step 1: Compute projection of current frame
-        u = (A @ y).as_numpy()
-
-        # Step 2: Compute gram matrix of spatial components
-        V = (A @ A.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})).as_numpy()
-
-        # Step 3: Extract diagonal elements for normalization
-        V_diag = np.diag(V)
-
-        cnt = 0
-
-        # Steps 4-9: Main iteration loop until convergence
-        while True:
-            c_old = c.copy()
-
-            # Steps 6-8: Update each group using block coordinate descent
-            for cluster in clusters:
-                # Update traces for current group (division is pointwise)
-
-                numerator = u.isel({AXIS.component_dim: cluster}) - (
-                    V.isel({f"{AXIS.component_dim}'": cluster}) @ c
-                ).rename({f"{AXIS.component_dim}'": AXIS.component_dim})
-
-                c.loc[{AXIS.component_dim: cluster}] = np.maximum(
-                    c.isel({AXIS.component_dim: cluster}) + numerator / V_diag[cluster].T, 0
-                )
-
-            cnt += 1
-            maxed = self.max_iter and (cnt == self.max_iter)
-
-            if np.linalg.norm(c - c_old) >= self.tol * np.linalg.norm(c_old) or maxed:
-                if maxed:
-                    self._logger.debug(msg="max_iter reached before converging.")
-                return xr.DataArray(
-                    c.values, dims=c.dims, coords=c[AXIS.component_dim].coords
-                ).assign_coords(y[AXIS.frames_dim].coords)
-
 
 def _update_traces(
     y: np.ndarray,

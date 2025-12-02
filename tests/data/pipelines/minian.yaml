@@ -137,7 +137,6 @@ nodes:
   footprints_frame:
     type: cala.nodes.omf.footprints.Footprinter
     params:
-      bep: 0
       tol: 0.0001
       max_iter: 5
       ratio_lb: 0.10

@@ -460,3 +460,29 @@ class Buffer(Asset):
         buffer = cls(size=size)
         buffer.array = array
         return buffer
+
+
+class Energy(Asset):
+    _entity: ClassVar[Entity] = PrivateAttr(
+        Entity(
+            name="energy",
+            dims=(Dims.width.value, Dims.height.value),
+            dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
+            checks=[is_non_negative, has_no_nan],
+        )
+    )
+
+    _mean: np.ndarray = PrivateAttr(None)
+    _sq_mean: np.ndarray = PrivateAttr(None)
+
+    def update_std(self, arr: xr.DataArray) -> xr.DataArray:
+        """median: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=614292"""
+        eta = 1 / (arr[AXIS.frame_coord].item() + 1)
+
+        if self._mean is None:
+            self._mean = arr.values
+            self._sq_mean = np.square(arr.values)
+        else:
+            self._mean += eta * (arr.values - self._mean)
+            self._sq_mean += eta * (np.square(arr.values) - self._sq_mean)
+        return xr.DataArray(np.sqrt(self._sq_mean - np.square(self._mean)), dims=arr.dims)
