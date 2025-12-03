@@ -1,6 +1,6 @@
 import numpy as np
 
-from cala.models import AXIS
+from cala.assets import AXIS
 from cala.nodes.prep.glow_removal import GlowRemover
 from cala.testing.toy import FrameDims, Position, Toy
 
@@ -20,7 +20,7 @@ def test_glow_removal():
     gen = toy.movie_gen()
     movie = toy.make_movie()
 
-    expected_base = movie.array.min(dim=AXIS.frames_dim)
+    expected_base = movie.array.min(dim=AXIS.frame_dim)
 
     res = []
     for frame, br in zip(iter(gen), np.array([5, 4, 3, 2, 1, 1, 1, 1, 1, 1]) * 4):

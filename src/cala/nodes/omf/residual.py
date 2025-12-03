@@ -6,8 +6,8 @@ from noob import Name, process_method
 from pydantic import BaseModel, PrivateAttr
 from scipy.sparse import csr_matrix
 
-from cala.assets import Buffer, Footprints, Frame, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Buffer, Footprints, Frame, Traces
 
 
 class Residuer(BaseModel):
@@ -47,7 +47,7 @@ class Residuer(BaseModel):
 
         if footprints.array is None or traces.array is None:
             if residuals.array is None:
-                residuals.array = frame.array.expand_dims(dim=AXIS.frames_dim)
+                residuals.array = frame.array.expand_dims(dim=AXIS.frame_dim)
             else:
                 residuals.append(frame.array)
             std = self._update_std(frame.array)
@@ -55,7 +55,7 @@ class Residuer(BaseModel):
             return residuals, std
 
         Y = frame.array
-        C = traces.array.isel({AXIS.frames_dim: -1})  # (components,)
+        C = traces.array.isel({AXIS.frame_dim: -1})  # (components,)
         A = footprints.array
         A_pix = (
             A.transpose(AXIS.component_dim, ...)
@@ -66,7 +66,7 @@ class Residuer(BaseModel):
         R_curr, flag = _find_overestimates(Y=Y, A=A_pix, C=C)
         if flag:
             C = _align_overestimates(A_pix=A_pix, C_latest=C, R_latest=R_curr)
-            traces.array.loc[{AXIS.frames_dim: -1}] = C
+            traces.array.loc[{AXIS.frame_dim: -1}] = C
 
         # if recently discovered, set to zero (or a small number). otherwise, just append
         preserve_area = _get_new_estimators_area(A=A, C=C)
@@ -98,7 +98,7 @@ class Residuer(BaseModel):
 
 
 def _init_energy(res: xr.DataArray) -> xr.DataArray:
-    return res.std(dim=AXIS.frames_dim)
+    return res.std(dim=AXIS.frame_dim)
 
 
 def _get_residuals(Y: xr.DataArray, A: csr_matrix, C: xr.DataArray) -> xr.DataArray:

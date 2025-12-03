@@ -8,9 +8,9 @@ from noob import Name
 from noob.node import Node
 from pydantic import Field
 
-from cala.assets import Buffer, Footprint, Trace
+from cala.assets import AXIS
+from cala.assets.assets import Buffer, Footprint, Trace
 from cala.logging import init_logger
-from cala.models import AXIS
 from cala.util import rank1nmf
 
 
@@ -32,7 +32,7 @@ class SliceNMF(Node):
         self, residuals: Buffer, energy: xr.DataArray, detect_radius: int
     ) -> tuple[A[list[Footprint], Name("new_fps")], A[list[Trace], Name("new_trs")]]:
 
-        if residuals.array.sizes[AXIS.frames_dim] < self.min_frames:
+        if residuals.array.sizes[AXIS.frame_dim] < self.min_frames:
             return [], []
 
         fps = []
@@ -113,11 +113,7 @@ class SliceNMF(Node):
                 - Temporal component c_new (frames)
         """
         # Reshape neighborhood to 2D matrix (time × space)
-        R = (
-            slice_.transpose(AXIS.frames_dim, ...)
-            .data.reshape((slice_.sizes[AXIS.frames_dim], -1))
-            .T
-        )
+        R = slice_.transpose(AXIS.frame_dim, ...).data.reshape((slice_.sizes[AXIS.frame_dim], -1)).T
 
         mean_R = np.mean(R, axis=1)
         # nan_mask = np.isnan(mean_R)
@@ -127,8 +123,8 @@ class SliceNMF(Node):
         # Convert back to xarray with proper dimensions and coordinates
         c_new = xr.DataArray(
             c.squeeze(),
-            dims=[AXIS.frames_dim],
-            coords=slice_[AXIS.frames_dim].coords,
+            dims=[AXIS.frame_dim],
+            coords=slice_[AXIS.frame_dim].coords,
         )
 
         # Create full-frame zero array with proper coordinates

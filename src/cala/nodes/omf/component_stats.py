@@ -1,8 +1,8 @@
 import numpy as np
 import xarray as xr
 
-from cala.assets import CompStats, Frame, PopSnap, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import CompStats, Frame, PopSnap, Traces
 
 
 def ingest_frame(component_stats: CompStats, frame: Frame, new_traces: PopSnap) -> CompStats:

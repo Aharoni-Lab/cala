@@ -3,8 +3,8 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Frame, Overlaps, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Frame, Overlaps, Traces
 
 
 @pytest.fixture
@@ -40,15 +40,15 @@ def test_ingest_frame(frame_update, toy, zarr_setup, request, tmp_path) -> None:
     )
 
     traces = Traces(array_=None, **zarr_setup)
-    traces.array = toy.traces.array.isel({AXIS.frames_dim: slice(None, -1)})
+    traces.array = toy.traces.array.isel({AXIS.frame_dim: slice(None, -1)})
 
-    frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frames_dim: -1}))
+    frame = Frame.from_array(toy.make_movie().array.isel({AXIS.frame_dim: -1}))
     overlap = xray.process(overlaps=Overlaps(), footprints=toy.footprints)
 
     result = frame_update.process(
         traces=traces, footprints=toy.footprints, frame=frame, overlaps=overlap
     ).array
-    expected = toy.traces.array.isel({AXIS.frames_dim: -1})
+    expected = toy.traces.array.isel({AXIS.frame_dim: -1})
 
     xr.testing.assert_allclose(result, expected, atol=1e-3)
 
@@ -86,7 +86,7 @@ def test_ingest_component(comp_update, toy, request, zarr_setup, tmp_path) -> No
     traces.array = toy.traces.array_.isel({AXIS.component_dim: slice(None, -1)})
 
     new_traces = toy.traces.array_.isel(
-        {AXIS.component_dim: [-1], AXIS.frames_dim: slice(-zarr_setup["peek_size"], None)}
+        {AXIS.component_dim: [-1], AXIS.frame_dim: slice(-zarr_setup["peek_size"], None)}
     )
 
     new_traces.attrs["replaces"] = ["cell_0"]
@@ -94,7 +94,7 @@ def test_ingest_component(comp_update, toy, request, zarr_setup, tmp_path) -> No
 
     expected = toy.traces.array.drop_sel({AXIS.component_dim: 0})
     expected.loc[
-        {AXIS.component_dim: -1, AXIS.frames_dim: slice(None, -zarr_setup["peek_size"])}
+        {AXIS.component_dim: -1, AXIS.frame_dim: slice(None, -zarr_setup["peek_size"])}
     ] = np.nan
 
     assert result.full_array().equals(expected)

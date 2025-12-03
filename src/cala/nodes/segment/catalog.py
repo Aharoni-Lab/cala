@@ -14,8 +14,8 @@ from scipy.sparse.csgraph import connected_components
 from skimage.measure import label
 from xarray import Coordinates
 
-from cala.assets import Footprint, Footprints, Trace, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Footprint, Footprints, Trace, Traces
 from cala.util import combine_attr_replaces, concat_components, create_id, rank1nmf
 
 
@@ -86,7 +86,7 @@ class Cataloger(Node):
         """
         overlaps = shapes_1.data @ shapes_2.T > 0
         # corr is fast. (~1ms to 4ms)
-        corrs = xr.corr(traces_1, traces_2, dim=AXIS.frames_dim) > self.merge_threshold
+        corrs = xr.corr(traces_1, traces_2, dim=AXIS.frame_dim) > self.merge_threshold
         return xr.DataArray(overlaps * corrs.values, dims=corrs.dims, coords=corrs.coords)
 
     def _monopartite_merge_matrix(self, fps: xr.DataArray, trs: xr.DataArray) -> xr.DataArray:
@@ -121,7 +121,7 @@ class Cataloger(Node):
             trs = traces.sel({AXIS.component_dim: group})
             if len(group) > 1:
                 mov = xr.DataArray(
-                    _create_component_movie(fps, trs), dims=[*AXIS.spatial_dims, AXIS.frames_dim]
+                    _create_component_movie(fps, trs), dims=[*AXIS.spatial_dims, AXIS.frame_dim]
                 )
                 new_fp, new_tr = self._recompose(mov, footprints[0].coords, traces[0].coords)
             else:
@@ -210,7 +210,7 @@ class Cataloger(Node):
 
         combined_movie = xr.DataArray(
             absorber_movie.reshape(insert_movie.shape) + insert_movie,
-            dims=[*AXIS.spatial_dims, AXIS.frames_dim],
+            dims=[*AXIS.spatial_dims, AXIS.frame_dim],
         )
 
         a_new, c_new = self._recompose(
@@ -246,10 +246,10 @@ class Cataloger(Node):
         """
         movie = movie.assign_coords({ax: movie[ax] for ax in AXIS.spatial_dims})
         shape = xr.DataArray(
-            np.sum(movie.transpose(AXIS.frames_dim, ...).data, axis=0) > 0, dims=AXIS.spatial_dims
+            np.sum(movie.transpose(AXIS.frame_dim, ...).data, axis=0) > 0, dims=AXIS.spatial_dims
         )
         slice_ = movie.where(shape.as_numpy(), 0, drop=True)
-        R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+        R = slice_.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frame_dim)
 
         a, c, error = rank1nmf(R.values, np.mean(R.values, axis=1))
 
@@ -277,7 +277,7 @@ class Cataloger(Node):
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Convert back to xarray with proper dimensions and coordinates"""
 
-        c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frames_dim], coords=tr_coords)
+        c_new = xr.DataArray(trace.squeeze(), dims=[AXIS.frame_dim], coords=tr_coords)
 
         a_new = xr.DataArray(
             np.zeros(tuple(fp_coords.sizes.values())),
@@ -385,7 +385,7 @@ def _create_component_movie(
     trace: xr.DataArray,
 ) -> np.ndarray:
     """Movie of a single component"""
-    clean_trace = trace.dropna(dim=AXIS.frames_dim).data
+    clean_trace = trace.dropna(dim=AXIS.frame_dim).data
 
     if isinstance(footprint, csr_matrix):
         # Target (CSR matrix) case: Transpose the footprint matrix

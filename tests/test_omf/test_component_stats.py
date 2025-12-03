@@ -3,8 +3,8 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import CompStats, Frame, PopSnap, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import CompStats, Frame, PopSnap, Traces
 
 
 @pytest.fixture
@@ -52,10 +52,10 @@ def test_ingest_frame(init, frame_update, four_separate_cells) -> None:
 
     result = frame_update.process(
         CompStats.from_array(
-            init.process(four_separate_cells.traces.array.isel({AXIS.frames_dim: slice(None, -1)}))
+            init.process(four_separate_cells.traces.array.isel({AXIS.frame_dim: slice(None, -1)}))
         ),
-        frame=Frame.from_array(four_separate_cells.make_movie().array.isel({AXIS.frames_dim: -1})),
-        new_traces=PopSnap.from_array(four_separate_cells.traces.array.isel({AXIS.frames_dim: -1})),
+        frame=Frame.from_array(four_separate_cells.make_movie().array.isel({AXIS.frame_dim: -1})),
+        new_traces=PopSnap.from_array(four_separate_cells.traces.array.isel({AXIS.frame_dim: -1})),
     )
 
     expected = init.process(four_separate_cells.traces.array)

@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import NodeSpecification
 
-from cala.assets import AXIS, Buffer, Footprints, Traces
+from cala.assets.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.segment import Cataloger, SliceNMF
 from cala.nodes.segment.catalog import _register
 from cala.testing.catalog_depr import CatalogerDepr
@@ -180,7 +180,7 @@ def test_absorb_component(slice_nmf, cataloger, single_cell):
     buff = Buffer(size=100)
     buff.array = single_cell.make_movie().array
     new_component = slice_nmf.process(
-        buff, energy=buff.array.std(dim=AXIS.frames_dim), detect_radius=10
+        buff, energy=buff.array.std(dim=AXIS.frame_dim), detect_radius=10
     )
 
     A = single_cell.footprints.array

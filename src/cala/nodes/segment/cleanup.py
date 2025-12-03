@@ -3,8 +3,8 @@ from typing import Annotated as A
 import numpy as np
 from noob import Name
 
-from cala.assets import Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
 
 
 def deprecate_components(
@@ -64,7 +64,7 @@ def clear_overestimates(
     """
     if residuals.array is None:
         return footprints
-    R_min = residuals.array.isel({AXIS.frames_dim: -1}).reset_coords(
+    R_min = residuals.array.isel({AXIS.frame_dim: -1}).reset_coords(
         [AXIS.frame_coord, AXIS.timestamp_coord], drop=True
     )
     tuned_fp = footprints.array.where(R_min > -nmf_error, 0, drop=False)

@@ -3,7 +3,7 @@
 # from scipy.sparse.csgraph import connected_components
 #
 # from cala.assets import Overlaps
-# from cala.models import AXIS
+# from cala.assets import AXIS
 # from cala.nodes.merge import _filter_targets, _merge_matrix, merge_existing
 # from cala.testing.toy import FrameDims, Position, Toy
 #

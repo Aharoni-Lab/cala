@@ -1,1 +1,1 @@
-from cala.models import access as access
+from cala.assets import xr_access as access

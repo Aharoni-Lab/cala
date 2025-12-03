@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.models import AXIS
+from cala.assets import AXIS
 from cala.nodes.prep.denoise import blur
 from cala.testing.toy import FrameDims, Position, Toy
 

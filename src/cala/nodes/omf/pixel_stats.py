@@ -5,8 +5,8 @@ import xarray as xr
 from noob import Name
 from scipy.sparse import csr_matrix
 
-from cala.assets import Buffer, Footprints, Frame, Movie, PixStats, PopSnap, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Buffer, Footprints, Frame, Movie, PixStats, PopSnap, Traces
 
 
 def ingest_frame(
@@ -124,7 +124,7 @@ def ingest_component(
 def fill_buffer(buffer: Buffer, frame: Frame) -> A[Buffer, Name("buffer")]:
     if buffer.array is None:
         buffer.array = frame.array.volumize.dim_with_coords(
-            dim=AXIS.frames_dim, coords=[AXIS.timestamp_coord]
+            dim=AXIS.frame_dim, coords=[AXIS.timestamp_coord]
         )
         return buffer
 
@@ -168,7 +168,7 @@ def initialize(
 def outer_with_sparse_mask(
     masks: xr.DataArray, target: xr.DataArray, right: xr.DataArray, scalar: int = None
 ) -> np.ndarray:
-    n_frames = target.sizes[AXIS.frames_dim]
+    n_frames = target.sizes[AXIS.frame_dim]
     target_flat = target.data.reshape((n_frames, -1))
     n_components = masks.sizes[AXIS.component_dim]
     A_sparse = masks.data.reshape((n_components, -1)).tocsr()

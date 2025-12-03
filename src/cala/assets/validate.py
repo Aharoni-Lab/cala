@@ -1,11 +1,63 @@
 from collections.abc import Callable
 from copy import deepcopy
+from enum import Enum
 from typing import Any
 
+import numpy as np
+import xarray as xr
 from pydantic import BaseModel, Field, PrivateAttr
 from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
-from cala.models.axis import Coord, Dim, Dims
+from cala.assets import AXIS
+
+
+def is_non_negative(da: xr.DataArray) -> None:
+    if da.min() < 0:
+        raise ValueError("Array is not non-negative")
+
+
+def is_unique(da: xr.DataArray) -> None:
+    elem, counts = np.unique(da, return_counts=True)
+    if counts.max() > 1:
+        raise ValueError(f"The values in DataArray are not unique : {elem[counts > 1]}")
+
+
+def is_unit_interval(da: xr.DataArray) -> None:
+    if da.min() < 0 or da.max() > 1:
+        raise ValueError("The values in DataArray are not unit interval.")
+
+
+def has_no_nan(da: xr.DataArray) -> None:
+    if np.isnan(da).any():
+        raise ValueError("The DataArray has nan values.")
+
+
+class Coord(BaseModel):
+    name: str
+    dtype: type
+    dim: str | None = None
+    checks: list[Callable] = Field(default_factory=list)
+
+
+class Dim(BaseModel):
+    name: str
+    coords: list[Coord] = Field(default_factory=list)
+
+
+class Coords(Enum):
+    id = Coord(name=AXIS.id_coord, dtype=str, checks=[is_unique])
+    height = Coord(name=AXIS.height_coord, dtype=int, checks=[is_unique])
+    width = Coord(name=AXIS.width_coord, dtype=int, checks=[is_unique])
+    frame = Coord(name=AXIS.frame_coord, dtype=int, checks=[is_unique])
+    timestamp = Coord(name=AXIS.timestamp_coord, dtype=str, checks=[is_unique])
+    detected = Coord(name=AXIS.detect_coord, dtype=int, checks=[has_no_nan])
+
+
+class Dims(Enum):
+    width = Dim(name=AXIS.width_dim, coords=[Coords.width.value])
+    height = Dim(name=AXIS.height_dim, coords=[Coords.height.value])
+    frame = Dim(name=AXIS.frame_dim, coords=[Coords.frame.value, Coords.timestamp.value])
+    component = Dim(name=AXIS.component_dim, coords=[Coords.id.value, Coords.detected.value])
 
 
 class Entity(BaseModel):

@@ -3,8 +3,8 @@ from typing import Annotated as A
 import numpy as np
 from noob import Name
 
-from cala.assets import Frame
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Frame
 from cala.nodes.prep import package_frame
 
 

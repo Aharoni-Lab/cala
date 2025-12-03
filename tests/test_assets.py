@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.assets import Buffer, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Buffer, Traces
 
 
 @pytest.mark.parametrize("peek_size", [30, 49, 50, 51, 70])
@@ -24,14 +24,14 @@ def test_array_assignment(tmp_path, four_connected_cells, peek_size):
 
     """
     traces = four_connected_cells.traces.array
-    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+    n_frames = traces.sizes[AXIS.frame_dim]  # 50 frames
 
     zarr_traces = Traces(
         zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
     )
     zarr_traces.array = traces
-    assert zarr_traces.array_.sizes[AXIS.frames_dim] == min(n_frames, peek_size)
-    assert zarr_traces.load_zarr().sizes[AXIS.frames_dim] == max(0, n_frames - peek_size)
+    assert zarr_traces.array_.sizes[AXIS.frame_dim] == min(n_frames, peek_size)
+    assert zarr_traces.load_zarr().sizes[AXIS.frame_dim] == max(0, n_frames - peek_size)
 
 
 @pytest.mark.parametrize("peek_size", [30, 50, 70])
@@ -42,14 +42,14 @@ def test_array_peek(tmp_path, four_connected_cells, peek_size):
 
     """
     traces = four_connected_cells.traces.array
-    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+    n_frames = traces.sizes[AXIS.frame_dim]  # 50 frames
 
     zarr_traces = Traces(
         zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
     )
     zarr_traces.array = traces
 
-    assert zarr_traces.array.sizes[AXIS.frames_dim] == min(peek_size, n_frames)
+    assert zarr_traces.array.sizes[AXIS.frame_dim] == min(peek_size, n_frames)
 
 
 @pytest.mark.parametrize("peek_size", [30, 50, 70])
@@ -60,7 +60,7 @@ def test_flush_zarr(four_connected_cells, tmp_path, peek_size):
 
     """
     traces = four_connected_cells.traces.array
-    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+    n_frames = traces.sizes[AXIS.frame_dim]  # 50 frames
 
     zarr_traces = Traces(
         zarr_path=tmp_path, peek_size=peek_size, flush_interval=max(1000, peek_size)
@@ -72,9 +72,9 @@ def test_flush_zarr(four_connected_cells, tmp_path, peek_size):
 
     zarr_traces._flush_zarr()
     # only peek_size left in memory
-    assert zarr_traces.array_.sizes[AXIS.frames_dim] == min(n_frames, peek_size)
+    assert zarr_traces.array_.sizes[AXIS.frame_dim] == min(n_frames, peek_size)
     # the rest is in zarr
-    assert zarr_traces.load_zarr().sizes[AXIS.frames_dim] == max(0, n_frames - peek_size)
+    assert zarr_traces.load_zarr().sizes[AXIS.frame_dim] == max(0, n_frames - peek_size)
 
 
 @pytest.mark.parametrize("peek_size, flush_interval", [(30, 70)])
@@ -85,18 +85,18 @@ def test_zarr_append_frame(four_connected_cells, tmp_path, peek_size, flush_inte
 
     """
     traces = four_connected_cells.traces.array
-    n_frames = traces.sizes[AXIS.frames_dim]  # 50 frames
+    n_frames = traces.sizes[AXIS.frame_dim]  # 50 frames
 
     zarr_traces = Traces(zarr_path=tmp_path, peek_size=peek_size, flush_interval=flush_interval)
     zarr_traces.array = traces[:, :0]  # just initializing zarr
 
     # array smaller than flush_interval. does not flush.
-    zarr_traces.append(traces, dim=AXIS.frames_dim)
-    assert zarr_traces.array_.sizes[AXIS.frames_dim] == n_frames
+    zarr_traces.append(traces, dim=AXIS.frame_dim)
+    assert zarr_traces.array_.sizes[AXIS.frame_dim] == n_frames
 
     # array larger than flush_interval. flushes down to peek_size.
-    zarr_traces.append(traces, dim=AXIS.frames_dim)
-    assert zarr_traces.array_.sizes[AXIS.frames_dim] == peek_size
+    zarr_traces.append(traces, dim=AXIS.frame_dim)
+    assert zarr_traces.array_.sizes[AXIS.frame_dim] == peek_size
 
 
 @pytest.mark.parametrize("flush_interval", [30])
@@ -115,7 +115,7 @@ def test_zarr_append_component(four_connected_cells, tmp_path, flush_interval):
 
     assert zarr_traces.array_[AXIS.component_dim].equals(traces[AXIS.component_dim])
     assert zarr_traces.load_zarr()[AXIS.component_dim].equals(traces[AXIS.component_dim])
-    result = xr.concat([zarr_traces.load_zarr(), zarr_traces.array_], dim=AXIS.frames_dim).compute()
+    result = xr.concat([zarr_traces.load_zarr(), zarr_traces.array_], dim=AXIS.frame_dim).compute()
     assert result.equals(traces)
 
 
@@ -129,11 +129,9 @@ def test_flush_after_deprecated(four_connected_cells, tmp_path, flush_interval) 
     merged_ids = zarr_traces.array[AXIS.id_coord].values[0]
     intact_mask = ~np.isin(zarr_traces.array[AXIS.id_coord].values, merged_ids)
     zarr_traces.keep(intact_mask)
-    zarr_traces.append(traces[intact_mask], dim=AXIS.frames_dim)
+    zarr_traces.append(traces[intact_mask], dim=AXIS.frame_dim)
 
-    assert zarr_traces.full_array().equals(
-        xr.concat([traces] * 2, dim=AXIS.frames_dim)[intact_mask]
-    )
+    assert zarr_traces.full_array().equals(xr.concat([traces] * 2, dim=AXIS.frame_dim)[intact_mask])
 
 
 def test_from_array(four_connected_cells):
@@ -183,51 +181,51 @@ def test_overwrite(four_connected_cells, four_separate_cells):
 def test_buffer_assign(four_connected_cells):
     movie = four_connected_cells.make_movie().array
     buff = Buffer(size=10)
-    buff.array = movie.isel({AXIS.frames_dim: -1})
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: [-1]}))
+    buff.array = movie.isel({AXIS.frame_dim: -1})
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: [-1]}))
 
-    buff.array = movie.isel({AXIS.frames_dim: slice(-5, None)})
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-5, None)}))
+    buff.array = movie.isel({AXIS.frame_dim: slice(-5, None)})
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(-5, None)}))
 
-    buff.array = movie.isel({AXIS.frames_dim: slice(-10, None)})
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-10, None)}))
+    buff.array = movie.isel({AXIS.frame_dim: slice(-10, None)})
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(-10, None)}))
 
-    buff.array = movie.isel({AXIS.frames_dim: slice(-15, None)})
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(-10, None)}))
+    buff.array = movie.isel({AXIS.frame_dim: slice(-15, None)})
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(-10, None)}))
 
 
 def test_buffer_append(four_connected_cells):
     movie = four_connected_cells.make_movie().array
     buff = Buffer(size=10)
-    buff.array = movie.isel({AXIS.frames_dim: 0})
-    buff.append(movie.isel({AXIS.frames_dim: 1}))
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(0, 2)}))
+    buff.array = movie.isel({AXIS.frame_dim: 0})
+    buff.append(movie.isel({AXIS.frame_dim: 1}))
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(0, 2)}))
 
-    buff.array = movie.isel({AXIS.frames_dim: slice(None, 9)})
-    buff.append(movie.isel({AXIS.frames_dim: 9}))
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(0, 10)}))
-    buff.append(movie.isel({AXIS.frames_dim: 10}))
-    assert buff.array.equals(movie.isel({AXIS.frames_dim: slice(1, 11)}))
+    buff.array = movie.isel({AXIS.frame_dim: slice(None, 9)})
+    buff.append(movie.isel({AXIS.frame_dim: 9}))
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(0, 10)}))
+    buff.append(movie.isel({AXIS.frame_dim: 10}))
+    assert buff.array.equals(movie.isel({AXIS.frame_dim: slice(1, 11)}))
 
 
 def test_buffer_speed(single_cell):
     movie = single_cell.make_movie().array
-    movie = xr.concat([movie, movie], dim=AXIS.frames_dim)
+    movie = xr.concat([movie, movie], dim=AXIS.frame_dim)
     buff = Buffer(size=100)
     buff.array = movie
 
     start = datetime.now()
     iter = 100
     for _ in range(iter):
-        buff.append(movie.isel({AXIS.frames_dim: 0}))
+        buff.append(movie.isel({AXIS.frame_dim: 0}))
         _ = buff.array
     result = (datetime.now() - start) / iter
 
     start = datetime.now()
     for _ in range(iter):
         xr.concat(
-            [movie.isel({AXIS.frames_dim: slice(1, None)}), movie.isel({AXIS.frames_dim: 0})],
-            dim=AXIS.frames_dim,
+            [movie.isel({AXIS.frame_dim: slice(1, None)}), movie.isel({AXIS.frame_dim: 0})],
+            dim=AXIS.frame_dim,
         )
     expected = (datetime.now() - start) / iter
 

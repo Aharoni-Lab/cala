@@ -7,8 +7,8 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 from skimage.morphology import disk
 
-from cala.assets import Footprints, Frame, Movie, Traces
-from cala.models.axis import AXIS
+from cala.assets.assets import Footprints, Frame, Movie, Traces
+from cala.assets.axis import AXIS
 
 
 class FrameDims(BaseModel):
@@ -128,7 +128,7 @@ class Toy(BaseModel):
     def _build_movie_template(self) -> xr.DataArray:
         return xr.DataArray(
             np.zeros((self.n_frames, self.frame_dims.height, self.frame_dims.width)),
-            dims=[AXIS.frames_dim, *AXIS.spatial_dims],
+            dims=[AXIS.frame_dim, *AXIS.spatial_dims],
         )
 
     def _generate_footprint(
@@ -171,14 +171,14 @@ class Toy(BaseModel):
         return (
             xr.DataArray(
                 trace,
-                dims=AXIS.frames_dim,
+                dims=AXIS.frame_dim,
             )
             .expand_dims(AXIS.component_dim)
             .assign_coords(
                 {
                     AXIS.id_coord: (AXIS.component_dim, [id_]),
                     AXIS.detect_coord: (AXIS.component_dim, [detected_on]),
-                    AXIS.frame_coord: (AXIS.frames_dim, range(trace.size)),
+                    AXIS.frame_coord: (AXIS.frame_dim, range(trace.size)),
                 }
             )
         )
@@ -191,7 +191,7 @@ class Toy(BaseModel):
         return xr.concat(traces, dim=AXIS.component_dim).assign_coords(
             {
                 AXIS.timestamp_coord: (
-                    AXIS.frames_dim,
+                    AXIS.frame_dim,
                     [
                         (datetime.now() + i * timedelta(microseconds=20)).strftime("%H:%M:%S.%f")
                         for i in range(self.n_frames)
@@ -202,7 +202,7 @@ class Toy(BaseModel):
 
     def _build_movie(self, footprints: xr.DataArray, traces: xr.DataArray) -> xr.DataArray:
         movie = self._build_movie_template()
-        movie += (footprints @ traces).transpose(AXIS.frames_dim, *AXIS.spatial_dims).as_numpy()
+        movie += (footprints @ traces).transpose(AXIS.frame_dim, *AXIS.spatial_dims).as_numpy()
         return movie
 
     def make_movie(self) -> Movie:
@@ -251,8 +251,8 @@ class Toy(BaseModel):
             raise ValueError("No traces available")
 
     def movie_gen(self) -> Generator[_TFrame]:
-        for i in range(self._traces.sizes[AXIS.frames_dim]):
-            trace = self._traces.isel({AXIS.frames_dim: i})
+        for i in range(self._traces.sizes[AXIS.frame_dim]):
+            trace = self._traces.isel({AXIS.frame_dim: i})
             if not self.emit_frames:
                 yield trace @ self._footprints
             else:

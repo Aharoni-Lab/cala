@@ -2,8 +2,8 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Footprints, Frame, PixStats, PopSnap, Traces
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Footprints, Frame, PixStats, PopSnap, Traces
 
 
 @pytest.fixture(scope="function")
@@ -49,15 +49,15 @@ def test_ingest_frame(init, frame_update, four_separate_cells) -> None:
     footprints = four_separate_cells.footprints.array
 
     pre_ingest = init.process(
-        traces=traces.isel({AXIS.frames_dim: slice(None, -1)}),
-        frames=movie.isel({AXIS.frames_dim: slice(None, -1)}),
+        traces=traces.isel({AXIS.frame_dim: slice(None, -1)}),
+        frames=movie.isel({AXIS.frame_dim: slice(None, -1)}),
         footprints=footprints,
     )
 
     result = frame_update.process(
         pixel_stats=PixStats.from_array(pre_ingest),
-        frame=Frame.from_array(movie.isel({AXIS.frames_dim: -1})),
-        new_traces=PopSnap.from_array(traces.isel({AXIS.frames_dim: -1})),
+        frame=Frame.from_array(movie.isel({AXIS.frame_dim: -1})),
+        new_traces=PopSnap.from_array(traces.isel({AXIS.frame_dim: -1})),
         footprints=Footprints.from_array(footprints),
     ).array
 

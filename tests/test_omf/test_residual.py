@@ -3,8 +3,8 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import Buffer, Footprints, Frame, Traces
-from cala.models.axis import AXIS
+from cala.assets.assets import Buffer, Footprints, Frame, Traces
+from cala.assets.axis import AXIS
 from cala.nodes.omf.residual import _align_overestimates, _find_unlayered_footprints
 from cala.testing.toy import FrameDims, Position, Toy
 
@@ -72,14 +72,14 @@ def test_align_overestimates(single_cell) -> None:
     Maybe this can be absorbed straight into trace frame_ingest as a constraint.
     """
     movie = single_cell.make_movie()
-    last_frame = movie.array.isel({AXIS.frames_dim: -1})
+    last_frame = movie.array.isel({AXIS.frame_dim: -1})
 
     last_res = xr.zeros_like(last_frame)
     # we have negative residuals
     last_res.loc[{AXIS.width_coord: slice(single_cell.cell_positions[0].width, None)}] = -1
     last_res = last_res.where(single_cell.footprints.array[0].to_numpy(), 0)
 
-    last_trace = single_cell.traces.array.isel({AXIS.frames_dim: -1})
+    last_trace = single_cell.traces.array.isel({AXIS.frame_dim: -1})
 
     footprints = single_cell.footprints.array
     shapes_sparse = footprints.data.reshape((footprints.sizes[AXIS.component_dim], -1)).tocsr()
@@ -89,7 +89,7 @@ def test_align_overestimates(single_cell) -> None:
     )
 
     # adjusted to lower than last_trace
-    assert single_cell.traces.array.isel({AXIS.frames_dim: -2}) < adjusted_traces < last_trace
+    assert single_cell.traces.array.isel({AXIS.frame_dim: -2}) < adjusted_traces < last_trace
 
 
 def test_find_exposed_footprints(connected_cells) -> None:
@@ -117,7 +117,7 @@ def test_std(init, connected_cells) -> None:
             traces=Traces(),
         )
 
-    expected = connected_cells.make_movie().array.std(dim=AXIS.frames_dim).values
+    expected = connected_cells.make_movie().array.std(dim=AXIS.frame_dim).values
 
     assert np.allclose(result, expected)
 

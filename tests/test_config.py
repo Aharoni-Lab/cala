@@ -27,7 +27,7 @@ def test_set_config(set_config, tmp_path):
 
 def test_config_from_environment(tmp_path, set_env):
     """
-    Setting environmental variables should set the config, including recursive models
+    Setting environmental variables should set the config, including recursive assets
     """
     override_logdir = Path(tmp_path) / "fancylogdir"
 

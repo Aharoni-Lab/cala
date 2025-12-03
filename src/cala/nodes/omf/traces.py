@@ -7,9 +7,9 @@ from noob import Name, process_method
 from pydantic import BaseModel
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import Footprints, Frame, Overlaps, PopSnap, Traces
+from cala.assets import AXIS
+from cala.assets.assets import Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
-from cala.models import AXIS
 from cala.util import norm, stack_sparse
 
 
@@ -57,7 +57,7 @@ class Tracer(BaseModel):
         # Prepare inputs for the update algorithm
         A = stack_sparse(footprints.array, AXIS.component_dim).tocsr().T
         y = frame.array.data.reshape((-1,))
-        c = traces.array.isel({AXIS.frames_dim: -1}).copy()
+        c = traces.array.isel({AXIS.frame_dim: -1}).copy()
 
         AtA = (A.T @ A).toarray()
 
@@ -77,11 +77,11 @@ class Tracer(BaseModel):
 
         if traces.zarr_path:
             updated_tr = updated_traces.volumize.dim_with_coords(
-                dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
+                dim=AXIS.frame_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
             )
-            traces.append(updated_tr, dim=AXIS.frames_dim)
+            traces.append(updated_tr, dim=AXIS.frame_dim)
         else:
-            traces.append(updated_traces, dim=AXIS.frames_dim)
+            traces.append(updated_traces, dim=AXIS.frame_dim)
 
         return PopSnap.from_array(updated_traces)
 
@@ -153,8 +153,8 @@ def ingest_component(traces: Traces, new_traces: Traces) -> Traces:
         traces.array = c_new
         return traces
 
-    total_frames = traces.sizes[AXIS.frames_dim]
-    new_n_frames = c_new.sizes[AXIS.frames_dim]
+    total_frames = traces.sizes[AXIS.frame_dim]
+    new_n_frames = c_new.sizes[AXIS.frame_dim]
 
     merged_ids = c_new.attrs.get("replaces")
     if merged_ids:
@@ -173,14 +173,14 @@ def _pad_history(traces: xr.DataArray, total_nframes: int, value: float = np.nan
     Pad unknown historical epochs with values...
 
     """
-    new_nframes = traces.sizes[AXIS.frames_dim]
+    new_nframes = traces.sizes[AXIS.frame_dim]
 
     c_new = xr.DataArray(
         np.full((traces.sizes[AXIS.component_dim], total_nframes), value),
-        dims=[AXIS.component_dim, AXIS.frames_dim],
+        dims=[AXIS.component_dim, AXIS.frame_dim],
         coords=traces[AXIS.component_dim].coords,
     )
 
-    c_new.loc[{AXIS.frames_dim: slice(total_nframes - new_nframes, None)}] = traces
+    c_new.loc[{AXIS.frame_dim: slice(total_nframes - new_nframes, None)}] = traces
 
     return c_new

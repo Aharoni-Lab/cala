@@ -9,7 +9,7 @@ from noob.node import Node
 from pydantic import Field
 from scipy.ndimage import gaussian_filter1d
 
-from cala.models import AXIS
+from cala.assets import AXIS
 
 
 class CatalogerDepr(Node):
@@ -51,5 +51,5 @@ class CatalogerDepr(Node):
 
         overlaps = np.matmul(fps.data, fps_base.data.T) > 0
         # corr is fast. (~1ms to 4ms)
-        corrs = xr.corr(trs, trs_base, dim=AXIS.frames_dim) > self.merge_threshold
+        corrs = xr.corr(trs, trs_base, dim=AXIS.frame_dim) > self.merge_threshold
         return xr.DataArray(overlaps * corrs.values, dims=corrs.dims, coords=corrs.coords)

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import xarray as xr
 
-from cala.models import AXIS
+from cala.assets import AXIS
 
 _TArray = TypeVar("_TArray", xr.DataArray, np.ndarray)
 

@@ -9,10 +9,9 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 from sparse import COO
 
+from cala.assets.axis import AXIS
+from cala.assets.validate import Coords, Dims, Entity, Group, has_no_nan, is_non_negative
 from cala.config import config
-from cala.models.axis import AXIS, Coords, Dims
-from cala.models.checks import has_no_nan, is_non_negative
-from cala.models.entity import Entity, Group
 from cala.util import clear_dir
 
 AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
@@ -187,7 +186,7 @@ class Traces(Asset):
         if self.zarr_path:
             total_size = {}
             for key, val in self.array_.sizes.items():
-                if key == AXIS.frames_dim:
+                if key == AXIS.frame_dim:
                     total_size[key] = val + self.load_zarr().sizes[key]
                 else:
                     total_size[key] = val
@@ -198,7 +197,7 @@ class Traces(Asset):
     @property
     def array(self) -> xr.DataArray:
         return (
-            self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+            self.array_.isel({AXIS.frame_dim: slice(-self.peek_size, None)})
             if self.array_ is not None
             else self.array_
         )
@@ -213,8 +212,8 @@ class Traces(Asset):
         if self.validate_schema:
             array.validate.against_schema(self._entity.model)
         if self.zarr_path:
-            self.array_ = array.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
-            array.isel({AXIS.frames_dim: slice(None, -self.peek_size)}).to_zarr(
+            self.array_ = array.isel({AXIS.frame_dim: slice(-self.peek_size, None)})
+            array.isel({AXIS.frame_dim: slice(None, -self.peek_size)}).to_zarr(
                 self.zarr_path, mode="w"
             )
         else:
@@ -230,20 +229,20 @@ class Traces(Asset):
 
         """
 
-        if dim == AXIS.frames_dim:
-            self.array_ = xr.concat([self.array_, array], dim=AXIS.frames_dim)
+        if dim == AXIS.frame_dim:
+            self.array_ = xr.concat([self.array_, array], dim=AXIS.frame_dim)
 
-            if self.zarr_path and self.array_.sizes[AXIS.frames_dim] > self.flush_interval:
+            if self.zarr_path and self.array_.sizes[AXIS.frame_dim] > self.flush_interval:
                 self._flush_zarr()
 
         elif dim == AXIS.component_dim:
             if self.zarr_path:
-                n_in_memory = self.array_.sizes[AXIS.frames_dim]
+                n_in_memory = self.array_.sizes[AXIS.frame_dim]
                 self.array_ = xr.concat(
-                    [self.array_, array.isel({AXIS.frames_dim: slice(-n_in_memory, None)})],
+                    [self.array_, array.isel({AXIS.frame_dim: slice(-n_in_memory, None)})],
                     dim=dim,
                 )
-                array.isel({AXIS.frames_dim: slice(None, -n_in_memory)}).to_zarr(
+                array.isel({AXIS.frame_dim: slice(None, -n_in_memory)}).to_zarr(
                     self.zarr_path, append_dim=dim
                 )
             else:
@@ -259,25 +258,25 @@ class Traces(Asset):
         Could do this much more elegantly by pre-allocating .array_
         """
         raw_zarr = self.load_zarr()
-        to_flush = self.array_.isel({AXIS.frames_dim: slice(None, -self.peek_size)})
+        to_flush = self.array_.isel({AXIS.frame_dim: slice(None, -self.peek_size)})
         if self._deprecated:
             zarr_ids = raw_zarr[AXIS.id_coord].values
             zarr_detects = raw_zarr[AXIS.detect_coord].values
             intact_mask = ~np.isin(zarr_ids, self._deprecated)
-            n_flush = to_flush.sizes[AXIS.frames_dim]
+            n_flush = to_flush.sizes[AXIS.frame_dim]
             prealloc = xr.DataArray(
                 np.full((raw_zarr.sizes[AXIS.component_dim], n_flush), np.nan),
-                dims=[AXIS.component_dim, AXIS.frames_dim],
+                dims=[AXIS.component_dim, AXIS.frame_dim],
                 coords={
                     AXIS.id_coord: (AXIS.component_dim, zarr_ids),
                     AXIS.detect_coord: (AXIS.component_dim, zarr_detects),
                 },
-            ).assign_coords(to_flush[AXIS.frames_dim].coords)
+            ).assign_coords(to_flush[AXIS.frame_dim].coords)
             prealloc.loc[intact_mask] = to_flush
-            prealloc.to_zarr(self.zarr_path, append_dim=AXIS.frames_dim)
+            prealloc.to_zarr(self.zarr_path, append_dim=AXIS.frame_dim)
         else:
-            to_flush.to_zarr(self.zarr_path, append_dim=AXIS.frames_dim)
-        self.array_ = self.array_.isel({AXIS.frames_dim: slice(-self.peek_size, None)})
+            to_flush.to_zarr(self.zarr_path, append_dim=AXIS.frame_dim)
+        self.array_ = self.array_.isel({AXIS.frame_dim: slice(-self.peek_size, None)})
 
     def keep(self, intact_mask: np.ndarray) -> None:
         if self.zarr_path:
@@ -291,7 +290,7 @@ class Traces(Asset):
         so we don't really have to worry about specifying the parameters.
 
         """
-        new_cls = cls(peek_size=array.sizes[AXIS.frames_dim])
+        new_cls = cls(peek_size=array.sizes[AXIS.frame_dim])
         new_cls.array = array
         return new_cls
 
@@ -301,7 +300,7 @@ class Traces(Asset):
             zarr_ids = raw_zarr[AXIS.id_coord].values
             intact_mask = ~np.isin(zarr_ids, self._deprecated)
 
-            return xr.concat([raw_zarr[intact_mask], self.array_], dim=AXIS.frames_dim).compute()
+            return xr.concat([raw_zarr[intact_mask], self.array_], dim=AXIS.frame_dim).compute()
         else:
             return self.array_.isel(isel_filter).sel(sel_filter)
 
@@ -380,7 +379,7 @@ class Overlaps(Asset):
 
 class Buffer(Asset):
     """
-    Implements a fake ring buffer to avoid expensive copying that occurs with
+    Implements a bip buffer to avoid expensive copying that occurs with
     numpy concat, append, and stack.
 
     Works by preallocating a space twice the desired size.
@@ -420,9 +419,9 @@ class Buffer(Asset):
         if self.array_ is None:
             return None
         if self._full:
-            out = self.array_.isel({AXIS.frames_dim: slice(self._next, self._next + self.size)})
+            out = self.array_.isel({AXIS.frame_dim: slice(self._next, self._next + self.size)})
         else:
-            out = self.array_.isel({AXIS.frames_dim: slice(None, self._next)})
+            out = self.array_.isel({AXIS.frame_dim: slice(None, self._next)})
         # kinda expensive. maybe float is fine?
         return out  # .assign_coords({AXIS.frame_coord: out[AXIS.frame_coord].astype(int)})
 
@@ -433,26 +432,26 @@ class Buffer(Asset):
         """
         array = (
             array.volumize.dim_with_coords(
-                dim=AXIS.frames_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
+                dim=AXIS.frame_dim, coords=[AXIS.frame_coord, AXIS.timestamp_coord]
             )
-            if AXIS.frames_dim not in array.dims
-            else array.isel({AXIS.frames_dim: slice(-self.size, None)})
+            if AXIS.frame_dim not in array.dims
+            else array.isel({AXIS.frame_dim: slice(-self.size, None)})
         )
         fill_sizes = dict(array.sizes)
-        fill_sizes[AXIS.frames_dim] = self.size - array.sizes[AXIS.frames_dim]
+        fill_sizes[AXIS.frame_dim] = self.size - array.sizes[AXIS.frame_dim]
         fill = np.zeros(list(fill_sizes.values()))
         filler = xr.DataArray(
             fill,
             dims=array.dims,
             coords={
-                AXIS.frame_coord: (AXIS.frames_dim, [np.nan] * (fill_sizes[AXIS.frames_dim])),
-                AXIS.timestamp_coord: (AXIS.frames_dim, [""] * (fill_sizes[AXIS.frames_dim])),
+                AXIS.frame_coord: (AXIS.frame_dim, [np.nan] * (fill_sizes[AXIS.frame_dim])),
+                AXIS.timestamp_coord: (AXIS.frame_dim, [""] * (fill_sizes[AXIS.frame_dim])),
             },
         )
-        buffer = xr.concat([array, filler] * 2, dim=AXIS.frames_dim)
+        buffer = xr.concat([array, filler] * 2, dim=AXIS.frame_dim)
 
-        self._full = array.sizes[AXIS.frames_dim] >= self.size
-        self._next = np.min((array.sizes[AXIS.frames_dim], self.size)) % self.size
+        self._full = array.sizes[AXIS.frame_dim] >= self.size
+        self._next = np.min((array.sizes[AXIS.frame_dim], self.size)) % self.size
         self.array_ = buffer
 
     @classmethod

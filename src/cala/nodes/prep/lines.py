@@ -6,8 +6,8 @@ from noob import Name
 from scipy.ndimage import convolve1d
 from scipy.signal import firwin, welch
 
-from cala.assets import Frame
-from cala.models import AXIS
+from cala.assets import AXIS
+from cala.assets.assets import Frame
 
 
 def remove_mean(frame: Frame, orient: Literal["horiz", "vert", "both"]) -> A[Frame, Name("frame")]:

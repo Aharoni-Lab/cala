@@ -4,7 +4,7 @@ import xarray as xr
 from noob.node import NodeSpecification
 from sklearn.decomposition import NMF
 
-from cala.assets import AXIS, Buffer
+from cala.assets.assets import AXIS, Buffer
 from cala.nodes.segment import SliceNMF
 from cala.nodes.segment.slice_nmf import rank1nmf
 from cala.testing.util import assert_scalar_multiple_arrays
@@ -24,7 +24,7 @@ def slice_nmf():
 def test_process(slice_nmf, single_cell):
     new_component = slice_nmf.process(
         residuals=Buffer.from_array(single_cell.make_movie().array, size=100),
-        energy=single_cell.make_movie().array.std(dim=AXIS.frames_dim),
+        energy=single_cell.make_movie().array.std(dim=AXIS.frame_dim),
         detect_radius=single_cell.cell_radii[0] * 2,
     )
     if new_component:
@@ -46,7 +46,7 @@ def test_chunks(single_cell):
     )
     fpts, trcs = nmf.process(
         residuals=Buffer.from_array(single_cell.make_movie().array, size=100),
-        energy=single_cell.make_movie().array.std(dim=AXIS.frames_dim),
+        energy=single_cell.make_movie().array.std(dim=AXIS.frame_dim),
         detect_radius=10,
     )
     if not fpts or not trcs:
@@ -65,7 +65,7 @@ def test_chunks(single_cell):
 
 def test_rank1nmf(single_cell):
     Y = single_cell.make_movie().array
-    R = Y.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frames_dim)
+    R = Y.stack(space=AXIS.spatial_dims).transpose("space", AXIS.frame_dim)
     R += np.random.randint(0, 2, R.shape)
 
     shape = np.mean(R.values, axis=1).shape
