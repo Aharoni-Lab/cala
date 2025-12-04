@@ -36,7 +36,7 @@ class LogConfig(BaseModel):
     """
     Severity for stream-based logging. If unset, use ``level``
     """
-    dir: Path = _dirs.user_log_dir
+    dir: Path = Path(_dirs.user_log_dir)
     """
     Directory where logs are stored.
     """
@@ -48,6 +48,7 @@ class LogConfig(BaseModel):
     """
     Maximum size of log files (bytes)
     """
+    model_config = SettingsConfigDict(validate_default=True)
 
     @field_validator("level", "level_file", "level_stdout", mode="before")
     @classmethod
@@ -75,6 +76,7 @@ class Config(BaseSettings, YAMLMixin):
         nested_model_default_partial_update=True,
         yaml_file="cala_config.yaml",
         pyproject_toml_table_header=("tool", "cala", "config"),
+        validate_default=True,
     )
 
     logs: LogConfig = LogConfig()

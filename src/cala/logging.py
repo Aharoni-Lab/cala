@@ -115,7 +115,6 @@ def _init_root(
     stream_handlers = [
         handler for handler in root_logger.handlers if isinstance(handler, RichHandler)
     ]
-
     if log_dir is not False and not file_handlers:
         root_logger.addHandler(
             _file_handler(
