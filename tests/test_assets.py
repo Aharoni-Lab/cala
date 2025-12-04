@@ -11,8 +11,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.assets import AXIS
-from cala.assets.assets import Buffer, Traces
+from cala.assets import AXIS, Buffer, Traces
 
 
 @pytest.mark.parametrize("peek_size", [30, 49, 50, 51, 70])

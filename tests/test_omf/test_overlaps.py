@@ -2,8 +2,7 @@ import numpy as np
 import pytest
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS
-from cala.assets.assets import Footprint, Footprints, Overlaps
+from cala.assets import AXIS, Footprint, Footprints, Overlaps
 
 
 @pytest.fixture(scope="function")

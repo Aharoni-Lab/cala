@@ -1,6 +1,6 @@
 import pytest
 
-from cala.assets.assets import AXIS, PopSnap
+from cala.assets import AXIS, PopSnap
 from cala.gui.components.stamper import stamp
 
 

@@ -10,7 +10,7 @@ from noob import Name, process_method
 from pydantic import BaseModel
 from skimage.restoration import calibrate_denoiser
 
-from cala.assets.assets import Frame
+from cala.assets import Frame
 
 
 def _bilateral(arr: np.ndarray, **kwargs: Any) -> np.ndarray:

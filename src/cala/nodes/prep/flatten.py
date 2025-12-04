@@ -6,7 +6,7 @@ from noob import Name
 from skimage.filters import butterworth
 from skimage.restoration import rolling_ball
 
-from cala.assets.assets import Frame
+from cala.assets import Frame
 
 
 def butter(frame: Frame, kwargs: dict[str, Any]) -> A[Frame, Name("frame")]:

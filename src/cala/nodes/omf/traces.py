@@ -7,8 +7,7 @@ from noob import Name, process_method
 from pydantic import BaseModel
 from scipy.sparse.csgraph import connected_components
 
-from cala.assets import AXIS
-from cala.assets.assets import Footprints, Frame, Overlaps, PopSnap, Traces
+from cala.assets import AXIS, Footprints, Frame, Overlaps, PopSnap, Traces
 from cala.logging import init_logger
 from cala.util import norm, stack_sparse
 

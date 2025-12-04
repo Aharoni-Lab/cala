@@ -4,7 +4,7 @@ import xarray as xr
 from noob.node import NodeSpecification
 from sklearn.decomposition import NMF
 
-from cala.assets.assets import AXIS, Buffer
+from cala.assets import AXIS, Buffer
 from cala.nodes.segment import SliceNMF
 from cala.nodes.segment.slice_nmf import rank1nmf
 from cala.testing.util import assert_scalar_multiple_arrays

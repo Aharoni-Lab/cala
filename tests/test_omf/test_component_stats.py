@@ -3,8 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS
-from cala.assets.assets import CompStats, Frame, PopSnap, Traces
+from cala.assets import AXIS, CompStats, Frame, PopSnap, Traces
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import NodeSpecification
 
-from cala.assets.assets import AXIS, Buffer, Footprints, Traces
+from cala.assets import AXIS, Buffer, Footprints, Traces
 from cala.nodes.segment import Cataloger, SliceNMF
 from cala.nodes.segment.catalog import _register
 from cala.testing.catalog_depr import CatalogerDepr
