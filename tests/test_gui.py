@@ -15,7 +15,7 @@ def test_deps_spec():
 def test_stamper(four_connected_cells) -> None:
     fp = four_connected_cells.footprints
     trs = four_connected_cells.traces
-    tr = PopSnap.from_array(trs.array.isel({AXIS.frames_dim: -1}))
+    tr = PopSnap.from_array(trs.array.isel({AXIS.frame_dim: -1}))
     frame = stamp(fp, tr, gain=1)
 
     assert len(frame.array.dims) == 3

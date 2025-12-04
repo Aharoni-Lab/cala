@@ -6,8 +6,7 @@ from noob import Name, process_method
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from skimage.feature import blob_log
 
-from cala.assets import Frame
-from cala.models import AXIS
+from cala.assets import AXIS, Frame
 
 
 class SizeEst(BaseModel):

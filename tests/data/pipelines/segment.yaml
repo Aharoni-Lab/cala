@@ -1,0 +1,72 @@
+noob_id: segment-loop
+noob_model: noob.tube.TubeSpecification
+noob_version: 0.1.1.dev209+g1cafe61
+input:
+  residual:
+    scope: process
+    type: np.ndarray
+  energy:
+    scope: process
+    type: np.ndarray
+  radius:
+    scope: process
+    type: int
+  footprints:
+    scope: process
+    type: np.ndarray
+  traces:
+    scope: process
+    type: np.ndarray
+  frame_sum:
+    scope: process
+    type: np.ndarray
+  trace_sum:
+    scope: process
+    type: np.ndarray
+  overlaps:
+    scope: process
+    type: np.ndarray
+  buffer:
+    scope: process
+    type: np.ndarray
+nodes:
+  nmf:
+    type: cala.nodes.segment.SliceNMF
+    params:
+      min_frames: 10
+      detect_thresh: 1.0
+      reprod_tol: 0.001
+    depends:
+      - residuals: input.residual
+      - energy: input.energy
+      - detect_radius: input.radius
+  catalog:
+    type: cala.nodes.segment.Cataloger
+    params:
+      age_limit: 100
+      shape_smooth_kwargs:
+        ksize:
+          - 1
+          - 1
+        sigmaX: 0
+      trace_smooth_kwargs:
+        sigma: 2
+      merge_threshold: 0.95
+      val_threshold: 0.5
+      cnt_threshold: 10
+    depends:
+      - new_fps: nmf.new_fps
+      - new_trs: nmf.new_trs
+      - existing_fp: input.footprints
+      - existing_tr: input.traces
+  detect_update:
+    type: cala.nodes.segment.update_assets
+    depends:
+      - new_footprints: catalog.new_footprints
+      - new_traces: catalog.new_traces
+      - footprints: input.footprints
+      - traces: input.traces
+      - pixel_stats: input.frame_sum
+      - component_stats: input.trace_sum
+      - overlaps: input.overlaps
+      - buffer: input.buffer

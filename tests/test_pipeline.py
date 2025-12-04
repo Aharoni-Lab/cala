@@ -4,7 +4,7 @@ import xarray as xr
 from noob import SynchronousRunner, Tube
 from noob.node import Node, NodeSpecification
 
-from cala.models import AXIS
+from cala.assets import AXIS
 
 
 @pytest.fixture(
@@ -89,7 +89,7 @@ def test_trace_correlation(results) -> None:
     tr_corr = xr.corr(
         results["model"].traces.array,
         results["traces"].rename(AXIS.component_rename),
-        dim=AXIS.frames_dim,
+        dim=AXIS.frame_dim,
     )
     for corr in tr_corr:
         assert np.isclose(corr.max(), 1, atol=1e-5)

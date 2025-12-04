@@ -1,5 +1,4 @@
-from cala.assets import Traces
-from cala.models import AXIS
+from cala.assets import AXIS, Traces
 
 
 def component_counter(index: int, traces: Traces) -> dict[str, int]:

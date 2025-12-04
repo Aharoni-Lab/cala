@@ -15,6 +15,10 @@ assets:
     scope: runner
   traces:
     type: cala.assets.Traces
+    params:
+      zarr_path: traces/
+      peek_size: 100
+      flush_interval: 200
     scope: runner
   pix_stats:
     type: cala.assets.PixStats
@@ -47,128 +51,46 @@ nodes:
     type: cala.nodes.prep.GlowRemover
     depends:
       - frame: frame.value
-  size_est:
+  radius:
     type: cala.nodes.prep.SizeEst
     params:
       hardset_radius: 5
     depends:
       - frame: glow.frame
   cache:
-    type: cala.nodes.buffer.fill_buffer
+    type: cala.nodes.omf.pixel_stats.fill_buffer
     depends:
       - buffer: assets.buffer
       - frame: glow.frame
   #PREPROCESS ENDS
 
-  # FRAME UPDATE BEGINS
-  trace_frame:
-    type: cala.nodes.traces.Tracer
+  ingest:
+    type: tube
     params:
-      tol: 0.001
-      max_iter: 100
+      tube: ingest-loop
     depends:
+      - frame: glow.frame
       - traces: assets.traces
       - footprints: assets.footprints
-      - frame: glow.frame
       - overlaps: assets.overlaps
-  pix_frame:
-    type: cala.nodes.pixel_stats.ingest_frame
-    depends:
-      - pixel_stats: assets.pix_stats
-      - frame: glow.frame
-      - new_traces: trace_frame.latest_trace
-      - footprints: assets.footprints
-  comp_frame:
-    type: cala.nodes.component_stats.ingest_frame
-    depends:
-      - component_stats: assets.comp_stats
-      - frame: glow.frame
-      - new_traces: trace_frame.latest_trace
-  footprints_frame:
-    type: cala.nodes.footprints.Footprinter
-    params:
-      bep: 0
-      tol: 0.0001
-      max_iter: 5
-      ratio_lb: 0.10
-    depends:
-      - footprints: assets.footprints
-      - pixel_stats: pix_frame.value
-      - component_stats: comp_frame.value
-
-  residual:
-    type: cala.nodes.residual.Residuer
-    depends:
-      - frame: glow.frame
-      - footprints: footprints_frame.footprints
-      - traces: assets.traces
+      - pix_stats: assets.pix_stats
+      - comp_stats: assets.comp_stats
       - residuals: assets.residuals
-  # FRAME UPDATE ENDS
 
-  # DETECT BEGINS
-  nmf:
-    type: cala.nodes.detect.SliceNMF
+  segment:
+    type: tube
     params:
-      min_frames: 10
-      detect_thresh: 1.0
-      reprod_tol: 0.001
+      tube: segment-loop
     depends:
-      - residuals: residual.movie
-      - energy: residual.std
-      - detect_radius: size_est.radius
-  catalog:
-    type: cala.nodes.detect.Cataloger
-    params:
-      age_limit: 100
-      shape_smooth_kwargs:
-        ksize: [ 1, 1 ]
-        sigmaX: 0
-      trace_smooth_kwargs:
-        sigma: 2
-      merge_threshold: 0.95
-      val_threshold: 0.5
-      cnt_threshold: 10
-    depends:
-      - new_fps: nmf.new_fps
-      - new_trs: nmf.new_trs
-      - existing_fp: assets.footprints
-      - existing_tr: assets.traces
-  detect_update:
-    type: cala.nodes.detect.update_assets
-    depends:
-      - new_footprints: catalog.new_footprints
-      - new_traces: catalog.new_traces
+      - residual: assets.residuals
+      - energy: ingest.value
+      - radius: radius.radius
       - footprints: assets.footprints
       - traces: assets.traces
-      - pixel_stats: assets.pix_stats
-      - component_stats: assets.comp_stats
+      - frame_sum: assets.pix_stats
+      - trace_sum: assets.comp_stats
       - overlaps: assets.overlaps
       - buffer: assets.buffer
-  #  DETECT ENDS
-
-  #  merge:
-  #    type: cala.nodes.merge.merge_existing
-  #    params:
-  #      merge_interval: 500
-  #      merge_threshold: 0.95
-  #      smooth_kwargs:
-  #        sigma: 2
-  #    depends:
-  #      - shapes: assets.footprints
-  #      - traces: assets.traces
-  #      - overlaps: assets.overlaps
-  #      - trigger: detect_update.footprints
-  #  merge_update:
-  #    type: cala.nodes.detect.update_assets
-  #    depends:
-  #      - new_footprints: merge.footprints
-  #      - new_traces: merge.traces
-  #      - footprints: assets.footprints
-  #      - traces: assets.traces
-  #      - pixel_stats: assets.pix_stats
-  #      - component_stats: assets.comp_stats
-  #      - overlaps: assets.overlaps
-  #      - buffer: assets.buffer
 
   return:
     type: return
