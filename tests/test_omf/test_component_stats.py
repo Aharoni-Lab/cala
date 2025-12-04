@@ -29,8 +29,8 @@ def test_init(init, four_separate_cells) -> None:
             assert (
                 result.set_xindex(AXIS.id_coord)
                 .sel({AXIS.id_coord: id1})
-                .set_xindex(f"{AXIS.id_coord}'")
-                .sel({f"{AXIS.id_coord}'": id2})
+                .set_xindex(AXIS.duplicate(AXIS.id_coord))
+                .sel({AXIS.duplicate(AXIS.id_coord): id2})
                 .item()
                 == (trace1 @ trace2).item() / four_separate_cells.n_frames
             )

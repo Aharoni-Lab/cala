@@ -53,7 +53,7 @@ def sp_matmul(
     val = ll @ rr.T
 
     return xr.DataArray(
-        COO.from_scipy_sparse(val), dims=[dim, f"{dim}'"], coords=left[dim].coords
+        COO.from_scipy_sparse(val), dims=[dim, AXIS.duplicate(dim)], coords=left[dim].coords
     ).assign_coords(right[dim].rename(rename_map).coords)
 
 

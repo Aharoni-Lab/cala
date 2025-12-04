@@ -9,7 +9,9 @@
 > [!CAUTION]  
 > **NOT READY FOR USE: In active development in version alpha. Beta release scheduled by the end of 2025.**
 
-Cala is a neural endoscope image processing tool designed for neuroscience research, with a focus on long-term massive recordings. It features a no-code approach through configuration files, making it accessible to researchers of all programming backgrounds.
+Cala is a neural endoscope image processing tool designed for neuroscience research, with a focus on long-term massive
+recordings. It features a no-code approach through configuration files, making it accessible to researchers of all
+programming backgrounds.
 
 ## Requirements
 
@@ -20,11 +22,10 @@ Cala is a neural endoscope image processing tool designed for neuroscience resea
 
 ## Architecture
 
-Schematics of the architecture can be found [here](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931).
+Schematics of the architecture can be
+found [here](https://lucid.app/documents/embedded/808097f9-bf66-4ea8-9df0-e957e6bd0931).
 
-
-3. **API Reference**: Available on [Read the Docs](https://cala.readthedocs.io/en/latest/)
-
+1. **API Reference**: Available on [Read the Docs](https://cala.readthedocs.io/en/latest/)
 
 ## Contact
 

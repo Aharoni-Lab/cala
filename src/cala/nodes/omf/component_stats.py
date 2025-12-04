@@ -102,7 +102,9 @@ def ingest_component(component_stats: CompStats, traces: Traces, new_traces: Tra
     # Bottom block: [cross_corr.T, auto_corr]
     bottom_block = xr.concat([bottom_left_corr, auto_corr], dim=AXIS.component_dim)
     # Combine blocks
-    component_stats.array = xr.concat([top_block, bottom_block], dim=f"{AXIS.component_dim}'")
+    component_stats.array = xr.concat(
+        [top_block, bottom_block], dim=AXIS.duplicate(AXIS.component_dim)
+    )
 
     return component_stats
 

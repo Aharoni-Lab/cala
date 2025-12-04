@@ -36,8 +36,8 @@ class CatalogerDepr(Node):
         )
 
         if fps_base is None:
-            fps_base = fps.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
-            trs_base = trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+            fps_base = fps.rename({AXIS.component_dim: AXIS.duplicate(AXIS.component_dim)})
+            trs_base = trs.rename({AXIS.component_dim: AXIS.duplicate(AXIS.component_dim)})
         else:
             fps_base = fps_base.stack(pixels=AXIS.spatial_dims).rename(AXIS.component_rename)
             trs_base = xr.DataArray(

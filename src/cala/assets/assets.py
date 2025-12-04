@@ -96,48 +96,41 @@ class Asset(BaseModel):
 
 
 class Footprint(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="footprint",
-            dims=(Dims.width.value, Dims.height.value),
-            dtype=float,
-            checks=[is_non_negative, has_no_nan],
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="footprint",
+        dims=(Dims.width.value, Dims.height.value),
+        dtype=float,
+        checks=[is_non_negative, has_no_nan],
     )
 
 
 class Trace(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="trace",
-            dims=(Dims.frame.value,),
-            dtype=float,
-            checks=[is_non_negative],
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="trace",
+        dims=(Dims.frame.value,),
+        dtype=float,
+        checks=[is_non_negative],
     )
 
 
 class Frame(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="frame",
-            dims=(Dims.width.value, Dims.height.value),
-            dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
-            checks=[is_non_negative, has_no_nan],
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="frame",
+        dims=(Dims.width.value, Dims.height.value),
+        dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
+        checks=[is_non_negative, has_no_nan],
     )
 
 
 class Footprints(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Bundle(
-            name="footprint-group",
-            member=Footprint.entity(),
-            group_by=Dims.component,
-            checks=[is_non_negative, has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Bundle(
+        name="footprint-group",
+        member=Footprint.entity(),
+        group_by=Dims.component,
+        checks=[is_non_negative, has_no_nan],
+        allow_extra_coords=False,
     )
+
     sparsify = True
 
 
@@ -159,14 +152,12 @@ class Traces(Asset):
     added, these are added in with nan values. 
     """
 
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Bundle(
-            name="trace-group",
-            member=Trace.entity(),
-            group_by=Dims.component,
-            checks=[is_non_negative],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Bundle(
+        name="trace-group",
+        member=Trace.entity(),
+        group_by=Dims.component,
+        checks=[is_non_negative],
+        allow_extra_coords=False,
     )
 
     @model_validator(mode="after")
@@ -306,14 +297,12 @@ class Traces(Asset):
 
 
 class Movie(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Bundle(
-            name="movie",
-            member=Frame.entity(),
-            group_by=Dims.frame.value,
-            checks=[is_non_negative, has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Bundle(
+        name="movie",
+        member=Frame.entity(),
+        group_by=Dims.frame.value,
+        checks=[is_non_negative, has_no_nan],
+        allow_extra_coords=False,
     )
 
 
@@ -324,56 +313,48 @@ class PopSnap(Asset):
     Mainly used for Traces that only has one frame.
     """
 
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="pop-snap",
-            dims=(Dims.component.value,),
-            dtype=float,
-            coords=[Coords.frame.value, Coords.timestamp.value],
-            checks=[is_non_negative, has_no_nan],
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="pop-snap",
+        dims=(Dims.component.value,),
+        dtype=float,
+        coords=[Coords.frame.value, Coords.timestamp.value],
+        checks=[is_non_negative, has_no_nan],
     )
 
 
 comp_dims = (Dims.component.value, deepcopy(Dims.component.value))
-comp_dims[1].name += "'"
+comp_dims[1].name = AXIS.duplicate(comp_dims[1].name)
 for coord in comp_dims[1].coords:
-    coord.name += "'"
+    coord.name = AXIS.duplicate(coord.name)
 
 
 class CompStats(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="comp-stat",
-            dims=comp_dims,
-            dtype=float,
-            checks=[is_non_negative, has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="comp-stat",
+        dims=comp_dims,
+        dtype=float,
+        checks=[is_non_negative, has_no_nan],
+        allow_extra_coords=False,
     )
 
 
 class PixStats(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="pix-stat",
-            dims=(Dims.width.value, Dims.height.value, Dims.component.value),
-            dtype=float,
-            checks=[is_non_negative, has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="pix-stat",
+        dims=(Dims.width.value, Dims.height.value, Dims.component.value),
+        dtype=float,
+        checks=[is_non_negative, has_no_nan],
+        allow_extra_coords=False,
     )
 
 
 class Overlaps(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="overlap",
-            dims=comp_dims,
-            dtype=bool,
-            checks=[has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="overlap",
+        dims=comp_dims,
+        dtype=bool,
+        checks=[has_no_nan],
+        allow_extra_coords=False,
     )
 
 
@@ -385,14 +366,12 @@ class Buffer(Asset):
     Works by preallocating a space twice the desired size.
     """
 
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Bundle(
-            name="frame",
-            member=Frame.entity(),
-            group_by=Dims.frame.value,
-            checks=[is_non_negative, has_no_nan],
-            allow_extra_coords=False,
-        )
+    xr_schema: ClassVar[Schema] = Bundle(
+        name="frame",
+        member=Frame.entity(),
+        group_by=Dims.frame.value,
+        checks=[is_non_negative, has_no_nan],
+        allow_extra_coords=False,
     )
 
     validate_schema: bool = False
@@ -462,13 +441,11 @@ class Buffer(Asset):
 
 
 class Energy(Asset):
-    xr_schema: ClassVar[Schema] = PrivateAttr(
-        Schema(
-            name="energy",
-            dims=(Dims.width.value, Dims.height.value),
-            dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
-            checks=[is_non_negative, has_no_nan],
-        )
+    xr_schema: ClassVar[Schema] = Schema(
+        name="energy",
+        dims=(Dims.width.value, Dims.height.value),
+        dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
+        checks=[is_non_negative, has_no_nan],
     )
 
     _mean: np.ndarray = PrivateAttr(None)

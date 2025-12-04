@@ -82,9 +82,9 @@ def overlap_format(array: COO, V_comp: xr.DataArray, a_new_comp: xr.DataArray) -
     )
     return xr.DataArray(
         array,
-        dims=(AXIS.component_dim, f"{AXIS.component_dim}'"),
+        dims=(AXIS.component_dim, AXIS.duplicate(AXIS.component_dim)),
         coords={k: (AXIS.component_dim, v) for k, v in prim_coords.items()},
-    ).assign_coords({k: (f"{AXIS.component_dim}'", v) for k, v in seco_coords.items()})
+    ).assign_coords({k: (AXIS.duplicate(AXIS.component_dim), v) for k, v in seco_coords.items()})
 
 
 def assemble_sparse_bool(

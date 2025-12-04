@@ -100,7 +100,7 @@ class Cataloger(Node):
         fps2 = fps.data
 
         smooth_trs = _smooth_traces(trs, self.trace_smooth_kwargs)
-        trs2 = smooth_trs.rename({AXIS.component_dim: f"{AXIS.component_dim}'"})
+        trs2 = smooth_trs.rename({AXIS.component_dim: AXIS.duplicate(AXIS.component_dim)})
         return self._merge_matrix(fps, smooth_trs, fps2, trs2)
 
     def _merge_candidates(
@@ -317,7 +317,7 @@ def _gather_discrete(
     """
     if merge_groups is not None:
         discrete_idx = merge_groups.where(
-            merge_groups.sum(f"{AXIS.component_dim}'") == 0, drop=True
+            merge_groups.sum(AXIS.duplicate(AXIS.component_dim)) == 0, drop=True
         )[AXIS.component_dim].values
     else:
         discrete_idx = np.arange(fps.sizes[AXIS.component_dim])
