@@ -26,10 +26,6 @@ Schematics of the architecture can be found [here](https://lucid.app/documents/e
 3. **API Reference**: Available on [Read the Docs](https://cala.readthedocs.io/en/latest/)
 
 
-## Test Coverage Status
-
-https://app.codecov.io/gh/Aharoni-Lab/cala
-
 ## Contact
 
 For questions or support, please reach out to Raymond Chang
