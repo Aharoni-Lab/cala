@@ -1,36 +1,3 @@
-from enum import StrEnum
-
-
-class classproperty:
-
-    def __init__(self, func):
-        self._func = func
-
-    def __get__(self, obj, owner):
-        return self._func(owner)
-
-
-class Dim(StrEnum):
-    frame = "frame"
-    height = "height"
-    width = "width"
-    component = "component"
-    """Name of the dimension representing individual components."""
-
-    @classproperty
-    def spatial(cls) -> tuple["Dim", "Dim"]:
-        return cls.height, cls.width
-
-
-class Coord(StrEnum):
-    id = "id"
-    timestamp = "timestamp"
-    detect = "detected_on"
-    frame = "frame_idx"
-    width = "width"
-    height = "height"
-
-
 class Axis:
     """Mixin providing common axis-related attributes."""
 

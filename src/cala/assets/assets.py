@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_
 from sparse import COO
 
 from cala.assets.axis import AXIS
-from cala.assets.validate import Coords, Dims, Entity, Group, has_no_nan, is_non_negative
+from cala.assets.validate import Bundle, Coords, Dims, Schema, has_no_nan, is_non_negative
 from cala.config import config
 from cala.util import clear_dir
 
@@ -18,12 +18,12 @@ AssetType = TypeVar("AssetType", xr.DataArray, Path, None)
 
 
 class Asset(BaseModel):
-    validate_schema: bool = False
     array_: AssetType = None
     sparsify: ClassVar[bool] = False
     zarr_path: Path | None = None
     """relative to config.user_data_dir"""
-    _entity: ClassVar[Entity]
+    xr_schema: ClassVar[Schema]
+    validate_schema: bool = False
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
@@ -34,7 +34,7 @@ class Asset(BaseModel):
     @array.setter
     def array(self, value: xr.DataArray) -> None:
         if self.validate_schema:
-            value.validate.against_schema(self._entity.model)
+            value.validate.against_schema(self.xr_schema.model)
         if self.sparsify and isinstance(value.data, np.ndarray):
             value.data = COO.from_numpy(value.data)
         self.array_ = value
@@ -58,13 +58,13 @@ class Asset(BaseModel):
         return self.array.equals(other.array)
 
     @classmethod
-    def entity(cls) -> Entity:
-        return cls._entity
+    def entity(cls) -> Schema:
+        return cls.xr_schema
 
     @model_validator(mode="after")
     def validate_array_schema(self) -> Self:
         if self.validate_schema and self.array_ is not None:
-            self.array_.validate.against_schema(self._entity.model)
+            self.array_.validate.against_schema(self.xr_schema.model)
 
         return self
 
@@ -96,8 +96,8 @@ class Asset(BaseModel):
 
 
 class Footprint(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="footprint",
             dims=(Dims.width.value, Dims.height.value),
             dtype=float,
@@ -107,8 +107,8 @@ class Footprint(Asset):
 
 
 class Trace(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="trace",
             dims=(Dims.frame.value,),
             dtype=float,
@@ -118,8 +118,8 @@ class Trace(Asset):
 
 
 class Frame(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="frame",
             dims=(Dims.width.value, Dims.height.value),
             dtype=None,  # np.number,  # gets converted to float64 in xarray-validate
@@ -129,8 +129,8 @@ class Frame(Asset):
 
 
 class Footprints(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Group(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Bundle(
             name="footprint-group",
             member=Footprint.entity(),
             group_by=Dims.component,
@@ -159,8 +159,8 @@ class Traces(Asset):
     added, these are added in with nan values. 
     """
 
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Group(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Bundle(
             name="trace-group",
             member=Trace.entity(),
             group_by=Dims.component,
@@ -306,8 +306,8 @@ class Traces(Asset):
 
 
 class Movie(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Group(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Bundle(
             name="movie",
             member=Frame.entity(),
             group_by=Dims.frame.value,
@@ -324,8 +324,8 @@ class PopSnap(Asset):
     Mainly used for Traces that only has one frame.
     """
 
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="pop-snap",
             dims=(Dims.component.value,),
             dtype=float,
@@ -342,8 +342,8 @@ for coord in comp_dims[1].coords:
 
 
 class CompStats(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="comp-stat",
             dims=comp_dims,
             dtype=float,
@@ -354,8 +354,8 @@ class CompStats(Asset):
 
 
 class PixStats(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="pix-stat",
             dims=(Dims.width.value, Dims.height.value, Dims.component.value),
             dtype=float,
@@ -366,8 +366,8 @@ class PixStats(Asset):
 
 
 class Overlaps(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="overlap",
             dims=comp_dims,
             dtype=bool,
@@ -385,8 +385,8 @@ class Buffer(Asset):
     Works by preallocating a space twice the desired size.
     """
 
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Group(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Bundle(
             name="frame",
             member=Frame.entity(),
             group_by=Dims.frame.value,
@@ -462,8 +462,8 @@ class Buffer(Asset):
 
 
 class Energy(Asset):
-    _entity: ClassVar[Entity] = PrivateAttr(
-        Entity(
+    xr_schema: ClassVar[Schema] = PrivateAttr(
+        Schema(
             name="energy",
             dims=(Dims.width.value, Dims.height.value),
             dtype=None,  # np.number,  # gets converted to float64 in xarray-validate

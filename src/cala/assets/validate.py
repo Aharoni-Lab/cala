@@ -60,9 +60,10 @@ class Dims(Enum):
     component = Dim(name=AXIS.component_dim, coords=[Coords.id.value, Coords.detected.value])
 
 
-class Entity(BaseModel):
+class Schema(BaseModel):
     """
-    A base entity describable with an xarray dataarray.
+    Wrapper around xarray-schema
+
     """
 
     name: str
@@ -110,12 +111,12 @@ class Entity(BaseModel):
         return CoordsSchema(spec, allow_extra_keys=self.allow_extra_coords)
 
 
-class Group(Entity):
+class Bundle(Schema):
     """
     an xarray dataarray entity that is also a group of entities.
     """
 
-    member: Entity
+    member: Schema
     group_by: Dims | None = None
     dims: tuple[Dim, ...] = Field(default=tuple())
     dtype: type = Field(default=Any)
