@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS, CompStats, Footprints, PixStats
+from cala.arrays import AXIS, CompStats, Footprints, PixStats
 from cala.nodes.omf.footprints import ingest_component
 from cala.testing.toy import FrameDims, Position, Toy
 

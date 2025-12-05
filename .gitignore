@@ -162,5 +162,5 @@ cython_debug/
 .idea/
 .vscode/
 
-# Frontend assets
+# Frontend arrays
 src/cala/gui/static/

@@ -8,7 +8,7 @@ from noob import Name
 from noob.node import Node
 from pydantic import Field
 
-from cala.assets import AXIS, Buffer, Footprint, Trace
+from cala.arrays import AXIS, Buffer, Footprint, Trace
 from cala.logging import init_logger
 from cala.util import rank1nmf
 

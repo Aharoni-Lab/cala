@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from pydantic import BaseModel, ConfigDict
 
-from cala.assets import AXIS, Footprints, PopSnap
+from cala.arrays import AXIS, Footprints, PopSnap
 from cala.gui.components import Encoder
 
 COLOR_MAP = {

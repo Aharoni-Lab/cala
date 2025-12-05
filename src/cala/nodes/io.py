@@ -9,7 +9,7 @@ from natsort import natsorted
 from numpy.typing import NDArray
 from skimage import io
 
-from cala.assets.assets import Asset
+from cala.arrays.assets import Asset
 from cala.config import config
 
 

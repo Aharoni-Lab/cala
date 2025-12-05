@@ -10,7 +10,7 @@ from numpydantic import NDArray
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 from skimage.filters import difference_of_gaussians
 
-from cala.assets import AXIS, Frame
+from cala.arrays import AXIS, Frame
 from cala.testing.util import shift_by
 
 

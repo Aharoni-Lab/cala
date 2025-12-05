@@ -1,6 +1,6 @@
 import numpy as np
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 from cala.nodes.prep.glow_removal import GlowRemover
 from cala.testing.toy import FrameDims, Position, Toy
 

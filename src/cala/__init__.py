@@ -1,3 +1,3 @@
-from cala.assets import xr_access as access
+from cala.arrays import xr_access as access
 
 __all__ = ["access"]

@@ -8,7 +8,7 @@ import xarray as xr
 from pydantic import BaseModel, Field, PrivateAttr
 from xarray_validate import CoordsSchema, DataArraySchema, DimsSchema, DTypeSchema
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 
 
 def is_non_negative(da: xr.DataArray) -> None:

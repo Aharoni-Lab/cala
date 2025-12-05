@@ -9,7 +9,7 @@ from numpydantic.ndarray import NDArray
 from sparse import COO
 from xarray import Coordinates
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 
 
 def create_id() -> str:

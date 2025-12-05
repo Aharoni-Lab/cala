@@ -5,7 +5,7 @@ import numpy as np
 from av.video import VideoStream
 from noob.node import Node
 
-from cala.assets import AXIS, Frame
+from cala.arrays import AXIS, Frame
 from cala.config import config
 from cala.util import clear_dir
 

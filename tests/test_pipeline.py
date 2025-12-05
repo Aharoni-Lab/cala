@@ -4,7 +4,7 @@ import xarray as xr
 from noob import SynchronousRunner, Tube
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 
 
 @pytest.fixture(
@@ -28,7 +28,7 @@ def source(request):
 def tube(source, tmp_path_factory):
     tube = Tube.from_specification("cala-odl")
     tube.nodes["source"] = source
-    # tube.cube.assets["traces"].params["zarr_path"] = tmp_path_factory.mktemp("traces")
+    # tube.cube.arrays["traces"].params["zarr_path"] = tmp_path_factory.mktemp("traces")
 
     return tube
 

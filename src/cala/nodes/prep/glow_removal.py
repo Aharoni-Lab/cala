@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import Frame
+from cala.arrays import Frame
 
 
 class GlowRemover:

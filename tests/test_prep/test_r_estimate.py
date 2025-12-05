@@ -1,6 +1,6 @@
 import pytest
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 from cala.nodes.prep import package_frame
 from cala.nodes.prep.r_estimate import SizeEst
 from cala.testing.toy import Position

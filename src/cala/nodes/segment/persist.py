@@ -2,7 +2,7 @@ from typing import Annotated as A
 
 from noob import Name
 
-from cala.assets import CompStats, Footprints, Movie, Overlaps, PixStats, Traces
+from cala.arrays import CompStats, Footprints, Movie, Overlaps, PixStats, Traces
 from cala.nodes.omf.component_stats import ingest_component as update_component_stats
 from cala.nodes.omf.footprints import ingest_component as update_footprints
 from cala.nodes.omf.overlap import ingest_component as update_overlap
@@ -35,7 +35,7 @@ def update_assets(
     updated_component_stats = update_component_stats(
         component_stats=component_stats, traces=traces, new_traces=new_traces
     )
-    # Shapes and Traces must be updated last to ensure the assets do not include
+    # Shapes and Traces must be updated last to ensure the arrays do not include
     # the new components before we update the others.
     updated_shapes = update_footprints(footprints=footprints, new_footprints=new_footprints)
     updated_traces = update_traces(traces=traces, new_traces=new_traces)

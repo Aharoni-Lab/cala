@@ -14,7 +14,7 @@ from scipy.sparse.csgraph import connected_components
 from skimage.measure import label
 from xarray import Coordinates
 
-from cala.assets import AXIS, Footprint, Footprints, Trace, Traces
+from cala.arrays import AXIS, Footprint, Footprints, Trace, Traces
 from cala.util import combine_attr_replaces, concat_components, create_id, rank1nmf
 
 

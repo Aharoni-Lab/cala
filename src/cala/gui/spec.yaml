@@ -23,10 +23,10 @@ nodes:
   #      frame_rate: 24
   #      gain: 3.0
   #    depends:
-  #      - footprints: assets.footprints
+  #      - footprints: arrays.footprints
   #      - new_traces: trace_frame.latest_trace
   component_count:
     type: cala.gui.components.component_counter
     depends:
       - index: counter.idx
-      - traces: assets.traces
+      - traces: arrays.traces

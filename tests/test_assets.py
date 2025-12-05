@@ -1,6 +1,6 @@
 """
-Since assets without zarr operations is very straightforward,
-this test file is mainly focused on testing zarr-integrated assets,
+Since arrays without zarr operations is very straightforward,
+this test file is mainly focused on testing zarr-integrated arrays,
 with the exception of Buffer.
 
 """
@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from cala.assets import AXIS, Buffer, Traces
+from cala.arrays import AXIS, Buffer, Traces
 
 
 @pytest.mark.parametrize("peek_size", [30, 49, 50, 51, 70])

@@ -1,4 +1,4 @@
-from cala.assets import AXIS, Buffer
+from cala.arrays import AXIS, Buffer
 from cala.nodes.segment.cleanup import clear_overestimates
 
 

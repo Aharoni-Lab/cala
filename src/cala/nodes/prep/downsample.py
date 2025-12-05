@@ -3,7 +3,7 @@ from typing import Annotated as A
 import numpy as np
 from noob import Name
 
-from cala.assets import AXIS, Frame
+from cala.arrays import AXIS, Frame
 from cala.nodes.prep import package_frame
 
 

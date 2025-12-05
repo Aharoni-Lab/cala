@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from scipy.sparse import csc_matrix, vstack
 from sparse import COO
 
-from cala.assets import AXIS, CompStats, Footprints, PixStats
+from cala.arrays import AXIS, CompStats, Footprints, PixStats
 from cala.logging import init_logger
 from cala.util import concatenate_coordinates
 

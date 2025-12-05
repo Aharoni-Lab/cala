@@ -2,7 +2,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS, Footprints, Frame, PixStats, PopSnap, Traces
+from cala.arrays import AXIS, Footprints, Frame, PixStats, PopSnap, Traces
 
 
 @pytest.fixture(scope="function")

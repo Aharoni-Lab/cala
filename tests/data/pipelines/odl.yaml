@@ -4,33 +4,33 @@ noob_version: 0.1.1.dev118+g64d81b7
 
 assets:
   buffer:
-    type: cala.assets.Buffer
+    type: cala.arrays.Buffer
     params:
       size: 100
     scope: runner
   footprints:
-    type: cala.assets.Footprints
+    type: cala.arrays.Footprints
     params:
       sparsify: True
     scope: runner
   traces:
-    type: cala.assets.Traces
+    type: cala.arrays.Traces
     params:
       zarr_path: traces/
       peek_size: 100
       flush_interval: 200
     scope: runner
   pix_stats:
-    type: cala.assets.PixStats
+    type: cala.arrays.PixStats
     scope: runner
   comp_stats:
-    type: cala.assets.CompStats
+    type: cala.arrays.CompStats
     scope: runner
   overlaps:
-    type: cala.assets.Overlaps
+    type: cala.arrays.Overlaps
     scope: runner
   residuals:
-    type: cala.assets.Buffer
+    type: cala.arrays.Buffer
     params:
       size: 100
     scope: runner

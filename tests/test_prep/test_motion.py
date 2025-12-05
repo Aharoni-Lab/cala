@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 from cala.nodes.prep import blur
 from cala.nodes.prep.motion import Anchor, Shift
 from cala.testing.toy import FrameDims, Position, Toy

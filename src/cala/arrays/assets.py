@@ -9,8 +9,8 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, PrivateAttr, field_validator, model_validator
 from sparse import COO
 
-from cala.assets.axis import AXIS
-from cala.assets.validate import Bundle, Coords, Dims, Schema, has_no_nan, is_non_negative
+from cala.arrays.axis import AXIS
+from cala.arrays.validate import Bundle, Coords, Dims, Schema, has_no_nan, is_non_negative
 from cala.config import config
 from cala.util import clear_dir
 

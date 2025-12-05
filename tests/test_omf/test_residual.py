@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from noob.node import Node, NodeSpecification
 
-from cala.assets import AXIS, Buffer, Footprints, Frame, Traces
+from cala.arrays import AXIS, Buffer, Footprints, Frame, Traces
 from cala.nodes.omf.residual import _align_overestimates, _find_unlayered_footprints
 from cala.testing.toy import FrameDims, Position, Toy
 

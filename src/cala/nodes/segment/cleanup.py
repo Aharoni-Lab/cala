@@ -3,7 +3,7 @@ from typing import Annotated as A
 import numpy as np
 from noob import Name
 
-from cala.assets import AXIS, Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
+from cala.arrays import AXIS, Buffer, CompStats, Footprints, Overlaps, PixStats, Traces
 
 
 def deprecate_components(
@@ -21,7 +21,7 @@ def deprecate_components(
     A[Overlaps, Name("overlaps")],
 ]:
     """
-    Deprecate a list of components from all assets involved in omf.
+    Deprecate a list of components from all arrays involved in omf.
 
     """
     keep_mask = ~np.isin(traces.array[AXIS.id_coord].values, remove_ids)

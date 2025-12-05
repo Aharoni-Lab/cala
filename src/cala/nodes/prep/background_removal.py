@@ -8,7 +8,7 @@ from noob import Name
 from scipy.ndimage import uniform_filter
 from skimage.morphology import disk
 
-from cala.assets import Frame
+from cala.arrays import Frame
 
 
 def remove_background(

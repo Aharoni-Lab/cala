@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from sparse import COO
 
-from cala.assets import AXIS, Footprints, Overlaps
+from cala.arrays import AXIS, Footprints, Overlaps
 from cala.util import concatenate_coordinates, sp_matmul, stack_sparse
 
 

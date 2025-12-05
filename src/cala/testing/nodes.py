@@ -6,7 +6,7 @@ import numpy as np
 from noob import Name, process_method
 from pydantic import BaseModel, PrivateAttr, model_validator
 
-from cala.assets import Frame
+from cala.arrays import Frame
 from cala.testing.toy import FrameDims, Position, Toy
 
 

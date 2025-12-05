@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 from noob import Name
 
-from cala.assets import AXIS, Frame
+from cala.arrays import AXIS, Frame
 
 
 def counter(start: int = 0, limit: int = 1e7) -> A[Generator[int], Name("idx")]:

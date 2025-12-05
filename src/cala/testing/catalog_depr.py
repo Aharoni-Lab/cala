@@ -9,7 +9,7 @@ from noob.node import Node
 from pydantic import Field
 from scipy.ndimage import gaussian_filter1d
 
-from cala.assets import AXIS
+from cala.arrays import AXIS
 
 
 class CatalogerDepr(Node):
