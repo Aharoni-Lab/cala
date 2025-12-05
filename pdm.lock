@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "gui", "tests"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:d02754f2363ec34c50db0fe7d4a94b017e21816863471a002e007ed0fd85e128"
+content_hash = "sha256:b791ad4b9d500b62299dfc14d6b10c6b75e16de030f5c33a1234c6b6c7372f5d"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -1821,11 +1821,10 @@ files = [
 
 [[package]]
 name = "noob"
-version = "0.1.1.dev209"
+version = "0.1.1.dev231"
 requires_python = ">=3.11"
 git = "https://github.com/miniscope/noob.git"
-ref = "scheduler-optimize"
-revision = "1cafe617372795c5bfe9c6953416b309572e1676"
+revision = "30a8286a561527456956951ead1c29245511ca90"
 summary = "Default template for PDM package"
 dependencies = [
     "PyYAML>=6.0.2",
